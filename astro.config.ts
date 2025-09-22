@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://example.com',
+  site: 'https://cruzlab.dev',
   integrations: [mdx(), sitemap(), react()],
   vite: {
     plugins: [tailwindcss()],
