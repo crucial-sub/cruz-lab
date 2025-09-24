@@ -9,7 +9,14 @@ export default {
   theme: {
     container: {
       center: true,
-      padding: { DEFAULT: '1rem', lg: '2rem', '2xl': '3rem' },
+      padding: '1rem', // 모든 브레이크포인트에서 16px 고정
+      screens: {
+        sm: '100%',
+        md: '100%',
+        lg: '992px',
+        xl: '992px',
+        '2xl': '992px',
+      },
     },
     borderRadius: {
       none: '0px',
