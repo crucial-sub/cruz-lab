@@ -6,6 +6,32 @@ const { title = 'Cruz Lab', description = 'Developer Portfolio & Blog' } = Astro
 ---
 
 <head>
+  <script is:inline>
+    (() => {
+      const saved = localStorage.getItem('theme'); // 'dark' | 'light' | null
+      const root = document.documentElement;
+      const isDark = saved !== 'light'; // 기본값: 다크
+      root.classList.toggle('dark', isDark);
+      root.classList.toggle('light', !isDark);
+    })();
+  </script>
+
+  <!-- Font preloads -->
+  <link
+    rel="preload"
+    as="font"
+    href="/fonts/pretendard/PretendardVariable.woff2"
+    type="font/woff2"
+    crossorigin
+  />
+  <link
+    rel="preload"
+    as="font"
+    href="/fonts/jetbrains-mono/JetBrainsMono-Regular.woff2"
+    type="font/woff2"
+    crossorigin
+  />
+
   <!-- Global Metadata -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />

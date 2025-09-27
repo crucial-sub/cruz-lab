@@ -4,70 +4,115 @@ import GithubBlack from '@/assets/img/github-mark.svg';
 import { Image } from 'astro:assets';
 
 const menu = [
-  {
-    link: '/posts/',
-    label: 'Posts',
-  },
-  {
-    link: '/projects/',
-    label: 'Projects',
-  },
+  { link: '/', label: 'Home' },
+  { link: '/posts/', label: 'Posts' },
+  { link: '/projects/', label: 'Projects' },
 ];
+
+const { pathname } = Astro.url;
+// /posts/some-article → /posts/ 활성으로 처리
+const isActive = (href: string) => pathname === href || (href !== '/' && pathname.startsWith(href));
 ---
 
-<header class="bg-bg-app/70 sticky top-0 z-[999] border-b border-border backdrop-blur-md">
-  <div class="container">
-    <nav class="flex items-center justify-between gap-4 py-3">
-      <h2 class="m-0">
-        <a href="/" class="flex items-center gap-4 text-xl font-black uppercase">
-          <!-- You can use your site logo, rounded ava or simply your site name here-->
-          <a href="/" class="font-bold">Cruz</a>
-          <!-- {SITE_TITLE} -->
-        </a>
-      </h2>
-      <div class="flex">
-        <a class="p-3 dark:hidden" href="https://github.com/crucial-sub" target="_blank"
-          ><Image src={GithubBlack} width={24} height={24} alt="Github logo" /></a
-        >
-        <a class="hidden p-3 dark:block" href="https://github.com/crucial-sub" target="_blank"
-          ><Image src={GithubWhite} width={24} height={24} alt="Github logo" /></a
-        >
-        <button id="theme-toggle" class="btn-ghost rounded-xl p-2" aria-label="Toggle color scheme">
-          <span class="sr-only">Toggle theme</span>
-
-          <!-- 다크모드일 때 보임 (light일 때 숨김) -->
-          <svg
-            class="inline-block h-6 w-6 dark:inline-block"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
-          </svg>
-
-          <!-- 라이트모드일 때 보임 (dark일 때 숨김) -->
-          <svg
-            class="hidden h-6 w-6 dark:hidden"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="12" cy="12" r="4"></circle>
-            <path d="M12 2v2"></path><path d="M12 20v2"></path>
-            <path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path>
-            <path d="M2 12h2"></path><path d="M20 12h2"></path>
-            <path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path>
-          </svg>
-        </button>
-      </div>
-    </nav>
-  </div>
+<header
+  class="sticky top-0 z-[999] border-b border-border bg-[rgb(var(--bg-app-rgb)/0.75)] backdrop-blur-md"
+>
 </header>
+<div class="container">
+  <nav class="flex items-center justify-between gap-4 py-3">
+    <h2 class="m-0">
+      <a href="/" class="flex items-center gap-4 text-xl font-black uppercase">
+        <a href="/" class="font-bold">Cruz</a>
+      </a>
+    </h2>
+    <div class="flex">
+      <a class="p-3 dark:hidden" href="https://github.com/crucial-sub" target="_blank"
+        ><Image src={GithubBlack} width={24} height={24} alt="Github logo" /></a
+      >
+      <a class="hidden p-3 dark:block" href="https://github.com/crucial-sub" target="_blank"
+        ><Image src={GithubWhite} width={24} height={24} alt="Github logo" /></a
+      >
+      <button id="theme-toggle" class="btn-ghost rounded-xl p-2" aria-label="Toggle color scheme">
+        <span class="sr-only">Toggle theme</span>
+
+        <!-- 다크모드일 때 보임 (light일 때 숨김) -->
+        <svg
+          class="hidden h-6 w-6 dark:inline-block"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+        </svg>
+
+        <!-- 라이트모드일 때 보임 (dark일 때 숨김) -->
+        <svg
+          class="inline-block h-6 w-6 dark:hidden"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2"></path><path d="M12 20v2"></path>
+          <path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path>
+          <path d="M2 12h2"></path><path d="M20 12h2"></path>
+          <path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path>
+        </svg>
+      </button>
+      <script is:inline>
+        // 버튼 클릭 시 .dark / .light 토글 + 로컬 저장
+        document.getElementById('theme-toggle')?.addEventListener('click', () => {
+          const root = document.documentElement;
+          const toLight = root.classList.contains('dark'); // 현재 다크면 라이트로 전환
+          root.classList.toggle('dark', !toLight);
+          root.classList.toggle('light', toLight);
+          localStorage.setItem('theme', toLight ? 'light' : 'dark');
+        });
+      </script>
+    </div>
+  </nav>
+  <div class="fixed left-1/2 top-3 z-[999] w-auto max-w-full -translate-x-1/2 px-3">
+    <div
+      class="relative flex rounded-full border border-border bg-[rgb(var(--bg-surface-rgb)/0.9)] px-2.5 leading-tight backdrop-blur-md [--tab-py:12px]"
+    >
+      {
+        menu.map((item) => (
+          <div class="px-2.5 text-sm">
+            <a
+              href={item.link}
+              data-active={isActive(item.link) ? 'true' : 'false'}
+              class="relative flex items-center gap-2 py-[var(--tab-py)] text-text-secondary transition hover:text-text-primary data-[active=true]:text-brand data-[active=true]:shadow-[inset_0_-1px_0_0_currentColor]"
+            >
+              {item.label === 'Home' ? (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" />
+                  <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                </svg>
+              ) : (
+                <span>{item.label}</span>
+              )}
+            </a>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</div>
