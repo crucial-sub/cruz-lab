@@ -1,12 +1,12 @@
 ---
+import me from '../assets/img/profile.svg';
+import Hero from '../components/Hero.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
 
 const title = 'Home';
-const description = 'Cruz Lab — Developer Portfolio & Blog';
+const description = 'Cruz — Developer Portfolio & Blog';
 ---
 
-<BaseLayout {title} {description}>
-  <!-- 접근성용 h1만 넣고 비워둠 -->
-  <h1 class="sr-only">Home</h1>
-  {/* 여긴 비워둠: 나중에 섹션들을 하나씩 추가 */}
+<BaseLayout title={title} description={description}>
+  <Hero name="Cruz" photo={me} />
 </BaseLayout>

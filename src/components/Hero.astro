@@ -1,0 +1,68 @@
+---
+import { Image } from 'astro:assets';
+
+interface Props {
+  name?: string;
+  intro1?: string;
+  intro2?: string;
+  intro3?: string;
+  photo?: any | string;
+  alt?: string;
+}
+
+const {
+  name = 'Your Name',
+  intro1 = '아이디어를 코드로 구현하는 과정에 매력을 느껴 프론트엔드 개발을 시작했습니다.',
+  intro2 = '크래프톤 정글에서 5개월간의 몰입 학습을 통해, 단순히 화면을 만드는 것을 넘어 컴퓨터 과학의 이해를 바탕으로 코드를 작성하는 능력을 키웠습니다.',
+  intro3 = '동료와의 협업을 통해 더 나은 결과물을 만드는 과정에서 가장 큰 성취감을 느낍니다.',
+  photo,
+  alt = 'Profile photo',
+} = Astro.props;
+---
+
+<section class="">
+  <div class="grid items-center gap-8 md:grid-cols-2">
+    <!-- Left -->
+    <div class="space-y-5">
+      <h1 class="text-4xl font-extrabold">
+        Hi There <span aria-hidden="true">👋</span>, {name} Here!
+      </h1>
+      <p class="text-lg text-text-secondary">
+        {intro1}<br />{intro2}<br />{intro3}
+      </p>
+    </div>
+
+    <!-- Right: 1:1 정사각, 모바일 240px / md↑ 300px, 둥근+3도 회전 -->
+    <div class="relative ml-auto h-[240px] w-[240px] shrink-0 md:h-[300px] md:w-[300px]">
+      <div class="h-full w-full rotate-3 overflow-hidden rounded-[24px] bg-brand">
+        {
+          typeof photo === 'string' ? (
+            <img
+              src={photo}
+              width="300"
+              height="300"
+              alt={alt}
+              loading="eager"
+              decoding="async"
+              class="block h-full w-full object-cover"
+            />
+          ) : photo ? (
+            <Image
+              src={photo}
+              width={300}
+              height={300}
+              alt={alt}
+              sizes="(min-width: 768px) 300px, 240px"
+              class="block h-full w-full object-cover"
+              loading="eager"
+            />
+          ) : (
+            <div class="flex h-full w-full items-center justify-center bg-[rgb(var(--bg-surface-rgb))] text-text-secondary">
+              profile image
+            </div>
+          )
+        }
+      </div>
+    </div>
+  </div>
+</section>
