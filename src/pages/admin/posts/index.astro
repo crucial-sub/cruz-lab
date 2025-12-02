@@ -1,0 +1,23 @@
+---
+export const prerender = true;
+
+// 포스트 관리 페이지
+// 모든 포스트 목록 조회, 검색, 필터링, 삭제 기능
+import BaseLayout from '@/layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="포스트 관리 - Cruz Lab Admin">
+  <div id="post-list-root"></div>
+</BaseLayout>
+
+<script>
+  import { createElement } from 'react';
+  import { createRoot } from 'react-dom/client';
+  import PostList from '@/components/admin/PostList';
+
+  const container = document.getElementById('post-list-root');
+  if (container) {
+    const root = createRoot(container);
+    root.render(createElement(PostList));
+  }
+</script>

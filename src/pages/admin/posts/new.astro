@@ -1,0 +1,302 @@
+---
+export const prerender = true;
+
+// 새 포스트 작성 페이지
+// 풀스크린 에디터 (Velog 스타일)
+import EditorPage from '@/components/editor/EditorPage';
+import '@/styles/global.css';
+---
+
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>새 글 작성 - Cruz Lab</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <!-- highlight.js 테마 (GitHub Dark) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" />
+</head>
+<body class="bg-white">
+  <EditorPage client:only="react" mode="create" />
+
+  <style is:global>
+    /* ============================================
+       CodeMirror 에디터 - Velog 스타일 완전 재구현
+       ============================================ */
+
+    /* 기본 에디터 설정 */
+    .cm-editor {
+      height: 100% !important;
+      font-size: 18px !important;
+      background: transparent !important;
+    }
+
+    .cm-scroller {
+      overflow: auto !important;
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
+    }
+
+    /* ★★★ 핵심: 모든 텍스트를 검은색으로 ★★★ */
+    .cm-content {
+      color: #212529 !important;
+      caret-color: #10b981 !important;
+    }
+
+    .cm-line {
+      color: #212529 !important;
+      line-height: 1.8 !important;
+      padding: 2px 0 !important;
+    }
+
+    /* 포커스 아웃라인 제거 */
+    .cm-focused {
+      outline: none !important;
+    }
+
+    .cm-focused .cm-cursor {
+      border-left-color: #10b981 !important;
+    }
+
+    /* 플레이스홀더 */
+    .cm-placeholder {
+      color: #adb5bd !important;
+    }
+
+    /* ============================================
+       마크다운 헤딩 스타일 (Velog 스타일)
+       ============================================ */
+
+    /* H1: # 포함 전체 라인이 크고 굵게 */
+    .cm-header-1 {
+      font-size: 2rem !important;
+      font-weight: 700 !important;
+      color: #212529 !important;
+      line-height: 1.4 !important;
+    }
+
+    /* H2 */
+    .cm-header-2 {
+      font-size: 1.5rem !important;
+      font-weight: 600 !important;
+      color: #212529 !important;
+      line-height: 1.4 !important;
+    }
+
+    /* H3 */
+    .cm-header-3 {
+      font-size: 1.25rem !important;
+      font-weight: 600 !important;
+      color: #212529 !important;
+      line-height: 1.5 !important;
+    }
+
+    /* H4 */
+    .cm-header-4 {
+      font-size: 1.125rem !important;
+      font-weight: 600 !important;
+      color: #212529 !important;
+      line-height: 1.5 !important;
+    }
+
+    /* ============================================
+       인라인 포맷 스타일
+       ============================================ */
+
+    /* 굵은 글씨 **text** */
+    .cm-strong {
+      font-weight: 700 !important;
+      color: #212529 !important;
+    }
+
+    /* 이탤릭 *text* */
+    .cm-emphasis {
+      font-style: italic !important;
+      color: #212529 !important;
+    }
+
+    /* 취소선 ~~text~~ */
+    .cm-strikethrough {
+      text-decoration: line-through !important;
+      color: #212529 !important;
+    }
+
+    /* ============================================
+       인용문 스타일
+       ============================================ */
+    .cm-quote {
+      color: #868e96 !important;
+      font-style: italic !important;
+    }
+
+    /* ============================================
+       링크 스타일
+       ============================================ */
+    .cm-link {
+      color: #10b981 !important;
+      text-decoration: underline !important;
+    }
+
+    .cm-url {
+      color: #868e96 !important;
+    }
+
+    /* ============================================
+       코드 스타일
+       ============================================ */
+
+    /* 인라인 코드 `code` */
+    .cm-monospace {
+      font-family: 'Fira Code', 'JetBrains Mono', Consolas, monospace !important;
+      background-color: #f1f3f5 !important;
+      color: #e64980 !important;
+      padding: 2px 6px !important;
+      border-radius: 4px !important;
+      font-size: 0.9em !important;
+    }
+
+    /* 코드블록 ``` */
+    .cm-line:has(.cm-monospace) {
+      background-color: transparent !important;
+    }
+
+    /* 코드블록 내부 - fenced code */
+    .ͼ1 .cm-line {
+      color: #212529 !important;
+    }
+
+    /* ============================================
+       선택 영역 스타일
+       ============================================ */
+    .cm-selectionBackground {
+      background-color: #10b98133 !important;
+    }
+
+    &.cm-focused .cm-selectionBackground,
+    .cm-focused .cm-selectionBackground {
+      background-color: #10b98144 !important;
+    }
+
+    /* 활성 라인 배경 제거 */
+    .cm-activeLine {
+      background-color: transparent !important;
+    }
+
+    .cm-activeLineGutter {
+      background-color: transparent !important;
+    }
+
+    /* ============================================
+       미리보기 영역 prose 스타일
+       ============================================ */
+    .prose {
+      color: #212529;
+    }
+
+    .prose h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      color: #212529;
+    }
+
+    .prose h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-top: 2.5rem;
+      margin-bottom: 1rem;
+      color: #212529;
+    }
+
+    .prose h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-top: 2rem;
+      margin-bottom: 0.75rem;
+      color: #212529;
+    }
+
+    .prose h4 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin-top: 1.5rem;
+      margin-bottom: 0.5rem;
+      color: #212529;
+    }
+
+    .prose p {
+      margin: 1rem 0;
+      line-height: 1.875;
+      color: #495057;
+    }
+
+    .prose ul,
+    .prose ol {
+      padding-left: 1.5rem;
+      margin: 1rem 0;
+    }
+
+    .prose li {
+      margin: 0.375rem 0;
+      color: #495057;
+    }
+
+    .prose blockquote {
+      border-left: 4px solid #10b981;
+      padding-left: 1rem;
+      margin: 1.5rem 0;
+      color: #868e96;
+      font-style: italic;
+    }
+
+    .prose pre {
+      background-color: #1e1e1e;
+      color: #e5e7eb;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      overflow-x: auto;
+      margin: 1.5rem 0;
+    }
+
+    .prose code {
+      font-family: 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+      font-size: 0.875rem;
+    }
+
+    .prose pre code.hljs {
+      background: transparent;
+      padding: 0;
+    }
+
+    .prose img {
+      max-width: 100%;
+      border-radius: 0.5rem;
+      margin: 1.5rem 0;
+    }
+
+    .prose a {
+      color: #10b981;
+      text-decoration: underline;
+    }
+
+    .prose hr {
+      border: none;
+      border-top: 1px solid #e5e7eb;
+      margin: 2.5rem 0;
+    }
+
+    .prose strong {
+      font-weight: 700;
+      color: #212529;
+    }
+
+    .prose em {
+      font-style: italic;
+    }
+
+    .prose del {
+      text-decoration: line-through;
+      color: #868e96;
+    }
+  </style>
+</body>
+</html>
