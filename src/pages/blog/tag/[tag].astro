@@ -1,0 +1,116 @@
+---
+import { getCollection } from 'astro:content';
+import BlogCard from '@/components/islands/BlogCard';
+import FadeInSection from '@/components/islands/FadeInSection';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+
+export async function getStaticPaths() {
+  const allPosts = await getCollection('blog');
+
+  // 모든 태그 추출
+  const allTags = [...new Set(allPosts.flatMap((post) => post.data.tags))];
+
+  return allTags.map((tag) => ({
+    params: { tag },
+    props: {
+      tag,
+      posts: allPosts
+        .filter((post) => post.data.tags.includes(tag))
+        .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()),
+      allTags,
+    },
+  }));
+}
+
+const { tag, posts, allTags } = Astro.props;
+
+const title = `${tag} 태그 포스트`;
+const description = `${tag} 태그가 포함된 블로그 포스트 목록`;
+---
+
+<BaseLayout title={title} description={description}>
+  <div class="py-8">
+    <!-- 페이지 헤더 -->
+    <FadeInSection client:visible>
+      <div class="mb-8">
+        <a
+          href="/blog"
+          class="group mb-4 inline-flex items-center gap-2 text-text-secondary transition-colors hover:text-brand"
+        >
+          <svg
+            class="h-4 w-4 transition-transform group-hover:-translate-x-1"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"
+            ></path>
+          </svg>
+          전체 포스트 보기
+        </a>
+
+        <h1 class="mb-4 text-4xl font-extrabold md:text-5xl">
+          <span class="text-brand">#{tag}</span>
+        </h1>
+        <p class="text-lg text-text-secondary">
+          {posts.length}개의 포스트
+        </p>
+      </div>
+    </FadeInSection>
+
+    <!-- 태그 필터 -->
+    <FadeInSection client:visible delay={0.1}>
+      <div class="mb-8 flex flex-wrap gap-2">
+        <a
+          href="/blog"
+          class="rounded-full border border-border bg-bg-surface px-4 py-1.5 text-sm font-medium text-text-secondary transition-colors hover:border-brand hover:text-brand"
+        >
+          전체
+        </a>
+        {
+          allTags.map((t: string) => (
+            <a
+              href={`/blog/tag/${t}`}
+              class={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                t === tag
+                  ? 'bg-brand text-white'
+                  : 'border border-border bg-bg-surface text-text-secondary hover:border-brand hover:text-brand'
+              }`}
+            >
+              {t}
+            </a>
+          ))
+        }
+      </div>
+    </FadeInSection>
+
+    <!-- 포스트 그리드 -->
+    <FadeInSection client:visible delay={0.2}>
+      <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {
+          posts.map((post: any, index: number) => (
+            <BlogCard
+              client:visible
+              title={post.data.title}
+              description={post.data.description}
+              pubDate={post.data.pubDate}
+              heroImage={post.data.heroImage?.src}
+              tags={post.data.tags}
+              slug={post.id}
+              index={index}
+            />
+          ))
+        }
+      </div>
+    </FadeInSection>
+
+    <!-- 포스트가 없을 경우 -->
+    {
+      posts.length === 0 && (
+        <div class="py-16 text-center">
+          <p class="text-lg text-text-secondary">해당 태그의 포스트가 없습니다.</p>
+        </div>
+      )
+    }
+  </div>
+</BaseLayout>
