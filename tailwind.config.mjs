@@ -75,9 +75,48 @@ export default {
         card: 'var(--shadow-card)', // 0 1px 0 rgba(255,255,255,0.02), 0 6px 20px rgba(0,0,0,0.35)
         popover: 'var(--shadow-popover)', // 0 10px 30px rgba(0,0,0,0.45)
       },
+      // Typography 커스터마이징
+      typography: ({ theme }) => ({
+        DEFAULT: {
+          css: {
+            '--tw-prose-body': 'var(--text-primary)',
+            '--tw-prose-headings': 'var(--text-primary)',
+            '--tw-prose-lead': 'var(--text-secondary)',
+            '--tw-prose-links': 'var(--brand)',
+            '--tw-prose-bold': 'var(--text-primary)',
+            '--tw-prose-counters': 'var(--text-secondary)',
+            '--tw-prose-bullets': 'var(--text-secondary)',
+            '--tw-prose-hr': 'var(--border)',
+            '--tw-prose-quotes': 'var(--text-primary)',
+            '--tw-prose-quote-borders': 'var(--brand)',
+            '--tw-prose-captions': 'var(--text-secondary)',
+            '--tw-prose-code': 'var(--brand-weak)',
+            '--tw-prose-pre-code': 'var(--text-primary)',
+            '--tw-prose-pre-bg': 'var(--bg-surface)',
+            '--tw-prose-th-borders': 'var(--border)',
+            '--tw-prose-td-borders': 'var(--border)',
+            'code::before': { content: 'none' },
+            'code::after': { content: 'none' },
+            a: {
+              textDecoration: 'none',
+              '&:hover': {
+                color: 'var(--brand-hover)',
+              },
+            },
+            'pre': {
+              borderRadius: '12px',
+              border: '1px solid var(--border)',
+            },
+            'blockquote': {
+              borderLeftColor: 'var(--brand)',
+              fontStyle: 'normal',
+            },
+          },
+        },
+      }),
     },
   },
   plugins: [
-    // require('@tailwindcss/typography'), // 사용 시 주석 해제
+    require('@tailwindcss/typography'),
   ],
 };

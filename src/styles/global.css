@@ -145,6 +145,28 @@
 /* =========================================================
    Components
    ========================================================= */
+@layer components {
+  .tag {
+    @apply inline-flex items-center gap-1 rounded-2xl border border-border px-2 py-0.5 text-sm text-text-secondary no-underline transition-colors duration-300;
+  }
+  .tag:hover {
+    @apply border-text-primary text-text-primary;
+  }
+
+  .tag-sm {
+    @apply px-1.5 py-[2px] text-xs;
+  }
+  .tag-lg {
+    @apply px-3 py-1 text-sm;
+  }
+
+  .tag-brand {
+    @apply border-[color:var(--brand)] text-brand;
+  } /* #10B981 */
+  .tag-soft {
+    @apply border-transparent bg-[color:var(--brand-tint)] text-brand;
+  } /* #07221B */
+}
 
 /* =========================================================
    Code
@@ -153,6 +175,83 @@
 /* =========================================================
    Utilities
    ========================================================= */
+
+/* =========================================================
+   Animations
+   ========================================================= */
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0) rotate(3deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(3deg);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(16, 185, 129, 0.5);
+  }
+}
+
+@keyframes blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}
+
+.animated-gradient {
+  background: linear-gradient(
+    -45deg,
+    var(--brand-tint),
+    var(--bg-app),
+    rgba(16, 185, 129, 0.05),
+    var(--bg-surface)
+  );
+  background-size: 400% 400%;
+  animation: gradient-shift 15s ease infinite;
+}
+
+.float-animation {
+  animation: float 6s ease-in-out infinite;
+}
+
+.pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+/* 링크 호버 언더라인 애니메이션 */
+.link-underline {
+  position: relative;
+}
+.link-underline::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--brand);
+  transition: width 0.3s ease;
+}
+.link-underline:hover::after {
+  width: 100%;
+}
 
 /* 라이트 테마 오버레이 */
 html.light {
