@@ -1,0 +1,110 @@
+---
+import { getCollection } from 'astro:content';
+import FadeInSection from '@/components/islands/FadeInSection';
+import ProjectCard from '@/components/islands/ProjectCard';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+
+const title = 'Projects';
+const description = 'Cruz의 프로젝트 포트폴리오 - 프론트엔드, 시스템 프로그래밍, 협업 도구 등';
+
+// 프로젝트 컬렉션에서 모든 프로젝트 가져오기
+const allProjects = await getCollection('projects');
+
+// order 필드로 정렬 (낮은 순서가 먼저)
+const sortedProjects = allProjects.sort((a, b) => a.data.order - b.data.order);
+
+// Featured 프로젝트와 일반 프로젝트 분리
+const featuredProjects = sortedProjects.filter((p) => p.data.featured);
+const otherProjects = sortedProjects.filter((p) => !p.data.featured);
+---
+
+<BaseLayout title={title} description={description}>
+  <div class="py-8">
+    <!-- 페이지 헤더 -->
+    <FadeInSection client:visible>
+      <div class="mb-12 text-center">
+        <h1 class="mb-4 text-4xl font-extrabold md:text-5xl">
+          <span class="text-brand">Projects</span>
+        </h1>
+        <p class="mx-auto max-w-2xl text-lg text-text-secondary">
+          운영체제부터 웹 애플리케이션까지, 다양한 도메인에서의 프로젝트 경험을 소개합니다.
+        </p>
+      </div>
+    </FadeInSection>
+
+    <!-- Featured 프로젝트 섹션 -->
+    {
+      featuredProjects.length > 0 && (
+        <FadeInSection client:visible delay={0.1}>
+          <section class="mb-16">
+            <h2 class="mb-6 flex items-center gap-2 text-2xl font-bold">
+              <span class="text-brand">Featured</span>
+              <span class="rounded-full bg-brand/10 px-3 py-1 text-sm font-medium text-brand">
+                {featuredProjects.length}
+              </span>
+            </h2>
+            <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {featuredProjects.map((project, index) => (
+                <ProjectCard
+                  client:visible
+                  title={project.data.title}
+                  description={project.data.description}
+                  image={project.data.image.src}
+                  tags={project.data.tags}
+                  tech={project.data.tech}
+                  github={project.data.github}
+                  demo={project.data.demo}
+                  slug={project.id}
+                  featured={project.data.featured}
+                  index={index}
+                />
+              ))}
+            </div>
+          </section>
+        </FadeInSection>
+      )
+    }
+
+    <!-- 다른 프로젝트 섹션 -->
+    {
+      otherProjects.length > 0 && (
+        <FadeInSection client:visible delay={0.2}>
+          <section>
+            <h2 class="mb-6 flex items-center gap-2 text-2xl font-bold">
+              <span>Other Projects</span>
+              <span class="rounded-full bg-bg-secondary px-3 py-1 text-sm font-medium text-text-secondary">
+                {otherProjects.length}
+              </span>
+            </h2>
+            <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {otherProjects.map((project, index) => (
+                <ProjectCard
+                  client:visible
+                  title={project.data.title}
+                  description={project.data.description}
+                  image={project.data.image.src}
+                  tags={project.data.tags}
+                  tech={project.data.tech}
+                  github={project.data.github}
+                  demo={project.data.demo}
+                  slug={project.id}
+                  featured={project.data.featured}
+                  index={index}
+                />
+              ))}
+            </div>
+          </section>
+        </FadeInSection>
+      )
+    }
+
+    <!-- 프로젝트가 없을 경우 -->
+    {
+      sortedProjects.length === 0 && (
+        <div class="py-16 text-center">
+          <p class="text-lg text-text-secondary">아직 등록된 프로젝트가 없습니다.</p>
+        </div>
+      )
+    }
+  </div>
+</BaseLayout>

@@ -1,0 +1,223 @@
+---
+import { getCollection, render } from 'astro:content';
+import FadeInSection from '@/components/islands/FadeInSection';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+
+export async function getStaticPaths() {
+  const projects = await getCollection('projects');
+  return projects.map((project) => ({
+    params: { slug: project.id },
+    props: { project },
+  }));
+}
+
+const { project } = Astro.props;
+const { Content } = await render(project);
+
+const {
+  title,
+  description,
+  longDescription,
+  image,
+  tags,
+  tech,
+  github,
+  demo,
+  startDate,
+  endDate,
+} = project.data;
+
+// 날짜 포맷팅
+const formatDate = (date: Date | undefined) => {
+  if (!date) return null;
+  return new Intl.DateTimeFormat('ko-KR', {
+    year: 'numeric',
+    month: 'long',
+  }).format(date);
+};
+
+const formattedStartDate = formatDate(startDate);
+const formattedEndDate = formatDate(endDate);
+const dateRange =
+  formattedStartDate && formattedEndDate
+    ? `${formattedStartDate} - ${formattedEndDate}`
+    : formattedStartDate || formattedEndDate || null;
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  image={image?.src}
+  tags={tags}
+>
+  <article class="py-8">
+    <!-- 뒤로가기 링크 -->
+    <FadeInSection client:visible>
+      <a
+        href="/projects"
+        class="group mb-8 inline-flex items-center gap-2 text-text-secondary transition-colors hover:text-brand"
+      >
+        <svg class="h-4 w-4 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+        </svg>
+        프로젝트 목록으로
+      </a>
+    </FadeInSection>
+
+    <!-- 헤더 영역 -->
+    <FadeInSection client:visible delay={0.1}>
+      <header class="mb-12">
+        <!-- 태그 -->
+        <div class="mb-4 flex flex-wrap gap-2">
+          {
+            tags.map((tag: string) => (
+              <span class="rounded-full bg-brand/10 px-3 py-1 text-sm font-medium text-brand">
+                {tag}
+              </span>
+            ))
+          }
+        </div>
+
+        <!-- 제목 -->
+        <h1 class="mb-4 text-4xl font-extrabold md:text-5xl">{title}</h1>
+
+        <!-- 설명 -->
+        <p class="mb-6 text-xl text-text-secondary leading-relaxed">
+          {longDescription || description}
+        </p>
+
+        <!-- 메타 정보 -->
+        <div class="flex flex-wrap items-center gap-6 text-text-secondary">
+          {
+            dateRange && (
+              <div class="flex items-center gap-2">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                <span>{dateRange}</span>
+              </div>
+            )
+          }
+
+          {
+            github && (
+              <a
+                href={github}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex items-center gap-2 transition-colors hover:text-brand"
+              >
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                </svg>
+                GitHub
+              </a>
+            )
+          }
+
+          {
+            demo && (
+              <a
+                href={demo}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex items-center gap-2 transition-colors hover:text-brand"
+              >
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                  />
+                </svg>
+                Live Demo
+              </a>
+            )
+          }
+        </div>
+      </header>
+    </FadeInSection>
+
+    <!-- 대표 이미지 -->
+    <FadeInSection client:visible delay={0.2}>
+      <div class="mb-12 overflow-hidden rounded-2xl border border-border bg-bg-surface">
+        <img
+          src={image.src}
+          alt={title}
+          class="w-full object-cover"
+          loading="eager"
+        />
+      </div>
+    </FadeInSection>
+
+    <!-- 기술 스택 -->
+    <FadeInSection client:visible delay={0.3}>
+      <section class="mb-12">
+        <h2 class="mb-4 text-xl font-bold">기술 스택</h2>
+        <div class="flex flex-wrap gap-2">
+          {
+            tech.map((t: string) => (
+              <span class="rounded-lg border border-border bg-bg-secondary px-4 py-2 text-sm font-medium text-text-primary">
+                {t}
+              </span>
+            ))
+          }
+        </div>
+      </section>
+    </FadeInSection>
+
+    <!-- 본문 콘텐츠 -->
+    <FadeInSection client:visible delay={0.4}>
+      <div class="prose prose-lg max-w-none">
+        <Content />
+      </div>
+    </FadeInSection>
+
+    <!-- 하단 CTA -->
+    <FadeInSection client:visible delay={0.5}>
+      <div class="mt-16 flex flex-wrap justify-center gap-4 border-t border-border pt-12">
+        {
+          github && (
+            <a
+              href={github}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-2 rounded-xl border border-border bg-bg-surface px-6 py-3 font-semibold transition-colors hover:border-brand hover:text-brand"
+            >
+              <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+              </svg>
+              소스 코드 보기
+            </a>
+          )
+        }
+        {
+          demo && (
+            <a
+              href={demo}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-3 font-semibold text-white transition-colors hover:bg-brand-hover"
+            >
+              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                />
+              </svg>
+              라이브 데모
+            </a>
+          )
+        }
+      </div>
+    </FadeInSection>
+  </article>
+</BaseLayout>
