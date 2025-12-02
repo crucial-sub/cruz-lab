@@ -1,12 +1,74 @@
 ---
+import ExperienceList from '@/components/ExperienceList.astro';
+import PostsPreview from '@/components/PostsPreview.astro';
+import ProjectsPreview from '@/components/ProjectsPreview.astro';
+import ContactSection from '@/components/islands/ContactSection';
+import CursorFollower from '@/components/islands/CursorFollower';
+import FadeInSection from '@/components/islands/FadeInSection';
+import InteractiveHero from '@/components/islands/InteractiveHero';
+import ScrollProgress from '@/components/islands/ScrollProgress';
+import SkillsSection from '@/components/islands/SkillsSection';
+import StatsSection from '@/components/islands/StatsSection';
 import me from '../assets/img/profile.svg';
-import Hero from '../components/Hero.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
 
 const title = 'Home';
-const description = 'Cruz — Developer Portfolio & Blog';
+const description = 'Cruz — Frontend Developer Portfolio & Blog';
+
+// Hero에서 사용할 역할 텍스트
+const roles = [
+  'Frontend Developer',
+  'React Enthusiast',
+  'UI/UX Explorer',
+  'Problem Solver',
+];
+
+const intro = '아이디어를 코드로 구현하는 과정에 매력을 느껴 프론트엔드 개발을 시작했습니다. 크래프톤 정글에서 5개월간의 몰입 학습을 통해 CS 기반을 다졌고, 동료와의 협업을 통해 더 나은 결과물을 만드는 과정에서 가장 큰 성취감을 느낍니다.';
 ---
 
 <BaseLayout title={title} description={description}>
-  <Hero name="Cruz" photo={me} />
+  <!-- 커스텀 커서 (데스크톱만) -->
+  <CursorFollower client:load />
+
+  <!-- 스크롤 프로그레스 바 -->
+  <ScrollProgress client:load />
+
+  <!-- Hero 섹션 -->
+  <InteractiveHero
+    client:load
+    name="Cruz"
+    roles={roles}
+    intro={intro}
+    photoSrc={me.src}
+  />
+
+  <!-- Experience 섹션 -->
+  <FadeInSection client:visible delay={0.2}>
+    <ExperienceList />
+  </FadeInSection>
+
+  <!-- Featured Projects 섹션 -->
+  <FadeInSection client:visible delay={0.1}>
+    <ProjectsPreview />
+  </FadeInSection>
+
+  <!-- Stats 카운트업 섹션 -->
+  <FadeInSection client:visible delay={0.1}>
+    <StatsSection client:visible />
+  </FadeInSection>
+
+  <!-- Skills 섹션 -->
+  <FadeInSection client:visible delay={0.1}>
+    <SkillsSection client:visible />
+  </FadeInSection>
+
+  <!-- Latest Posts 섹션 -->
+  <FadeInSection client:visible delay={0.1}>
+    <PostsPreview />
+  </FadeInSection>
+
+  <!-- Contact 섹션 -->
+  <FadeInSection client:visible delay={0.1}>
+    <ContactSection client:visible />
+  </FadeInSection>
 </BaseLayout>

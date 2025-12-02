@@ -1,0 +1,54 @@
+---
+import ExpCard from '@/components/islands/ExpCard';
+---
+
+<section class="mt-12">
+  <h2 class="mb-8 text-2xl font-bold">Experience / Education</h2>
+
+  <div class="flex flex-col gap-6">
+  <ExpCard
+    client:visible
+    category="2025 · Program"
+    date="2025.07 ~ 2025.12"
+    title="크래프톤 정글 10기 — Immersive CS Bootcamp"
+    subtitle="크래프톤에서 주관한 5개월 과정의 합숙형 몰입 교육 프로그램"
+    tags={[{ label: 'CS' }, { label: 'Collaboration' }]}
+    defaultOpen={false}
+  >
+    <ul class="list-disc space-y-2 pl-5">
+      <li>
+        <strong class="text-text-primary">극한의 몰입을 통한 문제 해결 능력 강화</strong><br />
+        주 100시간 이상의 학습으로 문제를 끝까지 파고드는 경험을 통해, 복잡한 기술적 난관 앞에서도 포기하지
+        않고 해결책을 찾는 끈기와 집요함을 체득.
+      </li>
+      <li>
+        <strong class="text-text-primary">유연한 협업 역량 습득</strong><br />
+        40명의 동기들과 매주 팀이 바뀌는 시스템 속에서 다양한 성향의 팀원들과 효과적으로 소통하고 협업.
+        적극적인 코드 리뷰와 동료 학습을 통해 함께 성장하는 문화를 경험.
+      </li>
+      <li>
+        <strong class="text-text-primary">탄탄한 CS 기반 구축</strong><br />
+        C, 자료구조·알고리즘, OS, 네트워크를 심화 학습. 웹 프록시 서버/미니 OS 등을 C로 직접 구현하며
+        내부 동작에 대한 이해를 바탕으로 더 나은 기술적 판단 능력을 강화.
+      </li>
+      <li>
+        <strong class="text-text-primary">CS 스터디 운영</strong>
+        <ul class="mt-1 list-disc space-y-1 pl-5">
+          <li>부족하다고 느낀 부분 보완을 위해 자발적으로 스터디 조직</li>
+          <li>매주 4인이서 발표 및 기술 면접 형식의 질의응답으로 지식 내재화</li>
+          <li>매주 알고리즘 5문제 풀이</li>
+        </ul>
+      </li>
+    </ul>
+  </ExpCard>
+
+  <ExpCard
+    client:visible
+    category="2014 ~ 2020 · Education"
+    date="2014.03 ~ 2020.02"
+    title="단국대학교 화학공학과 졸업"
+    tags={[{ label: 'B.S.' }, { label: 'Chemical Engineering' }]}
+    defaultOpen={false}
+  />
+  </div>
+</section>

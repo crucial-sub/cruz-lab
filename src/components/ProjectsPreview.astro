@@ -1,0 +1,66 @@
+---
+// Home 페이지용 프로젝트 미리보기 섹션
+import { getCollection } from 'astro:content';
+import ProjectCard from './islands/ProjectCard';
+import MagneticButton from './islands/MagneticButton';
+import TextReveal from './islands/TextReveal';
+
+// Featured 프로젝트만 가져오기 (최대 3개)
+const allProjects = await getCollection('projects');
+const featuredProjects = allProjects
+  .filter((p) => p.data.featured)
+  .sort((a, b) => a.data.order - b.data.order)
+  .slice(0, 3);
+---
+
+<section class="py-16">
+  <!-- 섹션 헤더 -->
+  <div class="mb-12 flex flex-col items-center justify-between gap-4 sm:flex-row">
+    <div>
+      <h2 class="mb-2 text-3xl font-bold md:text-4xl">
+        <TextReveal client:visible text="Featured " type="chars" staggerChildren={0.05} />
+        <span class="text-brand">
+          <TextReveal client:visible text="Projects" type="chars" staggerChildren={0.05} delay={0.3} />
+        </span>
+      </h2>
+      <p class="text-text-secondary">
+        최근 작업한 주요 프로젝트들입니다
+      </p>
+    </div>
+    <MagneticButton client:visible href="/projects" strength={0.2}>
+      <span
+        class="inline-flex items-center gap-2 rounded-xl border border-border bg-bg-surface/50 px-4 py-2 font-medium transition-colors hover:border-brand hover:text-brand"
+      >
+        모든 프로젝트 보기
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+        </svg>
+      </span>
+    </MagneticButton>
+  </div>
+
+  <!-- 프로젝트 그리드 -->
+  <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+    {featuredProjects.map((project, index) => (
+      <ProjectCard
+        client:visible
+        title={project.data.title}
+        description={project.data.description}
+        image={project.data.image.src}
+        tags={project.data.tags || []}
+        tech={project.data.tech || []}
+        slug={project.id}
+        github={project.data.github}
+        demo={project.data.demo}
+        index={index}
+      />
+    ))}
+  </div>
+
+  <!-- 프로젝트가 없을 경우 -->
+  {featuredProjects.length === 0 && (
+    <div class="py-8 text-center">
+      <p class="text-text-secondary">Featured 프로젝트가 없습니다.</p>
+    </div>
+  )}
+</section>

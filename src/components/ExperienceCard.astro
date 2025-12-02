@@ -1,0 +1,98 @@
+---
+interface Tag {
+  label: string;
+  href?: string;
+}
+interface Props {
+  title: string;
+  category?: string; // 예: "2025 · Program"
+  date?: string; // 예: "2025.07 ~ 2025.12"
+  subtitle?: string;
+  tags?: Tag[];
+  defaultOpen?: boolean;
+}
+const { title, category, date, subtitle, tags = [], defaultOpen = false } = Astro.props;
+
+// 고유 ID (접근성 & 스크립트 연결)
+const uid = `exp-${Math.random().toString(36).slice(2, 9)}`;
+const panelId = `${uid}-panel`;
+---
+
+<!-- 루트: group/exp + data-open 속성 -->
+<div
+  id={uid}
+  data-exp-card
+  data-open={defaultOpen ? 'true' : 'false'}
+  class="group/exp rounded-xl border border-border bg-[rgb(var(--bg-surface-rgb)/0.65)] shadow-card ring-[color:var(--ring-focus)] transition-all duration-300 focus-within:ring-1 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20"
+>
+  <!-- 헤더 버튼 -->
+  <button
+    type="button"
+    data-exp-toggle
+    class="flex w-full items-start justify-between gap-4 p-4 text-left md:p-5"
+    aria-expanded={defaultOpen ? 'true' : 'false'}
+    aria-controls={panelId}
+  >
+    <div class="min-w-0">
+      <div class="text-sm text-text-secondary">
+        {category}{date ? ` · ${date}` : ''}
+      </div>
+      <h3 class="mt-1 text-lg font-semibold text-text-primary md:text-xl">{title}</h3>
+      {subtitle && <p class="mt-1 line-clamp-2 text-text-secondary">{subtitle}</p>}
+    </div>
+
+    <div class="flex shrink-0 items-center gap-2">
+      {
+        tags.map((t) =>
+          t.href ? (
+            <a href={t.href} class="tag tag-sm">
+              {t.label}
+            </a>
+          ) : (
+            <span class="tag tag-sm">{t.label}</span>
+          ),
+        )
+      }
+      <!-- caret: 루트의 data-open=true일 때 회전 -->
+      <svg
+        class="ml-1 h-5 w-5 text-text-secondary transition-transform duration-300 group-data-[open=true]/exp:rotate-180"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.7"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="m6 9 6 6 6-6"></path>
+      </svg>
+    </div>
+  </button>
+
+  <!-- 패널: grid-rows 0fr → 1fr 애니메이션 -->
+  <div
+    id={panelId}
+    class="grid overflow-hidden px-4 pb-4 opacity-0 transition-[grid-template-rows,opacity] duration-500 ease-out [grid-template-rows:0fr] group-data-[open=true]/exp:opacity-100 group-data-[open=true]/exp:[grid-template-rows:1fr] md:px-5 md:pb-5"
+  >
+    <div class="min-h-0 overflow-hidden">
+      <div class="pt-2 text-text-secondary">
+        <slot />
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 상태 토글: ID로 안정적으로 찾기 -->
+<script is:inline>
+  (function () {
+    const root = document.getElementById('{uid}');
+    if (!root) return;
+    const btn = root.querySelector('[data-exp-toggle]');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      const open = root.dataset.open === 'true';
+      root.dataset.open = open ? 'false' : 'true';
+      btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+    });
+  })();
+</script>

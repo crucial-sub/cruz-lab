@@ -1,0 +1,65 @@
+---
+// Home 페이지용 블로그 포스트 미리보기 섹션
+import { getCollection } from 'astro:content';
+import BlogCard from './islands/BlogCard';
+import MagneticButton from './islands/MagneticButton';
+import TextReveal from './islands/TextReveal';
+import { calculateReadingTime } from '@/utils/readingTime';
+
+// 최신 포스트 3개 가져오기
+const allPosts = (await getCollection('blog')).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+);
+const recentPosts = allPosts.slice(0, 3);
+---
+
+<section class="py-16">
+  <!-- 섹션 헤더 -->
+  <div class="mb-12 flex flex-col items-center justify-between gap-4 sm:flex-row">
+    <div>
+      <h2 class="mb-2 text-3xl font-bold md:text-4xl">
+        <TextReveal client:visible text="Latest " type="chars" staggerChildren={0.05} />
+        <span class="text-brand">
+          <TextReveal client:visible text="Posts" type="chars" staggerChildren={0.05} delay={0.3} />
+        </span>
+      </h2>
+      <p class="text-text-secondary">
+        최근 작성한 블로그 포스트입니다
+      </p>
+    </div>
+    <MagneticButton client:visible href="/blog" strength={0.2}>
+      <span
+        class="inline-flex items-center gap-2 rounded-xl border border-border bg-bg-surface/50 px-4 py-2 font-medium transition-colors hover:border-brand hover:text-brand"
+      >
+        모든 포스트 보기
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+        </svg>
+      </span>
+    </MagneticButton>
+  </div>
+
+  <!-- 포스트 그리드 -->
+  <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+    {recentPosts.map((post, index) => (
+      <BlogCard
+        client:visible
+        title={post.data.title}
+        description={post.data.description}
+        pubDate={post.data.pubDate.toISOString()}
+        heroImage={post.data.heroImage?.src}
+        tags={post.data.tags}
+        slug={post.id}
+        index={index}
+        readingTime={calculateReadingTime(post.body || '')}
+      />
+    ))}
+  </div>
+
+  <!-- 포스트가 없을 경우 -->
+  {recentPosts.length === 0 && (
+    <div class="py-8 text-center">
+      <p class="text-text-secondary">아직 작성된 포스트가 없습니다.</p>
+    </div>
+  )}
+</section>
