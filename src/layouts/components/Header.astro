@@ -1,11 +1,12 @@
 ---
 import GithubWhite from '@/assets/img/github-mark-white.svg';
 import GithubBlack from '@/assets/img/github-mark.svg';
+import ThemeToggle from '@/components/islands/ThemeToggle.tsx';
 import { Image } from 'astro:assets';
 
 const menu = [
   { link: '/', label: 'Home' },
-  { link: '/posts/', label: 'Posts' },
+  { link: '/blog/', label: 'Blog' },
   { link: '/projects/', label: 'Projects' },
 ];
 
@@ -21,58 +22,14 @@ const isActive = (href: string) => pathname === href || (href !== '/' && pathnam
           <a href="/" class="font-bold">Cruz</a>
         </a>
       </h2>
-      <div class="flex">
+      <div class="flex items-center gap-1">
         <a class="p-3 dark:hidden" href="https://github.com/crucial-sub" target="_blank"
           ><Image src={GithubBlack} width={24} height={24} alt="Github logo" /></a
         >
         <a class="hidden p-3 dark:block" href="https://github.com/crucial-sub" target="_blank"
           ><Image src={GithubWhite} width={24} height={24} alt="Github logo" /></a
         >
-        <button id="theme-toggle" class="btn-ghost rounded-xl p-2" aria-label="Toggle color scheme">
-          <span class="sr-only">Toggle theme</span>
-
-          <!-- 다크모드일 때 보임 (light일 때 숨김) -->
-          <svg
-            class="hidden h-6 w-6 dark:inline-block"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
-          </svg>
-
-          <!-- 라이트모드일 때 보임 (dark일 때 숨김) -->
-          <svg
-            class="inline-block h-6 w-6 dark:hidden"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="12" cy="12" r="4"></circle>
-            <path d="M12 2v2"></path><path d="M12 20v2"></path>
-            <path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path>
-            <path d="M2 12h2"></path><path d="M20 12h2"></path>
-            <path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path>
-          </svg>
-        </button>
-        <script is:inline>
-          // 버튼 클릭 시 .dark / .light 토글 + 로컬 저장
-          document.getElementById('theme-toggle')?.addEventListener('click', () => {
-            const root = document.documentElement;
-            const toLight = root.classList.contains('dark'); // 현재 다크면 라이트로 전환
-            root.classList.toggle('dark', !toLight);
-            root.classList.toggle('light', toLight);
-            localStorage.setItem('theme', toLight ? 'light' : 'dark');
-          });
-        </script>
+        <ThemeToggle client:load />
       </div>
     </nav>
   </div>

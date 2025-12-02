@@ -1,18 +1,51 @@
 ---
+// Open Graph 메타태그 완성
+// og:image, twitter:card 지원
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 import Favicon from '@/assets/img/favicon.png';
+import DefaultOGImage from '@/assets/img/crusub.png';
 
-const { title = 'Cruz Lab', description = 'Developer Portfolio & Blog' } = Astro.props;
+interface Props {
+  title?: string;
+  description?: string;
+  image?: string;
+  type?: 'website' | 'article';
+  publishedTime?: string;
+  tags?: string[];
+}
+
+const {
+  title = 'Cruz Lab',
+  description = 'Frontend Developer Portfolio & Blog - React, TypeScript, Next.js',
+  image,
+  type = 'website',
+  publishedTime,
+  tags = [],
+} = Astro.props;
+
+// OG 이미지 URL 생성 (절대 경로 필요)
+const ogImageURL = image
+  ? new URL(image, Astro.site).toString()
+  : new URL(DefaultOGImage.src, Astro.site).toString();
+
+// 사이트 이름
+const siteName = 'Cruz Lab';
+
+// 전체 타이틀 (페이지 타이틀 + 사이트 이름)
+const fullTitle = title === siteName ? title : `${title} | ${siteName}`;
 ---
 
 <head>
   <script is:inline>
     (() => {
-      const saved = localStorage.getItem('theme'); // 'dark' | 'light' | null
-      const root = document.documentElement;
-      const isDark = saved !== 'light'; // 기본값: 다크
-      root.classList.toggle('dark', isDark);
-      root.classList.toggle('light', !isDark);
+      try {
+        const saved = localStorage.getItem('theme'); // 'dark' | 'light' | null
+        const prefers = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const isDark = saved ? saved === 'dark' : prefers; // 기본값: 다크
+        const root = document.documentElement;
+        root.classList.toggle('dark', isDark);
+        root.classList.toggle('light', !isDark);
+      } catch {}
     })();
   </script>
 
@@ -42,19 +75,43 @@ const { title = 'Cruz Lab', description = 'Developer Portfolio & Blog' } = Astro
   <link rel="canonical" href={canonicalURL} />
 
   <!-- Primary Meta Tags -->
-  <title>{title}</title>
-  <meta name="title" content={title} />
+  <title>{fullTitle}</title>
+  <meta name="title" content={fullTitle} />
   <meta name="description" content={description} />
+  <meta name="author" content="Cruz" />
+  {tags.length > 0 && <meta name="keywords" content={tags.join(', ')} />}
 
   <!-- Open Graph / Facebook -->
-  <meta property="og:type" content="website" />
+  <meta property="og:type" content={type} />
   <meta property="og:url" content={Astro.url} />
+  <meta property="og:site_name" content={siteName} />
   <meta property="og:title" content={title} />
   <meta property="og:description" content={description} />
+  <meta property="og:image" content={ogImageURL} />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:locale" content="ko_KR" />
+
+  <!-- Article specific (for blog posts) -->
+  {type === 'article' && publishedTime && (
+    <meta property="article:published_time" content={publishedTime} />
+  )}
+  {type === 'article' && tags.map((tag) => (
+    <meta property="article:tag" content={tag} />
+  ))}
 
   <!-- Twitter -->
-  <meta property="twitter:card" content="summary_large_image" />
-  <meta property="twitter:url" content={Astro.url} />
-  <meta property="twitter:title" content={title} />
-  <meta property="twitter:description" content={description} />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:url" content={Astro.url} />
+  <meta name="twitter:title" content={title} />
+  <meta name="twitter:description" content={description} />
+  <meta name="twitter:image" content={ogImageURL} />
+  <meta name="twitter:creator" content="@cruz_dev" />
+
+  <!-- Theme Color (for mobile browsers) -->
+  <meta name="theme-color" content="#8B5CF6" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#8B5CF6" media="(prefers-color-scheme: light)" />
+
+  <!-- RSS Feed -->
+  <link rel="alternate" type="application/rss+xml" title="Cruz Lab RSS Feed" href="/rss.xml" />
 </head>
