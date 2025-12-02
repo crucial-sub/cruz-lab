@@ -1,227 +1,152 @@
 ---
-import { getCollection, render } from 'astro:content';
-import FadeInSection from '@/components/islands/FadeInSection';
-import PostNavigation from '@/components/islands/PostNavigation';
-import RelatedPosts from '@/components/islands/RelatedPosts';
-import TableOfContents from '@/components/islands/TableOfContents';
+export const prerender = false; // SSR - 동적 라우팅
+
+// 개별 블로그 포스트 페이지 - Firebase에서 동적으로 로드
+import BlogPostView from '@/components/blog/BlogPostView';
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { calculateReadingTime } from '@/utils/readingTime';
-import { findRelatedPosts } from '@/utils/relatedPosts';
 
-export async function getStaticPaths() {
-  const posts = await getCollection('blog');
-  // 날짜순 정렬 (최신순)
-  const sortedPosts = posts.sort(
-    (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
-  );
-
-  return sortedPosts.map((post, index) => ({
-    params: { slug: post.id },
-    props: {
-      post,
-      // 이전 포스트 (더 최신)
-      prevPost: index > 0 ? {
-        slug: sortedPosts[index - 1].id,
-        title: sortedPosts[index - 1].data.title,
-      } : null,
-      // 다음 포스트 (더 오래됨)
-      nextPost: index < sortedPosts.length - 1 ? {
-        slug: sortedPosts[index + 1].id,
-        title: sortedPosts[index + 1].data.title,
-      } : null,
-      // 관련 포스트
-      relatedPosts: findRelatedPosts(post, posts, 3),
-    },
-  }));
-}
-
-const { post, prevPost, nextPost, relatedPosts } = Astro.props;
-const { Content, headings } = await render(post);
-
-// TOC용 헤딩 데이터 변환 (h2, h3, h4만 포함)
-const tocHeadings = headings
-  .filter((h) => h.depth >= 2 && h.depth <= 4)
-  .map((h) => ({
-    id: h.slug,
-    text: h.text,
-    level: h.depth,
-  }));
-
-const { title, description, pubDate, updatedDate, heroImage, tags } = post.data;
-
-// 날짜 포맷팅
-const formatDate = (date: Date) =>
-  new Intl.DateTimeFormat('ko-KR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(date);
-
-// 실제 콘텐츠 기반 읽기 시간 계산
-const readingTime = calculateReadingTime(post.body || '');
+// URL에서 slug 추출
+const { slug } = Astro.params;
+const slugString = Array.isArray(slug) ? slug.join('/') : slug || '';
 ---
 
-<BaseLayout
-  title={title}
-  description={description}
-  image={heroImage?.src}
-  type="article"
-  publishedTime={pubDate.toISOString()}
-  tags={tags}
->
-  <article class="py-8">
-    <!-- 뒤로가기 링크 -->
-    <FadeInSection client:visible>
-      <a
-        href="/blog"
-        class="group mb-8 inline-flex items-center gap-2 text-text-secondary transition-colors hover:text-brand"
-      >
-        <svg
-          class="h-4 w-4 transition-transform group-hover:-translate-x-1"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"
-          ></path>
-        </svg>
-        블로그로 돌아가기
-      </a>
-    </FadeInSection>
-
-    <!-- 헤더 영역 -->
-    <FadeInSection client:visible delay={0.1}>
-      <header class="mb-8">
-        <!-- 태그 -->
-        {
-          tags.length > 0 && (
-            <div class="mb-4 flex flex-wrap gap-2">
-              {tags.map((tag: string) => (
-                <a
-                  href={`/blog/tag/${tag}`}
-                  class="rounded-full bg-brand/10 px-3 py-1 text-sm font-medium text-brand transition-colors hover:bg-brand/20"
-                >
-                  {tag}
-                </a>
-              ))}
-            </div>
-          )
-        }
-
-        <!-- 제목 -->
-        <h1 class="mb-4 text-3xl font-extrabold leading-tight md:text-4xl lg:text-5xl">
-          {title}
-        </h1>
-
-        <!-- 설명 -->
-        <p class="mb-6 text-xl leading-relaxed text-text-secondary">
-          {description}
-        </p>
-
-        <!-- 메타 정보 -->
-        <div class="flex flex-wrap items-center gap-4 text-text-secondary">
-          <time datetime={pubDate.toISOString()} class="flex items-center gap-2">
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-              ></path>
-            </svg>
-            {formatDate(pubDate)}
-          </time>
-
-          {
-            updatedDate && (
-              <span class="flex items-center gap-2">
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                  />
-                </svg>
-                수정: {formatDate(updatedDate)}
-              </span>
-            )
-          }
-
-          <span class="flex items-center gap-2">
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            {readingTime}분 읽기
-          </span>
-        </div>
-      </header>
-    </FadeInSection>
-
-    <!-- 대표 이미지 -->
-    {
-      heroImage && (
-        <FadeInSection client:visible delay={0.2}>
-          <div class="mb-12 overflow-hidden rounded-2xl border border-border">
-            <img
-              src={heroImage.src}
-              alt={title}
-              class="w-full object-cover"
-              loading="eager"
-            />
-          </div>
-        </FadeInSection>
-      )
-    }
-
-    <!-- 본문 콘텐츠 -->
-    <FadeInSection client:visible delay={0.3}>
-      <div class="prose prose-lg mx-auto max-w-none">
-        <Content />
-      </div>
-    </FadeInSection>
-
-    <!-- 목차 (TOC) -->
-    {tocHeadings.length > 0 && (
-      <TableOfContents client:load headings={tocHeadings} />
-    )}
-
-    <!-- 관련 포스트 -->
-    {relatedPosts.length > 0 && (
-      <FadeInSection client:visible delay={0.4}>
-        <div class="mt-16 border-t border-border pt-8">
-          <RelatedPosts client:visible posts={relatedPosts} />
-        </div>
-      </FadeInSection>
-    )}
-
-    <!-- 이전/다음 포스트 네비게이션 -->
-    <FadeInSection client:visible delay={0.4}>
-      <div class="mt-16 border-t border-border pt-8">
-        <PostNavigation
-          client:visible
-          prevPost={prevPost}
-          nextPost={nextPost}
-        />
-
-        <!-- 모든 글 보기 링크 -->
-        <div class="mt-8 flex justify-center">
-          <a
-            href="/blog"
-            class="inline-flex items-center gap-2 rounded-xl border border-border bg-bg-surface px-6 py-3 font-semibold transition-colors hover:border-brand hover:text-brand"
-          >
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"
-              ></path>
-            </svg>
-            모든 글 보기
-          </a>
-        </div>
-      </div>
-    </FadeInSection>
-  </article>
+<BaseLayout title="블로그" description="포스트 로딩 중...">
+  <BlogPostView client:load slug={slugString} />
 </BaseLayout>
+
+<style is:global>
+  /* 마크다운 prose 스타일 */
+  .prose {
+    color: var(--text-primary);
+  }
+
+  .prose h1 {
+    font-size: 2.25rem;
+    font-weight: 700;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+  }
+
+  .prose h2 {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+  }
+
+  .prose h3 {
+    font-size: 1.375rem;
+    font-weight: 600;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+  }
+
+  .prose h4 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+  }
+
+  .prose p {
+    margin: 1rem 0;
+    line-height: 1.8;
+    color: var(--text-secondary);
+  }
+
+  .prose ul,
+  .prose ol {
+    padding-left: 1.5rem;
+    margin: 1rem 0;
+  }
+
+  .prose li {
+    margin: 0.5rem 0;
+    color: var(--text-secondary);
+  }
+
+  .prose blockquote {
+    border-left: 4px solid var(--brand);
+    padding-left: 1rem;
+    margin: 1.5rem 0;
+    color: var(--text-secondary);
+    font-style: italic;
+    background: var(--bg-card);
+    padding: 1rem;
+    border-radius: 0 0.5rem 0.5rem 0;
+  }
+
+  .prose pre {
+    background-color: #1e1e1e;
+    color: #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    overflow-x: auto;
+    margin: 1.5rem 0;
+  }
+
+  .prose code {
+    font-family: 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+    font-size: 0.875rem;
+  }
+
+  .prose pre code {
+    background: transparent;
+    padding: 0;
+  }
+
+  .prose img {
+    max-width: 100%;
+    border-radius: 0.5rem;
+    margin: 1.5rem 0;
+  }
+
+  .prose a {
+    color: var(--brand);
+    text-decoration: underline;
+  }
+
+  .prose a:hover {
+    color: var(--brand);
+    opacity: 0.8;
+  }
+
+  .prose hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 2.5rem 0;
+  }
+
+  .prose strong {
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .prose em {
+    font-style: italic;
+  }
+
+  .prose table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+  }
+
+  .prose th,
+  .prose td {
+    border: 1px solid var(--border);
+    padding: 0.75rem;
+    text-align: left;
+  }
+
+  .prose th {
+    background: var(--bg-card);
+    font-weight: 600;
+  }
+</style>

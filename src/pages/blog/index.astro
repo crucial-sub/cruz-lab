@@ -1,32 +1,14 @@
 ---
-import { getCollection } from 'astro:content';
+export const prerender = true;
+
+// 블로그 목록 페이지 - Firebase에서 동적으로 포스트 로드
 import FadeInSection from '@/components/islands/FadeInSection';
-import PostSearch from '@/components/islands/PostSearch';
 import TextReveal from '@/components/islands/TextReveal';
+import BlogPostList from '@/components/blog/BlogPostList';
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { calculateReadingTime } from '@/utils/readingTime';
 
 const title = 'Blog';
 const description = 'Cruz의 개발 블로그 - 프론트엔드, 시스템 프로그래밍, 학습 기록';
-
-// 모든 블로그 포스트 가져오기 (최신순 정렬)
-const allPosts = (await getCollection('blog')).sort(
-  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
-);
-
-// PostSearch 컴포넌트용 데이터 변환 (읽기 시간 포함)
-const postsForSearch = allPosts.map((post) => ({
-  slug: post.id,
-  title: post.data.title,
-  description: post.data.description,
-  pubDate: post.data.pubDate.toISOString(),
-  heroImage: post.data.heroImage?.src,
-  tags: post.data.tags || [],
-  readingTime: calculateReadingTime(post.body || ''),
-}));
-
-// 모든 태그 추출
-const allTags = [...new Set(allPosts.flatMap((post) => post.data.tags || []))].sort();
 ---
 
 <BaseLayout title={title} description={description}>
@@ -43,22 +25,9 @@ const allTags = [...new Set(allPosts.flatMap((post) => post.data.tags || []))].s
       </div>
     </FadeInSection>
 
-    <!-- 검색 및 포스트 목록 -->
+    <!-- 포스트 목록 (Firebase에서 동적 로드) -->
     <FadeInSection client:visible delay={0.2}>
-      <PostSearch
-        client:load
-        posts={postsForSearch}
-        allTags={allTags}
-      />
+      <BlogPostList client:load />
     </FadeInSection>
-
-    <!-- 포스트가 없을 경우 -->
-    {
-      allPosts.length === 0 && (
-        <div class="py-16 text-center">
-          <p class="text-lg text-text-secondary">아직 작성된 포스트가 없습니다.</p>
-        </div>
-      )
-    }
   </div>
 </BaseLayout>
