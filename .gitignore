@@ -23,4 +23,10 @@ pnpm-debug.log*
 # jetbrains setting folder
 .idea/
 
+# vercel
+.vercel/
+
+# etc
+.playwright-mcp/
+.claude/
 docs/
