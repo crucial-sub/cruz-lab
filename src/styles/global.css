@@ -125,14 +125,14 @@
   body {
     @apply bg-bg-app font-sans text-text-primary antialiased;
   }
-  a {
+  a:not([class*="text-"]) {
     color: var(--link-text);
     text-decoration: none;
   }
-  a:hover {
+  a:not([class*="text-"]):hover {
     color: var(--link-hover);
   }
-  a:visited {
+  a:not([class*="text-"]):visited {
     color: var(--link-visited);
   }
 

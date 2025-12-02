@@ -186,7 +186,7 @@ export default function AdminDashboard() {
                           }`}
                         />
                         <a
-                          href={`/admin/edit/${post.id}`}
+                          href={`/admin/edit?id=${post.id}`}
                           className="font-medium text-text-primary hover:text-brand"
                         >
                           {post.title}
