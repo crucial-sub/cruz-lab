@@ -185,63 +185,68 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
 
   return (
     <div className="flex h-screen flex-col bg-white">
-      {/* 에디터 컨텐츠 영역 */}
-      <div className="flex flex-1 flex-col overflow-hidden p-8">
-        {/* 제목 */}
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="제목을 입력하세요"
-          className="w-full bg-transparent text-[2.75rem] font-bold text-gray-900 placeholder:text-gray-300 focus:outline-none leading-tight"
-        />
-
-        {/* 구분선 */}
-        <div className="my-4 h-[6px] w-16 bg-gray-900" />
-
-        {/* 태그 입력 */}
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          {tags.map((tag) => (
-            <span
-              key={tag}
-              className="inline-flex items-center gap-1 rounded bg-gray-100 px-3 py-1 text-brand"
-            >
-              {tag}
-              <button
-                onClick={() => handleRemoveTag(tag)}
-                className="ml-1 text-gray-400 hover:text-red-500"
-              >
-                ×
-              </button>
-            </span>
-          ))}
+      {/* 에디터 컨텐츠 영역 - 배경은 전체 너비, 콘텐츠는 992px 중앙 정렬 */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* 콘텐츠 컨테이너 - Readable Line Length (992px, Obsidian 스타일) */}
+        <div className="mx-auto w-full max-w-[992px] px-8 pt-8">
+          {/* 제목 */}
           <input
             type="text"
-            value={tagInput}
-            onChange={(e) => setTagInput(e.target.value)}
-            onKeyDown={handleTagKeyDown}
-            onCompositionStart={() => setIsComposing(true)}
-            onCompositionEnd={() => {
-              setIsComposing(false);
-            }}
-            placeholder="태그를 입력하세요"
-            className="bg-transparent text-gray-500 placeholder:text-gray-400 focus:outline-none"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="제목을 입력하세요"
+            className="w-full bg-transparent text-[2.75rem] font-bold text-gray-900 placeholder:text-gray-300 focus:outline-none leading-tight"
           />
+
+          {/* 구분선 */}
+          <div className="my-4 h-[6px] w-16 bg-gray-900" />
+
+          {/* 태그 입력 */}
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            {tags.map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center gap-1 rounded bg-gray-100 px-3 py-1 text-brand"
+              >
+                {tag}
+                <button
+                  onClick={() => handleRemoveTag(tag)}
+                  className="ml-1 text-gray-400 hover:text-red-500"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+            <input
+              type="text"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={handleTagKeyDown}
+              onCompositionStart={() => setIsComposing(true)}
+              onCompositionEnd={() => {
+                setIsComposing(false);
+              }}
+              placeholder="태그를 입력하세요"
+              className="bg-transparent text-gray-500 placeholder:text-gray-400 focus:outline-none"
+            />
+          </div>
         </div>
 
-        {/* Milkdown WYSIWYG 에디터 */}
-        <div className="flex-1 overflow-auto w-full">
-          <MilkdownEditor
-            key={editorKey}
-            defaultValue={content}
-            onChange={handleContentChange}
-            placeholder="당신의 이야기를 적어보세요..."
-            enableSlash={true}
-            showShortcutsHelp={true}
-            enableImageUpload={true}
-            onUploadError={handleUploadError}
-            className="h-full w-full"
-          />
+        {/* Milkdown WYSIWYG 에디터 - 992px 중앙 정렬 */}
+        <div className="flex-1 overflow-auto px-8 py-2">
+          <div className="mx-auto w-full max-w-[992px]">
+            <MilkdownEditor
+              key={editorKey}
+              defaultValue={content}
+              onChange={handleContentChange}
+              placeholder="당신의 이야기를 적어보세요..."
+              enableSlash={true}
+              showShortcutsHelp={true}
+              enableImageUpload={true}
+              onUploadError={handleUploadError}
+              className="h-full w-full"
+            />
+          </div>
         </div>
       </div>
 

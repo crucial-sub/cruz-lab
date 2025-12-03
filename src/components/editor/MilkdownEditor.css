@@ -62,27 +62,28 @@
   min-height: var(--editor-min-height);
 }
 
-/* Milkdown 에디터 전체 너비 강제 (Nord 테마 max-width 오버라이드) */
+/* Milkdown 에디터 wrapper/container는 전체 너비 */
 .milkdown-editor-wrapper,
 .milkdown-editor-container,
 .milkdown-editor-container .milkdown,
-.milkdown-editor-container .milkdown .editor,
-.milkdown-editor-container .milkdown .ProseMirror,
-.milkdown,
-.milkdown .editor,
-.milkdown .ProseMirror,
-.ProseMirror {
+.milkdown {
   width: 100% !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
 }
 
-/* Milkdown 내부 div들도 전체 너비 강제 */
-.milkdown > div,
-.milkdown .editor > div,
-.milkdown-editor-container > div {
+/*
+ * Readable Line Length 설정 (Obsidian 스타일)
+ * 에디터 콘텐츠 영역만 992px로 제한하여 실제 포스트와 동일한 너비로 표시
+ */
+.milkdown .editor,
+.milkdown .ProseMirror,
+.ProseMirror {
   width: 100% !important;
-  max-width: 100% !important;
+  max-width: 992px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  box-sizing: border-box !important;
 }
 
 /* =========================================================
