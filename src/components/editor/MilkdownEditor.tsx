@@ -9,6 +9,7 @@
  * - slash: / 명령어 메뉴
  * - keyboard shortcuts: 키보드 단축키 (Cmd/Ctrl+B, I, 1-3 등)
  * - image upload: 이미지 드래그 앤 드롭/붙여넣기 업로드
+ * - prism: 코드 블록 구문 강조
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
@@ -39,6 +40,10 @@ import {
   type UploadStatus,
 } from './plugins/imageUpload';
 import { UploadProgress } from './UploadProgress';
+
+// Prism 코드 하이라이팅 플러그인
+import { prismHighlightPlugin } from './plugins/prismPlugin';
+import './styles/prism-theme.css';
 
 interface MilkdownEditorProps {
   /** 에디터 초기 마크다운 값 */
@@ -304,6 +309,7 @@ export function MilkdownEditor({
         .use(enableSlash ? slash : []) // Slash 메뉴 (조건부)
         .use(keyboardShortcutsPlugin) // 키보드 단축키
         .use(enableImageUpload ? imageUploadPlugin : []) // 이미지 업로드
+        .use(prismHighlightPlugin) // 코드 하이라이팅
         .create();
 
       editorInstanceRef.current = editor;

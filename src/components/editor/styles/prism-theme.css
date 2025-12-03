@@ -1,0 +1,345 @@
+/**
+ * Prism 코드 하이라이팅 테마
+ *
+ * Obsidian 스타일에 맞춘 다크/라이트 모드 대응 테마
+ * Nord 컬러 팔레트 기반
+ */
+
+/* ===== 코드 블록 기본 스타일 ===== */
+.milkdown code[class*="language-"],
+.milkdown pre[class*="language-"] {
+  color: #d8dee9;
+  background: none;
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  font-size: 0.9em;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+  line-height: 1.6;
+  tab-size: 2;
+  hyphens: none;
+}
+
+/* 코드 블록 컨테이너 */
+.milkdown pre[class*="language-"] {
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+  overflow: auto;
+  border-radius: 8px;
+  background: #2e3440;
+  border: 1px solid #3b4252;
+}
+
+/* 인라인 코드 */
+.milkdown :not(pre) > code[class*="language-"] {
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  white-space: normal;
+  background: #3b4252;
+}
+
+/* ===== 다크 모드 (기본) ===== */
+/* 토큰 스타일 - Nord 팔레트 기반 */
+
+/* 주석 */
+.milkdown .token.comment,
+.milkdown .token.prolog,
+.milkdown .token.doctype,
+.milkdown .token.cdata {
+  color: #616e88;
+  font-style: italic;
+}
+
+/* 구두점 */
+.milkdown .token.punctuation {
+  color: #81a1c1;
+}
+
+/* 네임스페이스 */
+.milkdown .token.namespace {
+  opacity: 0.7;
+}
+
+/* 속성, 태그, 불리언, 숫자, 상수, 심볼, 삭제됨 */
+.milkdown .token.property,
+.milkdown .token.tag,
+.milkdown .token.boolean,
+.milkdown .token.number,
+.milkdown .token.constant,
+.milkdown .token.symbol,
+.milkdown .token.deleted {
+  color: #b48ead;
+}
+
+/* 선택자, 속성 문자열, 문자, 내장, 추가됨 */
+.milkdown .token.selector,
+.milkdown .token.attr-name,
+.milkdown .token.string,
+.milkdown .token.char,
+.milkdown .token.builtin,
+.milkdown .token.inserted {
+  color: #a3be8c;
+}
+
+/* 연산자, 엔티티, URL, CSS 문자열, 스타일 문자열 */
+.milkdown .token.operator,
+.milkdown .token.entity,
+.milkdown .token.url,
+.milkdown .language-css .token.string,
+.milkdown .style .token.string {
+  color: #81a1c1;
+}
+
+/* atrule, 속성값, 키워드 */
+.milkdown .token.atrule,
+.milkdown .token.attr-value,
+.milkdown .token.keyword {
+  color: #81a1c1;
+}
+
+/* 함수, 클래스명 */
+.milkdown .token.function,
+.milkdown .token.class-name {
+  color: #88c0d0;
+}
+
+/* 정규식, 중요 */
+.milkdown .token.regex,
+.milkdown .token.important {
+  color: #ebcb8b;
+}
+
+/* 변수 */
+.milkdown .token.variable {
+  color: #d8dee9;
+}
+
+/* 중요, 굵게 */
+.milkdown .token.important,
+.milkdown .token.bold {
+  font-weight: bold;
+}
+
+/* 기울임 */
+.milkdown .token.italic {
+  font-style: italic;
+}
+
+/* 엔티티 */
+.milkdown .token.entity {
+  cursor: help;
+}
+
+/* ===== 라이트 모드 ===== */
+[data-theme="light"] .milkdown code[class*="language-"],
+[data-theme="light"] .milkdown pre[class*="language-"],
+:root:not([data-theme="dark"]) .milkdown code[class*="language-"],
+:root:not([data-theme="dark"]) .milkdown pre[class*="language-"] {
+  color: #2e3440;
+}
+
+[data-theme="light"] .milkdown pre[class*="language-"],
+:root:not([data-theme="dark"]) .milkdown pre[class*="language-"] {
+  background: #eceff4;
+  border-color: #d8dee9;
+}
+
+[data-theme="light"] .milkdown :not(pre) > code[class*="language-"],
+:root:not([data-theme="dark"]) .milkdown :not(pre) > code[class*="language-"] {
+  background: #e5e9f0;
+}
+
+/* 라이트 모드 토큰 */
+[data-theme="light"] .milkdown .token.comment,
+[data-theme="light"] .milkdown .token.prolog,
+[data-theme="light"] .milkdown .token.doctype,
+[data-theme="light"] .milkdown .token.cdata,
+:root:not([data-theme="dark"]) .milkdown .token.comment,
+:root:not([data-theme="dark"]) .milkdown .token.prolog,
+:root:not([data-theme="dark"]) .milkdown .token.doctype,
+:root:not([data-theme="dark"]) .milkdown .token.cdata {
+  color: #7b88a1;
+}
+
+[data-theme="light"] .milkdown .token.punctuation,
+:root:not([data-theme="dark"]) .milkdown .token.punctuation {
+  color: #5e81ac;
+}
+
+[data-theme="light"] .milkdown .token.property,
+[data-theme="light"] .milkdown .token.tag,
+[data-theme="light"] .milkdown .token.boolean,
+[data-theme="light"] .milkdown .token.number,
+[data-theme="light"] .milkdown .token.constant,
+[data-theme="light"] .milkdown .token.symbol,
+[data-theme="light"] .milkdown .token.deleted,
+:root:not([data-theme="dark"]) .milkdown .token.property,
+:root:not([data-theme="dark"]) .milkdown .token.tag,
+:root:not([data-theme="dark"]) .milkdown .token.boolean,
+:root:not([data-theme="dark"]) .milkdown .token.number,
+:root:not([data-theme="dark"]) .milkdown .token.constant,
+:root:not([data-theme="dark"]) .milkdown .token.symbol,
+:root:not([data-theme="dark"]) .milkdown .token.deleted {
+  color: #b48ead;
+}
+
+[data-theme="light"] .milkdown .token.selector,
+[data-theme="light"] .milkdown .token.attr-name,
+[data-theme="light"] .milkdown .token.string,
+[data-theme="light"] .milkdown .token.char,
+[data-theme="light"] .milkdown .token.builtin,
+[data-theme="light"] .milkdown .token.inserted,
+:root:not([data-theme="dark"]) .milkdown .token.selector,
+:root:not([data-theme="dark"]) .milkdown .token.attr-name,
+:root:not([data-theme="dark"]) .milkdown .token.string,
+:root:not([data-theme="dark"]) .milkdown .token.char,
+:root:not([data-theme="dark"]) .milkdown .token.builtin,
+:root:not([data-theme="dark"]) .milkdown .token.inserted {
+  color: #8fbcbb;
+}
+
+[data-theme="light"] .milkdown .token.operator,
+[data-theme="light"] .milkdown .token.entity,
+[data-theme="light"] .milkdown .token.url,
+[data-theme="light"] .milkdown .language-css .token.string,
+[data-theme="light"] .milkdown .style .token.string,
+:root:not([data-theme="dark"]) .milkdown .token.operator,
+:root:not([data-theme="dark"]) .milkdown .token.entity,
+:root:not([data-theme="dark"]) .milkdown .token.url,
+:root:not([data-theme="dark"]) .milkdown .language-css .token.string,
+:root:not([data-theme="dark"]) .milkdown .style .token.string {
+  color: #5e81ac;
+}
+
+[data-theme="light"] .milkdown .token.atrule,
+[data-theme="light"] .milkdown .token.attr-value,
+[data-theme="light"] .milkdown .token.keyword,
+:root:not([data-theme="dark"]) .milkdown .token.atrule,
+:root:not([data-theme="dark"]) .milkdown .token.attr-value,
+:root:not([data-theme="dark"]) .milkdown .token.keyword {
+  color: #5e81ac;
+}
+
+[data-theme="light"] .milkdown .token.function,
+[data-theme="light"] .milkdown .token.class-name,
+:root:not([data-theme="dark"]) .milkdown .token.function,
+:root:not([data-theme="dark"]) .milkdown .token.class-name {
+  color: #8fbcbb;
+}
+
+[data-theme="light"] .milkdown .token.regex,
+[data-theme="light"] .milkdown .token.important,
+:root:not([data-theme="dark"]) .milkdown .token.regex,
+:root:not([data-theme="dark"]) .milkdown .token.important {
+  color: #d08770;
+}
+
+[data-theme="light"] .milkdown .token.variable,
+:root:not([data-theme="dark"]) .milkdown .token.variable {
+  color: #2e3440;
+}
+
+/* ===== 코드 블록 추가 스타일 ===== */
+
+/* 언어 레이블 */
+.milkdown pre[class*="language-"]::before {
+  content: attr(data-language);
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.7em;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #616e88;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 0 8px 0 4px;
+}
+
+[data-theme="light"] .milkdown pre[class*="language-"]::before,
+:root:not([data-theme="dark"]) .milkdown pre[class*="language-"]::before {
+  color: #7b88a1;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* 코드 블록 컨테이너 상대 위치 */
+.milkdown pre[class*="language-"] {
+  position: relative;
+}
+
+/* 코드 블록 선택 스타일 */
+.milkdown code[class*="language-"]::selection,
+.milkdown pre[class*="language-"]::selection,
+.milkdown code[class*="language-"] *::selection,
+.milkdown pre[class*="language-"] *::selection {
+  background: rgba(136, 192, 208, 0.3);
+}
+
+[data-theme="light"] .milkdown code[class*="language-"]::selection,
+[data-theme="light"] .milkdown pre[class*="language-"]::selection,
+[data-theme="light"] .milkdown code[class*="language-"] *::selection,
+[data-theme="light"] .milkdown pre[class*="language-"] *::selection,
+:root:not([data-theme="dark"]) .milkdown code[class*="language-"]::selection,
+:root:not([data-theme="dark"]) .milkdown pre[class*="language-"]::selection,
+:root:not([data-theme="dark"]) .milkdown code[class*="language-"] *::selection,
+:root:not([data-theme="dark"]) .milkdown pre[class*="language-"] *::selection {
+  background: rgba(94, 129, 172, 0.3);
+}
+
+/* 스크롤바 스타일 */
+.milkdown pre[class*="language-"]::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.milkdown pre[class*="language-"]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.milkdown pre[class*="language-"]::-webkit-scrollbar-thumb {
+  background: #4c566a;
+  border-radius: 4px;
+}
+
+.milkdown pre[class*="language-"]::-webkit-scrollbar-thumb:hover {
+  background: #5e6779;
+}
+
+[data-theme="light"] .milkdown pre[class*="language-"]::-webkit-scrollbar-thumb,
+:root:not([data-theme="dark"]) .milkdown pre[class*="language-"]::-webkit-scrollbar-thumb {
+  background: #c8ced9;
+}
+
+[data-theme="light"] .milkdown pre[class*="language-"]::-webkit-scrollbar-thumb:hover,
+:root:not([data-theme="dark"]) .milkdown pre[class*="language-"]::-webkit-scrollbar-thumb:hover {
+  background: #b8bfcc;
+}
+
+/* ===== Diff 하이라이팅 ===== */
+.milkdown .token.deleted {
+  color: #bf616a;
+  background: rgba(191, 97, 106, 0.1);
+}
+
+.milkdown .token.inserted {
+  color: #a3be8c;
+  background: rgba(163, 190, 140, 0.1);
+}
+
+/* ===== 라인 하이라이팅 (옵션) ===== */
+.milkdown .line-highlight {
+  background: rgba(136, 192, 208, 0.1);
+  margin-left: -1.25rem;
+  margin-right: -1.25rem;
+  padding-left: 1rem;
+  border-left: 3px solid #88c0d0;
+}
+
+[data-theme="light"] .milkdown .line-highlight,
+:root:not([data-theme="dark"]) .milkdown .line-highlight {
+  background: rgba(94, 129, 172, 0.1);
+  border-left-color: #5e81ac;
+}
