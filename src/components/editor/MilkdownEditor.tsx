@@ -100,6 +100,11 @@ export function MilkdownEditor({
   const onChangeRef = useRef(onChange);
   // Slash Provider 참조
   const slashProviderRef = useRef<SlashProvider | null>(null);
+  // 초기값 참조 (재초기화 방지)
+  const initialValueRef = useRef(defaultValue);
+
+  // 테마 상태 (기본값: 사이트 테마 따름)
+  const [editorTheme, setEditorTheme] = useState<'dark' | 'light'>('dark');
 
   // Slash 메뉴 상태
   const [slashMenuVisible, setSlashMenuVisible] = useState(false);
@@ -111,6 +116,49 @@ export function MilkdownEditor({
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle');
   const [uploadFileName, setUploadFileName] = useState<string | undefined>();
   const [isDragOver, setIsDragOver] = useState(false);
+
+  // 사이트 테마 감지 및 동기화
+  useEffect(() => {
+    const detectTheme = () => {
+      // localStorage에서 직접 테마 읽기 (ThemeToggle과 동일한 방식)
+      const saved = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)')?.matches ?? true;
+      const isDark = saved ? saved === 'dark' : prefersDark;
+      setEditorTheme(isDark ? 'dark' : 'light');
+    };
+
+    // 초기 테마 감지
+    detectTheme();
+
+    // localStorage 변경 감지 (다른 탭에서 변경 시)
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'theme') {
+        detectTheme();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    // MutationObserver로 html 클래스 변경 감지 (같은 탭에서 변경 시)
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          detectTheme();
+        }
+      });
+    });
+
+    observer.observe(document.documentElement, { attributes: true });
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      observer.disconnect();
+    };
+  }, []);
+
+  // 테마 토글 핸들러
+  const handleThemeToggle = useCallback(() => {
+    setEditorTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  }, []);
 
   // onChange 참조 업데이트
   useEffect(() => {
@@ -211,9 +259,9 @@ export function MilkdownEditor({
           // 루트 DOM 요소 설정
           ctx.set(rootCtx, editorRef.current!);
 
-          // 초기값 설정
-          if (defaultValue) {
-            ctx.set(defaultValueCtx, defaultValue);
+          // 초기값 설정 (ref 사용으로 재초기화 방지)
+          if (initialValueRef.current) {
+            ctx.set(defaultValueCtx, initialValueRef.current);
           }
 
           // 마크다운 변경 리스너 설정
@@ -327,13 +375,15 @@ export function MilkdownEditor({
         ctxRef.current = null;
       }
     };
-  }, [defaultValue, debouncedOnChange, enableSlash, enableImageUpload, handleUploadProgress, onUploadError]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enableSlash, enableImageUpload]);
 
   return (
     <div
       className={`milkdown-editor-wrapper ${className} ${isDragOver ? 'drag-over' : ''}`.trim()}
       data-readonly={readOnly}
       data-placeholder={placeholder}
+      data-theme={editorTheme}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
@@ -353,8 +403,31 @@ export function MilkdownEditor({
         />
       )}
 
-      {/* 키보드 단축키 도움말 버튼 */}
-      {showShortcutsHelp && <KeyboardShortcutsButton />}
+      {/* 하단 고정 버튼 영역 */}
+      <div className="editor-floating-buttons">
+        {/* 테마 토글 버튼 */}
+        <button
+          type="button"
+          onClick={handleThemeToggle}
+          className="editor-theme-toggle"
+          aria-label={`${editorTheme === 'dark' ? '라이트' : '다크'} 모드로 전환`}
+          title={`${editorTheme === 'dark' ? '라이트' : '다크'} 모드로 전환`}
+        >
+          {editorTheme === 'dark' ? (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+            </svg>
+          )}
+        </button>
+
+        {/* 키보드 단축키 도움말 버튼 */}
+        {showShortcutsHelp && <KeyboardShortcutsButton />}
+      </div>
 
       {/* 이미지 업로드 진행률 */}
       {enableImageUpload && (

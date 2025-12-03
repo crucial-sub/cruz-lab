@@ -230,7 +230,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
         </div>
 
         {/* Milkdown WYSIWYG 에디터 */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-auto w-full">
           <MilkdownEditor
             key={editorKey}
             defaultValue={content}
@@ -240,7 +240,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
             showShortcutsHelp={true}
             enableImageUpload={true}
             onUploadError={handleUploadError}
-            className="h-full"
+            className="h-full w-full"
           />
         </div>
       </div>

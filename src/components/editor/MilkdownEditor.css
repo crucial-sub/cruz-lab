@@ -12,12 +12,41 @@
   --editor-min-height: 500px;
   --editor-padding: 1.5rem;
 
+  /* 라이트 모드 기본 색상 */
+  --editor-bg: #f8fafc;
+  --editor-text: #1f2937;
+  --editor-text-secondary: #6b7280;
+  --editor-border: #e2e8f0;
+  --editor-code-bg: #f1f5f9;
+  --editor-code-text: #047857;
+  --editor-pre-bg: #1e1e2e;
+  --editor-pre-text: #e7e9ee;
+  --editor-blockquote-bg: rgba(0, 0, 0, 0.03);
+  --editor-selection: rgba(16, 185, 129, 0.2);
+
   width: 100%;
+  height: 100%;
   min-height: var(--editor-min-height);
-  background: var(--bg-surface);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  overflow: hidden;
+  background: var(--editor-bg);
+  border-radius: 8px;
+  border: 1px solid var(--editor-border);
+  overflow-y: auto;
+  position: relative;
+}
+
+/* 다크 모드 색상 */
+.milkdown-editor-wrapper[data-theme="dark"] {
+  --editor-bg: #1a1b1e;
+  --editor-text: #e5e7eb;
+  --editor-text-secondary: #9ca3af;
+  --editor-border: #2d2d30;
+  --editor-code-bg: #374151;
+  --editor-code-text: #f472b6;
+  --editor-pre-bg: #0d0d0d;
+  --editor-pre-text: #e5e7eb;
+  --editor-blockquote-bg: rgba(255, 255, 255, 0.05);
+  --editor-selection: rgba(16, 185, 129, 0.3);
+  border-color: var(--editor-border);
 }
 
 /* 읽기 전용 모드 */
@@ -29,7 +58,31 @@
 /* 컨테이너 */
 .milkdown-editor-container {
   width: 100%;
+  max-width: 100% !important;
   min-height: var(--editor-min-height);
+}
+
+/* Milkdown 에디터 전체 너비 강제 (Nord 테마 max-width 오버라이드) */
+.milkdown-editor-wrapper,
+.milkdown-editor-container,
+.milkdown-editor-container .milkdown,
+.milkdown-editor-container .milkdown .editor,
+.milkdown-editor-container .milkdown .ProseMirror,
+.milkdown,
+.milkdown .editor,
+.milkdown .ProseMirror,
+.ProseMirror {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Milkdown 내부 div들도 전체 너비 강제 */
+.milkdown > div,
+.milkdown .editor > div,
+.milkdown-editor-container > div {
+  width: 100% !important;
+  max-width: 100% !important;
 }
 
 /* =========================================================
@@ -42,10 +95,22 @@
   min-height: var(--editor-min-height);
   outline: none;
   font-family: var(--editor-font-family);
-  font-size: var(--typo-body-size);
-  line-height: var(--typo-body-lh);
-  color: var(--text-primary);
+  font-size: 1rem;
+  line-height: 1.8;
+  color: var(--editor-text);
   background: transparent;
+}
+
+.milkdown .editor:focus {
+  outline: none;
+}
+
+/* ProseMirror 기본 스타일 오버라이드 */
+.milkdown .ProseMirror {
+  outline: none;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  caret-color: #10b981;
 }
 
 /* 플레이스홀더 스타일 */
@@ -62,28 +127,28 @@
    ========================================================= */
 
 .milkdown h1 {
-  font-size: var(--typo-h2-size);
-  font-weight: var(--typo-h2-weight);
-  line-height: var(--typo-h2-lh);
-  color: var(--text-primary);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--editor-text);
   margin: 2rem 0 1rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--editor-border);
 }
 
 .milkdown h2 {
-  font-size: var(--typo-h3-size);
-  font-weight: var(--typo-h3-weight);
-  line-height: var(--typo-h3-lh);
-  color: var(--text-primary);
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--editor-text);
   margin: 1.5rem 0 0.75rem;
 }
 
 .milkdown h3 {
   font-size: 1.25rem;
   font-weight: 600;
-  line-height: 1.75rem;
-  color: var(--text-primary);
+  line-height: 1.5;
+  color: var(--editor-text);
   margin: 1.25rem 0 0.5rem;
 }
 
@@ -92,8 +157,8 @@
 .milkdown h6 {
   font-size: 1.1rem;
   font-weight: 600;
-  line-height: 1.5rem;
-  color: var(--text-primary);
+  line-height: 1.5;
+  color: var(--editor-text);
   margin: 1rem 0 0.5rem;
 }
 
@@ -104,16 +169,21 @@
 .milkdown p {
   margin: 0.75rem 0;
   line-height: 1.8;
-  color: var(--text-primary);
+  color: var(--editor-text);
 }
 
 .milkdown strong {
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--editor-text);
 }
 
 .milkdown em {
   font-style: italic;
+}
+
+.milkdown del {
+  text-decoration: line-through;
+  color: var(--editor-text-secondary);
 }
 
 /* =========================================================
@@ -121,14 +191,14 @@
    ========================================================= */
 
 .milkdown a {
-  color: var(--brand);
+  color: #10b981;
   text-decoration: underline;
   text-underline-offset: 2px;
   transition: color 0.2s ease;
 }
 
 .milkdown a:hover {
-  color: var(--brand-hover);
+  color: #059669;
 }
 
 /* =========================================================
@@ -139,17 +209,17 @@
 .milkdown code {
   font-family: var(--editor-font-code);
   font-size: 0.9em;
-  background: rgba(var(--bg-app-rgb), 0.5);
+  background: var(--editor-code-bg);
   padding: 0.2rem 0.4rem;
-  border-radius: var(--radius-sm);
-  color: var(--brand-weak);
+  border-radius: 4px;
+  color: var(--editor-code-text);
 }
 
 /* 코드 블록 */
 .milkdown pre {
-  background: #1e1e2e;
+  background: var(--editor-pre-bg);
   padding: 1rem;
-  border-radius: var(--radius-md);
+  border-radius: 8px;
   overflow-x: auto;
   margin: 1rem 0;
 }
@@ -160,7 +230,7 @@
   line-height: 1.7;
   background: transparent;
   padding: 0;
-  color: #e7e9ee;
+  color: var(--editor-pre-text);
 }
 
 /* =========================================================
@@ -168,13 +238,13 @@
    ========================================================= */
 
 .milkdown blockquote {
-  border-left: 4px solid var(--brand);
+  border-left: 4px solid #10b981;
   padding-left: 1rem;
   margin: 1rem 0;
-  color: var(--text-secondary);
+  color: var(--editor-text-secondary);
   font-style: italic;
-  background: rgba(var(--bg-app-rgb), 0.3);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--editor-blockquote-bg);
+  border-radius: 0 4px 4px 0;
   padding: 0.75rem 1rem;
 }
 
@@ -224,13 +294,13 @@
 .milkdown li[data-checked='true']::before {
   content: '☑';
   margin-right: 0.5rem;
-  color: var(--brand);
+  color: #10b981;
 }
 
 .milkdown li[data-checked='false']::before {
   content: '☐';
   margin-right: 0.5rem;
-  color: var(--text-secondary);
+  color: var(--editor-text-secondary);
 }
 
 /* =========================================================
@@ -245,19 +315,20 @@
 
 .milkdown th,
 .milkdown td {
-  border: 1px solid var(--border);
+  border: 1px solid var(--editor-border);
   padding: 0.75rem 1rem;
   text-align: left;
+  color: var(--editor-text);
 }
 
 .milkdown th {
-  background: rgba(var(--bg-app-rgb), 0.5);
+  background: var(--editor-code-bg);
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--editor-text);
 }
 
 .milkdown tr:nth-child(even) {
-  background: rgba(var(--bg-app-rgb), 0.2);
+  background: var(--editor-blockquote-bg);
 }
 
 /* =========================================================
@@ -266,7 +337,7 @@
 
 .milkdown hr {
   border: none;
-  border-top: 2px solid var(--border);
+  border-top: 2px solid var(--editor-border);
   margin: 2rem 0;
 }
 
@@ -294,7 +365,7 @@
 
 /* 텍스트 선택 */
 .milkdown ::selection {
-  background: rgba(16, 185, 129, 0.3);
+  background: var(--editor-selection);
   color: inherit;
 }
 
@@ -365,38 +436,75 @@
 }
 
 /* =========================================================
-   다크 모드 (기본)
+   하단 고정 버튼 영역
    ========================================================= */
 
-/* 이미 CSS 변수로 다크 모드가 기본이므로 추가 스타일 불필요 */
+/* 하단 고정 버튼들 - 각각 독립적으로 위치 */
+.editor-floating-buttons {
+  position: fixed;
+  bottom: 72px; /* FullScreenEditor 하단 바(~56px) 바로 위 */
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 100;
+}
 
-/* =========================================================
-   라이트 모드
-   ========================================================= */
+/* 테마 토글 버튼 - 왼쪽 하단 */
+.editor-floating-buttons .editor-theme-toggle {
+  position: fixed;
+  bottom: 72px;
+  left: 32px;
+  pointer-events: auto;
+}
 
-html.light .milkdown pre {
+/* 키보드 단축키 버튼 - 오른쪽 하단 */
+.editor-floating-buttons .keyboard-shortcuts-trigger {
+  position: fixed;
+  bottom: 72px;
+  right: 32px;
+  pointer-events: auto;
+}
+
+/* 테마 토글 버튼 */
+.editor-theme-toggle {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--editor-code-bg);
+  border: 2px solid var(--editor-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.editor-theme-toggle:hover {
+  background: var(--editor-border);
+  transform: scale(1.05);
+}
+
+.editor-theme-toggle svg {
+  width: 18px;
+  height: 18px;
+  color: var(--editor-text);
+}
+
+/* 라이트 모드 - 토글 버튼 강조 */
+.milkdown-editor-wrapper[data-theme="light"] .editor-theme-toggle {
+  background: #ffffff;
+  border-color: #d1d5db;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.milkdown-editor-wrapper[data-theme="light"] .editor-theme-toggle:hover {
   background: #f3f4f6;
+  border-color: #9ca3af;
 }
 
-html.light .milkdown pre code {
-  color: #1f2937;
-}
-
-html.light .milkdown code {
-  background: rgba(0, 0, 0, 0.05);
-  color: #047857;
-}
-
-html.light .milkdown blockquote {
-  background: rgba(0, 0, 0, 0.02);
-}
-
-html.light .milkdown th {
-  background: rgba(0, 0, 0, 0.03);
-}
-
-html.light .milkdown tr:nth-child(even) {
-  background: rgba(0, 0, 0, 0.02);
+.milkdown-editor-wrapper[data-theme="light"] .editor-theme-toggle svg {
+  color: #374151;
 }
 
 /* =========================================================
@@ -514,21 +622,21 @@ html.light .milkdown tr:nth-child(even) {
    라이트 모드 - Slash 메뉴
    ========================================================= */
 
-html.light .slash-menu {
+.milkdown-editor-wrapper[data-theme="light"] .slash-menu {
   background: #ffffff;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
 }
 
-html.light .slash-menu-item:hover,
-html.light .slash-menu-item.selected {
+.milkdown-editor-wrapper[data-theme="light"] .slash-menu-item:hover,
+.milkdown-editor-wrapper[data-theme="light"] .slash-menu-item.selected {
   background: rgba(0, 0, 0, 0.04);
 }
 
-html.light .slash-menu-item.selected {
+.milkdown-editor-wrapper[data-theme="light"] .slash-menu-item.selected {
   background: rgba(16, 185, 129, 0.1);
 }
 
-html.light .slash-menu-icon {
+.milkdown-editor-wrapper[data-theme="light"] .slash-menu-icon {
   background: rgba(0, 0, 0, 0.05);
 }
 
@@ -700,67 +808,95 @@ html.light .slash-menu-icon {
 
 /* 트리거 버튼 */
 .keyboard-shortcuts-trigger {
-  position: absolute;
-  bottom: 1rem;
-  right: 1rem;
   width: 36px;
   height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  background: var(--editor-code-bg);
+  border: 2px solid var(--editor-border);
+  border-radius: 8px;
   cursor: pointer;
-  transition: background-color 0.15s ease, transform 0.15s ease;
-  box-shadow: var(--shadow-popover);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .keyboard-shortcuts-trigger:hover {
-  background: rgba(var(--bg-app-rgb), 0.5);
+  background: var(--editor-border);
   transform: scale(1.05);
 }
 
 .keyboard-shortcuts-trigger-icon {
   font-size: 1.25rem;
+  color: var(--editor-text);
 }
 
 /* =========================================================
    라이트 모드 - 키보드 단축키 도움말
    ========================================================= */
 
-html.light .keyboard-shortcuts-backdrop {
+.milkdown-editor-wrapper[data-theme="light"] .keyboard-shortcuts-backdrop {
   background: rgba(0, 0, 0, 0.4);
 }
 
-html.light .keyboard-shortcuts-modal {
+.milkdown-editor-wrapper[data-theme="light"] .keyboard-shortcuts-modal {
   background: #ffffff;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
 }
 
-html.light .keyboard-shortcuts-os {
-  background: rgba(0, 0, 0, 0.05);
+.milkdown-editor-wrapper[data-theme="light"] .keyboard-shortcuts-title {
+  color: #1f2937;
 }
 
-html.light .keyboard-shortcuts-close:hover {
-  background: rgba(0, 0, 0, 0.05);
+.milkdown-editor-wrapper[data-theme="light"] .keyboard-shortcuts-os {
+  background: #f3f4f6;
+  color: #4b5563;
 }
 
-html.light .keyboard-shortcuts-key {
-  background: rgba(0, 0, 0, 0.05);
-  border-color: rgba(0, 0, 0, 0.1);
+.milkdown-editor-wrapper[data-theme="light"] .keyboard-shortcuts-close {
+  color: #6b7280;
 }
 
-html.light .keyboard-shortcuts-item {
-  border-bottom-color: rgba(0, 0, 0, 0.05);
+.milkdown-editor-wrapper[data-theme="light"] .keyboard-shortcuts-close:hover {
+  background: #f3f4f6;
+  color: #1f2937;
 }
 
-html.light .keyboard-shortcuts-trigger {
+.milkdown-editor-wrapper[data-theme="light"] .keyboard-shortcuts-group-title {
+  color: #6b7280;
+}
+
+.milkdown-editor-wrapper[data-theme="light"] .keyboard-shortcuts-label {
+  color: #1f2937;
+}
+
+.milkdown-editor-wrapper[data-theme="light"] .keyboard-shortcuts-key {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+.milkdown-editor-wrapper[data-theme="light"] .keyboard-shortcuts-item {
+  border-bottom-color: #e5e7eb;
+}
+
+.milkdown-editor-wrapper[data-theme="light"] .keyboard-shortcuts-hint {
+  color: #6b7280;
+}
+
+.milkdown-editor-wrapper[data-theme="light"] .keyboard-shortcuts-trigger {
   background: #ffffff;
+  border-color: #d1d5db;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
-html.light .keyboard-shortcuts-trigger:hover {
-  background: rgba(0, 0, 0, 0.05);
+.milkdown-editor-wrapper[data-theme="light"] .keyboard-shortcuts-trigger:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.milkdown-editor-wrapper[data-theme="light"] .keyboard-shortcuts-trigger-icon {
+  color: #374151;
 }
 
 /* =========================================================
@@ -935,23 +1071,23 @@ html.light .keyboard-shortcuts-trigger:hover {
    라이트 모드 - 업로드 진행률
    ========================================================= */
 
-html.light .upload-progress-content {
+.milkdown-editor-wrapper[data-theme="light"] .upload-progress-content {
   background: #ffffff;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
 }
 
-html.light .upload-progress.success .upload-progress-content {
+.milkdown-editor-wrapper[data-theme="light"] .upload-progress.success .upload-progress-content {
   background: rgba(16, 185, 129, 0.05);
 }
 
-html.light .upload-progress.error .upload-progress-content {
+.milkdown-editor-wrapper[data-theme="light"] .upload-progress.error .upload-progress-content {
   background: rgba(239, 68, 68, 0.05);
 }
 
-html.light .upload-progress-bar-container {
+.milkdown-editor-wrapper[data-theme="light"] .upload-progress-bar-container {
   background: rgba(0, 0, 0, 0.1);
 }
 
-html.light .milkdown-editor-wrapper.drag-over::after {
+.milkdown-editor-wrapper[data-theme="light"].drag-over::after {
   background: rgba(255, 255, 255, 0.95);
 }
