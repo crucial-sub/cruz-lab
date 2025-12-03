@@ -1,0 +1,957 @@
+/**
+ * MilkdownEditor 스타일
+ *
+ * 프로젝트 CSS 변수를 활용하여 다크/라이트 모드를 자동 지원합니다.
+ * Nord 테마를 기반으로 커스터마이징합니다.
+ */
+
+/* Wrapper 스타일 */
+.milkdown-editor-wrapper {
+  --editor-font-family: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, sans-serif;
+  --editor-font-code: 'JetBrains Mono', 'Fira Code', monospace;
+  --editor-min-height: 500px;
+  --editor-padding: 1.5rem;
+
+  width: 100%;
+  min-height: var(--editor-min-height);
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+/* 읽기 전용 모드 */
+.milkdown-editor-wrapper[data-readonly='true'] {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* 컨테이너 */
+.milkdown-editor-container {
+  width: 100%;
+  min-height: var(--editor-min-height);
+}
+
+/* =========================================================
+   Milkdown 에디터 오버라이드
+   ========================================================= */
+
+/* 메인 에디터 영역 */
+.milkdown .editor {
+  padding: var(--editor-padding);
+  min-height: var(--editor-min-height);
+  outline: none;
+  font-family: var(--editor-font-family);
+  font-size: var(--typo-body-size);
+  line-height: var(--typo-body-lh);
+  color: var(--text-primary);
+  background: transparent;
+}
+
+/* 플레이스홀더 스타일 */
+.milkdown .editor.ProseMirror-focused::before,
+.milkdown .editor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-secondary);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* =========================================================
+   Typography - 제목
+   ========================================================= */
+
+.milkdown h1 {
+  font-size: var(--typo-h2-size);
+  font-weight: var(--typo-h2-weight);
+  line-height: var(--typo-h2-lh);
+  color: var(--text-primary);
+  margin: 2rem 0 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.milkdown h2 {
+  font-size: var(--typo-h3-size);
+  font-weight: var(--typo-h3-weight);
+  line-height: var(--typo-h3-lh);
+  color: var(--text-primary);
+  margin: 1.5rem 0 0.75rem;
+}
+
+.milkdown h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.75rem;
+  color: var(--text-primary);
+  margin: 1.25rem 0 0.5rem;
+}
+
+.milkdown h4,
+.milkdown h5,
+.milkdown h6 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.5rem;
+  color: var(--text-primary);
+  margin: 1rem 0 0.5rem;
+}
+
+/* =========================================================
+   Typography - 본문
+   ========================================================= */
+
+.milkdown p {
+  margin: 0.75rem 0;
+  line-height: 1.8;
+  color: var(--text-primary);
+}
+
+.milkdown strong {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.milkdown em {
+  font-style: italic;
+}
+
+/* =========================================================
+   링크
+   ========================================================= */
+
+.milkdown a {
+  color: var(--brand);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.2s ease;
+}
+
+.milkdown a:hover {
+  color: var(--brand-hover);
+}
+
+/* =========================================================
+   코드
+   ========================================================= */
+
+/* 인라인 코드 */
+.milkdown code {
+  font-family: var(--editor-font-code);
+  font-size: 0.9em;
+  background: rgba(var(--bg-app-rgb), 0.5);
+  padding: 0.2rem 0.4rem;
+  border-radius: var(--radius-sm);
+  color: var(--brand-weak);
+}
+
+/* 코드 블록 */
+.milkdown pre {
+  background: #1e1e2e;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.milkdown pre code {
+  font-family: var(--editor-font-code);
+  font-size: 0.875rem;
+  line-height: 1.7;
+  background: transparent;
+  padding: 0;
+  color: #e7e9ee;
+}
+
+/* =========================================================
+   인용구
+   ========================================================= */
+
+.milkdown blockquote {
+  border-left: 4px solid var(--brand);
+  padding-left: 1rem;
+  margin: 1rem 0;
+  color: var(--text-secondary);
+  font-style: italic;
+  background: rgba(var(--bg-app-rgb), 0.3);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 0.75rem 1rem;
+}
+
+.milkdown blockquote p {
+  margin: 0.25rem 0;
+}
+
+/* =========================================================
+   목록
+   ========================================================= */
+
+.milkdown ul,
+.milkdown ol {
+  padding-left: 1.5rem;
+  margin: 0.75rem 0;
+}
+
+.milkdown li {
+  margin: 0.25rem 0;
+  line-height: 1.7;
+}
+
+.milkdown ul {
+  list-style-type: disc;
+}
+
+.milkdown ol {
+  list-style-type: decimal;
+}
+
+/* 중첩 목록 */
+.milkdown ul ul,
+.milkdown ol ol,
+.milkdown ul ol,
+.milkdown ol ul {
+  margin: 0.25rem 0;
+}
+
+/* 체크리스트 (GFM) */
+.milkdown li[data-checked='true'],
+.milkdown li[data-checked='false'] {
+  list-style-type: none;
+  margin-left: -1.5rem;
+  padding-left: 0;
+}
+
+.milkdown li[data-checked='true']::before {
+  content: '☑';
+  margin-right: 0.5rem;
+  color: var(--brand);
+}
+
+.milkdown li[data-checked='false']::before {
+  content: '☐';
+  margin-right: 0.5rem;
+  color: var(--text-secondary);
+}
+
+/* =========================================================
+   테이블 (GFM)
+   ========================================================= */
+
+.milkdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.milkdown th,
+.milkdown td {
+  border: 1px solid var(--border);
+  padding: 0.75rem 1rem;
+  text-align: left;
+}
+
+.milkdown th {
+  background: rgba(var(--bg-app-rgb), 0.5);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.milkdown tr:nth-child(even) {
+  background: rgba(var(--bg-app-rgb), 0.2);
+}
+
+/* =========================================================
+   구분선
+   ========================================================= */
+
+.milkdown hr {
+  border: none;
+  border-top: 2px solid var(--border);
+  margin: 2rem 0;
+}
+
+/* =========================================================
+   이미지
+   ========================================================= */
+
+.milkdown img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+  margin: 1rem 0;
+  display: block;
+}
+
+/* =========================================================
+   선택 영역
+   ========================================================= */
+
+.milkdown .ProseMirror-selectednode {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* 텍스트 선택 */
+.milkdown ::selection {
+  background: rgba(16, 185, 129, 0.3);
+  color: inherit;
+}
+
+/* =========================================================
+   커서 스타일
+   ========================================================= */
+
+.milkdown .ProseMirror-cursor {
+  border-color: var(--brand);
+}
+
+/* Gap Cursor */
+.milkdown .ProseMirror-gapcursor {
+  display: none;
+  pointer-events: none;
+  position: absolute;
+}
+
+.milkdown .ProseMirror-gapcursor::after {
+  content: '';
+  display: block;
+  position: absolute;
+  top: -2px;
+  width: 20px;
+  border-top: 1px solid var(--brand);
+  animation: blink 1s infinite;
+}
+
+.milkdown .ProseMirror-focused .ProseMirror-gapcursor {
+  display: block;
+}
+
+/* =========================================================
+   포커스 스타일
+   ========================================================= */
+
+.milkdown-editor-wrapper:focus-within {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring-focus);
+}
+
+/* =========================================================
+   반응형
+   ========================================================= */
+
+@media (max-width: 768px) {
+  .milkdown-editor-wrapper {
+    --editor-padding: 1rem;
+  }
+
+  .milkdown h1 {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+
+  .milkdown h2 {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+
+  .milkdown pre {
+    padding: 0.75rem;
+  }
+
+  .milkdown pre code {
+    font-size: 0.8rem;
+  }
+}
+
+/* =========================================================
+   다크 모드 (기본)
+   ========================================================= */
+
+/* 이미 CSS 변수로 다크 모드가 기본이므로 추가 스타일 불필요 */
+
+/* =========================================================
+   라이트 모드
+   ========================================================= */
+
+html.light .milkdown pre {
+  background: #f3f4f6;
+}
+
+html.light .milkdown pre code {
+  color: #1f2937;
+}
+
+html.light .milkdown code {
+  background: rgba(0, 0, 0, 0.05);
+  color: #047857;
+}
+
+html.light .milkdown blockquote {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+html.light .milkdown th {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+html.light .milkdown tr:nth-child(even) {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* =========================================================
+   Slash 메뉴 스타일
+   ========================================================= */
+
+.slash-menu {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popover);
+  padding: 0.5rem;
+  min-width: 220px;
+  max-width: 300px;
+  max-height: 320px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+/* 스크롤바 스타일링 */
+.slash-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.slash-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.slash-menu::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.slash-menu::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* 그룹 */
+.slash-menu-group {
+  margin-bottom: 0.5rem;
+}
+
+.slash-menu-group:last-child {
+  margin-bottom: 0;
+}
+
+.slash-menu-group-label {
+  font-size: var(--typo-caption-size);
+  font-weight: var(--typo-label-weight);
+  color: var(--text-secondary);
+  padding: 0.25rem 0.75rem;
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* 메뉴 아이템 */
+.slash-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.slash-menu-item:hover,
+.slash-menu-item.selected {
+  background: rgba(var(--bg-app-rgb), 0.5);
+}
+
+.slash-menu-item.selected {
+  background: var(--brand-tint);
+}
+
+/* 아이콘 */
+.slash-menu-icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: rgba(var(--bg-app-rgb), 0.5);
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.slash-menu-item.selected .slash-menu-icon {
+  color: var(--brand);
+  background: rgba(16, 185, 129, 0.15);
+}
+
+/* 라벨 */
+.slash-menu-label {
+  font-size: var(--typo-body-size);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 빈 결과 */
+.slash-menu-empty {
+  padding: 1rem;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--typo-caption-size);
+}
+
+/* =========================================================
+   라이트 모드 - Slash 메뉴
+   ========================================================= */
+
+html.light .slash-menu {
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+}
+
+html.light .slash-menu-item:hover,
+html.light .slash-menu-item.selected {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+html.light .slash-menu-item.selected {
+  background: rgba(16, 185, 129, 0.1);
+}
+
+html.light .slash-menu-icon {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* =========================================================
+   키보드 단축키 도움말 모달
+   ========================================================= */
+
+/* 배경 오버레이 */
+.keyboard-shortcuts-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 모달 컨테이너 */
+.keyboard-shortcuts-modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popover);
+  width: 90%;
+  max-width: 480px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.2s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 헤더 */
+.keyboard-shortcuts-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.keyboard-shortcuts-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  flex: 1;
+}
+
+.keyboard-shortcuts-os {
+  font-size: var(--typo-caption-size);
+  color: var(--text-secondary);
+  background: rgba(var(--bg-app-rgb), 0.5);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+}
+
+.keyboard-shortcuts-close {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.keyboard-shortcuts-close:hover {
+  color: var(--text-primary);
+  background: rgba(var(--bg-app-rgb), 0.5);
+}
+
+/* 콘텐츠 영역 */
+.keyboard-shortcuts-content {
+  padding: 1rem 1.25rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* 그룹 */
+.keyboard-shortcuts-group {
+  margin-bottom: 1.25rem;
+}
+
+.keyboard-shortcuts-group:last-child {
+  margin-bottom: 0;
+}
+
+.keyboard-shortcuts-group-title {
+  font-size: var(--typo-caption-size);
+  font-weight: var(--typo-label-weight);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.5rem 0;
+}
+
+/* 단축키 목록 */
+.keyboard-shortcuts-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.keyboard-shortcuts-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(var(--bg-app-rgb), 0.3);
+}
+
+.keyboard-shortcuts-item:last-child {
+  border-bottom: none;
+}
+
+.keyboard-shortcuts-label {
+  font-size: var(--typo-body-size);
+  color: var(--text-primary);
+}
+
+/* 키보드 키 스타일 */
+.keyboard-shortcuts-key {
+  font-family: var(--editor-font-code);
+  font-size: 0.8rem;
+  background: rgba(var(--bg-app-rgb), 0.5);
+  color: var(--text-secondary);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* 푸터 */
+.keyboard-shortcuts-footer {
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+
+.keyboard-shortcuts-hint {
+  font-size: var(--typo-caption-size);
+  color: var(--text-secondary);
+}
+
+/* 트리거 버튼 */
+.keyboard-shortcuts-trigger {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+  box-shadow: var(--shadow-popover);
+}
+
+.keyboard-shortcuts-trigger:hover {
+  background: rgba(var(--bg-app-rgb), 0.5);
+  transform: scale(1.05);
+}
+
+.keyboard-shortcuts-trigger-icon {
+  font-size: 1.25rem;
+}
+
+/* =========================================================
+   라이트 모드 - 키보드 단축키 도움말
+   ========================================================= */
+
+html.light .keyboard-shortcuts-backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+html.light .keyboard-shortcuts-modal {
+  background: #ffffff;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+html.light .keyboard-shortcuts-os {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+html.light .keyboard-shortcuts-close:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+html.light .keyboard-shortcuts-key {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+html.light .keyboard-shortcuts-item {
+  border-bottom-color: rgba(0, 0, 0, 0.05);
+}
+
+html.light .keyboard-shortcuts-trigger {
+  background: #ffffff;
+}
+
+html.light .keyboard-shortcuts-trigger:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* =========================================================
+   업로드 진행률 표시
+   ========================================================= */
+
+/* 진행률 컨테이너 */
+.upload-progress {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9998;
+  transition: all 0.3s ease;
+}
+
+.upload-progress.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.upload-progress.hidden {
+  opacity: 0;
+  transform: translateX(-50%) translateY(20px);
+  pointer-events: none;
+}
+
+/* 진행률 컨텐츠 */
+.upload-progress-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  box-shadow: var(--shadow-popover);
+  min-width: 280px;
+}
+
+/* 상태별 스타일 */
+.upload-progress.uploading .upload-progress-content {
+  border-color: var(--brand);
+}
+
+.upload-progress.success .upload-progress-content {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.upload-progress.error .upload-progress-content {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* 아이콘 */
+.upload-progress-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.upload-progress.uploading .upload-progress-icon {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.upload-progress.success .upload-progress-icon {
+  color: #10b981;
+}
+
+.upload-progress.error .upload-progress-icon {
+  color: #ef4444;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* 정보 영역 */
+.upload-progress-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.upload-progress-filename {
+  font-size: var(--typo-caption-size);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.upload-progress-message {
+  font-size: var(--typo-body-size);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* 프로그레스 바 */
+.upload-progress-bar-container {
+  width: 60px;
+  height: 4px;
+  background: rgba(var(--bg-app-rgb), 0.5);
+  border-radius: 2px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.upload-progress-bar {
+  height: 100%;
+  background: var(--brand);
+  border-radius: 2px;
+  transition: width 0.2s ease;
+}
+
+/* 다중 업로드 리스트 */
+.upload-progress-list {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9998;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.upload-progress-list .upload-progress {
+  position: relative;
+  bottom: auto;
+  left: auto;
+  transform: none;
+}
+
+.upload-progress-list .upload-progress.visible {
+  transform: none;
+}
+
+.upload-progress-list .upload-progress.hidden {
+  transform: translateY(20px);
+}
+
+/* =========================================================
+   드래그 앤 드롭 오버레이
+   ========================================================= */
+
+.milkdown-editor-wrapper.drag-over::after {
+  content: '이미지를 여기에 놓으세요';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--bg-app-rgb), 0.9);
+  border: 3px dashed var(--brand);
+  border-radius: var(--radius-md);
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--brand);
+  z-index: 100;
+  pointer-events: none;
+}
+
+/* =========================================================
+   라이트 모드 - 업로드 진행률
+   ========================================================= */
+
+html.light .upload-progress-content {
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+}
+
+html.light .upload-progress.success .upload-progress-content {
+  background: rgba(16, 185, 129, 0.05);
+}
+
+html.light .upload-progress.error .upload-progress-content {
+  background: rgba(239, 68, 68, 0.05);
+}
+
+html.light .upload-progress-bar-container {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+html.light .milkdown-editor-wrapper.drag-over::after {
+  background: rgba(255, 255, 255, 0.95);
+}
