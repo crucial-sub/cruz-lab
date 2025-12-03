@@ -44,6 +44,7 @@ export default {
         bg: {
           app: 'var(--bg-app)', // #0E0F12
           surface: 'var(--bg-surface)', // #14161A
+          card: 'var(--bg-card)', // #1a1d23 - 카드/스켈레톤용
         },
         text: {
           primary: 'var(--text-primary)', // #E7E9EE

@@ -37,6 +37,7 @@
   /* Color - Background */
   --bg-app: #0e0f12;
   --bg-surface: #14161a;
+  --bg-card: #1a1d23;
 
   /* 투명도 쓸 때를 위한 RGB도 함께 정의 */
   --bg-app-rgb: 14 15 18; /* #0e0f12 -> 14 15 18 */
@@ -215,6 +216,35 @@
   }
 }
 
+/* Skeleton shimmer 애니메이션 */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.animate-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.08),
+    transparent
+  );
+  animation: shimmer 1.5s infinite;
+}
+
 .animated-gradient {
   background: linear-gradient(
     -45deg,
@@ -258,6 +288,7 @@ html.light {
   /* Background */
   --bg-app: #f8fafc; /* #f8fafc */
   --bg-surface: #ffffff; /* #ffffff */
+  --bg-card: #f1f5f9; /* 라이트 테마 카드 배경 */
 
   /* RGB 버전(반투명 배경용) */
   --bg-app-rgb: 248 250 252; /* #f8fafc */
