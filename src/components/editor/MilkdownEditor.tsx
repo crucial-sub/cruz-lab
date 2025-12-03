@@ -21,7 +21,9 @@ import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { SlashProvider } from '@milkdown/kit/plugin/slash';
 import { nord } from '@milkdown/theme-nord';
 import type { Ctx } from '@milkdown/kit/ctx';
-import '@milkdown/theme-nord/style.css';
+// @milkdown/theme-nord/style.css는 @layer base 충돌로 사용 불가
+// 대신 커스텀 베이스 스타일 사용
+import './styles/milkdown-base.css';
 import './MilkdownEditor.css';
 
 // Slash 플러그인 및 메뉴 컴포넌트
