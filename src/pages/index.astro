@@ -2,7 +2,7 @@
 export const prerender = true;
 
 import ExperienceList from '@/components/ExperienceList.astro';
-import PostsPreview from '@/components/PostsPreview.astro';
+import PostsPreview from '@/components/islands/PostsPreview';
 import ProjectsPreview from '@/components/ProjectsPreview.astro';
 import ContactSection from '@/components/islands/ContactSection';
 import CursorFollower from '@/components/islands/CursorFollower';
@@ -66,7 +66,7 @@ const intro = '아이디어를 코드로 구현하는 과정에 매력을 느껴
 
   <!-- Latest Posts 섹션 -->
   <FadeInSection client:visible delay={0.1}>
-    <PostsPreview />
+    <PostsPreview client:visible />
   </FadeInSection>
 
   <!-- Contact 섹션 -->

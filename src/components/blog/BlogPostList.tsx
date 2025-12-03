@@ -1,6 +1,8 @@
 // Firebase에서 포스트를 가져와 렌더링하는 블로그 컴포넌트
+// BlogCard 컴포넌트를 사용하여 TiltCard + GlowCard 인터랙티브 효과 적용
 import { useEffect, useState } from 'react';
 import { getPublishedPosts, getAllTags, type Post } from '@/lib/posts';
+import BlogCard from '../islands/BlogCard';
 
 export default function BlogPostList() {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -36,15 +38,6 @@ export default function BlogPostList() {
       post.description.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesTag && matchesSearch;
   });
-
-  // 날짜 포맷
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('ko-KR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    }).format(date);
-  };
 
   if (isLoading) {
     return (
@@ -123,52 +116,18 @@ export default function BlogPostList() {
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredPosts.map((post) => (
-            <a
+          {filteredPosts.map((post, index) => (
+            <BlogCard
               key={post.id}
-              href={`/blog/${post.slug}`}
-              className="group overflow-hidden rounded-2xl border border-border bg-bg-card transition-all hover:border-brand hover:shadow-lg"
-            >
-              {/* 썸네일 */}
-              <div className="aspect-video overflow-hidden">
-                <img
-                  src={post.heroImage || `https://picsum.photos/seed/${post.id}/600/400`}
-                  alt={post.title}
-                  className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                />
-              </div>
-
-              {/* 컨텐츠 */}
-              <div className="flex h-[180px] flex-col p-5">
-                {/* 태그 - 항상 고정 높이 유지 */}
-                <div className="mb-2 flex h-6 flex-wrap gap-2">
-                  {post.tags.slice(0, 3).map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full bg-brand/10 px-2.5 py-0.5 text-xs font-medium text-brand"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-
-                {/* 제목 */}
-                <h3 className="mb-2 text-lg font-bold text-text-primary group-hover:text-brand">
-                  {post.title}
-                </h3>
-
-                {/* 설명 - 항상 2줄 높이 유지 */}
-                <p className="mb-4 line-clamp-2 min-h-[40px] text-sm text-text-secondary">
-                  {post.description || '\u00A0'}
-                </p>
-
-                {/* 메타 정보 - 항상 하단 고정 */}
-                <div className="mt-auto flex items-center justify-between text-xs text-text-secondary">
-                  <span>{formatDate(post.pubDate)}</span>
-                  <span>약 {post.readingTime}분</span>
-                </div>
-              </div>
-            </a>
+              title={post.title}
+              description={post.description || ''}
+              pubDate={post.pubDate}
+              heroImage={post.heroImage || `https://picsum.photos/seed/${post.id}/600/400`}
+              tags={post.tags}
+              slug={post.slug}
+              index={index}
+              readingTime={post.readingTime}
+            />
           ))}
         </div>
       )}

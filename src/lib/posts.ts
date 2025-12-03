@@ -48,10 +48,15 @@ export async function getPublishedPosts(): Promise<Post[]> {
 }
 
 // slug로 단일 포스트 가져오기
-// 복합 인덱스 없이 slug로만 조회 후 클라이언트에서 검증
+// Firestore 보안 규칙과 일치하도록 status 쿼리 포함
 export async function getPostBySlug(slug: string): Promise<Post | null> {
   const postsRef = collection(db, 'posts');
-  const q = query(postsRef, where('slug', '==', slug));
+  // 보안 규칙이 status='published' 체크를 요구하므로 쿼리에 포함
+  const q = query(
+    postsRef,
+    where('slug', '==', slug),
+    where('status', '==', 'published')
+  );
 
   const snapshot = await getDocs(q);
   if (snapshot.empty) return null;
@@ -59,8 +64,8 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
   const docSnap = snapshot.docs[0];
   const data = docSnap.data();
 
-  // 발행 상태 및 공개 여부 확인
-  if (data.status !== 'published' || data.isPublic !== true) {
+  // 공개 여부 클라이언트에서 추가 검증
+  if (data.isPublic !== true) {
     return null;
   }
 
