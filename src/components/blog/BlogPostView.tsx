@@ -101,16 +101,9 @@ export default function BlogPostView({ slug }: Props) {
         )}
 
         {/* 제목 */}
-        <h1 className="mb-4 text-3xl font-extrabold leading-tight md:text-4xl lg:text-5xl text-text-primary">
+        <h1 className="mb-6 text-3xl font-extrabold leading-tight md:text-4xl lg:text-5xl text-text-primary">
           {post.title}
         </h1>
-
-        {/* 설명 */}
-        {post.description && (
-          <p className="mb-6 text-xl leading-relaxed text-text-secondary">
-            {post.description}
-          </p>
-        )}
 
         {/* 메타 정보 */}
         <div className="flex flex-wrap items-center gap-4 text-text-secondary">
@@ -135,7 +128,7 @@ export default function BlogPostView({ slug }: Props) {
                 d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            {post.readingTime}분 읽기
+            약 {post.readingTime}분 소요
           </span>
         </div>
       </header>

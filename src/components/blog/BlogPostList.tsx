@@ -130,48 +130,42 @@ export default function BlogPostList() {
               className="group overflow-hidden rounded-2xl border border-border bg-bg-card transition-all hover:border-brand hover:shadow-lg"
             >
               {/* 썸네일 */}
-              {post.heroImage ? (
-                <div className="aspect-video overflow-hidden">
-                  <img
-                    src={post.heroImage}
-                    alt={post.title}
-                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                  />
-                </div>
-              ) : (
-                <div className="aspect-video bg-bg-app" />
-              )}
+              <div className="aspect-video overflow-hidden">
+                <img
+                  src={post.heroImage || `https://picsum.photos/seed/${post.id}/600/400`}
+                  alt={post.title}
+                  className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                />
+              </div>
 
               {/* 컨텐츠 */}
-              <div className="p-5">
-                {/* 태그 */}
-                {post.tags.length > 0 && (
-                  <div className="mb-2 flex flex-wrap gap-2">
-                    {post.tags.slice(0, 3).map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full bg-brand/10 px-2.5 py-0.5 text-xs font-medium text-brand"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
+              <div className="flex h-[180px] flex-col p-5">
+                {/* 태그 - 항상 고정 높이 유지 */}
+                <div className="mb-2 flex h-6 flex-wrap gap-2">
+                  {post.tags.slice(0, 3).map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full bg-brand/10 px-2.5 py-0.5 text-xs font-medium text-brand"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
 
                 {/* 제목 */}
                 <h3 className="mb-2 text-lg font-bold text-text-primary group-hover:text-brand">
                   {post.title}
                 </h3>
 
-                {/* 설명 */}
-                <p className="mb-4 line-clamp-2 text-sm text-text-secondary">
-                  {post.description}
+                {/* 설명 - 항상 2줄 높이 유지 */}
+                <p className="mb-4 line-clamp-2 min-h-[40px] text-sm text-text-secondary">
+                  {post.description || '\u00A0'}
                 </p>
 
-                {/* 메타 정보 */}
-                <div className="flex items-center justify-between text-xs text-text-secondary">
+                {/* 메타 정보 - 항상 하단 고정 */}
+                <div className="mt-auto flex items-center justify-between text-xs text-text-secondary">
                   <span>{formatDate(post.pubDate)}</span>
-                  <span>{post.readingTime}분 읽기</span>
+                  <span>약 {post.readingTime}분</span>
                 </div>
               </div>
             </a>

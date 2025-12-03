@@ -31,14 +31,15 @@ export default function PublishModal({
   const [isPublishing, setIsPublishing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // slug 자동 생성
+  // slug 자동 생성 (한글 포함 가능)
   useEffect(() => {
     if (!slug && title) {
       const generatedSlug = title
         .toLowerCase()
-        .replace(/[^a-z0-9가-힣\s-]/g, '')
+        .replace(/[^a-z0-9가-힣\s-]/g, '')  // 영문/숫자/한글 허용
         .replace(/\s+/g, '-')
         .replace(/-+/g, '-')
+        .trim()
         .substring(0, 50);
       setSlug(generatedSlug);
     }
@@ -91,9 +92,16 @@ export default function PublishModal({
 
     setIsPublishing(true);
     try {
+      // description이 비어있으면 본문에서 자동 생성
+      const autoDescription = description || content
+        .substring(0, 150)
+        .replace(/[#*`>\-\[\]]/g, '')  // 마크다운 문법 제거
+        .replace(/\n+/g, ' ')           // 줄바꿈을 공백으로
+        .trim();
+
       const postData = {
         title,
-        description,
+        description: autoDescription,
         content,
         heroImage,
         tags,
@@ -245,7 +253,7 @@ export default function PublishModal({
                 type="text"
                 value={slug}
                 onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9가-힣-]/g, ''))}
-                placeholder="url-slug"
+                placeholder="포스트-제목"
                 className="flex-1 bg-transparent text-sm text-gray-900 focus:outline-none dark:text-white"
               />
             </div>
