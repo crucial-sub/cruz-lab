@@ -4,13 +4,31 @@ export const prerender = false; // SSR - 동적 라우팅
 // 개별 블로그 포스트 페이지 - Firebase에서 동적으로 로드
 import BlogPostView from '@/components/blog/BlogPostView';
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getPostMetaBySlug } from '@/lib/posts.server';
 
 // URL에서 slug 추출
 const { slug } = Astro.params;
 const slugString = Array.isArray(slug) ? slug.join('/') : slug || '';
+
+// 서버사이드에서 포스트 메타데이터 가져오기 (SEO용)
+const postMeta = await getPostMetaBySlug(slugString);
+
+// 메타데이터 설정
+const title = postMeta?.title || '포스트를 찾을 수 없습니다';
+const description = postMeta?.description || '요청하신 포스트가 존재하지 않습니다.';
+const heroImage = postMeta?.heroImage || undefined;
+const tags = postMeta?.tags || [];
+const publishedTime = postMeta?.pubDate || undefined;
 ---
 
-<BaseLayout title="블로그" description="포스트 로딩 중...">
+<BaseLayout
+  title={title}
+  description={description}
+  image={heroImage}
+  type="article"
+  publishedTime={publishedTime}
+  tags={tags}
+>
   <BlogPostView client:load slug={slugString} />
 </BaseLayout>
 
