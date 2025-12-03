@@ -76,19 +76,17 @@ export default function BlogCard({
 
           {/* 콘텐츠 영역 */}
           <div className={`flex flex-1 flex-col p-5 ${featured ? 'md:w-1/2' : ''}`}>
-            {/* 태그 */}
-            {tags.length > 0 && (
-              <div className="mb-3 flex flex-wrap gap-2">
-                {tags.slice(0, 3).map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            )}
+            {/* 태그 - 태그가 없어도 동일한 높이 유지 */}
+            <div className="mb-3 flex min-h-[24px] flex-wrap gap-2">
+              {tags.slice(0, 3).map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
 
             {/* 제목 */}
             <h3
