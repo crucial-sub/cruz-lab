@@ -18,5 +18,29 @@ export default defineConfig({
         '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
     },
+    // Vite 의존성 최적화 캐시 문제 해결
+    optimizeDeps: {
+      // 개발 서버 시작 시 항상 의존성 재스캔
+      force: true,
+      // 자주 사용하는 의존성 미리 번들링
+      include: [
+        'react',
+        'react-dom',
+        'framer-motion',
+        '@milkdown/kit/core',
+        '@milkdown/kit/preset/commonmark',
+        '@milkdown/kit/preset/gfm',
+      ],
+    },
+    server: {
+      // HMR 연결 안정성 향상
+      hmr: {
+        overlay: true,
+      },
+      // 파일 감시 안정성
+      watch: {
+        usePolling: false,
+      },
+    },
   },
 });
