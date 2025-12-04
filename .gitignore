@@ -26,6 +26,10 @@ pnpm-debug.log*
 # vercel
 .vercel/
 
+# Firebase Functions
+functions/lib/
+functions/node_modules/
+
 # etc
 .playwright-mcp/
 .claude/

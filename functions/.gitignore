@@ -1,0 +1,8 @@
+# Compiled JavaScript
+lib/
+
+# Node modules
+node_modules/
+
+# Local environment
+.env.local
