@@ -1,10 +1,10 @@
 ---
 title: "[wesbos30] 22. Following Highlight"
 description: "Following Highlight"
-pubDate: "2025-12-04T12:00:03.340Z"
-updatedDate: "2025-12-04T12:00:03.340Z"
+pubDate: "2025-12-04T12:00:47.364Z"
+updatedDate: "2025-12-04T12:00:47.364Z"
 heroImage: ""
-tags: []
+tags: ["javascript", "wesbos30"]
 slug: "wesbos30-22-following-highlight"
 readingTime: 3
 isPublic: true
