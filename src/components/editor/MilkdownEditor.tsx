@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { Editor, rootCtx, defaultValueCtx } from '@milkdown/kit/core';
+import { Editor, rootCtx, defaultValueCtx, editorViewCtx, parserCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
@@ -47,6 +47,15 @@ import { UploadProgress } from './UploadProgress';
 import { prismHighlightPlugin } from './plugins/prismPlugin';
 import './styles/prism-theme.css';
 
+// 코드블록 언어 선택기 플러그인
+import { codeBlockLanguagePlugin } from './plugins/codeBlockPlugin';
+
+// 인용구 탈출 플러그인
+import { blockquoteEscapePlugin } from './plugins/blockquoteEscape';
+
+// 링크 다이얼로그 컴포넌트
+import { LinkDialog } from './LinkDialog';
+
 interface MilkdownEditorProps {
   /** 에디터 초기 마크다운 값 */
   defaultValue?: string;
@@ -66,6 +75,10 @@ interface MilkdownEditorProps {
   enableImageUpload?: boolean;
   /** 이미지 업로드 에러 콜백 */
   onUploadError?: (error: Error) => void;
+  /** Cmd/Ctrl+S 저장 단축키 콜백 */
+  onSave?: () => void;
+  /** 마크다운 Import 버튼 표시 여부 */
+  showImportButton?: boolean;
 }
 
 /**
@@ -89,6 +102,8 @@ export function MilkdownEditor({
   showShortcutsHelp = true,
   enableImageUpload = true,
   onUploadError,
+  onSave,
+  showImportButton = true,
 }: MilkdownEditorProps) {
   // 에디터 DOM 참조
   const editorRef = useRef<HTMLDivElement>(null);
@@ -98,6 +113,8 @@ export function MilkdownEditor({
   const ctxRef = useRef<Ctx | null>(null);
   // onChange 콜백 참조 (재생성 방지)
   const onChangeRef = useRef(onChange);
+  // onSave 콜백 참조 (재생성 방지)
+  const onSaveRef = useRef(onSave);
   // Slash Provider 참조
   const slashProviderRef = useRef<SlashProvider | null>(null);
   // 초기값 참조 (재초기화 방지)
@@ -116,6 +133,13 @@ export function MilkdownEditor({
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle');
   const [uploadFileName, setUploadFileName] = useState<string | undefined>();
   const [isDragOver, setIsDragOver] = useState(false);
+
+  // 마크다운 Import용 파일 input 참조
+  const importInputRef = useRef<HTMLInputElement>(null);
+
+  // 링크 다이얼로그 상태
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [linkDialogText, setLinkDialogText] = useState('');
 
   // 사이트 테마 감지 및 동기화
   useEffect(() => {
@@ -164,6 +188,11 @@ export function MilkdownEditor({
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+
+  // onSave 참조 업데이트
+  useEffect(() => {
+    onSaveRef.current = onSave;
+  }, [onSave]);
 
   // 디바운스된 onChange 핸들러
   const debouncedOnChange = useCallback((markdown: string) => {
@@ -234,6 +263,157 @@ export function MilkdownEditor({
     setIsDragOver(false);
     // 실제 파일 처리는 Milkdown upload 플러그인이 담당
   }, []);
+
+  // 마크다운 Import 핸들러 - 파일 선택 시 에디터에 내용 설정
+  const handleImportMarkdown = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !ctxRef.current) return;
+
+    try {
+      // 파일 내용 읽기
+      const text = await file.text();
+
+      // 에디터 컨텍스트에서 파서와 뷰 가져오기
+      const ctx = ctxRef.current;
+      const parser = ctx.get(parserCtx);
+      const view = ctx.get(editorViewCtx);
+
+      // 마크다운을 ProseMirror 노드로 파싱
+      const doc = parser(text);
+
+      // 전체 문서 교체
+      const { state, dispatch } = view;
+      const tr = state.tr.replaceWith(0, state.doc.content.size, doc.content);
+      dispatch(tr);
+
+      // 포커스
+      view.focus();
+    } catch (err) {
+      console.error('마크다운 Import 오류:', err);
+    }
+
+    // 파일 input 리셋 (같은 파일 재선택 가능하도록)
+    e.target.value = '';
+  }, []);
+
+  // Import 버튼 클릭 핸들러
+  const handleImportClick = useCallback(() => {
+    importInputRef.current?.click();
+  }, []);
+
+  // 링크 다이얼로그 열기 핸들러
+  const handleOpenLinkDialog = useCallback(() => {
+    // 현재 선택된 텍스트 가져오기
+    if (!ctxRef.current) {
+      setLinkDialogText('');
+      setLinkDialogOpen(true);
+      return;
+    }
+
+    try {
+      const view = ctxRef.current.get(editorViewCtx);
+      const { state } = view;
+      const { selection } = state;
+      const selectedText = state.doc.textBetween(selection.from, selection.to, ' ');
+      setLinkDialogText(selectedText || '');
+    } catch {
+      setLinkDialogText('');
+    }
+
+    setLinkDialogOpen(true);
+  }, []);
+
+  // 링크 삽입 핸들러
+  const handleInsertLink = useCallback((url: string, text: string) => {
+    if (!ctxRef.current) return;
+
+    try {
+      const view = ctxRef.current.get(editorViewCtx);
+      const { state, dispatch } = view;
+      const { schema, selection } = state;
+      const linkMark = schema.marks.link;
+
+      if (!linkMark) return;
+
+      // 트랜잭션 생성
+      let tr = state.tr;
+
+      // 선택된 텍스트가 있으면 그 위치에 링크 적용
+      if (!selection.empty) {
+        tr = tr.addMark(
+          selection.from,
+          selection.to,
+          linkMark.create({ href: url })
+        );
+      } else {
+        // 선택된 텍스트가 없으면 새 텍스트와 함께 링크 삽입
+        const linkText = schema.text(text, [linkMark.create({ href: url })]);
+        tr = tr.replaceSelectionWith(linkText, false);
+      }
+
+      dispatch(tr);
+      view.focus();
+    } catch (err) {
+      console.error('링크 삽입 오류:', err);
+    }
+  }, []);
+
+  // 브라우저 단축키 충돌 방지 및 커스텀 단축키 처리 (document 레벨 capture)
+  // 참고: Cmd+1~9는 브라우저가 JS 이전에 처리하여 오버라이드 불가
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd(Mac) 또는 Ctrl(Win) 키가 눌렸는지 확인
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+
+      const editorContainer = editorRef.current;
+      if (!editorContainer) return;
+
+      // e.code는 물리적 키 위치 (Option 키와 함께 눌러도 변하지 않음)
+      const code = e.code;
+      const key = e.key.toLowerCase();
+
+      // Cmd+Alt+K: 링크 다이얼로그 열기
+      // e.code 사용 (맥에서 Option+K가 특수문자 '˚'를 생성하므로)
+      // ctxRef가 있으면 작동 (에디터가 초기화된 상태)
+      if (e.altKey && code === 'KeyK' && ctxRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleOpenLinkDialog();
+        return;
+      }
+
+      // 아래 단축키들은 에디터에 포커스가 있을 때만 동작
+      if (!editorContainer.contains(document.activeElement)) return;
+
+      // Alt 키가 눌린 다른 조합은 플러그인에서 처리
+      if (e.altKey) return;
+
+      // Cmd+S (Alt 없이): 저장 콜백 실행 및 브라우저 기본 동작 차단
+      if (key === 's') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (onSaveRef.current) {
+          onSaveRef.current();
+        }
+        return;
+      }
+
+      // Cmd+K (Alt 없이): 주소창 열기 방지
+      if (code === 'KeyK') {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+    };
+
+    // capture phase에서 가장 먼저 이벤트 처리
+    document.addEventListener('keydown', handleKeyDown, true);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [handleOpenLinkDialog]);
 
   // 에디터 초기화
   useEffect(() => {
@@ -359,6 +539,8 @@ export function MilkdownEditor({
         .use(enableSlash ? slash : []) // Slash 메뉴 (조건부)
         .use(keyboardShortcutsPlugin) // 키보드 단축키
         .use(enableImageUpload ? imageUploadPlugin : []) // 이미지 업로드
+        .use(codeBlockLanguagePlugin) // 코드블록 언어 선택기
+        .use(blockquoteEscapePlugin) // 인용구 탈출
         .use(prismHighlightPlugin) // 코드 하이라이팅
         .create();
 
@@ -405,6 +587,32 @@ export function MilkdownEditor({
 
       {/* 하단 고정 버튼 영역 */}
       <div className="editor-floating-buttons">
+        {/* 마크다운 Import 버튼 */}
+        {showImportButton && (
+          <>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".md,.markdown,.txt"
+              onChange={handleImportMarkdown}
+              style={{ display: 'none' }}
+            />
+            <button
+              type="button"
+              onClick={handleImportClick}
+              className="editor-import-btn"
+              aria-label="마크다운 파일 Import"
+              title="마크다운 파일 Import (.md)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+            </button>
+          </>
+        )}
+
         {/* 테마 토글 버튼 */}
         <button
           type="button"
@@ -448,6 +656,14 @@ export function MilkdownEditor({
           </div>
         </div>
       )}
+
+      {/* 링크 삽입 다이얼로그 */}
+      <LinkDialog
+        isOpen={linkDialogOpen}
+        onClose={() => setLinkDialogOpen(false)}
+        onInsert={handleInsertLink}
+        initialText={linkDialogText}
+      />
     </div>
   );
 }

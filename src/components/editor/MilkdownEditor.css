@@ -216,8 +216,104 @@
   color: var(--editor-code-text);
 }
 
-/* 코드 블록 */
-.milkdown pre {
+/* 코드 블록 래퍼 (노션 스타일) */
+.milkdown .code-block-wrapper {
+  position: relative;
+  margin: 1rem 0;
+  border-radius: 8px;
+  background: var(--editor-pre-bg);
+}
+
+/* 언어 선택 버튼 (우측 상단) */
+.milkdown .code-block-lang-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  font-family: var(--editor-font-code);
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+  opacity: 0;
+}
+
+.milkdown .code-block-wrapper:hover .code-block-lang-btn {
+  opacity: 1;
+}
+
+.milkdown .code-block-lang-btn:hover {
+  background: rgba(0, 0, 0, 0.6);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #fff;
+}
+
+.milkdown .code-block-lang-btn:focus {
+  opacity: 1;
+  border-color: #10b981;
+}
+
+/* 언어 선택 드롭다운 */
+.milkdown .code-block-dropdown {
+  position: absolute;
+  top: 32px;
+  right: 8px;
+  z-index: 20;
+  background: #2e3440;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.milkdown .code-block-lang-select {
+  font-family: var(--editor-font-code);
+  font-size: 0.75rem;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  color: #d8dee9;
+  cursor: pointer;
+  outline: none;
+  min-width: 130px;
+}
+
+.milkdown .code-block-lang-select:focus {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.milkdown .code-block-lang-select option {
+  background: #2e3440;
+  color: #d8dee9;
+  padding: 4px 8px;
+}
+
+/* 코드 블록 내부 pre */
+.milkdown .code-block-wrapper pre {
+  background: transparent;
+  padding: 1rem;
+  padding-top: 2.5rem; /* 버튼 공간 확보 */
+  margin: 0;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.milkdown .code-block-wrapper pre code {
+  font-family: var(--editor-font-code);
+  font-size: 0.875rem;
+  line-height: 1.7;
+  background: transparent;
+  padding: 0;
+  color: var(--editor-pre-text);
+}
+
+/* 기존 코드 블록 스타일 (fallback) */
+.milkdown pre:not(.code-block-wrapper pre) {
   background: var(--editor-pre-bg);
   padding: 1rem;
   border-radius: 8px;
@@ -225,7 +321,7 @@
   margin: 1rem 0;
 }
 
-.milkdown pre code {
+.milkdown pre:not(.code-block-wrapper pre) code {
   font-family: var(--editor-font-code);
   font-size: 0.875rem;
   line-height: 1.7;
@@ -243,10 +339,17 @@
   padding-left: 1rem;
   margin: 1rem 0;
   color: var(--editor-text-secondary);
-  font-style: italic;
+  font-style: normal; /* italic 제거 - 따옴표 스타일 방지 */
   background: var(--editor-blockquote-bg);
   border-radius: 0 4px 4px 0;
   padding: 0.75rem 1rem;
+  quotes: none; /* 브라우저 기본 따옴표 제거 */
+}
+
+/* 인용구 따옴표 완전 제거 */
+.milkdown blockquote::before,
+.milkdown blockquote::after {
+  content: none;
 }
 
 .milkdown blockquote p {
@@ -508,6 +611,55 @@
   color: #374151;
 }
 
+/* Import 버튼 - 왼쪽 하단 (테마 토글 위) */
+.editor-floating-buttons .editor-import-btn {
+  position: fixed;
+  bottom: 116px;
+  left: 32px;
+  pointer-events: auto;
+}
+
+.editor-import-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--editor-code-bg);
+  border: 1px solid var(--editor-border);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.editor-import-btn:hover {
+  background: var(--editor-border);
+  transform: scale(1.05);
+}
+
+.editor-import-btn svg {
+  width: 18px;
+  height: 18px;
+  color: var(--editor-text);
+}
+
+/* 라이트 모드 - Import 버튼 */
+.milkdown-editor-wrapper[data-theme="light"] .editor-import-btn {
+  background: #ffffff;
+  border-color: #d1d5db;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.milkdown-editor-wrapper[data-theme="light"] .editor-import-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.milkdown-editor-wrapper[data-theme="light"] .editor-import-btn svg {
+  color: #374151;
+}
+
 /* =========================================================
    Slash 메뉴 스타일
    ========================================================= */
@@ -656,6 +808,8 @@
   justify-content: center;
   z-index: 9999;
   animation: fadeIn 0.15s ease-out;
+  pointer-events: auto; /* 부모의 pointer-events: none 오버라이드 */
+  cursor: pointer; /* 클릭 가능함을 표시 */
 }
 
 @keyframes fadeIn {
@@ -669,10 +823,10 @@
 
 /* 모달 컨테이너 */
 .keyboard-shortcuts-modal {
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-popover);
+  background: var(--bg-surface, #1a1b1e);
+  border: 1px solid var(--border, #2d2d30);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--shadow-popover, 0 20px 60px rgba(0, 0, 0, 0.3));
   width: 90%;
   max-width: 480px;
   max-height: 80vh;
@@ -680,6 +834,8 @@
   flex-direction: column;
   overflow: hidden;
   animation: slideUp 0.2s ease-out;
+  cursor: default; /* 모달 내부는 일반 커서 */
+  pointer-events: auto;
 }
 
 @keyframes slideUp {
@@ -1091,4 +1247,204 @@
 
 .milkdown-editor-wrapper[data-theme="light"].drag-over::after {
   background: rgba(255, 255, 255, 0.95);
+}
+
+/* =========================================================
+   링크 다이얼로그
+   ========================================================= */
+
+/* 배경 오버레이 */
+.link-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.15s ease-out;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* 모달 컨테이너 */
+.link-dialog-modal {
+  background: var(--bg-surface, #1a1b1e);
+  border: 1px solid var(--border, #2d2d30);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: 90%;
+  max-width: 400px;
+  animation: slideUp 0.2s ease-out;
+  cursor: default;
+  pointer-events: auto;
+}
+
+/* 헤더 */
+.link-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border, #2d2d30);
+}
+
+.link-dialog-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary, #e5e7eb);
+  margin: 0;
+}
+
+.link-dialog-close {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary, #9ca3af);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.link-dialog-close:hover {
+  color: var(--text-primary, #e5e7eb);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* 폼 */
+.link-dialog-form {
+  padding: 1.25rem;
+}
+
+.link-dialog-field {
+  margin-bottom: 1rem;
+}
+
+.link-dialog-field:last-of-type {
+  margin-bottom: 1.5rem;
+}
+
+.link-dialog-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary, #e5e7eb);
+  margin-bottom: 0.5rem;
+}
+
+.link-dialog-optional {
+  font-weight: 400;
+  color: var(--text-secondary, #9ca3af);
+}
+
+.link-dialog-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 0.9375rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border, #2d2d30);
+  border-radius: 8px;
+  color: var(--text-primary, #e5e7eb);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.link-dialog-input::placeholder {
+  color: var(--text-secondary, #6b7280);
+}
+
+.link-dialog-input:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+/* 버튼 영역 */
+.link-dialog-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.link-dialog-btn {
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.link-dialog-btn-cancel {
+  background: transparent;
+  border: 1px solid var(--border, #2d2d30);
+  color: var(--text-secondary, #9ca3af);
+}
+
+.link-dialog-btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary, #e5e7eb);
+}
+
+.link-dialog-btn-submit {
+  background: #10b981;
+  border: none;
+  color: white;
+}
+
+.link-dialog-btn-submit:hover:not(:disabled) {
+  background: #059669;
+}
+
+.link-dialog-btn-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 라이트 모드 */
+.milkdown-editor-wrapper[data-theme="light"] .link-dialog-backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.milkdown-editor-wrapper[data-theme="light"] .link-dialog-modal {
+  background: #ffffff;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+.milkdown-editor-wrapper[data-theme="light"] .link-dialog-title {
+  color: #1f2937;
+}
+
+.milkdown-editor-wrapper[data-theme="light"] .link-dialog-close {
+  color: #6b7280;
+}
+
+.milkdown-editor-wrapper[data-theme="light"] .link-dialog-close:hover {
+  color: #1f2937;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.milkdown-editor-wrapper[data-theme="light"] .link-dialog-label {
+  color: #374151;
+}
+
+.milkdown-editor-wrapper[data-theme="light"] .link-dialog-input {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  color: #1f2937;
+}
+
+.milkdown-editor-wrapper[data-theme="light"] .link-dialog-input::placeholder {
+  color: #9ca3af;
+}
+
+.milkdown-editor-wrapper[data-theme="light"] .link-dialog-btn-cancel {
+  border-color: #d1d5db;
+  color: #6b7280;
+}
+
+.milkdown-editor-wrapper[data-theme="light"] .link-dialog-btn-cancel:hover {
+  background: #f3f4f6;
+  color: #374151;
 }

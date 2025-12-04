@@ -6,7 +6,7 @@
  * - Firestore 저장/로드 로직 유지
  * - Firebase Storage 이미지 업로드 통합
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { db, initializeFirebase } from '@/lib/firebase';
 import { collection, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore';
 import MilkdownEditor from './MilkdownEditor';
@@ -121,8 +121,13 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
   };
 
   // 임시저장
-  const handleSaveDraft = async () => {
+  const handleSaveDraft = useCallback(async () => {
     if (isSaving) return;
+
+    // 디버깅: 저장되는 마크다운 내용 확인
+    console.log('=== 저장되는 마크다운 ===');
+    console.log(content);
+    console.log('========================');
 
     setIsSaving(true);
     try {
@@ -153,7 +158,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [isSaving, title, content, tags, postId]);
 
   // 나가기
   const handleExit = () => {
@@ -244,6 +249,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
               showShortcutsHelp={true}
               enableImageUpload={true}
               onUploadError={handleUploadError}
+              onSave={handleSaveDraft}
               className="h-full w-full"
             />
           </div>
