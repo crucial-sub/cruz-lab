@@ -30,6 +30,14 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
   const [isLoading, setIsLoading] = useState(mode === 'edit');
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // 출간 설정 상태 (편집 시 기존 값 유지)
+  const [heroImage, setHeroImage] = useState('');
+  const [description, setDescription] = useState('');
+  const [slug, setSlug] = useState('');
+
+  // 원래 포스트 상태 추적 (출간된 포스트 임시저장 시 상태 유지용)
+  const [originalStatus, setOriginalStatus] = useState<'draft' | 'published' | null>(null);
+
   // 에디터 마운트 키 (defaultValue 변경 시 에디터 재생성용)
   const [editorKey, setEditorKey] = useState(0);
 
@@ -64,6 +72,12 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
         setTitle(data.title || '');
         setContent(data.content || '');
         setTags(data.tags || []);
+        // 출간 설정 데이터 로드
+        setHeroImage(data.heroImage || '');
+        setDescription(data.description || '');
+        setSlug(data.slug || '');
+        // 원래 상태 저장 (임시저장 시 상태 유지 판단용)
+        setOriginalStatus(data.status || 'draft');
         // 에디터 재생성하여 새로운 defaultValue 적용
         setEditorKey((prev) => prev + 1);
       } else {
@@ -124,20 +138,19 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
   const handleSaveDraft = useCallback(async () => {
     if (isSaving) return;
 
-    // 디버깅: 저장되는 마크다운 내용 확인
-    console.log('=== 저장되는 마크다운 ===');
-    console.log(content);
-    console.log('========================');
-
     setIsSaving(true);
     try {
+      // 이미 출간된 포스트는 임시저장 시에도 published 상태 유지
+      // (새 포스트나 draft 상태인 포스트만 draft로 설정)
+      const statusToSave = originalStatus === 'published' ? 'published' : 'draft';
+
       const postData = {
         title: title || '제목 없음',
         description: '',
         content,
         tags,
         slug: '',
-        status: 'draft' as const,
+        status: statusToSave as 'draft' | 'published',
         updatedDate: Timestamp.now(),
         readingTime: calculateReadingTime(content),
       };
@@ -158,7 +171,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
     } finally {
       setIsSaving(false);
     }
-  }, [isSaving, title, content, tags, postId]);
+  }, [isSaving, title, content, tags, postId, originalStatus]);
 
   // 나가기
   const handleExit = () => {
@@ -304,6 +317,9 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
           postId={postId}
           onClose={() => setShowPublishModal(false)}
           calculateReadingTime={calculateReadingTime}
+          initialHeroImage={heroImage}
+          initialDescription={description}
+          initialSlug={slug}
         />
       )}
     </div>

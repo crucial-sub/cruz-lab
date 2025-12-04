@@ -13,6 +13,10 @@ interface Props {
   postId: string | null;
   onClose: () => void;
   calculateReadingTime: (content: string) => number;
+  // 편집 모드용 초기값
+  initialHeroImage?: string;
+  initialDescription?: string;
+  initialSlug?: string;
 }
 
 export default function PublishModal({
@@ -22,10 +26,13 @@ export default function PublishModal({
   postId,
   onClose,
   calculateReadingTime,
+  initialHeroImage = '',
+  initialDescription = '',
+  initialSlug = '',
 }: Props) {
-  const [description, setDescription] = useState('');
-  const [slug, setSlug] = useState('');
-  const [heroImage, setHeroImage] = useState('');
+  const [description, setDescription] = useState(initialDescription);
+  const [slug, setSlug] = useState(initialSlug);
+  const [heroImage, setHeroImage] = useState(initialHeroImage);
   const [isPublic, setIsPublic] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
