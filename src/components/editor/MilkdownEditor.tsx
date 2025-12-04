@@ -53,6 +53,9 @@ import { codeBlockLanguagePlugin } from './plugins/codeBlockPlugin';
 // 인용구 탈출 플러그인
 import { blockquoteEscapePlugin } from './plugins/blockquoteEscape';
 
+// 코드블록 탈출 및 삭제 플러그인
+import { codeBlockEscapePlugin } from './plugins/codeBlockEscape';
+
 // 링크 다이얼로그 컴포넌트
 import { LinkDialog } from './LinkDialog';
 
@@ -541,6 +544,7 @@ export function MilkdownEditor({
         .use(enableImageUpload ? imageUploadPlugin : []) // 이미지 업로드
         .use(codeBlockLanguagePlugin) // 코드블록 언어 선택기
         .use(blockquoteEscapePlugin) // 인용구 탈출
+        .use(codeBlockEscapePlugin) // 코드블록 탈출 및 삭제
         .use(prismHighlightPlugin) // 코드 하이라이팅
         .create();
 
