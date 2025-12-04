@@ -99,7 +99,13 @@
   border-left: 4px solid #10b981;
   background: #f8f9fa;
   color: #495057;
-  font-style: italic;
+  font-style: normal;
+  quotes: none;
+}
+
+.milkdown blockquote::before,
+.milkdown blockquote::after {
+  content: none;
 }
 
 .milkdown blockquote p {

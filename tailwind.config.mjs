@@ -111,6 +111,13 @@ export default {
             'blockquote': {
               borderLeftColor: 'var(--brand)',
               fontStyle: 'normal',
+              quotes: 'none',
+            },
+            'blockquote p:first-of-type::before': {
+              content: 'none',
+            },
+            'blockquote p:last-of-type::after': {
+              content: 'none',
             },
           },
         },
