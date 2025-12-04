@@ -1,8 +1,8 @@
 ---
 title: "[wesbos30] 03. CSS Variables 조절하기"
 description: "페이지 내의 여러 타입의 <input>들을 조정하면 그 값들이 실시간으로 이미지에 반영되도록 해보자!"
-pubDate: "2025-12-04T07:55:39.182Z"
-updatedDate: "2025-12-04T07:55:39.182Z"
+pubDate: "2025-12-04T11:37:00.582Z"
+updatedDate: "2025-12-04T11:37:00.582Z"
 heroImage: "https://firebasestorage.googleapis.com/v0/b/cruz-lab.firebasestorage.app/o/images%2Fheroes%2Fhero-1764834928322.webp?alt=media&token=b9f452b9-f308-42d2-b60b-6b04922b14ed"
 tags: ["javascript", "wesbos30"]
 slug: "wesbos30-03-css-variables-조절하기"
