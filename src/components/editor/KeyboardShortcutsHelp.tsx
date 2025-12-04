@@ -123,7 +123,7 @@ export function KeyboardShortcutsHelp({
         {/* 푸터 */}
         <div className="keyboard-shortcuts-footer">
           <span className="keyboard-shortcuts-hint">
-            {isMacOS ? '⌘' : 'Ctrl'}+? 로 이 도움말 열기
+            {isMac() ? '⌘⌥H' : 'Ctrl+Alt+H'} 로 이 도움말 열기
           </span>
         </div>
       </div>
@@ -145,19 +145,24 @@ export function KeyboardShortcutsButton() {
     setIsMacOS(isMac());
   }, []);
 
-  // Cmd/Ctrl+? 단축키로 도움말 열기
+  // Cmd/Ctrl+Option/Alt+H 단축키로 도움말 열기
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Mod+? (Cmd+Shift+/ on Mac, Ctrl+Shift+/ on Windows)
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === '/') {
+      const mod = e.metaKey || e.ctrlKey;
+      const alt = e.altKey;
+      // e.code 사용 (맥에서 Option 키와 함께 누르면 e.key가 특수문자가 됨)
+      const code = e.code;
+
+      if (mod && alt && code === 'KeyH') {
         e.preventDefault();
+        e.stopPropagation();
         setIsOpen((prev) => !prev);
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keydown', handleKeyDown, true);
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keydown', handleKeyDown, true);
     };
   }, []);
 
@@ -166,7 +171,7 @@ export function KeyboardShortcutsButton() {
       <button
         className="keyboard-shortcuts-trigger"
         onClick={() => setIsOpen(true)}
-        title={`키보드 단축키 (${isMacOS ? '⌘' : 'Ctrl'}+?)`}
+        title={`키보드 단축키 (${isMacOS ? '⌘⌥H' : 'Ctrl+Alt+H'})`}
         aria-label="키보드 단축키 보기"
       >
         <span className="keyboard-shortcuts-trigger-icon">⌨</span>
