@@ -52,16 +52,16 @@ export default function BlogCard({
         <GlowCard className="h-full rounded-2xl border border-border bg-bg-surface">
         <a
           href={`/blog/${slug}`}
-          className={`group flex h-full min-h-[420px] overflow-hidden rounded-2xl ${
-            featured ? 'flex-col md:flex-row md:min-h-0' : 'flex-col'
+          className={`group flex h-full overflow-hidden rounded-2xl ${
+            featured ? 'flex-row h-[220px]' : 'flex-col min-h-[420px]'
           }`}
         >
           {/* 이미지 영역 */}
           {heroImage && (
             <div
               className={`relative overflow-hidden ${
-                featured ? 'md:w-1/2' : ''
-              } ${featured ? 'aspect-video md:aspect-auto' : 'aspect-video'}`}
+                featured ? 'w-2/5 h-full flex-shrink-0' : 'aspect-video'
+              }`}
             >
               <img
                 src={heroImage}
@@ -75,9 +75,9 @@ export default function BlogCard({
           )}
 
           {/* 콘텐츠 영역 */}
-          <div className={`flex flex-1 flex-col p-5 ${featured ? 'md:w-1/2' : ''}`}>
+          <div className={`flex flex-1 flex-col ${featured ? 'w-3/5 p-4' : 'p-5'}`}>
             {/* 태그 - 태그가 없어도 동일한 높이 유지 */}
-            <div className="mb-3 flex min-h-[24px] flex-wrap gap-2">
+            <div className={`flex min-h-[24px] flex-wrap gap-2 ${featured ? 'mb-1' : 'mb-3'}`}>
               {tags.slice(0, 3).map((tag) => (
                 <span
                   key={tag}
@@ -89,20 +89,12 @@ export default function BlogCard({
             </div>
 
             {/* 제목 - 최대 2줄로 제한 */}
-            <h3
-              className={`mb-2 font-bold text-text-primary transition-colors group-hover:text-brand line-clamp-2 ${
-                featured ? 'text-2xl md:text-3xl' : 'text-xl'
-              }`}
-            >
+            <h3 className={`font-bold text-text-primary transition-colors group-hover:text-brand line-clamp-2 ${featured ? 'mb-1 text-xl' : 'mb-2 text-xl'}`}>
               {title}
             </h3>
 
             {/* 설명 - 고정 높이로 일관된 레이아웃 유지 */}
-            <p
-              className={`mb-4 leading-relaxed text-text-secondary ${
-                featured ? 'text-base line-clamp-3' : 'text-sm line-clamp-2'
-              }`}
-            >
+            <p className={`leading-relaxed text-text-secondary line-clamp-2 ${featured ? 'mb-2 text-base' : 'mb-4 text-sm'}`}>
               {description}
             </p>
 
