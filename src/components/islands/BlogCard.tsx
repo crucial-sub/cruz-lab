@@ -9,6 +9,7 @@ interface Props {
   description: string;
   pubDate: Date | string;
   heroImage?: string;
+  heroVideo?: string; // 자동재생 무한반복 동영상 (webm, mp4)
   tags: string[];
   slug: string;
   index?: number;
@@ -21,6 +22,7 @@ export default function BlogCard({
   description,
   pubDate,
   heroImage,
+  heroVideo,
   tags,
   slug,
   index = 0,
@@ -56,19 +58,31 @@ export default function BlogCard({
             featured ? 'flex-row h-[220px]' : 'flex-col min-h-[420px]'
           }`}
         >
-          {/* 이미지 영역 */}
-          {heroImage && (
+          {/* 미디어 영역 (동영상 우선, 없으면 이미지) */}
+          {(heroVideo || heroImage) && (
             <div
               className={`relative overflow-hidden ${
                 featured ? 'w-2/5 h-full flex-shrink-0' : 'aspect-video'
               }`}
             >
-              <img
-                src={heroImage}
-                alt={title}
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                loading="lazy"
-              />
+              {heroVideo ? (
+                // 자동재생 무한반복 동영상
+                <video
+                  src={heroVideo}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                />
+              ) : (
+                <img
+                  src={heroImage}
+                  alt={title}
+                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  loading="lazy"
+                />
+              )}
               {/* 호버 오버레이 */}
               <div className="absolute inset-0 bg-gradient-to-t from-bg-surface/80 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
             </div>

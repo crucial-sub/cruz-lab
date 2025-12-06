@@ -71,6 +71,7 @@ export default function PostsPreview() {
               description={post.description || ''}
               pubDate={post.pubDate}
               heroImage={post.heroImage || `https://picsum.photos/seed/${post.id}/600/400`}
+              heroVideo={post.heroVideo}
               tags={post.tags}
               slug={post.slug}
               index={index}

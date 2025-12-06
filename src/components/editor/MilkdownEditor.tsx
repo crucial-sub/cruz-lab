@@ -655,8 +655,8 @@ export function MilkdownEditor({
       {isDragOver && (
         <div className="drag-overlay">
           <div className="drag-overlay-content">
-            <span className="drag-overlay-icon">📷</span>
-            <span className="drag-overlay-text">이미지를 여기에 놓으세요</span>
+            <span className="drag-overlay-icon">🎬</span>
+            <span className="drag-overlay-text">이미지/동영상을 여기에 놓으세요</span>
           </div>
         </div>
       )}

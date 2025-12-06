@@ -536,6 +536,7 @@ export default function BlogPostList() {
                     description={post.description || ''}
                     pubDate={post.pubDate}
                     heroImage={post.heroImage || `https://picsum.photos/seed/${post.id}/600/400`}
+                    heroVideo={post.heroVideo}
                     tags={post.tags}
                     slug={post.slug}
                     index={0} // 이미 stagger가 motion.div에서 적용되므로 0으로 설정

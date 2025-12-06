@@ -56,11 +56,19 @@ export interface ImageUploadConfig {
 }
 
 /**
+ * 동영상 MIME 타입 목록
+ */
+const VIDEO_MIME_TYPES = ['video/webm', 'video/mp4', 'video/quicktime', 'video/x-m4v'];
+
+/**
  * 기본 업로드 설정
  */
 const defaultConfig: Required<Omit<ImageUploadConfig, 'onProgress' | 'onError'>> = {
-  maxFileSize: 10 * 1024 * 1024, // 10MB
-  allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+  maxFileSize: 50 * 1024 * 1024, // 50MB (동영상 지원으로 증가)
+  allowedTypes: [
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+    ...VIDEO_MIME_TYPES,
+  ],
   storagePath: 'images/blog', // Firebase Storage 규칙에 맞게 /images 하위 경로 사용
   maxWidth: 1920,
   maxHeight: 1080,
@@ -178,9 +186,18 @@ export async function uploadImageToFirebase(
   }
 
   try {
-    // 이미지 리사이즈
     onProgress?.(0, 'uploading', file.name);
-    const resizedBlob = await resizeImage(file, maxWidth, maxHeight, quality);
+
+    // 동영상인지 확인
+    const isVideo = VIDEO_MIME_TYPES.includes(file.type);
+
+    // 이미지는 리사이즈, 동영상은 원본 사용
+    let uploadBlob: Blob;
+    if (isVideo) {
+      uploadBlob = file;
+    } else {
+      uploadBlob = await resizeImage(file, maxWidth, maxHeight, quality);
+    }
 
     // 파일명 생성
     const fileName = generateUniqueFileName(file.name);
@@ -190,7 +207,7 @@ export async function uploadImageToFirebase(
     const storageRef = ref(storage, filePath);
 
     // 업로드 시작
-    const uploadTask = uploadBytesResumable(storageRef, resizedBlob, {
+    const uploadTask = uploadBytesResumable(storageRef, uploadBlob, {
       contentType: file.type,
       customMetadata: {
         originalName: file.name,
@@ -233,37 +250,40 @@ export async function uploadImageToFirebase(
 
 /**
  * Milkdown 업로더 생성
+ * 이미지와 동영상 파일 모두 지원
  */
 export function createFirebaseUploader(config: ImageUploadConfig = {}): Uploader {
   return async (files, schema) => {
-    const images: File[] = [];
+    const mediaFiles: File[] = [];
 
-    // 이미지 파일만 필터링
+    // 이미지 및 동영상 파일 필터링
     for (let i = 0; i < files.length; i++) {
       const file = files.item(i);
-      if (file && file.type.startsWith('image/')) {
-        images.push(file);
+      if (file && (file.type.startsWith('image/') || file.type.startsWith('video/'))) {
+        mediaFiles.push(file);
       }
     }
 
-    // 각 이미지 업로드 및 노드 생성
+    // 각 미디어 파일 업로드 및 노드 생성
+    // 동영상은 마크다운 이미지 문법으로 삽입 (BlogPostView에서 video 태그로 변환됨)
     const nodes: Node[] = await Promise.all(
-      images.map(async (image) => {
+      mediaFiles.map(async (mediaFile) => {
         try {
-          const src = await uploadImageToFirebase(image, config);
-          const alt = image.name.replace(/\.[^/.]+$/, '');
+          const src = await uploadImageToFirebase(mediaFile, config);
+          const alt = mediaFile.name.replace(/\.[^/.]+$/, '');
 
+          // 이미지 노드로 생성 (동영상도 마크다운에서는 이미지 문법 사용)
           return schema.nodes.image.createAndFill({
             src,
             alt,
             title: alt,
           }) as Node;
         } catch (error) {
-          console.error('이미지 업로드 실패:', error);
-          // 업로드 실패 시 플레이스홀더 이미지 반환
+          console.error('미디어 업로드 실패:', error);
+          // 업로드 실패 시 플레이스홀더 반환
           return schema.nodes.image.createAndFill({
             src: '',
-            alt: `업로드 실패: ${image.name}`,
+            alt: `업로드 실패: ${mediaFile.name}`,
           }) as Node;
         }
       })

@@ -133,10 +133,22 @@ export default function BlogPostView({ slug }: Props) {
         </div>
       </header>
 
-      {/* 대표 이미지 */}
-      {post.heroImage && (
+      {/* 대표 미디어 (동영상 우선, 없으면 이미지) */}
+      {(post.heroVideo || post.heroImage) && (
         <div className="mb-12 overflow-hidden rounded-2xl border border-border">
-          <img src={post.heroImage} alt={post.title} className="w-full object-cover" />
+          {post.heroVideo ? (
+            // 자동재생 무한반복 동영상
+            <video
+              src={post.heroVideo}
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="w-full object-cover"
+            />
+          ) : (
+            <img src={post.heroImage} alt={post.title} className="w-full object-cover" />
+          )}
         </div>
       )}
 
@@ -146,10 +158,28 @@ export default function BlogPostView({ slug }: Props) {
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[rehypeHighlight]}
           components={{
-            // 이미지 커스텀 렌더링
-            img: ({ node, ...props }) => (
-              <img {...props} className="rounded-lg" loading="lazy" />
-            ),
+            // 이미지/동영상 커스텀 렌더링
+            // .webm, .mp4, .mov 확장자는 자동재생 무한반복 동영상으로 처리
+            img: ({ node, src, alt, ...props }) => {
+              const videoExtensions = ['.webm', '.mp4', '.mov'];
+              const isVideo = src && videoExtensions.some(ext => src.toLowerCase().endsWith(ext));
+
+              if (isVideo) {
+                return (
+                  <video
+                    src={src}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="rounded-lg w-full"
+                    title={alt}
+                  />
+                );
+              }
+
+              return <img src={src} alt={alt} {...props} className="rounded-lg" loading="lazy" />;
+            },
             // 링크 새 탭에서 열기 (외부 링크)
             a: ({ node, href, children, ...props }) => {
               const isExternal = href?.startsWith('http');

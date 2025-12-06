@@ -2,12 +2,18 @@
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from './firebase';
 
+// URL이 동영상 파일인지 확인
+const isVideoUrl = (url: string): boolean => {
+  return /\.(mp4|webm|mov|ogg)(\?|$)/i.test(url);
+};
+
 export interface Post {
   id: string;
   title: string;
   description: string;
   content: string;
   heroImage: string;
+  heroVideo?: string; // 자동재생 무한반복 동영상 (webm, mp4)
   tags: string[];
   slug: string;
   status: 'draft' | 'published';
@@ -28,12 +34,17 @@ export async function getPublishedPosts(): Promise<Post[]> {
   return snapshot.docs
     .map((doc) => {
       const data = doc.data();
+      const mediaUrl = data.heroImage || '';
+      const isVideo = isVideoUrl(mediaUrl);
+
       return {
         id: doc.id,
         title: data.title || '',
         description: data.description || '',
         content: data.content || '',
-        heroImage: data.heroImage || '',
+        // 동영상이면 heroImage는 비우고 heroVideo에 URL 저장
+        heroImage: isVideo ? '' : mediaUrl,
+        heroVideo: isVideo ? mediaUrl : (data.heroVideo || undefined),
         tags: data.tags || [],
         slug: data.slug || doc.id,
         status: data.status || 'draft',
@@ -69,12 +80,17 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
     return null;
   }
 
+  const mediaUrl = data.heroImage || '';
+  const isVideo = isVideoUrl(mediaUrl);
+
   return {
     id: docSnap.id,
     title: data.title || '',
     description: data.description || '',
     content: data.content || '',
-    heroImage: data.heroImage || '',
+    // 동영상이면 heroImage는 비우고 heroVideo에 URL 저장
+    heroImage: isVideo ? '' : mediaUrl,
+    heroVideo: isVideo ? mediaUrl : (data.heroVideo || undefined),
     tags: data.tags || [],
     slug: data.slug || docSnap.id,
     status: data.status || 'draft',

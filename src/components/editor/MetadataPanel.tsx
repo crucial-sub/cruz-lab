@@ -60,27 +60,40 @@ export default function MetadataPanel({
     }
   };
 
-  // 썸네일 업로드
+  // 썸네일 업로드 (이미지 또는 동영상)
   const handleHeroUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsUploadingHero(true);
     try {
-      // 이미지 압축
-      const options = {
-        maxSizeMB: 1,
-        maxWidthOrHeight: 1920,
-        useWebWorker: true,
-        fileType: 'image/webp' as const,
-      };
-      const compressedFile = await imageCompression(file, options);
-
-      // 업로드
       const timestamp = Date.now();
-      const fileName = `hero-${timestamp}.webp`;
-      const storageRef = ref(storage, `images/heroes/${fileName}`);
-      await uploadBytes(storageRef, compressedFile);
+      const isVideo = file.type.startsWith('video/');
+
+      let uploadFile: File | Blob = file;
+      let fileName: string;
+      let storagePath: string;
+
+      if (isVideo) {
+        // 동영상은 압축 없이 원본 업로드 (기존 images 경로 사용)
+        const ext = file.name.split('.').pop() || 'mp4';
+        fileName = `hero-${timestamp}.${ext}`;
+        storagePath = `images/heroes/${fileName}`;
+      } else {
+        // 이미지는 webp로 압축
+        const options = {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+          fileType: 'image/webp' as const,
+        };
+        uploadFile = await imageCompression(file, options);
+        fileName = `hero-${timestamp}.webp`;
+        storagePath = `images/heroes/${fileName}`;
+      }
+
+      const storageRef = ref(storage, storagePath);
+      await uploadBytes(storageRef, uploadFile);
       const downloadURL = await getDownloadURL(storageRef);
 
       setHeroImage(downloadURL);
@@ -212,11 +225,22 @@ export default function MetadataPanel({
         </label>
         {heroImage ? (
           <div className="relative">
-            <img
-              src={heroImage}
-              alt="썸네일"
-              className="w-full rounded-xl object-cover"
-            />
+            {/\.(mp4|webm|mov)/.test(heroImage) ? (
+              <video
+                src={heroImage}
+                className="w-full rounded-xl object-cover"
+                muted
+                autoPlay
+                loop
+                playsInline
+              />
+            ) : (
+              <img
+                src={heroImage}
+                alt="썸네일"
+                className="w-full rounded-xl object-cover"
+              />
+            )}
             <button
               type="button"
               onClick={() => setHeroImage('')}
@@ -251,7 +275,7 @@ export default function MetadataPanel({
         <input
           ref={heroInputRef}
           type="file"
-          accept="image/*"
+          accept="image/*,video/*"
           onChange={handleHeroUpload}
           className="hidden"
         />

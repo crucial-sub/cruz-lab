@@ -52,29 +52,45 @@ export default function PublishModal({
     }
   }, [title, slug]);
 
-  // 썸네일 업로드
+  // 썸네일 업로드 (이미지 또는 동영상)
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsUploading(true);
     try {
-      const options = {
-        maxSizeMB: 1,
-        maxWidthOrHeight: 1920,
-        useWebWorker: true,
-        fileType: 'image/webp' as const,
-      };
-      const compressedFile = await imageCompression(file, options);
       const timestamp = Date.now();
-      const fileName = `hero-${timestamp}.webp`;
-      const storageRef = ref(storage, `images/heroes/${fileName}`);
+      const isVideo = file.type.startsWith('video/');
 
-      await uploadBytes(storageRef, compressedFile);
+      let uploadFile: File | Blob = file;
+      let fileName: string;
+      let storagePath: string;
+
+      if (isVideo) {
+        // 동영상은 압축 없이 원본 업로드 (기존 images 경로 사용)
+        const ext = file.name.split('.').pop() || 'mp4';
+        fileName = `hero-${timestamp}.${ext}`;
+        storagePath = `images/heroes/${fileName}`;
+      } else {
+        // 이미지는 webp로 압축
+        const options = {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+          fileType: 'image/webp' as const,
+        };
+        uploadFile = await imageCompression(file, options);
+        fileName = `hero-${timestamp}.webp`;
+        storagePath = `images/heroes/${fileName}`;
+      }
+
+      const storageRef = ref(storage, storagePath);
+      await uploadBytes(storageRef, uploadFile);
       const downloadURL = await getDownloadURL(storageRef);
       setHeroImage(downloadURL);
     } catch (error) {
-      console.error('이미지 업로드 오류:', error);
+      console.error('썸네일 업로드 오류:', error);
+      alert(`업로드 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
     } finally {
       setIsUploading(false);
       e.target.value = '';
@@ -153,7 +169,11 @@ export default function PublishModal({
             <div className="aspect-video bg-gray-100 dark:bg-gray-800">
               {heroImage ? (
                 <div className="relative h-full">
-                  <img src={heroImage} alt="썸네일" className="h-full w-full object-cover" />
+                  {/\.(mp4|webm|mov)/.test(heroImage) ? (
+                    <video src={heroImage} className="h-full w-full object-cover" muted autoPlay loop playsInline />
+                  ) : (
+                    <img src={heroImage} alt="썸네일" className="h-full w-full object-cover" />
+                  )}
                   <div className="absolute right-2 top-2 flex gap-2">
                     <button
                       onClick={() => fileInputRef.current?.click()}
@@ -192,7 +212,7 @@ export default function PublishModal({
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/*,video/*"
               onChange={handleImageUpload}
               className="hidden"
             />
