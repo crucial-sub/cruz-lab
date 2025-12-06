@@ -2,8 +2,8 @@
 title: "[wesbos30] 27. Click And Drag"
 description: "💡 마우스를 클릭 후 드래그하면 이미지가 좌우로 부드럽게 슬라이드하는 기능을 구현해보자!"
 pubDate: "2025-12-04T12:11:27.994Z"
-updatedDate: "2025-12-04T12:11:27.994Z"
-heroImage: ""
+updatedDate: "2025-12-06T12:37:15.093Z"
+heroImage: "https://firebasestorage.googleapis.com/v0/b/cruz-lab.firebasestorage.app/o/images%2Fheroes%2Fhero-1765024632718.webp?alt=media&token=b5aa7f6b-bb62-412e-a91c-053c670776c4"
 tags: ["javascript", "wesbos30"]
 slug: "wesbos30-27-click-and-drag"
 readingTime: 4
