@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
+import rehypeRaw from 'rehype-raw';
 import { getPostBySlug, type Post } from '@/lib/posts';
 
 interface Props {
@@ -156,7 +157,7 @@ export default function BlogPostView({ slug }: Props) {
       <div className="prose prose-lg mx-auto max-w-none dark:prose-invert">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
-          rehypePlugins={[rehypeHighlight]}
+          rehypePlugins={[rehypeRaw, rehypeHighlight]}
           components={{
             // 이미지/동영상 커스텀 렌더링
             // .webm, .mp4, .mov 확장자는 자동재생 무한반복 동영상으로 처리
