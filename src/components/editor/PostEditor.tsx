@@ -248,7 +248,7 @@ export default function PostEditor({ initialData, mode }: Props) {
 
     try {
       const content = getMarkdownContent();
-      const postData = {
+      const basePostData = {
         title,
         description,
         content,
@@ -257,16 +257,18 @@ export default function PostEditor({ initialData, mode }: Props) {
         slug,
         status: 'published' as const,
         updatedDate: Timestamp.now(),
-        pubDate: Timestamp.now(),
         readingTime: calculateReadingTime(content),
       };
 
       if (postId) {
-        await updateDoc(doc(db, 'posts', postId), postData);
+        // 기존 포스트 업데이트 - pubDate는 변경하지 않음
+        await updateDoc(doc(db, 'posts', postId), basePostData);
       } else {
+        // 새 포스트 생성 - pubDate 설정
         const docRef = await addDoc(collection(db, 'posts'), {
-          ...postData,
+          ...basePostData,
           createdAt: Timestamp.now(),
+          pubDate: Timestamp.now(),
         });
         setPostId(docRef.id);
       }
