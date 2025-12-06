@@ -2,8 +2,8 @@
 title: "[wesbos30] 22. Following Highlight"
 description: "Following Highlight"
 pubDate: "2025-12-04T12:00:47.364Z"
-updatedDate: "2025-12-04T12:00:47.364Z"
-heroImage: ""
+updatedDate: "2025-12-06T05:24:42.776Z"
+heroImage: "https://firebasestorage.googleapis.com/v0/b/cruz-lab.firebasestorage.app/o/images%2Fheroes%2Fhero-1764998680284.webm?alt=media&token=af55bb9c-0be6-463d-8b38-efc3989bd6b1"
 tags: ["javascript", "wesbos30"]
 slug: "wesbos30-22-following-highlight"
 readingTime: 3
