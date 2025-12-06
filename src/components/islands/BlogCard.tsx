@@ -109,8 +109,8 @@ export default function BlogCard({
             {/* 여백 확보 - 날짜를 하단에 고정하기 위한 spacer */}
             <div className="flex-1" />
 
-            {/* 메타 정보 - 항상 카드 하단에 위치 */}
-            <div className="flex items-center gap-4 text-sm text-text-secondary mt-auto">
+            {/* 메타 정보 - 항상 카드 하단에 위치, 양쪽 끝 정렬 */}
+            <div className="flex items-center justify-between text-sm text-text-secondary mt-auto">
               <time dateTime={dateObj.toISOString()} className="flex items-center gap-1.5">
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -131,7 +131,7 @@ export default function BlogCard({
                     d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                {readingTime}분 읽기
+                약 {readingTime}분
               </span>
             </div>
           </div>
