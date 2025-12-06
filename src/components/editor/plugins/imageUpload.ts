@@ -14,7 +14,7 @@ import {
   getDownloadURL,
   type UploadTaskSnapshot,
 } from 'firebase/storage';
-import { storage, initializeFirebase } from '@/lib/firebase';
+import { storage, auth, initializeFirebase } from '@/lib/firebase';
 import { upload, uploadConfig, type Uploader } from '@milkdown/kit/plugin/upload';
 import type { Node } from '@milkdown/kit/prose/model';
 import type { MilkdownPlugin } from '@milkdown/kit/ctx';
@@ -61,7 +61,7 @@ export interface ImageUploadConfig {
 const defaultConfig: Required<Omit<ImageUploadConfig, 'onProgress' | 'onError'>> = {
   maxFileSize: 10 * 1024 * 1024, // 10MB
   allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
-  storagePath: 'blog/images',
+  storagePath: 'images/blog', // Firebase Storage 규칙에 맞게 /images 하위 경로 사용
   maxWidth: 1920,
   maxHeight: 1080,
   quality: 0.85,
@@ -141,6 +141,21 @@ export async function uploadImageToFirebase(
   // Firebase 초기화 확인
   if (typeof window !== 'undefined') {
     initializeFirebase();
+  }
+
+  // 인증 상태 확인 - Firebase Storage 규칙에서 인증된 사용자만 업로드 허용
+  const currentUser = auth?.currentUser;
+  if (!currentUser) {
+    const error = new Error('이미지를 업로드하려면 로그인이 필요합니다.');
+    config.onError?.(error);
+    throw error;
+  }
+
+  // 인증 토큰 갱신 (만료된 토큰 문제 방지)
+  try {
+    await currentUser.getIdToken(true);
+  } catch (tokenError) {
+    console.error('토큰 갱신 실패:', tokenError);
   }
 
   const mergedConfig = { ...defaultConfig, ...config };
