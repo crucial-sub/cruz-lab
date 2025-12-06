@@ -46,14 +46,14 @@ export default function BlogCard({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-50px' }}
       transition={{ duration: 0.5, delay: index * 0.1 }}
-      className={featured ? 'md:col-span-2' : ''}
+      className={`h-full ${featured ? 'md:col-span-2' : ''}`}
     >
       <TiltCard tiltAmount={6} className="h-full">
         <GlowCard className="h-full rounded-2xl border border-border bg-bg-surface">
         <a
           href={`/blog/${slug}`}
-          className={`group flex h-full overflow-hidden rounded-2xl ${
-            featured ? 'flex-col md:flex-row' : 'flex-col'
+          className={`group flex h-full min-h-[420px] overflow-hidden rounded-2xl ${
+            featured ? 'flex-col md:flex-row md:min-h-0' : 'flex-col'
           }`}
         >
           {/* 이미지 영역 */}
@@ -88,26 +88,29 @@ export default function BlogCard({
               ))}
             </div>
 
-            {/* 제목 */}
+            {/* 제목 - 최대 2줄로 제한 */}
             <h3
-              className={`mb-2 font-bold text-text-primary transition-colors group-hover:text-brand ${
+              className={`mb-2 font-bold text-text-primary transition-colors group-hover:text-brand line-clamp-2 ${
                 featured ? 'text-2xl md:text-3xl' : 'text-xl'
               }`}
             >
               {title}
             </h3>
 
-            {/* 설명 */}
+            {/* 설명 - 고정 높이로 일관된 레이아웃 유지 */}
             <p
-              className={`mb-4 flex-1 leading-relaxed text-text-secondary ${
+              className={`mb-4 leading-relaxed text-text-secondary ${
                 featured ? 'text-base line-clamp-3' : 'text-sm line-clamp-2'
               }`}
             >
               {description}
             </p>
 
-            {/* 메타 정보 */}
-            <div className="flex items-center gap-4 text-sm text-text-secondary">
+            {/* 여백 확보 - 날짜를 하단에 고정하기 위한 spacer */}
+            <div className="flex-1" />
+
+            {/* 메타 정보 - 항상 카드 하단에 위치 */}
+            <div className="flex items-center gap-4 text-sm text-text-secondary mt-auto">
               <time dateTime={dateObj.toISOString()} className="flex items-center gap-1.5">
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path

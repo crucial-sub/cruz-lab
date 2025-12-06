@@ -504,7 +504,7 @@ export default function BlogPostList() {
               layout
               className={
                 viewMode === 'grid'
-                  ? 'grid gap-6 md:grid-cols-2 lg:grid-cols-3'
+                  ? 'grid auto-rows-fr gap-6 md:grid-cols-2 lg:grid-cols-3'
                   : 'flex flex-col gap-4'
               }
             >
@@ -529,6 +529,7 @@ export default function BlogPostList() {
                     y: { duration: 0.4, ease: 'easeOut' },
                     delay: index * 0.08,
                   }}
+                  className="h-full"
                 >
                   <BlogCard
                     title={post.title}
