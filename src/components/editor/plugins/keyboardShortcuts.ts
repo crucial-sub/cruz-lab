@@ -292,6 +292,24 @@ function createKeyBindings(schema: Schema): Record<string, Command> {
 }
 
 /**
+ * event.code에서 키 문자 추출
+ * Mac에서 Option 키와 함께 누르면 event.key가 특수문자로 변환되므로
+ * event.code (물리적 키 위치)를 사용해야 함
+ * 예: Option+Q → event.key='œ', event.code='KeyQ'
+ */
+function getKeyFromCode(code: string): string | null {
+  // KeyX 형태에서 X 추출
+  if (code.startsWith('Key')) {
+    return code.slice(3).toLowerCase();
+  }
+  // Digit0~9 형태에서 숫자 추출
+  if (code.startsWith('Digit')) {
+    return code.slice(5);
+  }
+  return null;
+}
+
+/**
  * 키보드 단축키 플러그인
  */
 export const keyboardShortcutsPlugin = $prose(() => {
@@ -306,8 +324,10 @@ export const keyboardShortcutsPlugin = $prose(() => {
         // Mod+Alt 조합만 처리
         if (!mod || !alt) return false;
 
-        // 키 조합 문자열 생성
-        const key = event.key.toLowerCase();
+        // event.code에서 키 문자 추출 (Mac Option 키 특수문자 문제 해결)
+        const key = getKeyFromCode(event.code);
+        if (!key) return false;
+
         const keyString = `Mod-Alt-${key}`;
 
         // 에디터 명령 바인딩 확인 및 실행
