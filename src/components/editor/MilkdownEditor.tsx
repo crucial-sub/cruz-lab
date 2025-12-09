@@ -198,9 +198,15 @@ export function MilkdownEditor({
   }, [onSave]);
 
   // 디바운스된 onChange 핸들러
+  // Milkdown serializer가 특정 상황에서 **를 \*\*로 이스케이프하는 문제 해결
   const debouncedOnChange = useCallback((markdown: string) => {
     if (onChangeRef.current) {
-      onChangeRef.current(markdown);
+      // 이스케이프된 볼드 마크다운 복원: \*\*text\*\* → **text**
+      // Milkdown이 한글 뒤에서 **를 \*\*로 이스케이프하는 문제 해결
+      const cleaned = markdown
+        .replace(/\\(\*\*)/g, '$1')  // \** → ** (볼드 시작/끝)
+        .replace(/\\_/g, '_');       // \_ → _
+      onChangeRef.current(cleaned);
     }
   }, []);
 

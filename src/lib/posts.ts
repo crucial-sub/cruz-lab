@@ -7,6 +7,33 @@ const isVideoUrl = (url: string): boolean => {
   return /\.(mp4|webm|mov|ogg)(\?|$)/i.test(url);
 };
 
+// 마크다운 렌더링 문제 해결
+// Milkdown 에디터와 remark-gfm 파싱 호환성 문제 수정
+const fixMarkdown = (content: string): string => {
+  if (!content) return '';
+  let result = content
+    // 1. 백슬래시 이스케이프 복원: \* → *, \_ → _
+    .replace(/\\\*/g, '*')
+    .replace(/\\_/g, '_');
+
+  // 2. 반복적으로 ** 쌍을 <strong>으로 변환 (중첩 처리)
+  // 가장 안쪽부터 변환하기 위해 반복
+  let prevResult = '';
+  while (prevResult !== result) {
+    prevResult = result;
+    // 가장 가까운 ** 쌍을 <strong>으로 변환
+    result = result.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
+  }
+
+  // 3. 짝이 맞지 않는 남은 ** 제거
+  result = result.replace(/\*\*/g, '');
+
+  // 4. 빈 <strong> 태그 제거
+  result = result.replace(/<strong>\s*<\/strong>/g, '');
+
+  return result;
+};
+
 export interface Post {
   id: string;
   title: string;
@@ -41,7 +68,7 @@ export async function getPublishedPosts(): Promise<Post[]> {
         id: doc.id,
         title: data.title || '',
         description: data.description || '',
-        content: data.content || '',
+        content: fixMarkdown(data.content || ''),
         // 동영상이면 heroImage는 비우고 heroVideo에 URL 저장
         heroImage: isVideo ? '' : mediaUrl,
         heroVideo: isVideo ? mediaUrl : (data.heroVideo || undefined),
@@ -87,7 +114,7 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
     id: docSnap.id,
     title: data.title || '',
     description: data.description || '',
-    content: data.content || '',
+    content: fixMarkdown(data.content || ''),
     // 동영상이면 heroImage는 비우고 heroVideo에 URL 저장
     heroImage: isVideo ? '' : mediaUrl,
     heroVideo: isVideo ? mediaUrl : (data.heroVideo || undefined),

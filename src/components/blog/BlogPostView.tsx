@@ -157,7 +157,7 @@ export default function BlogPostView({ slug }: Props) {
       <div className="prose prose-lg mx-auto max-w-none dark:prose-invert">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
-          rehypePlugins={[rehypeRaw, rehypeHighlight]}
+          rehypePlugins={[rehypeHighlight, rehypeRaw]}
           components={{
             // 이미지/동영상 커스텀 렌더링
             // .webm, .mp4, .mov 확장자는 자동재생 무한반복 동영상으로 처리
