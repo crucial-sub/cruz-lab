@@ -2,15 +2,14 @@
 export const prerender = true;
 
 import ExperienceList from '@/components/ExperienceList.astro';
-import PostsPreview from '@/components/islands/PostsPreview';
-import ProjectsPreview from '@/components/ProjectsPreview.astro';
 import ContactSection from '@/components/islands/ContactSection';
 import CursorFollower from '@/components/islands/CursorFollower';
 import FadeInSection from '@/components/islands/FadeInSection';
 import InteractiveHero from '@/components/islands/InteractiveHero';
+import PostsPreview from '@/components/islands/PostsPreview';
 import ScrollProgress from '@/components/islands/ScrollProgress';
 import SkillsSection from '@/components/islands/SkillsSection';
-import StatsSection from '@/components/islands/StatsSection';
+import ProjectsPreview from '@/components/ProjectsPreview.astro';
 import me from '../assets/img/profile.svg';
 import BaseLayout from '../layouts/BaseLayout.astro';
 
@@ -55,9 +54,9 @@ const intro = '아이디어를 코드로 구현하는 과정에 매력을 느껴
   </FadeInSection>
 
   <!-- Stats 카운트업 섹션 -->
-  <FadeInSection client:visible delay={0.1}>
+  <!-- <FadeInSection client:visible delay={0.1}>
     <StatsSection client:visible />
-  </FadeInSection>
+  </FadeInSection> -->
 
   <!-- Skills 섹션 -->
   <FadeInSection client:visible delay={0.1}>

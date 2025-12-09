@@ -13,16 +13,13 @@ const skillCategories = [
       { name: 'TypeScript', icon: '📘', color: '#3178C6', level: 4 },
       { name: 'Next.js', icon: '▲', color: '#000000', level: 3 },
       { name: 'TailwindCSS', icon: '🎨', color: '#06B6D4', level: 5 },
-      { name: 'Astro', icon: '🚀', color: '#FF5D01', level: 3 },
     ],
   },
   {
     title: 'Backend & Systems',
     skills: [
-      { name: 'Node.js', icon: '💚', color: '#339933', level: 3 },
       { name: 'Python', icon: '🐍', color: '#3776AB', level: 3 },
       { name: 'C', icon: '⚙️', color: '#A8B9CC', level: 4 },
-      { name: 'PostgreSQL', icon: '🐘', color: '#4169E1', level: 3 },
     ],
   },
   {
@@ -31,7 +28,6 @@ const skillCategories = [
       { name: 'Git', icon: '📦', color: '#F05032', level: 4 },
       { name: 'Docker', icon: '🐳', color: '#2496ED', level: 2 },
       { name: 'Figma', icon: '🎯', color: '#F24E1E', level: 3 },
-      { name: 'Linux', icon: '🐧', color: '#FCC624', level: 3 },
     ],
   },
 ];
