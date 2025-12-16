@@ -10,7 +10,7 @@ interface Props {
   index?: number;
 }
 
-export default function SkillCard({ name, icon, color, level = 3, index = 0 }: Props) {
+export default function SkillCard({ name, icon, color, index = 0 }: Props) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.8 }}
@@ -42,19 +42,6 @@ export default function SkillCard({ name, icon, color, level = 3, index = 0 }: P
 
         {/* 스킬명 */}
         <span className="text-sm font-medium text-text-primary">{name}</span>
-
-        {/* 숙련도 표시 */}
-        <div className="flex gap-0.5">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div
-              key={i}
-              className="h-1 w-3 rounded-full transition-colors"
-              style={{
-                backgroundColor: i <= level ? color : 'var(--border)',
-              }}
-            />
-          ))}
-        </div>
       </div>
     </motion.div>
   );

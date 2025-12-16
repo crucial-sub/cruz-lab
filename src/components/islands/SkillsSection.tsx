@@ -9,25 +9,24 @@ const skillCategories = [
   {
     title: 'Frontend',
     skills: [
-      { name: 'React', icon: '⚛️', color: '#61DAFB', level: 4 },
-      { name: 'TypeScript', icon: '📘', color: '#3178C6', level: 4 },
-      { name: 'Next.js', icon: '▲', color: '#000000', level: 3 },
-      { name: 'TailwindCSS', icon: '🎨', color: '#06B6D4', level: 5 },
+      { name: 'React', icon: '⚛️', color: '#61DAFB' },
+      { name: 'TypeScript', icon: '📘', color: '#3178C6' },
+      { name: 'Next.js', icon: '▲', color: '#000000' },
+      { name: 'TailwindCSS', icon: '🎨', color: '#06B6D4' },
     ],
   },
   {
     title: 'Backend & Systems',
     skills: [
-      { name: 'Python', icon: '🐍', color: '#3776AB', level: 3 },
-      { name: 'C', icon: '⚙️', color: '#A8B9CC', level: 4 },
+      { name: 'Python', icon: '🐍', color: '#3776AB' },
+      { name: 'Firebase', icon: '🔥', color: '#ff2600' },
     ],
   },
   {
     title: 'Tools & Others',
     skills: [
-      { name: 'Git', icon: '📦', color: '#F05032', level: 4 },
-      { name: 'Docker', icon: '🐳', color: '#2496ED', level: 2 },
-      { name: 'Figma', icon: '🎯', color: '#F24E1E', level: 3 },
+      { name: 'Git', icon: '📦', color: '#F05032' },
+      { name: 'Figma', icon: '🎯', color: '#F24E1E' },
     ],
   },
 ];
@@ -74,7 +73,6 @@ export default function SkillsSection() {
                   name={skill.name}
                   icon={skill.icon}
                   color={skill.color}
-                  level={skill.level}
                   index={categoryIndex * 5 + skillIndex}
                 />
               ))}
@@ -91,7 +89,6 @@ export default function SkillsSection() {
         transition={{ duration: 0.5, delay: 0.5 }}
         className="mt-12 text-center text-sm text-text-secondary"
       >
-        * 숙련도는 실무 경험과 프로젝트 활용도를 기반으로 표시됩니다
       </motion.p>
     </section>
   );

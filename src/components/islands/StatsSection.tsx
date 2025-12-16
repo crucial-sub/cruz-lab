@@ -9,11 +9,12 @@ interface Stat {
   delay?: number;
 }
 
+// 실제 프로젝트 성과 데이터 (Stock Lab 기준)
 const stats: Stat[] = [
-  { value: 5, suffix: '+', label: 'Years Experience', delay: 0 },
-  { value: 30, suffix: '+', label: 'Projects Completed', delay: 0.1 },
-  { value: 10, suffix: 'K+', label: 'Lines of Code', delay: 0.2 },
-  { value: 99, suffix: '%', label: 'Client Satisfaction', delay: 0.3 }
+  { value: 80, suffix: '%', label: '로딩 시간 단축', delay: 0 },
+  { value: 90, suffix: '%', label: '네트워크 비용 절감', delay: 0.1 },
+  { value: 95, suffix: '%', label: '번들 크기 감소', delay: 0.2 },
+  { value: 200, suffix: '+', label: '알고리즘 문제 풀이', delay: 0.3 }
 ];
 
 /**

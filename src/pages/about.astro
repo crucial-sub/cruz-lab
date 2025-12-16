@@ -5,49 +5,193 @@ import FadeInSection from '@/components/islands/FadeInSection';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 
 const title = 'About';
-const description = 'Cruz에 대해 - 프론트엔드 개발자 소개';
+const description = '박중섭 - Software Engineer';
+
+// 개발 접근 방식 (How I Work)
+const philosophies = [
+  {
+    icon: '🚀',
+    title: '성능 최적화',
+    description: '초기 로딩 속도, TBT(Total Blocking Time), 렌더링 성능을 정량적으로 측정하고 개선합니다. 감이 아닌 데이터에 기반한 최적화를 지향합니다.'
+  },
+  {
+    icon: '🧩',
+    title: '시스템적 사고',
+    description: '단순한 기능 구현을 넘어, 데이터 흐름과 아키텍처를 고민합니다. 컴포넌트 재사용성과 유지보수성을 고려하여 코드를 설계합니다.'
+  },
+  {
+    icon: '💬',
+    title: '근거 있는 소통',
+    description: '기술적 의사결정 과정에서 트레이드오프를 명확히 하고, 팀원들과 논리적으로 소통하여 최선의 합의점을 도출합니다.'
+  }
+];
+
+// 이력 (Timeline)
+const timeline = [
+  {
+    period: '2024.07 - 2024.12',
+    title: 'Krafton Jungle (Software Engineering)',
+    content: '5개월간의 몰입형 교육 과정. 자료구조, 알고리즘, 운영체제(Pintos), 네트워크 등 CS 기초를 탄탄히 다지고, 팀 프로젝트를 통해 협업 및 실전 개발 역량을 길렀습니다.'
+  },
+  {
+    period: '2014.03 - 2020.02',
+    title: '단국대학교 (화학공학과)',
+  }
+];
+
+// 프로젝트 경험 (Projects)
+const collaborations = [
+  {
+    project: 'Stock Lab (Frontend Lead)',
+    role: '아키텍처 설계 & 성능 최적화',
+    highlights: [
+      'WebSocket 및 SSE 도입으로 실시간 데이터 처리 파이프라인 구축',
+      'API 응답 통합 및 캐싱 전략으로 초기 로딩 속도 80% 개선',
+    ]
+  },
+  {
+    project: 'Jungle Tetris (Frontend)',
+    role: '게임 엔진 구현',
+    highlights: [
+      'Canvas API를 활용하여 60fps 렌더링 최적화',
+      'Socket.IO 기반의 실시간 멀티플레이 동기화 로직 구현',
+      '3일간의 해커톤 일정에 맞춰 MVP 기능 우선순위 수립 및 배포'
+    ]
+  }
+];
 ---
 
 <BaseLayout title={title} description={description}>
   <div class="py-8">
+    <!-- Hero: 핵심 메시지 -->
     <FadeInSection client:visible>
-      <div class="mb-12 text-center">
+      <div class="mb-16 text-center">
         <h1 class="mb-4 text-4xl font-extrabold md:text-5xl">
-          About <span class="text-brand">Me</span>
+          <span class="text-brand">박중섭</span>
         </h1>
-        <p class="mx-auto max-w-2xl text-lg text-text-secondary">
-          아이디어를 코드로 구현하는 것을 즐기는 프론트엔드 개발자입니다.
+        <p class="mx-auto mb-6 max-w-2xl text-xl font-medium text-text-primary">
+          Software Engineer
         </p>
+        <div class="mx-auto max-w-2xl text-lg text-text-secondary leading-relaxed space-y-4">
+          <p>
+            사용자 경험의 핵심은 <strong>데이터 전달 방식</strong>에 있다고 믿습니다.
+          </p>
+          <p>
+            WebSocket과 SSE 기술을 활용해 실시간 데이터 시각화와 스트리밍 응답을 구현하며<br class="hidden sm:block" />
+            기술 최적화가 주는 사용자 경험의 혁신을 체감했습니다.
+          </p>
+          <p>
+            크래프톤 정글에서 5개월간 알고리즘과 팀 프로젝트에 몰입하며,<br class="hidden sm:block" />
+            문제를 끝까지 해결하는 집요한 개발 습관을 길렀습니다.
+          </p>
+        </div>
       </div>
     </FadeInSection>
 
+    <!-- 개발 접근 방식 (How I Work) -->
     <FadeInSection client:visible delay={0.1}>
-      <article class="prose prose-lg mx-auto max-w-3xl">
-        <h2>소개</h2>
-        <p>
-          안녕하세요, Cruz입니다. 사용자 경험을 중시하는 프론트엔드 개발자로서,
-          직관적이고 아름다운 인터페이스를 만드는 것에 열정을 가지고 있습니다.
-        </p>
+      <section class="mb-20">
+        <h2 class="mb-8 text-center text-2xl font-bold">
+          <span class="text-brand">How I Work</span>
+        </h2>
+        <div class="grid gap-6 md:grid-cols-3">
+          {philosophies.map((item) => (
+            <div class="rounded-xl border border-border bg-bg-secondary p-6 transition-all hover:border-brand/50 hover:shadow-lg">
+              <div class="mb-4 text-4xl">{item.icon}</div>
+              <h3 class="mb-2 text-lg font-bold text-text-primary">{item.title}</h3>
+              <p class="text-sm leading-relaxed text-text-secondary">{item.description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+    </FadeInSection>
 
-        <h2>배경</h2>
-        <p>
-          크래프톤 정글에서 5개월간의 집중적인 학습을 통해 컴퓨터 과학의 기초를 다졌습니다.
-          운영체제, 네트워크, 알고리즘 등 핵심 CS 개념들을 직접 구현하며 깊이 있게 이해했고,
-          이러한 기반 위에서 프론트엔드 개발 역량을 쌓아가고 있습니다.
-        </p>
+    <!-- 이력 (Timeline) -->
+    <FadeInSection client:visible delay={0.2}>
+      <section class="mb-20">
+        <h2 class="mb-8 text-center text-2xl font-bold">
+          <span class="text-brand">History</span>
+        </h2>
+        <div class="mx-auto max-w-3xl">
+          <div class="relative border-l-2 border-brand/30 pl-8">
+            {timeline.map((item, index) => (
+              <div class="relative mb-10 last:mb-0">
+                <div class="absolute -left-[41px] flex h-5 w-5 items-center justify-center rounded-full border-2 border-brand bg-bg-primary">
+                  <div class="h-2 w-2 rounded-full bg-brand"></div>
+                </div>
+                <div class="mb-1 text-sm font-medium text-brand">{item.period}</div>
+                <h3 class="mb-2 text-xl font-bold text-text-primary">{item.title}</h3>
+                <p class="leading-relaxed text-text-secondary">{item.content}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    </FadeInSection>
 
-        <h2>기술 스택</h2>
-        <p>
-          React, TypeScript를 주력으로 사용하며, Next.js, Astro 등 모던 프레임워크에 익숙합니다.
-          성능 최적화와 접근성에 관심이 많으며, 사용자 중심의 개발을 지향합니다.
-        </p>
+    <!-- 프로젝트 경험 (Projects) -->
+    <FadeInSection client:visible delay={0.3}>
+      <section class="mb-20">
+        <h2 class="mb-8 text-center text-2xl font-bold">
+          <span class="text-brand">Experience</span>
+        </h2>
+        <div class="mx-auto max-w-3xl space-y-6">
+          {collaborations.map((collab) => (
+            <div class="rounded-xl border border-border bg-bg-secondary p-6">
+              <div class="mb-4 flex flex-wrap items-center gap-3">
+                <h3 class="text-lg font-bold text-text-primary">{collab.project}</h3>
+                <span class="rounded-full bg-brand/10 px-3 py-1 text-sm font-medium text-brand">
+                  {collab.role}
+                </span>
+              </div>
+              <ul class="space-y-2">
+                {collab.highlights.map((highlight) => (
+                  <li class="flex items-start gap-2 text-text-secondary text-sm">
+                    <span class="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-brand"></span>
+                    <span>{highlight}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </section>
+    </FadeInSection>
 
-        <h2>가치관</h2>
-        <p>
-          협업을 통해 더 나은 결과물을 만들 수 있다고 믿습니다.
-          코드 리뷰와 페어 프로그래밍을 통해 팀과 함께 성장하는 것을 중요하게 생각합니다.
-        </p>
-      </article>
+    <!-- Contact CTA -->
+    <FadeInSection client:visible delay={0.5}>
+      <section class="text-center">
+        <div class="mx-auto max-w-2xl rounded-2xl border border-brand/20 bg-gradient-to-br from-brand/5 to-brand/10 p-8">
+          <h2 class="mb-4 text-2xl font-bold text-text-primary">
+            Contact
+          </h2>
+          <p class="mb-6 text-text-secondary">
+            함께 성장하고 문제를 해결할 동료를 찾고 계신다면 연락 주세요.
+          </p>
+          <div class="flex flex-wrap justify-center gap-4">
+            <a
+              href="mailto:jssub940@gmail.com"
+              class="inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 font-medium text-white transition-all hover:bg-brand/90 hover:shadow-lg"
+            >
+              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+              </svg>
+              Email
+            </a>
+            <a
+              href="https://github.com/crucial-sub"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-2 rounded-lg border border-border bg-bg-secondary px-6 py-3 font-medium text-text-primary transition-all hover:border-brand/50 hover:shadow-lg"
+            >
+              <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"></path>
+              </svg>
+              GitHub
+            </a>
+          </div>
+        </div>
+      </section>
     </FadeInSection>
   </div>
 </BaseLayout>
