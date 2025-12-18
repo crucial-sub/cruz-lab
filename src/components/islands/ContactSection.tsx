@@ -1,8 +1,8 @@
 // 연락처 섹션 컴포넌트
 // 소셜 링크와 이메일 연락 CTA
 import { motion } from 'framer-motion';
-import TextReveal from './TextReveal';
 import MagneticButton from './MagneticButton';
+import TextReveal from './TextReveal';
 
 const socialLinks = [
   {
@@ -17,7 +17,7 @@ const socialLinks = [
   },
   {
     name: 'LinkedIn',
-    url: 'https://linkedin.com/in/cruz',
+    url: 'https://www.linkedin.com/in/중섭-박-41a678380',
     icon: (
       <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
         <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
@@ -27,7 +27,11 @@ const socialLinks = [
   },
   {
     name: 'Email',
-    url: 'mailto:cruz@example.com',
+    url: '#',
+    action: () => {
+      navigator.clipboard.writeText('jssub940@gmail.com');
+      alert('이메일 주소가 복사되었습니다!');
+    },
     icon: (
       <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
@@ -59,16 +63,6 @@ export default function ContactSection() {
                 <TextReveal text="Connect" type="chars" staggerChildren={0.05} delay={0.3} />
               </span>
             </h2>
-            <motion.p
-              initial={{ opacity: 0, y: 10 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.5 }}
-              className="mx-auto max-w-xl text-text-secondary"
-            >
-              새로운 기회나 협업에 대해 이야기하고 싶으시다면 언제든 연락해주세요.
-              함께 멋진 프로젝트를 만들어봐요!
-            </motion.p>
           </div>
 
           {/* 소셜 링크들 - MagneticButton 적용 */}
@@ -83,8 +77,14 @@ export default function ContactSection() {
               <MagneticButton key={link.name} strength={0.15}>
                 <motion.a
                   href={link.url}
-                  target={link.url.startsWith('mailto') ? undefined : '_blank'}
-                  rel={link.url.startsWith('mailto') ? undefined : 'noopener noreferrer'}
+                  onClick={(e) => {
+                    if (link.action) {
+                      e.preventDefault();
+                      link.action();
+                    }
+                  }}
+                  target={link.url.startsWith('http') ? '_blank' : undefined}
+                  rel={link.url.startsWith('http') ? 'noopener noreferrer' : undefined}
                   className="group flex items-center gap-3 rounded-xl border border-border bg-bg-secondary/50 px-6 py-3 transition-all duration-300 hover:border-transparent hover:shadow-lg"
                   style={
                     {
@@ -115,25 +115,6 @@ export default function ContactSection() {
                 </motion.a>
               </MagneticButton>
             ))}
-          </motion.div>
-
-          {/* 또는 이메일 직접 */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="mt-8 text-center"
-          >
-            <p className="text-sm text-text-secondary">
-              또는 직접 이메일을 보내주세요:{' '}
-              <a
-                href="mailto:cruz@example.com"
-                className="font-medium text-brand transition-colors hover:text-brand-hover"
-              >
-                cruz@example.com
-              </a>
-            </p>
           </motion.div>
         </div>
       </div>
