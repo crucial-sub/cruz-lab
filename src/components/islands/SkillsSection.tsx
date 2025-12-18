@@ -9,24 +9,27 @@ const skillCategories = [
   {
     title: 'Frontend',
     skills: [
-      { name: 'React', icon: '⚛️', color: '#61DAFB' },
-      { name: 'TypeScript', icon: '📘', color: '#3178C6' },
-      { name: 'Next.js', icon: '▲', color: '#000000' },
-      { name: 'TailwindCSS', icon: '🎨', color: '#06B6D4' },
+      { name: 'JavaScript', icon: '/images/Javascript.svg', color: '#F7DF1E' },
+      { name: 'TypeScript', icon: '/images/TypeScript.svg', color: '#3178C6' },
+      { name: 'React', icon: '/images/React.svg', color: '#61DAFB' },
+      { name: 'Next.js', icon: '/images/Nextjs.svg', color: '#000000' },
+      { name: 'TailwindCSS', icon: '/images/TailwindCSS.svg', color: '#06B6D4' },
+      { name: 'React Query', icon: '/images/React Query.svg', color: '#FF4154' },
+      { name: 'Zustand', icon: '/images/Zustand.svg', color: '#433e38' },
     ],
   },
   {
     title: 'Backend & Systems',
     skills: [
-      { name: 'Python', icon: '🐍', color: '#3776AB' },
-      { name: 'Firebase', icon: '🔥', color: '#ff2600' },
+      { name: 'Python', icon: '/images/Python.svg', color: '#3776AB' },
+      { name: 'Firebase', icon: '/images/Firebase.svg', color: '#FFCA28' },
     ],
   },
   {
     title: 'Tools & Others',
     skills: [
-      { name: 'Git', icon: '📦', color: '#F05032' },
-      { name: 'Figma', icon: '🎯', color: '#F24E1E' },
+      { name: 'Git', icon: '/images/Git.svg', color: '#F05032' },
+      { name: 'Figma', icon: '/images/Figma.svg', color: '#F24E1E' },
     ],
   },
 ];
@@ -73,6 +76,7 @@ export default function SkillsSection() {
                   name={skill.name}
                   icon={skill.icon}
                   color={skill.color}
+                  imgClassName={skill.name === 'Zustand' ? 'h-full w-full' : ''} // Zustand만 크기 조정
                   index={categoryIndex * 5 + skillIndex}
                 />
               ))}

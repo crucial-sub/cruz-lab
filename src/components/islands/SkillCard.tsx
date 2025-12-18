@@ -8,9 +8,10 @@ interface Props {
   color: string;
   level?: number; // 1-5 숙련도
   index?: number;
+  imgClassName?: string; // Add imgClassName prop
 }
 
-export default function SkillCard({ name, icon, color, index = 0 }: Props) {
+export default function SkillCard({ name, icon, color, index = 0, imgClassName = '' }: Props) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.8 }}
@@ -35,10 +36,9 @@ export default function SkillCard({ name, icon, color, index = 0 }: Props) {
         }}
       >
         {/* 아이콘 */}
-        <div
-          className="flex h-12 w-12 items-center justify-center text-3xl"
-          dangerouslySetInnerHTML={{ __html: icon }}
-        />
+        <div className="flex h-12 w-12 items-center justify-center">
+          <img src={icon} alt={name} className={`h-10 w-10 object-contain ${imgClassName}`} />
+        </div>
 
         {/* 스킬명 */}
         <span className="text-sm font-medium text-text-primary">{name}</span>
