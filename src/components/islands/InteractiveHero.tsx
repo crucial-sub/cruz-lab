@@ -1,9 +1,9 @@
 // 인터랙티브 Hero 컴포넌트
 // 타이핑 애니메이션 + 3D 프로필 이미지 + 배경 효과
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
-import TypeWriter from './TypeWriter';
 import MagneticButton from './MagneticButton';
 import RippleButton from './RippleButton';
+import TypeWriter from './TypeWriter';
 
 interface Props {
   name: string;
