@@ -8,7 +8,8 @@ import RippleButton from './RippleButton';
 interface Props {
   name: string;
   roles: string[];
-  intro: string;
+  tagline: string;
+  description: string;
   photoSrc: string;
   photoAlt?: string;
 }
@@ -16,7 +17,8 @@ interface Props {
 export default function InteractiveHero({
   name,
   roles,
-  intro,
+  tagline,
+  description,
   photoSrc,
   photoAlt = 'Profile photo',
 }: Props) {
@@ -85,14 +87,25 @@ export default function InteractiveHero({
             />
           </motion.div>
 
-          <motion.p
-            className="text-lg text-text-secondary leading-relaxed"
+          <motion.h2
+            className="text-2xl md:text-3xl font-bold text-text-primary mb-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.5 }}
+          >
+            {tagline}
+          </motion.h2>
+
+          <motion.div
+            className="text-lg text-text-secondary leading-relaxed space-y-4"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.6 }}
           >
-            {intro}
-          </motion.p>
+            {description.split('\n').map((line, i) => (
+              <p key={i}>{line}</p>
+            ))}
+          </motion.div>
 
           {/* CTA 버튼들 - MagneticButton + RippleButton 적용 */}
           <motion.div
