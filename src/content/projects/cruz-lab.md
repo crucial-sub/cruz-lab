@@ -17,7 +17,6 @@ tech:
   - "Milkdown"
   - "Firebase"
 github: "https://github.com/crucial-sub/cruz-lab"
-demo: "https://cruz-lab.vercel.app"
 featured: true
 order: 2
 startDate: 2024-12-10
@@ -124,12 +123,8 @@ const x = useMotionValue(0); // React State가 아님
 
 ## 마치며
 
-2일이라는 짧은 시간이었지만, **"기술적 최적화가 뒷받침될 때 비로소 훌륭한 UX가 완성된다"**는 것을 확실히 느꼈다.
+**"기술적 최적화가 뒷받침될 때 비로소 훌륭한 UX가 완성된다"**는 것을 확실히 느꼈다.
 
 아무리 화려한 디자인도 성능이 떨어지면 사용자에게 외면받는다. Astro와 Framer Motion의 조합은 성능과 심미성을 모두 잡을 수 있는 강력한 도구임을 확인했다.
 
 포트폴리오 사이트 구축을 고민 중이라면 **Astro**를 강력히 추천한다.
-
----
-
-*👉 [Cruz Lab 구경하러 가기](https://cruz-lab.vercel.app)*

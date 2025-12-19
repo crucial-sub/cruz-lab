@@ -1,10 +1,10 @@
 ---
 export const prerender = true;
 
-import { getCollection } from 'astro:content';
 import FadeInSection from '@/components/islands/FadeInSection';
 import ProjectCard from '@/components/islands/ProjectCard';
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
 
 const title = 'Projects';
 const description = 'Cruz의 프로젝트 포트폴리오 - 프론트엔드, 시스템 프로그래밍, 협업 도구 등';
@@ -29,7 +29,7 @@ const otherProjects = sortedProjects.filter((p) => !p.data.featured);
           <span class="text-brand">Projects</span>
         </h1>
         <p class="mx-auto max-w-2xl text-lg text-text-secondary">
-          운영체제부터 웹 애플리케이션까지, 다양한 도메인에서의 프로젝트 경험을 소개합니다.
+          Cruz Lab의 프로젝트 경험을 소개합니다.
         </p>
       </div>
     </FadeInSection>
