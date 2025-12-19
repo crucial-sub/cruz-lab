@@ -45,7 +45,7 @@ const socialLinks = [
     url: '#',
     action: () => {
       navigator.clipboard.writeText('jssub940@gmail.com');
-      alert('이메일 주소가 복사되었습니다!');
+      alert('📧 이메일 주소가 복사되었습니다!');
     },
     icon: (
       <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
