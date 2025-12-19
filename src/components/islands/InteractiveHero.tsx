@@ -183,7 +183,7 @@ export default function InteractiveHero({
 
             {/* 이미지 컨테이너 */}
             <div
-              className="relative h-full w-full overflow-hidden rounded-[24px] bg-brand shadow-xl"
+              className="relative h-full w-full overflow-hidden rounded-[24px] border border-gray-200/50 bg-brand shadow-2xl dark:border-transparent dark:shadow-xl"
               style={{ transform: 'translateZ(20px)' }}
             >
               <img
