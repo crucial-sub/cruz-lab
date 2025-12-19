@@ -1,9 +1,9 @@
 ---
 export const prerender = true;
 
-import { getCollection, render } from 'astro:content';
 import FadeInSection from '@/components/islands/FadeInSection';
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getCollection, render } from 'astro:content';
 
 export async function getStaticPaths() {
   const projects = await getCollection('projects');
@@ -148,7 +148,7 @@ const dateRange =
 
     <!-- 대표 이미지 -->
     <FadeInSection client:visible delay={0.2}>
-      <div class="mb-12 overflow-hidden rounded-2xl border border-border bg-bg-surface">
+      <div class="mb-12 overflow-hidden rounded-2xl bg-bg-surface">
         <img
           src={image.src}
           alt={title}
