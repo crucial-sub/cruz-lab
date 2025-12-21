@@ -2,16 +2,17 @@
  * 고급 블로그 포스트 리스트 컴포넌트
  *
  * 주요 기능:
- * - 멀티 태그 필터링 (OR 조건 - 선택한 태그 중 하나라도 포함하면 표시)
+ * - 단일 태그 필터링 (직관적이고 예측 가능한 결과)
  * - AnimatePresence + LayoutGroup으로 부드러운 카드 재배열
  * - 그리드/리스트 뷰 모드 전환
  * - 정렬 옵션 (최신순, 읽기시간순, 제목순)
  * - 검색 디바운스
  * - 스켈레톤 로딩 UI
  * - 개선된 빈 상태 UI
+ * - 인터랙티브 태그 버튼 (magnetic 효과, ripple 애니메이션)
  */
-import { useEffect, useState, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { motion, AnimatePresence, LayoutGroup, useMotionValue, useSpring } from 'framer-motion';
 import { getPublishedPosts, getAllTags, type Post } from '@/lib/posts';
 import BlogCard from '../islands/BlogCard';
 
@@ -155,14 +156,107 @@ function AnimatedCounter({ count }: { count: number }) {
   );
 }
 
+// Magnetic Tag Button 컴포넌트 (마우스 근처로 끌어당기는 효과)
+function MagneticTagButton({
+  tag,
+  isSelected,
+  postCount,
+  onClick,
+}: {
+  tag: string;
+  isSelected: boolean;
+  postCount: number;
+  onClick: () => void;
+}) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+
+  // 부드러운 스프링 애니메이션
+  const springConfig = { damping: 20, stiffness: 300 };
+  const springX = useSpring(x, springConfig);
+  const springY = useSpring(y, springConfig);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (!ref.current) return;
+
+    const rect = ref.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    const deltaX = e.clientX - centerX;
+    const deltaY = e.clientY - centerY;
+
+    // Magnetic 효과: 마우스 방향으로 살짝 이동 (선택된 태그는 효과 강화)
+    const strength = isSelected ? 0.3 : 0.2;
+    x.set(deltaX * strength);
+    y.set(deltaY * strength);
+  };
+
+  const handleMouseLeave = () => {
+    x.set(0);
+    y.set(0);
+  };
+
+  return (
+    <motion.button
+      ref={ref}
+      layout
+      onClick={onClick}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{ x: springX, y: springY }}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      className={`relative inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-all ${
+        isSelected
+          ? 'bg-brand text-white shadow-lg shadow-brand/30 ring-2 ring-brand/50 ring-offset-2 ring-offset-bg-card'
+          : 'bg-bg-surface text-text-secondary hover:bg-bg-card hover:text-text-primary border border-border hover:border-brand/30'
+      }`}
+    >
+      {/* Ripple 효과를 위한 오버레이 */}
+      <span className="relative z-10 flex items-center gap-1.5">
+        {tag}
+        <span
+          className={`text-xs ${
+            isSelected ? 'text-white/70' : 'text-text-secondary'
+          }`}
+        >
+          ({postCount})
+        </span>
+      </span>
+
+      {/* 선택된 태그 체크 아이콘 */}
+      <AnimatePresence>
+        {isSelected && (
+          <motion.span
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            className="relative z-10"
+          >
+            <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                fillRule="evenodd"
+                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </motion.button>
+  );
+}
+
 export default function BlogPostList() {
   // 데이터 상태
   const [posts, setPosts] = useState<Post[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 필터 상태
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  // 필터 상태 - 단일 태그 선택으로 변경
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebounce(searchInput, 300);
 
@@ -194,14 +288,12 @@ export default function BlogPostList() {
   const filteredPosts = useMemo(() => {
     let result = [...posts];
 
-    // 태그 필터링 (OR 조건: 선택된 태그 중 하나라도 포함하면 표시)
-    if (selectedTags.length > 0) {
-      result = result.filter((post) =>
-        selectedTags.some((tag) => post.tags.includes(tag))
-      );
+    // 태그 필터링 (단일 선택: 선택된 태그가 있으면 해당 태그를 포함하는 포스트만 표시)
+    if (selectedTag) {
+      result = result.filter((post) => post.tags.includes(selectedTag));
     }
 
-    // 검색 필터링
+    // 검색 필터링 (제목, 설명, 태그 모두 검색)
     if (debouncedSearch) {
       const searchLower = debouncedSearch.toLowerCase();
       result = result.filter(
@@ -229,23 +321,21 @@ export default function BlogPostList() {
     }
 
     return result;
-  }, [posts, selectedTags, debouncedSearch, sortBy]);
+  }, [posts, selectedTag, debouncedSearch, sortBy]);
 
-  // 태그 토글
-  const toggleTag = useCallback((tag: string) => {
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
+  // 태그 선택/해제 (단일 선택)
+  const selectTag = useCallback((tag: string | null) => {
+    setSelectedTag((prev) => (prev === tag ? null : tag));
   }, []);
 
   // 필터 초기화
   const clearFilters = useCallback(() => {
-    setSelectedTags([]);
+    setSelectedTag(null);
     setSearchInput('');
   }, []);
 
   // 필터가 활성화되었는지 확인
-  const hasActiveFilters = selectedTags.length > 0 || debouncedSearch.length > 0;
+  const hasActiveFilters = selectedTag !== null || debouncedSearch.length > 0;
 
   // 로딩 상태
   if (isLoading) {
@@ -285,7 +375,7 @@ export default function BlogPostList() {
               type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="포스트 검색..."
+              placeholder="포스트 검색... (예: react typescript)"
               className="w-full rounded-xl border border-border bg-bg-card px-4 py-3 pl-12 text-text-primary placeholder:text-text-secondary focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-all"
             />
             <svg
@@ -374,7 +464,7 @@ export default function BlogPostList() {
             whileTap={{ scale: 0.95 }}
             onClick={() => setIsFilterOpen(!isFilterOpen)}
             className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-              isFilterOpen || selectedTags.length > 0
+              isFilterOpen || selectedTag !== null
                 ? 'border-brand bg-brand/10 text-brand'
                 : 'border-border bg-bg-card text-text-secondary hover:text-text-primary'
             }`}
@@ -387,11 +477,15 @@ export default function BlogPostList() {
                 d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
               />
             </svg>
-            필터
-            {selectedTags.length > 0 && (
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand text-xs text-white">
-                {selectedTags.length}
-              </span>
+            태그 필터
+            {selectedTag && (
+              <motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="flex h-5 w-5 items-center justify-center rounded-full bg-brand text-xs text-white"
+              >
+                1
+              </motion.span>
             )}
           </motion.button>
         </div>
@@ -399,55 +493,56 @@ export default function BlogPostList() {
 
       {/* 태그 필터 영역 */}
       <AnimatePresence>
-        {isFilterOpen && allTags.length > 0 && (
+        {isFilterOpen && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
-            <div className="rounded-xl border border-border bg-bg-card/50 p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <span className="text-sm font-medium text-text-secondary">태그로 필터링</span>
-                {selectedTags.length > 0 && (
+            <div className="rounded-xl border border-border bg-gradient-to-br from-bg-card/50 to-bg-surface/30 p-5 backdrop-blur-sm">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-text-primary">태그 선택</span>
+                  <span className="text-xs text-text-secondary">
+                    ({selectedTag ? '1개 선택됨' : '전체 보기'})
+                  </span>
+                </div>
+                {selectedTag && (
                   <motion.button
                     initial={{ opacity: 0, x: 10 }}
                     animate={{ opacity: 1, x: 0 }}
-                    onClick={() => setSelectedTags([])}
-                    className="text-xs text-brand hover:underline"
+                    onClick={() => selectTag(null)}
+                    className="flex items-center gap-1 text-xs text-brand hover:underline"
                   >
-                    모두 해제
+                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    초기화
                   </motion.button>
                 )}
               </div>
-              <div className="flex flex-wrap gap-2">
-                {allTags.map((tag) => {
-                  const isSelected = selectedTags.includes(tag);
-                  const postCount = posts.filter((p) => p.tags.includes(tag)).length;
+              <div className="flex flex-wrap gap-2.5">
+                {/* 전체 보기 버튼 */}
+                <MagneticTagButton
+                  tag="전체"
+                  isSelected={selectedTag === null}
+                  postCount={posts.length}
+                  onClick={() => selectTag(null)}
+                />
 
+                {/* 개별 태그 버튼들 */}
+                {allTags.map((tag) => {
+                  const postCount = posts.filter((p) => p.tags.includes(tag)).length;
                   return (
-                    <motion.button
+                    <MagneticTagButton
                       key={tag}
-                      layout
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => toggleTag(tag)}
-                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-all ${
-                        isSelected
-                          ? 'bg-brand text-white shadow-lg shadow-brand/25'
-                          : 'bg-bg-surface text-text-secondary hover:bg-bg-card hover:text-text-primary'
-                      }`}
-                    >
-                      {tag}
-                      <span
-                        className={`text-xs ${
-                          isSelected ? 'text-white/70' : 'text-text-secondary'
-                        }`}
-                      >
-                        ({postCount})
-                      </span>
-                    </motion.button>
+                      tag={tag}
+                      isSelected={selectedTag === tag}
+                      postCount={postCount}
+                      onClick={() => selectTag(tag)}
+                    />
                   );
                 })}
               </div>
@@ -458,30 +553,27 @@ export default function BlogPostList() {
 
       {/* 선택된 태그 표시 (필터가 닫혀있을 때) */}
       <AnimatePresence>
-        {!isFilterOpen && selectedTags.length > 0 && (
+        {!isFilterOpen && selectedTag && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             className="flex flex-wrap items-center gap-2"
           >
-            <span className="text-sm text-text-secondary">필터:</span>
-            {selectedTags.map((tag) => (
-              <motion.button
-                key={tag}
-                layout
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                exit={{ scale: 0 }}
-                onClick={() => toggleTag(tag)}
-                className="inline-flex items-center gap-1 rounded-full bg-brand/10 px-3 py-1 text-sm font-medium text-brand"
-              >
-                {tag}
-                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </motion.button>
-            ))}
+            <span className="text-sm text-text-secondary">선택된 태그:</span>
+            <motion.button
+              layout
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0 }}
+              onClick={() => selectTag(null)}
+              className="inline-flex items-center gap-1.5 rounded-full bg-brand/10 px-3 py-1.5 text-sm font-medium text-brand hover:bg-brand/20 transition-colors"
+            >
+              #{selectedTag}
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </motion.button>
           </motion.div>
         )}
       </AnimatePresence>
