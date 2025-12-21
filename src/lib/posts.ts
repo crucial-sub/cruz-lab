@@ -55,11 +55,15 @@ export interface Post {
 }
 
 // 발행된 공개 포스트 목록 가져오기
-// Firestore 규칙과 일치하도록 status 쿼리 포함, isPublic은 클라이언트 필터링
+// Firestore 보안 규칙과 정확히 일치하도록 isPublic과 status 모두 쿼리에 포함
 export async function getPublishedPosts(): Promise<Post[]> {
   const postsRef = collection(db, 'posts');
-  // status='published' 쿼리는 Firestore 규칙과 일치해야 함
-  const q = query(postsRef, where('status', '==', 'published'));
+  // 보안 규칙: isPublic == true && status == 'published'
+  const q = query(
+    postsRef,
+    where('isPublic', '==', true),
+    where('status', '==', 'published')
+  );
   const snapshot = await getDocs(q);
 
   return snapshot.docs
@@ -88,18 +92,18 @@ export async function getPublishedPosts(): Promise<Post[]> {
         seriesOrder: data.seriesOrder || undefined,
       };
     })
-    .filter((post) => post.isPublic === true)
     .sort((a, b) => b.pubDate.getTime() - a.pubDate.getTime());
 }
 
 // slug로 단일 포스트 가져오기
-// Firestore 보안 규칙과 일치하도록 status 쿼리 포함
+// Firestore 보안 규칙과 정확히 일치하도록 isPublic과 status 모두 쿼리에 포함
 export async function getPostBySlug(slug: string): Promise<Post | null> {
   const postsRef = collection(db, 'posts');
-  // 보안 규칙이 status='published' 체크를 요구하므로 쿼리에 포함
+  // 보안 규칙: isPublic == true && status == 'published'
   const q = query(
     postsRef,
     where('slug', '==', slug),
+    where('isPublic', '==', true),
     where('status', '==', 'published')
   );
 
@@ -108,11 +112,6 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
 
   const docSnap = snapshot.docs[0];
   const data = docSnap.data();
-
-  // 공개 여부 클라이언트에서 추가 검증
-  if (data.isPublic !== true) {
-    return null;
-  }
 
   const mediaUrl = data.heroImage || '';
   const isVideo = isVideoUrl(mediaUrl);

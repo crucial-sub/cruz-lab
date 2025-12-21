@@ -1,0 +1,27 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 시리즈 컬렉션 - 모든 사용자가 읽기 가능
+    match /series/{seriesId} {
+      allow read: if true;
+      allow write: if request.auth != null; // 인증된 사용자만 쓰기 가능
+    }
+
+    // 포스트 컬렉션 - 공개된 포스트만 읽기 가능
+    match /posts/{postId} {
+      // 단일 문서 읽기: 공개되고 발행된 포스트만 허용
+      allow get: if resource.data.isPublic == true && resource.data.status == 'published';
+      // 쿼리(리스트): 클라이언트가 isPublic==true && status=='published' 조건으로 쿼리할 수 있도록 허용
+      allow list: if true;
+      allow write: if request.auth != null; // 인증된 사용자만 쓰기 가능
+    }
+
+    // 댓글 컬렉션 (향후 확장 가능)
+    match /comments/{commentId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.authorId;
+    }
+  }
+}

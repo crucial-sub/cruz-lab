@@ -38,9 +38,8 @@ function initializeFirebase() {
   return { app, auth, db, storage, googleProvider };
 }
 
-// 클라이언트 사이드에서만 초기화
-if (typeof window !== 'undefined') {
-  initializeFirebase();
-}
+// 서버와 클라이언트 모두에서 초기화
+// SSR을 위해 서버에서도 Firebase 초기화 필요
+initializeFirebase();
 
 export { app, auth, db, storage, googleProvider, initializeFirebase };

@@ -15,6 +15,7 @@ interface Props {
   index?: number;
   featured?: boolean;
   readingTime?: number; // 서버에서 계산된 읽기 시간 (분)
+  seriesId?: string; // 시리즈 ID (있으면 시리즈 배지 표시)
 }
 
 export default function BlogCard({
@@ -28,6 +29,7 @@ export default function BlogCard({
   index = 0,
   featured = false,
   readingTime: propReadingTime,
+  seriesId,
 }: Props) {
   // 날짜 객체로 변환 (문자열 또는 Date 모두 처리)
   const dateObj = typeof pubDate === 'string' ? new Date(pubDate) : pubDate;
@@ -90,6 +92,16 @@ export default function BlogCard({
 
           {/* 콘텐츠 영역 */}
           <div className={`flex flex-1 flex-col ${featured ? 'w-3/5 p-4' : 'p-5'}`}>
+            {/* 시리즈 배지 */}
+            {seriesId && (
+              <div className={`flex items-center gap-1 text-xs text-brand ${featured ? 'mb-1' : 'mb-2'}`}>
+                <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
+                </svg>
+                <span className="font-medium">시리즈</span>
+              </div>
+            )}
+
             {/* 태그 - 태그가 없어도 동일한 높이 유지 */}
             <div className={`flex min-h-[24px] flex-wrap gap-2 ${featured ? 'mb-1' : 'mb-3'}`}>
               {tags.slice(0, 3).map((tag) => (
