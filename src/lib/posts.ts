@@ -48,6 +48,10 @@ export interface Post {
   updatedDate: Date;
   readingTime: number;
   isPublic: boolean;
+
+  // 시리즈 관련 필드 (선택사항)
+  seriesId?: string;       // 소속 시리즈 ID (없으면 단독 글)
+  seriesOrder?: number;    // 시리즈 내 순서 (1부터 시작)
 }
 
 // 발행된 공개 포스트 목록 가져오기
@@ -79,6 +83,9 @@ export async function getPublishedPosts(): Promise<Post[]> {
         updatedDate: data.updatedDate?.toDate() || new Date(),
         readingTime: data.readingTime || 0,
         isPublic: data.isPublic ?? true,
+        // 시리즈 관련 필드
+        seriesId: data.seriesId || undefined,
+        seriesOrder: data.seriesOrder || undefined,
       };
     })
     .filter((post) => post.isPublic === true)
@@ -125,6 +132,9 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
     updatedDate: data.updatedDate?.toDate() || new Date(),
     readingTime: data.readingTime || 0,
     isPublic: data.isPublic ?? true,
+    // 시리즈 관련 필드
+    seriesId: data.seriesId || undefined,
+    seriesOrder: data.seriesOrder || undefined,
   };
 }
 
