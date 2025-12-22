@@ -1,0 +1,23 @@
+---
+export const prerender = true;
+
+// 시리즈 관리 페이지
+// 모든 시리즈 목록 조회, 수정, 삭제 기능
+import BaseLayout from '@/layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="시리즈 관리 - Cruz Lab Admin">
+  <div id="series-list-root"></div>
+</BaseLayout>
+
+<script>
+  import { createElement } from 'react';
+  import { createRoot } from 'react-dom/client';
+  import SeriesList from '@/components/admin/series/SeriesList';
+
+  const container = document.getElementById('series-list-root');
+  if (container) {
+    const root = createRoot(container);
+    root.render(createElement(SeriesList));
+  }
+</script>

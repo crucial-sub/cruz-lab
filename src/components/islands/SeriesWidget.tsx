@@ -23,6 +23,7 @@ interface SeriesWidgetProps {
   seriesSlug: string;
   currentPostId: string;
   posts: SeriesPost[];
+  className?: string;
 }
 
 export default function SeriesWidget({
@@ -30,6 +31,7 @@ export default function SeriesWidget({
   seriesSlug,
   currentPostId,
   posts,
+  className = '',
 }: SeriesWidgetProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -40,7 +42,7 @@ export default function SeriesWidget({
   const nextPost = currentIndex < posts.length - 1 ? posts[currentIndex + 1] : null;
 
   return (
-    <div className="sticky top-20 rounded-2xl border border-border bg-gradient-to-br from-bg-card to-bg-surface p-6 shadow-xl">
+    <div className={`rounded-2xl border border-border bg-gradient-to-br from-bg-card to-bg-surface p-6 shadow-xl ${className}`}>
       {/* 시리즈 헤더 */}
       <div className="mb-4">
         <a

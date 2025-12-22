@@ -127,8 +127,8 @@ export default function BlogPostView({ slug }: Props) {
         블로그로 돌아가기
       </a>
 
-      {/* 2열 레이아웃: 본문 + 시리즈 위젯 */}
-      <div className={seriesData ? 'grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px]' : ''}>
+      {/* 2열 레이아웃 제거 -> 중앙 정렬 컨테이너 + 플로팅 사이드바 전략 */}
+      <div className="relative mx-auto max-w-4xl">
         {/* 메인 콘텐츠 */}
         <article className="min-w-0">
           {/* 헤더 영역 */}
@@ -262,6 +262,18 @@ export default function BlogPostView({ slug }: Props) {
             </ReactMarkdown>
           </div>
 
+          {/* 하단 시리즈 위젯 (모바일/데스크톱 공통) */}
+          {seriesData && (
+            <div className="mt-16 border-t border-border pt-8">
+              <SeriesWidget
+                seriesName={seriesData.seriesName}
+                seriesSlug={seriesData.seriesSlug}
+                currentPostId={post.id}
+                posts={seriesData.posts}
+              />
+            </div>
+          )}
+
           {/* 모든 글 보기 링크 */}
           <div className="mt-16 flex justify-center border-t border-border pt-8">
             <a
@@ -281,16 +293,18 @@ export default function BlogPostView({ slug }: Props) {
           </div>
         </article>
 
-        {/* 시리즈 위젯 (사이드바) */}
+        {/* 플로팅 시리즈 위젯 (초대형 화면 전용) */}
         {seriesData && (
-          <aside className="hidden lg:block">
-            <SeriesWidget
-              seriesName={seriesData.seriesName}
-              seriesSlug={seriesData.seriesSlug}
-              currentPostId={post.id}
-              posts={seriesData.posts}
-            />
-          </aside>
+          <div className="absolute left-full top-0 hidden h-full 2xl:block">
+            <div className="sticky top-20 ml-8 w-[320px]">
+              <SeriesWidget
+                seriesName={seriesData.seriesName}
+                seriesSlug={seriesData.seriesSlug}
+                currentPostId={post.id}
+                posts={seriesData.posts}
+              />
+            </div>
+          </div>
         )}
       </div>
     </div>

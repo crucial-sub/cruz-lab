@@ -1,0 +1,22 @@
+---
+export const prerender = true;
+
+// 새 시리즈 작성 페이지
+import BaseLayout from '@/layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="새 시리즈 작성 - Cruz Lab Admin">
+  <div id="series-editor-root"></div>
+</BaseLayout>
+
+<script>
+  import { createElement } from 'react';
+  import { createRoot } from 'react-dom/client';
+  import SeriesEditor from '@/components/admin/series/SeriesEditor';
+
+  const container = document.getElementById('series-editor-root');
+  if (container) {
+    const root = createRoot(container);
+    root.render(createElement(SeriesEditor, { mode: 'create' }));
+  }
+</script>
