@@ -205,6 +205,7 @@ export function MilkdownEditor({
       // Milkdown이 한글 뒤에서 **를 \*\*로 이스케이프하는 문제 해결
       const cleaned = markdown
         .replace(/\\(\*\*)/g, '$1')  // \** → ** (볼드 시작/끝)
+        .replace(/\\(\*)/g, '$1')   // \* → * (이탤릭 등)
         .replace(/\\_/g, '_');       // \_ → _
       onChangeRef.current(cleaned);
     }
@@ -280,7 +281,18 @@ export function MilkdownEditor({
 
     try {
       // 파일 내용 읽기
-      const text = await file.text();
+      let text = await file.text();
+
+      // Milkdown 파서가 이스케이프된 기호를 잘못 처리하거나
+      // 한국어 조사와 붙은 볼드(**)를 인식하지 못하는 문제 해결을 위한 전처리
+      text = text
+        .replace(/\\(\*\*)/g, '$1')
+        .replace(/\\(\*)/g, '$1')
+        .replace(/\\_/g, '_');
+
+      // 한국어 조사와 붙어있는 볼드(**)를 위해 제로 너비 공백(ZWSP) 삽입 (바깥쪽)
+      text = text.replace(/([^ \t\n*])(\*\*[^*]+?\*\*)/g, '$1\u200b$2');
+      text = text.replace(/(\*\*[^*]+?\*\*)([^ \t\n*])/g, '$1\u200b$2');
 
       // 에디터 컨텍스트에서 파서와 뷰 가져오기
       const ctx = ctxRef.current;

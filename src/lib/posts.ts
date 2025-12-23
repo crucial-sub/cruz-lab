@@ -8,28 +8,21 @@ const isVideoUrl = (url: string): boolean => {
 };
 
 // 마크다운 렌더링 문제 해결
-// Milkdown 에디터와 remark-gfm 파싱 호환성 문제 수정
+// Milkdown 에디터의 이스케이프 문제 및 한국어 문맥에서 볼드(**)가 깨지는 현상을 해결합니다.
 const fixMarkdown = (content: string): string => {
   if (!content) return '';
-  let result = content
-    // 1. 백슬래시 이스케이프 복원: \* → *, \_ → _
-    .replace(/\\\*/g, '*')
-    .replace(/\\_/g, '_');
+  
+  let result = content;
 
-  // 2. 반복적으로 ** 쌍을 <strong>으로 변환 (중첩 처리)
-  // 가장 안쪽부터 변환하기 위해 반복
-  let prevResult = '';
-  while (prevResult !== result) {
-    prevResult = result;
-    // 가장 가까운 ** 쌍을 <strong>으로 변환
-    result = result.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
-  }
+  // 1. Milkdown의 백슬래시 이스케이프 복원
+  result = result.replace(/\\(\*\*)/g, '$1').replace(/\\(\*)/g, '$1').replace(/\\_/g, '_');
 
-  // 3. 짝이 맞지 않는 남은 ** 제거
-  result = result.replace(/\*\*/g, '');
-
-  // 4. 빈 <strong> 태그 제거
-  result = result.replace(/<strong>\s*<\/strong>/g, '');
+  // 2. 한국어 조사와 붙어있는 볼드(**)를 위해 제로 너비 공백(ZWSP) 삽입
+  // 볼드 기호 바깥쪽에 삽입하여 파서가 경계를 인식하게 함
+  // 는**텍스트** -> 는\u200b**텍스트**
+  result = result.replace(/([^ \t\n*])(\*\*[^*]+?\*\*)/g, '$1\u200b$2');
+  // **텍스트**는 -> **텍스트**\u200b는
+  result = result.replace(/(\*\*[^*]+?\*\*)([^ \t\n*])/g, '$1\u200b$2');
 
   return result;
 };
