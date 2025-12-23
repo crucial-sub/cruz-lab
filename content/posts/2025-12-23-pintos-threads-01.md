@@ -2,8 +2,8 @@
 title: "[Pintos] Threads - 핀토스 시작하기 & 과제 소개"
 description: "pintos 프로젝트 intro"
 pubDate: "2025-12-23T11:41:55.189Z"
-updatedDate: "2025-12-23T11:41:55.189Z"
-heroImage: ""
+updatedDate: "2025-12-23T11:47:28.542Z"
+heroImage: "https://firebasestorage.googleapis.com/v0/b/cruz-lab.firebasestorage.app/o/images%2Fheroes%2Fhero-1766490438829.webp?alt=media&token=278ca4bc-83fa-429f-8ac2-f505d7cd7ebe"
 tags: ["운영체제", "pintos", "크래프톤 정글"]
 slug: "pintos-threads-01"
 readingTime: 2
