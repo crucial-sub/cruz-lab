@@ -11,9 +11,9 @@
  * - 개선된 빈 상태 UI
  * - 인터랙티브 태그 버튼 (magnetic 효과, ripple 애니메이션)
  */
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { motion, AnimatePresence, LayoutGroup, useMotionValue, useSpring } from 'framer-motion';
-import { getPublishedPosts, getAllTags, type Post } from '@/lib/posts';
+import { getAllTags, getPublishedPosts, type Post } from '@/lib/posts';
+import { AnimatePresence, LayoutGroup, motion, useMotionValue, useSpring } from 'framer-motion';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import BlogCard from '../islands/BlogCard';
 
 // 정렬 타입
@@ -41,15 +41,13 @@ function useDebounce<T>(value: T, delay: number): T {
 function SkeletonCard({ viewMode }: { viewMode: ViewMode }) {
   return (
     <div
-      className={`animate-pulse rounded-2xl border border-border bg-bg-surface overflow-hidden ${
-        viewMode === 'list' ? 'flex flex-row h-48' : ''
-      }`}
+      className={`animate-pulse rounded-2xl border border-border bg-bg-surface overflow-hidden ${viewMode === 'list' ? 'flex flex-row h-48' : ''
+        }`}
     >
       {/* 이미지 스켈레톤 */}
       <div
-        className={`bg-bg-card ${
-          viewMode === 'list' ? 'w-64 h-full' : 'aspect-video w-full'
-        }`}
+        className={`bg-bg-card ${viewMode === 'list' ? 'w-64 h-full' : 'aspect-video w-full'
+          }`}
       >
         <div className="h-full w-full bg-gradient-to-r from-bg-card via-bg-surface to-bg-card animate-shimmer" />
       </div>
@@ -208,43 +206,21 @@ function MagneticTagButton({
       style={{ x: springX, y: springY }}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
-      className={`relative inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-all ${
-        isSelected
-          ? 'bg-brand text-white shadow-lg shadow-brand/30 ring-2 ring-brand/50 ring-offset-2 ring-offset-bg-card'
-          : 'bg-bg-surface text-text-secondary hover:bg-bg-card hover:text-text-primary border border-border hover:border-brand/30'
-      }`}
+      className={`relative inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-all ${isSelected
+        ? 'bg-brand text-white shadow-lg shadow-brand/30 ring-2 ring-brand/50 ring-offset-2 ring-offset-bg-card'
+        : 'bg-bg-surface text-text-secondary hover:bg-bg-card hover:text-text-primary border border-border hover:border-brand/30'
+        }`}
     >
       {/* Ripple 효과를 위한 오버레이 */}
       <span className="relative z-10 flex items-center gap-1.5">
         {tag}
         <span
-          className={`text-xs ${
-            isSelected ? 'text-white/70' : 'text-text-secondary'
-          }`}
+          className={`text-xs ${isSelected ? 'text-white/70' : 'text-text-secondary'
+            }`}
         >
           ({postCount})
         </span>
       </span>
-
-      {/* 선택된 태그 체크 아이콘 */}
-      <AnimatePresence>
-        {isSelected && (
-          <motion.span
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            className="relative z-10"
-          >
-            <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fillRule="evenodd"
-                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </motion.span>
-        )}
-      </AnimatePresence>
     </motion.button>
   );
 }
@@ -375,7 +351,7 @@ export default function BlogPostList() {
               type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="포스트 검색... (예: react typescript)"
+              placeholder="포스트 검색..."
               className="w-full rounded-xl border border-border bg-bg-card px-4 py-3 pl-12 text-text-primary placeholder:text-text-secondary focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-all"
             />
             <svg
@@ -418,11 +394,10 @@ export default function BlogPostList() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setViewMode('grid')}
-              className={`rounded-md p-2 transition-colors ${
-                viewMode === 'grid'
-                  ? 'bg-brand text-white'
-                  : 'text-text-secondary hover:text-text-primary'
-              }`}
+              className={`rounded-md p-2 transition-colors ${viewMode === 'grid'
+                ? 'bg-brand text-white'
+                : 'text-text-secondary hover:text-text-primary'
+                }`}
               title="그리드 뷰"
             >
               <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
@@ -433,11 +408,10 @@ export default function BlogPostList() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setViewMode('list')}
-              className={`rounded-md p-2 transition-colors ${
-                viewMode === 'list'
-                  ? 'bg-brand text-white'
-                  : 'text-text-secondary hover:text-text-primary'
-              }`}
+              className={`rounded-md p-2 transition-colors ${viewMode === 'list'
+                ? 'bg-brand text-white'
+                : 'text-text-secondary hover:text-text-primary'
+                }`}
               title="리스트 뷰"
             >
               <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
@@ -463,11 +437,10 @@ export default function BlogPostList() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-              isFilterOpen || selectedTag !== null
-                ? 'border-brand bg-brand/10 text-brand'
-                : 'border-border bg-bg-card text-text-secondary hover:text-text-primary'
-            }`}
+            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${isFilterOpen || selectedTag !== null
+              ? 'border-brand bg-brand/10 text-brand'
+              : 'border-border bg-bg-card text-text-secondary hover:text-text-primary'
+              }`}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path

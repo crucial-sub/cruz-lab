@@ -38,16 +38,18 @@ endDate: 2025-11
 
 데이터 양이 방대하다 보니 시뮬레이션을 준비하는데만 평균 13초, 시뮬레이션 연산 및 차트 렌더링까지 포함하면 25~30초 가량 소요되는 무거운 작업이었다.
 
-웹 세상에서 30초? 이건 사용보고 "나가세요"라고 말하는 것과 같다.😱
+웹 세상에서 30초? 이건 사용자보고 "나가세요"라고 말하는 것과 같다.😱
 
-나는 프론트엔드 개발자로서 이 **지루한 기다림**을 **흥미진진한 관전**으로 바꿔야만 했다.
+나는 프론트엔드 개발자로서 이 **지루한 기다림**을 **흥미진진한 관전**으로 바꾸고자 했다.
 
 ---
 
 ### 초기 접근
 
 초기 구현은 심플했다.
+
 시뮬레이션 준비 시간 동안에는 아직 연산이 시작되지 않아 데이터를 받지 못하였으니 로딩 스피너를 하나 띄워놓고, 
+
 시뮬레이션 연산이 시작되면 `React Query`의 폴링(Polling) 기능을 써서 2초마다 서버를 찔러보면서 차트 데이터를 받아와 차트를 그리는 것이었다.
 
 ```typescript
@@ -160,7 +162,7 @@ Stock Lab에는 퀀트투자 혹은 주식 용어에 대해 친절하게 알려�
 
 백테스트와 마찬가지로 스트리밍 방식을 적용해야 했다.
 
-이에 서버에서 연결을 끊지 않고 데이터를 계속 내려보내는 `SSE(Server-Sent Events)`를 사용했다.
+이에 서버에서 연결을 끊지 않고 데이터를 계속 내려보내는 `SSE`를 사용했다.
 
 ---
 
@@ -175,20 +177,24 @@ SSE를 받는 방법은 크게 두 가지였다:
 
 처음에는 **EventSource**를 선택했다.
 
-"SSE를 쓴다면 당연히 EventSource 객체를 써야지"라는 생각과, 네트워크가 불안정할 때 알아서 다시 붙어주는 **자동 재연결** 기능이 매력적이었기 때문이다.
+막연히 "SSE를 쓴다면 EventSource 객체를 써야지"라는 생각과, 네트워크가 불안정할 때 알아서 다시 붙어주는 **자동 재연결** 기능이 매력적이었기 때문이다.
 
 ```typescript
 // 초기 구현: EventSource 사용
 const url = new URL("/api/v1/chat/stream", baseUrl);
-url.searchParams.set("message", userMessage); // 문제의 발단
+url.searchParams.set("message", message); // 문제의 발단
 
 const eventSource = new EventSource(url.toString());
 
 eventSource.onmessage = (event) => {
   const data = JSON.parse(event.data);
-  if (data.type === "stream_chunk") {
-    setContent((prev) => prev + data.content);
-  }
+  switch (data.type) {
+            ...
+            case "stream_chunk":
+              // 즉시 렌더링 (인위적 딜레이 없음)
+              setContent((prev) => prev + data.content);
+              break;
+            ...
 };
 ```
 
@@ -216,22 +222,22 @@ url.searchParams.set("clientType", "assistant");
 #### 1. **보안**
 사용자의 질문 내용이 URL에 그대로 노출된다. 서버 로그, 프록시, 브라우저 히스토리에 내밀한 질문 내용이 남을 수 있다.
 
-예를 들어 사용자가 "내 연봉 3천만원인데 어떻게 투자하면 좋을까?"라고 물으면, 이 내용이 평문으로 서버 로그에 기록된다.
-개인정보보호 관점에서 심각한 위험이라 볼 수 있다.
-
 #### 2. **길이 제한**
-브라우저와 서버는 URL 길이에 제한(통상 2048자)이 있다. 만약 사용자가 긴 문서를 요약해달라고 하거나 복잡한 프롬프트를 보낸다면? 요청 자체가 실패한다.
+브라우저와 서버는 URL 길이에 제한(통상 2048자)이 있다. 긴 프롬프트를 전송하면 요청 자체가 실패할 수 있다.
 
 #### 3. **업계 표준과의 괴리**
 
-실제로 **ChatGPT**나 **Claude**의 네트워크 탭을 뜯어보니, 그들은 모두 `fetch`를 사용한 **POST 요청**으로 스트리밍을 구현하고 있었다.
+OpenAI API 문서를 확인해보면, 그들은 `fetch`를 사용한 **POST 요청**으로 스트리밍을 구현하고 있다. 
+실제로 ChatGPT나 Claude의 네트워크 트래픽을 분석해봐도, 대화 내용은 모두 POST Body에 담겨 전송된다.
 
-POST 요청은 Body에 데이터를 담으므로 길이 제한이 없고 보안상 안전하며, 커스텀 헤더(Authorization 등)를 자유롭게 설정할 수 있기 때문이다.
+EventSource API(브라우저 내장 객체)는 GET만 지원하지만, **SSE(Server-Sent Events) 프로토콜 자체는 HTTP 표준이므로 POST 요청에서도 응답 헤더만 `text/event-stream`으로 맞추면 스트리밍이 가능하다.**
+
+즉, **"EventSource 객체"를 못 쓸 뿐, "SSE 프로토콜"은 여전히 사용할 수 있다.**
 
 ```javascript
-// OpenAI API의 실제 구현 방식
+// OpenAI API 스타일의 구현 방식 (Fetch + ReadableStream)
 const response = await fetch('https://api.openai.com/v1/chat/completions', {
-  method: 'POST',  // ← GET이 아니라 POST
+  method: 'POST',
   headers: {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${API_KEY}`
@@ -239,57 +245,37 @@ const response = await fetch('https://api.openai.com/v1/chat/completions', {
   body: JSON.stringify({
     model: 'gpt-4',
     messages: [{ role: 'user', content: '안녕하세요' }],
-    stream: true  // SSE 활성화
+    stream: true  // 스트리밍 활성화
   })
 });
 
-// 응답은 여전히 SSE 프로토콜 (text/event-stream)
-const reader = response.body.getReader();
-// ReadableStream 파싱...
-```
-
-**"자동 재연결이 되니까 EventSource가 좋다"** 는 판단도 안일했다.
-
-챗봇 대화는 주식 시세 같은 지속적인 데이터 구독이 아니라 **일회성 요청**이다. 
-
-답변 생성 중간에 끊겼을 때 처음부터 다시 요청해서 답변을 새로 생성하는 것보다, 에러를 알리고 재시도를 유도하는 것이 UX적으로 더 옳다.
-
-결국 지금의 코드는 '동작'은 하지만, **프로덕션 레벨**의 견고함은 부족했던 셈이다...😢
-
-추후 리팩토링을 하게 된다면 표준 **Fetch API**와 **ReadableStream**을 사용하여 이 문제를 구조적으로 해결할 예정이다.
-
-```typescript
-// 개선 방향: Fetch + ReadableStream
-const response = await fetch('/api/v1/chat/stream', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    sessionId,
-    message: userMessage,  // Body에 담으므로 보안 문제 해결
-    clientType: 'assistant'
-  })
-});
-
+// 응답 Body를 Stream으로 읽기
 const reader = response.body.getReader();
 const decoder = new TextDecoder();
 
 while (true) {
   const { done, value } = await reader.read();
   if (done) break;
-
+  
+  // 청크 단위로 디코딩
   const chunk = decoder.decode(value);
-  // SSE 포맷 파싱 (eventsource-parser 라이브러리 활용 가능)
-  // ...
+  // data: { ... } 형태의 문자열 파싱 로직 필요
 }
 ```
 
-기술 선택에 있어 **"구현의 편의성"보다 "프로토콜의 특성과 보안"을 먼저 고려**해야 한다는 값진 교훈을 얻었다.
+**"자동 재연결이 되니까 EventSource가 좋다"** 는 판단도 안일했다.
+
+챗봇 대화는 주식 시세 같은 지속적인 데이터 구독이 아니라 **일회성 요청**이다. 답변 생성 중간에 끊겼다면, 처음부터 다시 요청하거나 사용자에게 재시도 버튼을 보여주는 것이 더 적절한 UX다.
+
+결국 지금의 코드는 '동작'은 하지만, **프로덕션 레벨**의 견고함은 부족했던 셈이다...😢
+
+추후 리팩토링을 하게 된다면 표준 **Fetch API**와 **ReadableStream**을 사용하여 이 문제를 구조적으로 해결할 예정이다.
+
+"편하다"는 이유만으로 기술을 선택하기보다는, 그 이면의 동작 원리와 제약 사항까지 꼼꼼히 따져봐야 한다는 것을 배웠다.
 
 ---
 
-### 회고 2: "돌아가는 코드" 그 너머를 보자 👀
+### 회고 2: 왜 백테스트에는 가벼운 SSE가 아닌 WebSocket이 적합했을까?
 
 프로젝트를 마치고 코드를 다시 보니 또 한가지 생각해볼만한 점이 보였다.
 
@@ -303,18 +289,14 @@ while (true) {
 
 솔직히 기술적으로는 보다 가벼운 SSE로도 충분했을 것이다. 클라이언트에서 서버로 보낼 데이터가 거의 없었으니까.
 
-하지만 이 부분은 WebSocket으로 구현한 것이 충분히 납득이 가는 선택이었다고 본다.
+하지만 이 부분은
 
-1. 기존 기획이었던 실시간 주식 모의투자 구현 시도의 흔적으로 백엔드 팀이 웹소켓 엔드포인트를 구축해둔 상태였고,
-2. 향후 "시뮬레이션 중단 요청" 등 양방향 통신이 필요한 기능 확장을 고려했을 때 적절한 선택이었다고 판단된다.
+1. 기존 기획이었던 실시간 주식 모의투자 구현 시도의 흔적으로 백엔드 팀이 웹소켓 엔드포인트를 구축해둔 상태
+2. 향후 "시뮬레이션 중단 요청" 등 양방향 통신이 필요한 기능 확장
 
-반면 AI 챗봇의 EventSource 선택은 명백한 실수였다...🥲
+이러한 것들을 고려했을 때 WebSocket으로 구현한 것이 적절한 선택이었다고 판단된다.
 
-"브라우저 표준이니까", "자동 재연결이 편하니까"라는 피상적인 이유로 선택했지만, 
-
-**보안과 확장성**이라는 본질적인 요소를 간과했다.
-
-## 마무리
+## 마무리: "돌아가는 코드" 그 너머를 보자 👀
 
 이번 프로젝트를 통해 **"기능 구현"** 은 끝이 아니라 시작일 뿐이라는 것을 배웠다.
 
