@@ -2,9 +2,9 @@
 title: "[Pintos] Threads - Priority Scheduling과 Donation"
 description: "우선순위 스케쥴링과 donation 구현"
 pubDate: "2025-12-23T12:00:16.463Z"
-updatedDate: "2025-12-23T12:00:16.462Z"
+updatedDate: "2025-12-23T12:03:12.913Z"
 heroImage: "https://firebasestorage.googleapis.com/v0/b/cruz-lab.firebasestorage.app/o/images%2Fheroes%2Fhero-1766491190587.webp?alt=media&token=c6668c72-1ef6-49be-89f3-7db4dfc3ff2d"
-tags: []
+tags: ["운영체제", "pintos", "크래프톤 정글"]
 slug: "pintos-threads-priority-scheduling과-donation"
 readingTime: 3
 isPublic: true
