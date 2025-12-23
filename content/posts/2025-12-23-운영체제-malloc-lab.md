@@ -2,8 +2,8 @@
 title: "[운영체제] CSAPP 9.9장 Malloc-lab"
 description: "malloc lab을 구현하기 위한 개념 요약(CSAPP 9.9장)"
 pubDate: "2025-12-23T09:49:54.594Z"
-updatedDate: "2025-12-23T09:49:54.593Z"
-heroImage: ""
+updatedDate: "2025-12-23T09:50:47.157Z"
+heroImage: "https://firebasestorage.googleapis.com/v0/b/cruz-lab.firebasestorage.app/o/images%2Fheroes%2Fhero-1766483443772.webp?alt=media&token=fa179509-ce54-4b42-8d76-4f862ea237c2"
 tags: ["운영체제", "CSAPP", "크래프톤 정글", "malloc lab", "C"]
 slug: "운영체제-malloc-lab"
 readingTime: 12
