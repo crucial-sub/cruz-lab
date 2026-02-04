@@ -109,8 +109,14 @@ const fullTitle = title === siteName ? title : `${title} | ${siteName}`;
   <meta name="twitter:creator" content="@cruz_dev" />
 
   <!-- Theme Color (for mobile browsers) -->
-  <meta name="theme-color" content="#8B5CF6" media="(prefers-color-scheme: dark)" />
-  <meta name="theme-color" content="#8B5CF6" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#10b981" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#10b981" media="(prefers-color-scheme: light)" />
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
   <!-- RSS Feed -->
   <link rel="alternate" type="application/rss+xml" title="Cruz Lab RSS Feed" href="/rss.xml" />
