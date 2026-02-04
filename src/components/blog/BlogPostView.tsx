@@ -192,10 +192,16 @@ export default function BlogPostView({ slug }: Props) {
                   loop
                   muted
                   playsInline
+                  style={{ viewTransitionName: `post-hero-${post.slug}` }}
                   className="w-full object-cover"
                 />
               ) : (
-                <img src={post.heroImage} alt={post.title} className="w-full object-cover" />
+                <img
+                  src={post.heroImage}
+                  alt={post.title}
+                  style={{ viewTransitionName: `post-hero-${post.slug}` }}
+                  className="w-full object-cover"
+                />
               )}
             </div>
           )}
