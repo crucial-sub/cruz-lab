@@ -62,11 +62,14 @@ export default function PostSearch({ posts, allTags }: Props) {
       <div className="space-y-4">
         {/* 검색 입력 */}
         <div className="relative">
+          <label htmlFor="post-search" className="sr-only">포스트 검색</label>
           <input
-            type="text"
+            id="post-search"
+            type="search"
             placeholder="포스트 검색..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            aria-describedby="search-results-status"
             className="w-full rounded-xl border border-border bg-bg-surface px-4 py-3 pl-12 text-fg-primary placeholder:text-fg-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-all"
           />
           <svg
@@ -125,8 +128,12 @@ export default function PostSearch({ posts, allTags }: Props) {
         </div>
       </div>
 
-      {/* 검색 결과 정보 */}
+      {/* 검색 결과 정보 (라이브 리전) */}
       <motion.div
+        id="search-results-status"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
         className="text-sm text-fg-muted"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

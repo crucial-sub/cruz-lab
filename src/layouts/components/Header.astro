@@ -15,7 +15,7 @@ const { pathname } = Astro.url;
 const isActive = (href: string) => pathname === href || (href !== '/' && pathname.startsWith(href));
 ---
 
-<header class="border-border bg-bg-app">
+<header transition:persist class="border-border bg-bg-app">
   <div class="container">
     <nav class="flex items-center justify-between gap-4 py-3">
       <h2 class="m-0">
@@ -44,6 +44,7 @@ const isActive = (href: string) => pathname === href || (href !== '/' && pathnam
         <div class="px-2.5 text-sm">
           <a
             href={item.link}
+            aria-current={isActive(item.link) ? 'page' : undefined}
             data-active={isActive(item.link) ? 'true' : 'false'}
             class="relative flex items-center gap-2 py-[var(--tab-py)] text-text-secondary transition hover:text-text-primary data-[active=true]:text-brand data-[active=true]:shadow-[inset_0_-1px_0_0_currentColor]"
           >

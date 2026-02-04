@@ -141,6 +141,28 @@
   * {
     @apply border-border;
   }
+
+  /* 포커스 스타일 (접근성) */
+  :focus-visible {
+    outline: 2px solid var(--ring-focus);
+    outline-offset: 2px;
+  }
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* 스크린 리더 전용 */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
 }
 
 /* =========================================================
@@ -180,6 +202,42 @@
 /* =========================================================
    Animations
    ========================================================= */
+
+/* View Transition 애니메이션 */
+@keyframes fade-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes fade-slide-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+::view-transition-old(root) {
+  animation: fade-slide-out 0.2s ease-out;
+}
+::view-transition-new(root) {
+  animation: fade-slide-in 0.2s ease-in;
+}
+
+/* 공유 요소 트랜지션 (포스트 히어로 이미지) */
+::view-transition-old(post-hero),
+::view-transition-new(post-hero) {
+  animation-duration: 0.3s;
+}
+
 @keyframes gradient-shift {
   0%, 100% {
     background-position: 0% 50%;
@@ -281,6 +339,35 @@
 }
 .link-underline:hover::after {
   width: 100%;
+}
+
+/* 건너뛰기 링크 (접근성) */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 9999;
+  padding: 1rem;
+  background: var(--bg-surface);
+  color: var(--brand);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+}
+.skip-link:focus {
+  left: 1rem;
+  top: 1rem;
+}
+
+/* prefers-reduced-motion 지원 (접근성) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* 라이트 테마 오버레이 */
