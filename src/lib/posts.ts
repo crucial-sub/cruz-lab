@@ -45,6 +45,9 @@ export interface Post {
   // 시리즈 관련 필드 (선택사항)
   seriesId?: string;       // 소속 시리즈 ID (없으면 단독 글)
   seriesOrder?: number;    // 시리즈 내 순서 (1부터 시작)
+
+  // 이미지 최적화 필드
+  blurDataURL?: string;    // LQIP base64 placeholder
 }
 
 // 발행된 공개 포스트 목록 가져오기
@@ -83,6 +86,8 @@ export async function getPublishedPosts(): Promise<Post[]> {
         // 시리즈 관련 필드
         seriesId: data.seriesId || undefined,
         seriesOrder: data.seriesOrder || undefined,
+        // 이미지 최적화 필드
+        blurDataURL: data.blurDataURL || undefined,
       };
     })
     .sort((a, b) => b.pubDate.getTime() - a.pubDate.getTime());
@@ -127,6 +132,8 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
     // 시리즈 관련 필드
     seriesId: data.seriesId || undefined,
     seriesOrder: data.seriesOrder || undefined,
+    // 이미지 최적화 필드
+    blurDataURL: data.blurDataURL || undefined,
   };
 }
 

@@ -89,6 +89,44 @@ function generateUniqueFileName(originalName: string): string {
 }
 
 /**
+ * LQIP (Low Quality Image Placeholder) 생성
+ * 작은 썸네일을 base64로 인코딩
+ */
+export async function generateLQIP(file: File, size: number = 20): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    img.onload = () => {
+      // 비율 유지하며 작은 크기로 리사이즈
+      const ratio = Math.min(size / img.width, size / img.height);
+      const width = Math.round(img.width * ratio);
+      const height = Math.round(img.height * ratio);
+
+      canvas.width = width;
+      canvas.height = height;
+
+      if (ctx) {
+        // 블러 효과를 위해 낮은 품질로 렌더링
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'low';
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // base64로 변환 (매우 낮은 품질)
+        const dataURL = canvas.toDataURL('image/jpeg', 0.1);
+        resolve(dataURL);
+      } else {
+        reject(new Error('Canvas 컨텍스트 생성 실패'));
+      }
+    };
+
+    img.onerror = () => reject(new Error('LQIP 생성 실패'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+/**
  * 이미지 리사이즈 및 압축
  */
 async function resizeImage(

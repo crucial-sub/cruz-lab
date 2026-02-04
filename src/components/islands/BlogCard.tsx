@@ -1,6 +1,7 @@
 // 블로그 포스트 카드 컴포넌트
 // TiltCard + GlowCard 효과를 결합한 인터랙티브 블로그 카드
 import { motion } from 'framer-motion';
+import { generateSrcSet, getDefaultSizes, getBlurStyle } from '@/lib/image-utils';
 import GlowCard from './GlowCard';
 import TiltCard from './TiltCard';
 
@@ -16,6 +17,7 @@ interface Props {
   featured?: boolean;
   readingTime?: number; // 서버에서 계산된 읽기 시간 (분)
   seriesId?: string; // 시리즈 ID (있으면 시리즈 배지 표시)
+  blurDataURL?: string; // LQIP base64 placeholder
 }
 
 export default function BlogCard({
@@ -30,6 +32,7 @@ export default function BlogCard({
   featured = false,
   readingTime: propReadingTime,
   seriesId,
+  blurDataURL,
 }: Props) {
   // 날짜 객체로 변환 (문자열 또는 Date 모두 처리)
   const dateObj = typeof pubDate === 'string' ? new Date(pubDate) : pubDate;
@@ -75,15 +78,28 @@ export default function BlogCard({
                   loop
                   muted
                   playsInline
+                  style={{ viewTransitionName: `post-hero-${slug}` }}
                   className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                 />
               ) : (
-                <img
-                  src={heroImage}
-                  alt={title}
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                  loading="lazy"
-                />
+                <picture>
+                  <source
+                    srcSet={generateSrcSet(heroImage || '', [400, 800, 1200])}
+                    sizes={getDefaultSizes()}
+                    type="image/webp"
+                  />
+                  <img
+                    src={heroImage}
+                    alt={title}
+                    style={{
+                      viewTransitionName: `post-hero-${slug}`,
+                      ...getBlurStyle(blurDataURL),
+                    }}
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </picture>
               )}
               {/* 호버 오버레이 */}
               <div className="absolute inset-0 bg-gradient-to-t from-bg-surface/80 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
