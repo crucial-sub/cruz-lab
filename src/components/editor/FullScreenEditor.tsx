@@ -37,6 +37,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
   const [loadError, setLoadError] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [autosaveState, setAutosaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [hasUserChanges, setHasUserChanges] = useState(false);
 
   // 출간 설정 상태 (편집 시 기존 값 유지)
   const [heroImage, setHeroImage] = useState('');
@@ -51,6 +52,10 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
   const [editorKey, setEditorKey] = useState(0);
   const autosaveTimerRef = useRef<number | null>(null);
   const lastPersistedDraftKeyRef = useRef<string | null>(null);
+
+  const markDirty = useCallback(() => {
+    setHasUserChanges(true);
+  }, []);
 
   // Firebase 초기화 및 데이터 로드
   useEffect(() => {
@@ -98,6 +103,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
       setIsPublic(draft.isPublic ?? true);
       setLastSavedAt(draft.updatedDate ? new Date(draft.updatedDate) : null);
       setAutosaveState(draft.updatedDate ? 'saved' : 'idle');
+      setHasUserChanges(false);
       setEditorKey((prev) => prev + 1);
     } catch (error) {
       console.error('임시저장 불러오기 오류:', error);
@@ -122,6 +128,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
       setIsPublic(data.isPublic ?? true);
       setOriginalSlug(data.slug || targetSlug);
       setOriginalPubDate(data.pubDate || '');
+      setHasUserChanges(false);
       setEditorKey((prev) => prev + 1);
       tryLoadDraft(targetSlug);
     } catch (err) {
@@ -155,6 +162,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
       setIsPublic(data.isPublic ?? true);
       setOriginalSlug(data.slug || '');
       setOriginalPubDate(data.pubDate?.toDate?.()?.toISOString?.() || new Date().toISOString());
+      setHasUserChanges(false);
       setEditorKey((prev) => prev + 1);
       tryLoadDraft(data.slug || undefined);
     } catch (err) {
@@ -167,6 +175,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
 
   // 마크다운 변경 핸들러
   const handleContentChange = useCallback((markdown: string) => {
+    setHasUserChanges(true);
     setContent(markdown);
   }, []);
 
@@ -205,6 +214,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
         setOriginalSlug('');
       }
 
+      setHasUserChanges(true);
       setEditorKey((prev) => prev + 1);
     } catch (error) {
       console.error('마크다운 파일 불러오기 오류:', error);
@@ -220,6 +230,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
 
     const newTag = tagInput.trim();
     if (newTag && !tags.includes(newTag)) {
+      setHasUserChanges(true);
       setTags([...tags, newTag]);
     }
     setTagInput('');
@@ -236,6 +247,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
+    setHasUserChanges(true);
     setTags(tags.filter((tag) => tag !== tagToRemove));
   };
 
@@ -278,6 +290,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
       const savedAt = new Date(draftData.updatedDate || new Date().toISOString());
       setLastSavedAt(savedAt);
       setAutosaveState('saved');
+      setHasUserChanges(false);
 
       if (source === 'manual') {
         setIsSaving(false);
@@ -303,6 +316,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
 
   useEffect(() => {
     if (isLoading) return;
+    if (!hasUserChanges) return;
 
     const draftData = buildDraftData();
     if (!hasDraftContent(draftData)) return;
@@ -327,12 +341,14 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
         window.clearTimeout(autosaveTimerRef.current);
       }
     };
-  }, [buildDraftData, isLoading, persistDraft]);
+  }, [buildDraftData, hasUserChanges, isLoading, persistDraft]);
 
   useEffect(() => {
     if (isLoading) return;
 
     const handlePageHide = () => {
+      if (!hasUserChanges) return;
+
       try {
         persistDraft('auto');
       } catch (error) {
@@ -342,7 +358,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
 
     window.addEventListener('pagehide', handlePageHide);
     return () => window.removeEventListener('pagehide', handlePageHide);
-  }, [isLoading, persistDraft]);
+  }, [hasUserChanges, isLoading, persistDraft]);
 
   const formatSavedAt = (date: Date | null) => {
     if (!date) return '';
@@ -399,7 +415,10 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
           <input
             type="text"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              markDirty();
+              setTitle(e.target.value);
+            }}
             placeholder="제목을 입력하세요"
             className="w-full bg-transparent text-[2.75rem] font-bold text-gray-900 placeholder:text-gray-300 focus:outline-none leading-tight"
           />
@@ -517,15 +536,26 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
           tags={tags}
           onClose={() => setShowPublishModal(false)}
           calculateReadingTime={calculateReadingTime}
-          initialHeroImage={heroImage}
           description={description}
-          setDescription={setDescription}
+          setDescription={(value) => {
+            markDirty();
+            setDescription(value);
+          }}
           heroImage={heroImage}
-          setHeroImage={setHeroImage}
+          setHeroImage={(value) => {
+            markDirty();
+            setHeroImage(value);
+          }}
           slug={slug}
-          setSlug={setSlug}
+          setSlug={(value) => {
+            markDirty();
+            setSlug(value);
+          }}
           isPublic={isPublic}
-          setIsPublic={setIsPublic}
+          setIsPublic={(value) => {
+            markDirty();
+            setIsPublic(value);
+          }}
           pubDate={originalPubDate}
           originalSlug={originalSlug}
           onPublished={(publishedSlug) => {
