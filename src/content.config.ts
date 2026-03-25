@@ -3,15 +3,19 @@ import { glob } from 'astro/loaders';
 
 // 블로그 포스트 컬렉션
 const blog = defineCollection({
-  loader: glob({ base: './src/content/blog', pattern: '**/*.{md,mdx}' }),
-  schema: ({ image }) =>
+  loader: glob({ base: './content/posts', pattern: '**/*.{md,mdx}' }),
+  schema: () =>
     z.object({
       title: z.string(),
       description: z.string(),
       pubDate: z.coerce.date(),
       updatedDate: z.coerce.date().optional(),
-      heroImage: image().optional(),
+      heroImage: z.string().optional(),
+      heroVideo: z.string().optional(),
       tags: z.array(z.string()).default([]),
+      slug: z.string().optional(),
+      readingTime: z.number().optional(),
+      isPublic: z.boolean().default(true),
     }),
 });
 

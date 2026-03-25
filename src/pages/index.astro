@@ -6,10 +6,10 @@ import ContactSection from '@/components/islands/ContactSection';
 import CursorFollower from '@/components/islands/CursorFollower';
 import FadeInSection from '@/components/islands/FadeInSection';
 import InteractiveHero from '@/components/islands/InteractiveHero';
-import PostsPreview from '@/components/islands/PostsPreview';
 import ScrollProgress from '@/components/islands/ScrollProgress';
 import SeriesPreview from '@/components/islands/SeriesPreview';
 import SkillsSection from '@/components/islands/SkillsSection';
+import PostsPreview from '@/components/PostsPreview.astro';
 import ProjectsPreview from '@/components/ProjectsPreview.astro';
 import me from '../assets/img/profile.png';
 import BaseLayout from '../layouts/BaseLayout.astro';
@@ -74,7 +74,7 @@ const heroDescription = `사용자 경험(UX)은 눈에 보이는 디자인에�
 
   <!-- Latest Posts 섹션 -->
   <FadeInSection client:visible delay={0.1}>
-    <PostsPreview client:visible />
+    <PostsPreview />
   </FadeInSection>
 
   <!-- Contact 섹션 -->

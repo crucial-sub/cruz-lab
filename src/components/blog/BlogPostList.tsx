@@ -11,9 +11,9 @@
  * - 개선된 빈 상태 UI
  * - 인터랙티브 태그 버튼 (magnetic 효과, ripple 애니메이션)
  */
-import { getAllTags, getPublishedPosts, type Post } from '@/lib/posts';
+import type { ContentPost } from '@/lib/content-posts';
 import { AnimatePresence, LayoutGroup, motion, useMotionValue, useSpring } from 'framer-motion';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import BlogCard from '../islands/BlogCard';
 
 // 정렬 타입
@@ -35,40 +35,6 @@ function useDebounce<T>(value: T, delay: number): T {
   }, [value, delay]);
 
   return debouncedValue;
-}
-
-// 스켈레톤 카드 컴포넌트
-function SkeletonCard({ viewMode }: { viewMode: ViewMode }) {
-  return (
-    <div
-      className={`animate-pulse rounded-2xl border border-border bg-bg-surface overflow-hidden ${viewMode === 'list' ? 'flex flex-row h-48' : ''
-        }`}
-    >
-      {/* 이미지 스켈레톤 */}
-      <div
-        className={`bg-bg-card ${viewMode === 'list' ? 'w-64 h-full' : 'aspect-video w-full'
-          }`}
-      >
-        <div className="h-full w-full bg-gradient-to-r from-bg-card via-bg-surface to-bg-card animate-shimmer" />
-      </div>
-      {/* 콘텐츠 스켈레톤 */}
-      <div className={`p-5 ${viewMode === 'list' ? 'flex-1' : ''}`}>
-        <div className="mb-3 flex gap-2">
-          <div className="h-5 w-16 rounded-full bg-bg-card" />
-          <div className="h-5 w-12 rounded-full bg-bg-card" />
-        </div>
-        <div className="mb-2 h-6 w-3/4 rounded bg-bg-card" />
-        <div className="mb-4 space-y-2">
-          <div className="h-4 w-full rounded bg-bg-card" />
-          <div className="h-4 w-2/3 rounded bg-bg-card" />
-        </div>
-        <div className="flex gap-4">
-          <div className="h-4 w-24 rounded bg-bg-card" />
-          <div className="h-4 w-16 rounded bg-bg-card" />
-        </div>
-      </div>
-    </div>
-  );
 }
 
 // 빈 상태 컴포넌트
@@ -225,11 +191,26 @@ function MagneticTagButton({
   );
 }
 
-export default function BlogPostList() {
+interface Props {
+  initialPosts: Array<
+    Omit<ContentPost, 'content' | 'pubDate' | 'updatedDate'> & {
+      pubDate: string | Date;
+      updatedDate: string | Date;
+    }
+  >;
+  initialTags: string[];
+}
+
+export default function BlogPostList({ initialPosts, initialTags }: Props) {
   // 데이터 상태
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [allTags, setAllTags] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [posts] = useState<Array<Omit<ContentPost, 'content'>>>(
+    initialPosts.map((post) => ({
+      ...post,
+      pubDate: post.pubDate instanceof Date ? post.pubDate : new Date(post.pubDate),
+      updatedDate: post.updatedDate instanceof Date ? post.updatedDate : new Date(post.updatedDate),
+    }))
+  );
+  const [allTags] = useState<string[]>(initialTags);
 
   // 필터 상태 - 단일 태그 선택으로 변경
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -240,25 +221,6 @@ export default function BlogPostList() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [sortBy, setSortBy] = useState<SortOption>('latest');
   const [isFilterOpen, setIsFilterOpen] = useState(true);
-
-  // 데이터 로드
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [postsData, tagsData] = await Promise.all([
-          getPublishedPosts(),
-          getAllTags(),
-        ]);
-        setPosts(postsData);
-        setAllTags(tagsData);
-      } catch (error) {
-        console.error('포스트 로딩 오류:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchData();
-  }, []);
 
   // 필터링 및 정렬된 포스트
   const filteredPosts = useMemo(() => {
@@ -312,29 +274,6 @@ export default function BlogPostList() {
 
   // 필터가 활성화되었는지 확인
   const hasActiveFilters = selectedTag !== null || debouncedSearch.length > 0;
-
-  // 로딩 상태
-  if (isLoading) {
-    return (
-      <div className="space-y-8">
-        {/* 스켈레톤 필터 바 */}
-        <div className="space-y-4">
-          <div className="h-12 w-full animate-pulse rounded-xl bg-bg-card" />
-          <div className="flex gap-2">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-8 w-20 animate-pulse rounded-full bg-bg-card" />
-            ))}
-          </div>
-        </div>
-        {/* 스켈레톤 카드 그리드 */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <SkeletonCard key={i} viewMode="grid" />
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
