@@ -27,6 +27,10 @@ export function saveEditorDraft(storage: Storage, draftKey: string, draft: Edito
   storage.setItem(draftKey, JSON.stringify(draft));
 }
 
+export function removeEditorDraft(storage: Storage, draftKey: string) {
+  storage.removeItem(draftKey);
+}
+
 export function hasDraftContent(draft: EditorDraftPayload): boolean {
   return Boolean(
     draft.title?.trim() ||

@@ -8,7 +8,7 @@
  * - Firebase Storage 이미지 업로드 통합
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { hasDraftContent, saveEditorDraft, type EditorDraftPayload } from '@/lib/editor-drafts';
+import { hasDraftContent, removeEditorDraft, saveEditorDraft, type EditorDraftPayload } from '@/lib/editor-drafts';
 import { initializeFirebase } from '@/lib/firebase';
 import { parseMarkdownDocument } from '@/lib/markdown-publish';
 import MilkdownEditor from './MilkdownEditor';
@@ -50,6 +50,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
   // 에디터 마운트 키 (defaultValue 변경 시 에디터 재생성용)
   const [editorKey, setEditorKey] = useState(0);
   const autosaveTimerRef = useRef<number | null>(null);
+  const lastPersistedDraftKeyRef = useRef<string | null>(null);
 
   // Firebase 초기화 및 데이터 로드
   useEffect(() => {
@@ -81,11 +82,13 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
   const tryLoadDraft = useCallback((targetSlug?: string) => {
     if (typeof window === 'undefined') return;
 
-    const raw = window.localStorage.getItem(getDraftKey(targetSlug));
+    const draftKey = getDraftKey(targetSlug);
+    const raw = window.localStorage.getItem(draftKey);
     if (!raw) return;
 
     try {
       const draft = JSON.parse(raw);
+      lastPersistedDraftKeyRef.current = draftKey;
       setTitle(draft.title || '');
       setContent(draft.content || '');
       setTags(draft.tags || []);
@@ -263,7 +266,15 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
         return;
       }
 
-      saveEditorDraft(window.localStorage, getDraftKey(originalSlug || slug), draftData);
+      const nextDraftKey = getDraftKey(originalSlug || slug);
+      const previousDraftKey = lastPersistedDraftKeyRef.current;
+
+      if (previousDraftKey && previousDraftKey !== nextDraftKey) {
+        removeEditorDraft(window.localStorage, previousDraftKey);
+      }
+
+      saveEditorDraft(window.localStorage, nextDraftKey, draftData);
+      lastPersistedDraftKeyRef.current = nextDraftKey;
       const savedAt = new Date(draftData.updatedDate || new Date().toISOString());
       setLastSavedAt(savedAt);
       setAutosaveState('saved');
@@ -518,7 +529,14 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
           pubDate={originalPubDate}
           originalSlug={originalSlug}
           onPublished={(publishedSlug) => {
-            window.localStorage.removeItem(getDraftKey(originalSlug || publishedSlug));
+            const nextDraftKey = getDraftKey(originalSlug || publishedSlug);
+            if (lastPersistedDraftKeyRef.current) {
+              removeEditorDraft(window.localStorage, lastPersistedDraftKeyRef.current);
+            }
+            if (nextDraftKey !== lastPersistedDraftKeyRef.current) {
+              removeEditorDraft(window.localStorage, nextDraftKey);
+            }
+            lastPersistedDraftKeyRef.current = null;
           }}
         />
       )}
