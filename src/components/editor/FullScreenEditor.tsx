@@ -7,8 +7,9 @@
  * - 임시저장은 localStorage에 저장
  * - Firebase Storage 이미지 업로드 통합
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { initializeFirebase } from '@/lib/firebase';
+import { parseMarkdownDocument } from '@/lib/markdown-publish';
 import MilkdownEditor from './MilkdownEditor';
 import PublishModal from './PublishModal';
 
@@ -40,6 +41,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
   const [slug, setSlug] = useState('');
   const [originalSlug, setOriginalSlug] = useState('');
   const [originalPubDate, setOriginalPubDate] = useState<string>('');
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   // 에디터 마운트 키 (defaultValue 변경 시 에디터 재생성용)
   const [editorKey, setEditorKey] = useState(0);
@@ -161,6 +163,43 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
     alert(`이미지 업로드 실패: ${error.message}`);
   }, []);
 
+  const handleImportMarkdown = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const hasExistingDraft = title.trim() || content.trim() || tags.length > 0 || description.trim();
+    if (hasExistingDraft && !window.confirm('현재 작성 중인 내용을 가져온 markdown으로 덮어쓸까요?')) {
+      event.target.value = '';
+      return;
+    }
+
+    try {
+      const raw = await file.text();
+      const parsed = parseMarkdownDocument(raw, file.name);
+
+      setTitle(parsed.title || '');
+      setDescription(parsed.description || '');
+      setContent(parsed.content || '');
+      setTags(parsed.tags || []);
+      setHeroImage(parsed.heroImage || '');
+      setSlug(parsed.slug || '');
+      setOriginalPubDate(parsed.pubDate || '');
+
+      if (mode === 'edit') {
+        setOriginalSlug(parsed.slug || originalSlug);
+      } else {
+        setOriginalSlug('');
+      }
+
+      setEditorKey((prev) => prev + 1);
+    } catch (error) {
+      console.error('마크다운 파일 불러오기 오류:', error);
+      alert(error instanceof Error ? error.message : '마크다운 파일을 불러오지 못했습니다.');
+    } finally {
+      event.target.value = '';
+    }
+  }, [content, description, mode, originalSlug, tags.length, title]);
+
   // 태그 추가 (한글 IME 이슈 수정)
   const handleAddTag = () => {
     if (isComposing) return; // 한글 조합 중이면 무시
@@ -248,6 +287,14 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
 
   return (
     <div className="flex h-screen flex-col bg-white">
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".md,.markdown,.txt"
+        onChange={handleImportMarkdown}
+        className="hidden"
+      />
+
       {/* 에디터 컨텐츠 영역 - 배경은 전체 너비, 콘텐츠는 992px 중앙 정렬 */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* 콘텐츠 컨테이너 - Readable Line Length (992px, Obsidian 스타일) */}
@@ -308,6 +355,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
               enableImageUpload={true}
               onUploadError={handleUploadError}
               onSave={handleSaveDraft}
+              showImportButton={false}
               className="h-full w-full"
             />
           </div>
@@ -337,6 +385,13 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
         </button>
 
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => importInputRef.current?.click()}
+            className="px-4 py-2 text-gray-500 hover:text-gray-700"
+          >
+            마크다운 불러오기
+          </button>
           <button
             onClick={handleSaveDraft}
             disabled={isSaving}
