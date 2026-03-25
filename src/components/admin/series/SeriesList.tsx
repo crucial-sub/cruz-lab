@@ -1,6 +1,6 @@
 // 시리즈 목록 관리 컴포넌트
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, deleteDoc, doc, writeBatch, where } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { db, initializeFirebase } from '@/lib/firebase';
 import AdminGuard from '../AdminGuard';
 import AdminLayout from '../AdminLayout';
@@ -53,23 +53,7 @@ export default function SeriesList() {
   const handleDelete = async (seriesId: string) => {
     setIsDeleting(true);
     try {
-      // 1. 시리즈에 속한 포스트들의 연결 해제
-      const postsRef = collection(db, 'posts');
-      const q = query(postsRef, where('seriesId', '==', seriesId));
-      const snapshot = await getDocs(q);
-
-      const batch = writeBatch(db);
-      snapshot.docs.forEach((doc) => {
-        batch.update(doc.ref, {
-          seriesId: null,
-          seriesOrder: null
-        });
-      });
-
-      // 2. 시리즈 문서 삭제
-      batch.delete(doc(db, 'series', seriesId));
-      
-      await batch.commit();
+      await deleteDoc(doc(db, 'series', seriesId));
 
       setSeriesList(seriesList.filter((s) => s.id !== seriesId));
       setDeleteConfirm(null);
@@ -210,7 +194,7 @@ export default function SeriesList() {
                   시리즈를 삭제하시겠습니까?
                 </h3>
                 <p className="mt-2 text-text-secondary">
-                  시리즈 문서만 삭제되며, 포함된 포스트는 삭제되지 않습니다. (포스트의 시리즈 연결이 해제됩니다)
+                  시리즈 문서만 삭제되며, 포함된 포스트는 그대로 유지됩니다.
                 </p>
                 <div className="mt-6 flex justify-end gap-3">
                   <button

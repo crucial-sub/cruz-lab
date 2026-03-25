@@ -18,7 +18,7 @@ interface SeriesCardProps {
   coverImage?: string;
   postCount: number;
   totalReadingTime: number; // 분 단위
-  updatedAt: Date;
+  updatedAt: Date | string;
   index?: number;
 }
 
@@ -35,6 +35,7 @@ export default function SeriesCard({
 }: SeriesCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [readProgress, setReadProgress] = useState(0); // 읽은 포스트 비율 (0-100)
+  const updatedAtDate = typeof updatedAt === 'string' ? new Date(updatedAt) : updatedAt;
 
   // 3D Tilt 효과를 위한 motion values
   const mouseX = useMotionValue(0);
@@ -51,10 +52,10 @@ export default function SeriesCard({
 
   // localStorage에서 읽기 진행률 가져오기
   useEffect(() => {
-    const readPosts = JSON.parse(localStorage.getItem(`series-${id}-read`) || '[]');
+    const readPosts = JSON.parse(localStorage.getItem(`series-${slug}-read`) || '[]');
     const progress = postCount > 0 ? (readPosts.length / postCount) * 100 : 0;
     setReadProgress(progress);
-  }, [id, postCount]);
+  }, [slug, postCount]);
 
   // 마우스 이동 핸들러
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -201,7 +202,7 @@ export default function SeriesCard({
                 d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
               />
             </svg>
-            <span>{formatDate(updatedAt)}</span>
+            <span>{formatDate(updatedAtDate)}</span>
           </div>
         </div>
 

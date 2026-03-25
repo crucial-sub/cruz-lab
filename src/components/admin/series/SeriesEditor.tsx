@@ -1,11 +1,10 @@
 // 시리즈 에디터 컴포넌트
 import { useState, useEffect, useMemo } from 'react';
-import { collection, query, orderBy, getDocs, doc, writeBatch, getDoc, Timestamp, addDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, Timestamp, addDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage, initializeFirebase } from '@/lib/firebase';
+import { auth, db, storage, initializeFirebase } from '@/lib/firebase';
 import AdminGuard from '../AdminGuard';
 import AdminLayout from '../AdminLayout';
-import type { Series } from '@/lib/series';
 import imageCompression from 'browser-image-compression';
 import { Reorder } from 'framer-motion';
 import { 
@@ -38,9 +37,7 @@ interface PostItem {
   pubDate: Date;
   updatedDate: Date;
   readingTime: number;
-  seriesId?: string | null;
-  seriesOrder?: number | null;
-  selected?: boolean;
+  status: 'published' | 'draft';
 }
 
 export default function SeriesEditor({ seriesId, mode }: Props) {
@@ -70,20 +67,31 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
       try {
         initializeFirebase();
         setIsLoading(true);
+        setError(null);
 
-        // 1. 전체 포스트 로딩 (선택 모달용)
-        const postsRef = collection(db, 'posts');
-        const postsQ = query(postsRef, orderBy('pubDate', 'desc'));
-        const postsSnap = await getDocs(postsQ);
-        const postsData = postsSnap.docs.map(d => {
-            const data = d.data();
-            return { 
-                id: d.id, 
-                ...data,
-                pubDate: data.pubDate?.toDate() || new Date(),
-                updatedDate: data.updatedDate?.toDate() || new Date()
-            } as PostItem;
+        const idToken = await auth.currentUser?.getIdToken();
+        if (!idToken) {
+          throw new Error('관리자 로그인 정보를 확인할 수 없습니다.');
+        }
+
+        // 1. 전체 markdown 포스트 로딩 (선택 모달용)
+        const postsResponse = await fetch('/api/admin/content-posts', {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
         });
+
+        const postsResult = await postsResponse.json();
+        if (!postsResponse.ok) {
+          throw new Error(postsResult.message || '포스트 목록을 불러오지 못했습니다.');
+        }
+
+        const postsData = (postsResult.posts || []).map((post: PostItem & { pubDate: string; updatedDate: string }) => ({
+          ...post,
+          pubDate: new Date(post.pubDate),
+          updatedDate: new Date(post.updatedDate),
+        })) as PostItem[];
+
         setAllPosts(postsData);
 
         // 2. 수정 모드일 경우 시리즈 데이터 로딩
@@ -99,11 +107,13 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
             setCoverImage(data.coverImage || '');
             setIsPublic(data.isPublic || false);
             setOrder(data.order || 1);
-            
-            const currentSeriesPosts = postsData
-                .filter(p => p.seriesId === seriesId)
-                .sort((a, b) => (a.seriesOrder || 999) - (b.seriesOrder || 999));
-            
+
+            const seriesPostSlugs = Array.isArray(data.postIds) ? data.postIds.filter(Boolean) : [];
+            const postMap = new Map(postsData.map((post) => [post.slug, post] as const));
+            const currentSeriesPosts = seriesPostSlugs
+              .map((postSlug: string) => postMap.get(postSlug))
+              .filter((post): post is PostItem => Boolean(post));
+
             setSeriesPosts(currentSeriesPosts);
           } else {
             setError('시리즈를 찾을 수 없습니다.');
@@ -233,7 +243,6 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
 
     setIsSaving(true);
     try {
-        const batch = writeBatch(db);
         const seriesData = {
             name,
             slug,
@@ -241,50 +250,20 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
             coverImage,
             isPublic,
             order: Number(order),
-            postIds: seriesPosts.map(p => p.id),
+            postIds: seriesPosts.map(p => p.slug),
             postCount: seriesPosts.length,
             updatedAt: Timestamp.now(),
         };
 
-        let targetSeriesId = seriesId;
-
         if (mode === 'create') {
-            const newSeriesRef = await addDoc(collection(db, 'series'), {
+            await addDoc(collection(db, 'series'), {
                 ...seriesData,
                 createdAt: Timestamp.now()
             });
-            targetSeriesId = newSeriesRef.id;
         } else if (seriesId) {
              const seriesRef = doc(db, 'series', seriesId);
-             batch.update(seriesRef, seriesData);
+             await updateDoc(seriesRef, seriesData);
         }
-
-        if (!targetSeriesId) throw new Error("Series ID missing");
-
-        // 1. 현재 시리즈에 포함된 포스트들 업데이트
-        seriesPosts.forEach((post, index) => {
-            const postRef = doc(db, 'posts', post.id);
-            batch.update(postRef, {
-                seriesId: targetSeriesId,
-                seriesOrder: index + 1
-            });
-        });
-
-        // 2. 이전에 시리즈에 있었으나 제거된 포스트들 처리
-        const removedPosts = allPosts.filter(p => 
-            p.seriesId === targetSeriesId && 
-            !seriesPosts.find(sp => sp.id === p.id)
-        );
-
-        removedPosts.forEach(post => {
-            const postRef = doc(db, 'posts', post.id);
-            batch.update(postRef, {
-                seriesId: null,
-                seriesOrder: null
-            });
-        });
-
-        await batch.commit();
         window.location.href = '/admin/series';
 
     } catch (err) {

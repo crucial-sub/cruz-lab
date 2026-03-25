@@ -1,7 +1,7 @@
 // Home 페이지용 시리즈 미리보기 섹션
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { getPublishedSeries, getSeriesReadingTime, type Series } from '@/lib/series';
+import type { Series } from '@/lib/series';
 import SeriesCard from './SeriesCard';
 import MagneticButton from './MagneticButton';
 import TextReveal from './TextReveal';
@@ -10,31 +10,36 @@ interface SeriesWithTime extends Series {
   totalReadingTime: number;
 }
 
-export default function SeriesPreview() {
-  const [series, setSeries] = useState<SeriesWithTime[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+interface Props {
+  series?: SeriesWithTime[];
+}
+
+export default function SeriesPreview({ series: initialSeries = [] }: Props) {
+  const [series, setSeries] = useState<SeriesWithTime[]>(initialSeries);
+  const [isLoading, setIsLoading] = useState(initialSeries.length === 0);
 
   useEffect(() => {
+    if (initialSeries.length > 0) return;
+
     async function fetchSeries() {
       try {
-        const allSeries = await getPublishedSeries();
-        // 각 시리즈의 읽기 시간 계산
-        const seriesWithTime = await Promise.all(
-          allSeries.map(async (s) => ({
-            ...s,
-            totalReadingTime: await getSeriesReadingTime(s.id),
-          }))
-        );
-        // 최신순 (order는 getPublishedSeries에서 이미 정렬됨)
-        setSeries(seriesWithTime);
+        const response = await fetch('/api/series-preview');
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.message || '시리즈를 불러오지 못했습니다.');
+        }
+
+        setSeries(result.items || []);
       } catch (error) {
         console.error('시리즈 로딩 오류:', error);
       } finally {
         setIsLoading(false);
       }
     }
+
     fetchSeries();
-  }, []);
+  }, [initialSeries]);
 
   return (
     <section className="py-16">
@@ -71,8 +76,7 @@ export default function SeriesPreview() {
         </div>
       )}
 
-      {/* 시리즈 그리드 */}
-      {!isLoading && series.length > 0 && (
+      {series.length > 0 && (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {series.slice(0, 3).map((item, index) => (
             <SeriesCard
@@ -85,7 +89,7 @@ export default function SeriesPreview() {
       )}
 
       {/* 시리즈가 없을 경우 */}
-      {!isLoading && series.length === 0 && (
+      {series.length === 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
