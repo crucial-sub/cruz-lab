@@ -1,23 +1,24 @@
 ---
 export const prerender = true;
 
-// 포스트 관리 페이지
-// 모든 포스트 목록 조회, 검색, 필터링, 삭제 기능
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import PostList from '@/components/admin/PostList';
+import { getPublishedContentPosts } from '@/lib/content-posts';
+
+const initialPosts = (await getPublishedContentPosts()).map((post) => ({
+  id: post.slug,
+  title: post.title,
+  description: post.description,
+  status: 'published' as const,
+  tags: post.tags,
+  slug: post.slug,
+  createdAt: post.pubDate,
+  updatedDate: post.updatedDate,
+  readingTime: post.readingTime,
+  pubDate: post.pubDate,
+}));
 ---
 
 <BaseLayout title="포스트 관리 - Cruz Lab Admin">
-  <div id="post-list-root"></div>
+  <PostList client:only="react" initialPosts={initialPosts} />
 </BaseLayout>
-
-<script>
-  import { createElement } from 'react';
-  import { createRoot } from 'react-dom/client';
-  import PostList from '@/components/admin/PostList';
-
-  const container = document.getElementById('post-list-root');
-  if (container) {
-    const root = createRoot(container);
-    root.render(createElement(PostList));
-  }
-</script>

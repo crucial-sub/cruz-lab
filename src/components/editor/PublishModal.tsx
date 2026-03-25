@@ -2,33 +2,37 @@
 // 썸네일, 설명, URL, 공개 설정 등
 import { useState, useRef, useEffect } from 'react';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { collection, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore';
-import { db, storage } from '@/lib/firebase';
+import { auth, storage } from '@/lib/firebase';
+import { generateMarkdownContent } from '@/lib/markdown-publish';
 import imageCompression from 'browser-image-compression';
 
 interface Props {
   title: string;
   content: string;
   tags: string[];
-  postId: string | null;
   onClose: () => void;
   calculateReadingTime: (content: string) => number;
   // 편집 모드용 초기값
   initialHeroImage?: string;
   initialDescription?: string;
   initialSlug?: string;
+  initialPubDate?: string;
+  originalSlug?: string;
+  onPublished?: (slug: string) => void;
 }
 
 export default function PublishModal({
   title,
   content,
   tags,
-  postId,
   onClose,
   calculateReadingTime,
   initialHeroImage = '',
   initialDescription = '',
   initialSlug = '',
+  initialPubDate = '',
+  originalSlug = '',
+  onPublished,
 }: Props) {
   const [description, setDescription] = useState(initialDescription);
   const [slug, setSlug] = useState(initialSlug);
@@ -102,6 +106,48 @@ export default function PublishModal({
     setHeroImage('');
   };
 
+  const buildPayload = () => {
+    const autoDescription =
+      description ||
+      content
+        .substring(0, 150)
+        .replace(/[#*`>\-\[\]]/g, '')
+        .replace(/\n+/g, ' ')
+        .trim();
+
+    return {
+      title,
+      description: autoDescription,
+      content,
+      heroImage,
+      tags,
+      slug,
+      readingTime: calculateReadingTime(content),
+      isPublic,
+      pubDate: initialPubDate || new Date().toISOString(),
+      updatedDate: new Date().toISOString(),
+      originalSlug,
+      isUpdate: Boolean(originalSlug),
+    };
+  };
+
+  const handleDownloadMarkdown = () => {
+    if (!title || !slug) {
+      alert('제목과 URL을 먼저 확인해주세요.');
+      return;
+    }
+
+    const payload = buildPayload();
+    const markdown = generateMarkdownContent(payload);
+    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${slug}.md`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   // 출간하기
   const handlePublish = async () => {
     if (!title) {
@@ -115,42 +161,30 @@ export default function PublishModal({
 
     setIsPublishing(true);
     try {
-      // description이 비어있으면 본문에서 자동 생성
-      const autoDescription = description || content
-        .substring(0, 150)
-        .replace(/[#*`>\-\[\]]/g, '')  // 마크다운 문법 제거
-        .replace(/\n+/g, ' ')           // 줄바꿈을 공백으로
-        .trim();
-
-      const basePostData = {
-        title,
-        description: autoDescription,
-        content,
-        heroImage,
-        tags,
-        slug,
-        status: 'published' as const,
-        updatedDate: Timestamp.now(),
-        readingTime: calculateReadingTime(content),
-        isPublic,
-      };
-
-      if (postId) {
-        // 기존 포스트 업데이트 - pubDate는 변경하지 않음
-        await updateDoc(doc(db, 'posts', postId), basePostData);
-      } else {
-        // 새 포스트 생성 - pubDate 설정
-        await addDoc(collection(db, 'posts'), {
-          ...basePostData,
-          createdAt: Timestamp.now(),
-          pubDate: Timestamp.now(),
-        });
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) {
+        throw new Error('관리자 인증 정보를 확인할 수 없습니다.');
       }
 
+      const response = await fetch('/api/admin/publish-post', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify(buildPayload()),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || '출간에 실패했습니다.');
+      }
+
+      onPublished?.(slug);
       window.location.href = '/admin/posts';
     } catch (error) {
       console.error('출간 오류:', error);
-      alert('출간에 실패했습니다.');
+      alert(error instanceof Error ? error.message : '출간에 실패했습니다.');
     } finally {
       setIsPublishing(false);
     }
@@ -303,7 +337,14 @@ export default function PublishModal({
           </div>
 
           {/* 버튼 */}
-          <div className="flex gap-3 pt-4">
+          <div className="flex flex-col gap-3 pt-4">
+            <button
+              onClick={handleDownloadMarkdown}
+              className="w-full rounded-xl border border-gray-200 px-4 py-3 font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+            >
+              Markdown 내려받기
+            </button>
+            <div className="flex gap-3">
             <button
               onClick={onClose}
               className="flex-1 rounded-xl border border-gray-200 px-4 py-3 font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
@@ -317,6 +358,7 @@ export default function PublishModal({
             >
               {isPublishing ? '출간 중...' : '출간하기'}
             </button>
+            </div>
           </div>
         </div>
       </div>

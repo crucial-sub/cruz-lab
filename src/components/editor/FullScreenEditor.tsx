@@ -3,12 +3,12 @@
  *
  * Milkdown 기반 WYSIWYG 에디터로 Live Preview 모드를 지원합니다.
  * - 기존 Velog 스타일 좌우 분할 → 단일 WYSIWYG 에디터로 변경
- * - Firestore 저장/로드 로직 유지
+ * - Markdown 기반 출간 경로 사용
+ * - 임시저장은 localStorage에 저장
  * - Firebase Storage 이미지 업로드 통합
  */
 import { useState, useEffect, useCallback } from 'react';
-import { db, initializeFirebase } from '@/lib/firebase';
-import { collection, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore';
+import { initializeFirebase } from '@/lib/firebase';
 import MilkdownEditor from './MilkdownEditor';
 import PublishModal from './PublishModal';
 
@@ -18,6 +18,11 @@ interface Props {
 }
 
 export default function FullScreenEditor({ mode, postId: initialPostId }: Props) {
+  const getDraftKey = useCallback((targetSlug?: string) => {
+    if (targetSlug) return `cruz-lab-editor-draft:${targetSlug}`;
+    return 'cruz-lab-editor-draft:new';
+  }, []);
+
   // 상태
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -25,7 +30,6 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
   const [tagInput, setTagInput] = useState('');
   const [isComposing, setIsComposing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [postId, setPostId] = useState<string | null>(initialPostId || null);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [isLoading, setIsLoading] = useState(mode === 'edit');
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -34,9 +38,8 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
   const [heroImage, setHeroImage] = useState('');
   const [description, setDescription] = useState('');
   const [slug, setSlug] = useState('');
-
-  // 원래 포스트 상태 추적 (출간된 포스트 임시저장 시 상태 유지용)
-  const [originalStatus, setOriginalStatus] = useState<'draft' | 'published' | null>(null);
+  const [originalSlug, setOriginalSlug] = useState('');
+  const [originalPubDate, setOriginalPubDate] = useState<string>('');
 
   // 에디터 마운트 키 (defaultValue 변경 시 에디터 재생성용)
   const [editorKey, setEditorKey] = useState(0);
@@ -47,42 +50,98 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
 
     if (mode === 'edit') {
       const urlParams = new URLSearchParams(window.location.search);
-      const urlPostId = urlParams.get('id') || initialPostId;
+      const targetSlug = urlParams.get('slug');
+      const legacyPostId = urlParams.get('id') || initialPostId;
 
-      if (!urlPostId) {
-        setLoadError('포스트 ID가 없습니다.');
+      if (targetSlug) {
+        loadMarkdownPost(targetSlug);
+        return;
+      }
+
+      if (!legacyPostId) {
+        setLoadError('포스트 slug가 없습니다.');
         setIsLoading(false);
         return;
       }
 
-      setPostId(urlPostId);
-      loadPost(urlPostId);
+      loadLegacyPost(legacyPostId);
+      return;
     }
+
+    tryLoadDraft();
   }, [mode, initialPostId]);
 
-  // 포스트 데이터 로드
-  const loadPost = async (id: string) => {
+  const tryLoadDraft = useCallback((targetSlug?: string) => {
+    if (typeof window === 'undefined') return;
+
+    const raw = window.localStorage.getItem(getDraftKey(targetSlug));
+    if (!raw) return;
+
     try {
+      const draft = JSON.parse(raw);
+      setTitle(draft.title || '');
+      setContent(draft.content || '');
+      setTags(draft.tags || []);
+      setHeroImage(draft.heroImage || '');
+      setDescription(draft.description || '');
+      setSlug(draft.slug || targetSlug || '');
+      setEditorKey((prev) => prev + 1);
+    } catch (error) {
+      console.error('임시저장 불러오기 오류:', error);
+    }
+  }, [getDraftKey]);
+
+  const loadMarkdownPost = async (targetSlug: string) => {
+    try {
+      const response = await fetch(`/api/posts/by-slug?slug=${encodeURIComponent(targetSlug)}`);
+      if (!response.ok) {
+        setLoadError('포스트를 찾을 수 없습니다.');
+        return;
+      }
+
+      const data = await response.json();
+      setTitle(data.title || '');
+      setContent(data.content || '');
+      setTags(data.tags || []);
+      setHeroImage(data.heroImage || '');
+      setDescription(data.description || '');
+      setSlug(data.slug || targetSlug);
+      setOriginalSlug(data.slug || targetSlug);
+      setOriginalPubDate(data.pubDate || '');
+      setEditorKey((prev) => prev + 1);
+      tryLoadDraft(targetSlug);
+    } catch (err) {
+      console.error('포스트 로딩 오류:', err);
+      setLoadError('포스트를 불러오는데 실패했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 레거시 Firestore 문서 로드
+  const loadLegacyPost = async (id: string) => {
+    try {
+      const { db } = await import('@/lib/firebase');
       const { doc, getDoc } = await import('firebase/firestore');
       const docRef = doc(db, 'posts', id);
       const docSnap = await getDoc(docRef);
 
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setTitle(data.title || '');
-        setContent(data.content || '');
-        setTags(data.tags || []);
-        // 출간 설정 데이터 로드
-        setHeroImage(data.heroImage || '');
-        setDescription(data.description || '');
-        setSlug(data.slug || '');
-        // 원래 상태 저장 (임시저장 시 상태 유지 판단용)
-        setOriginalStatus(data.status || 'draft');
-        // 에디터 재생성하여 새로운 defaultValue 적용
-        setEditorKey((prev) => prev + 1);
-      } else {
+      if (!docSnap.exists()) {
         setLoadError('포스트를 찾을 수 없습니다.');
+        return;
       }
+
+      const data = docSnap.data();
+      setTitle(data.title || '');
+      setContent(data.content || '');
+      setTags(data.tags || []);
+      setHeroImage(data.heroImage || '');
+      setDescription(data.description || '');
+      setSlug(data.slug || '');
+      setOriginalSlug(data.slug || '');
+      setOriginalPubDate(data.pubDate?.toDate?.()?.toISOString?.() || new Date().toISOString());
+      setEditorKey((prev) => prev + 1);
+      tryLoadDraft(data.slug || undefined);
     } catch (err) {
       console.error('포스트 로딩 오류:', err);
       setLoadError('포스트를 불러오는데 실패했습니다.');
@@ -140,38 +199,24 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
 
     setIsSaving(true);
     try {
-      // 이미 출간된 포스트는 임시저장 시에도 published 상태 유지
-      // (새 포스트나 draft 상태인 포스트만 draft로 설정)
-      const statusToSave = originalStatus === 'published' ? 'published' : 'draft';
-
-      const postData = {
+      const draftData = {
         title: title || '제목 없음',
-        description: '',
+        description,
         content,
         tags,
-        slug: '',
-        status: statusToSave as 'draft' | 'published',
-        updatedDate: Timestamp.now(),
+        slug,
+        heroImage,
+        updatedDate: new Date().toISOString(),
         readingTime: calculateReadingTime(content),
       };
-
-      if (postId) {
-        await updateDoc(doc(db, 'posts', postId), postData);
-      } else {
-        const docRef = await addDoc(collection(db, 'posts'), {
-          ...postData,
-          createdAt: Timestamp.now(),
-          pubDate: Timestamp.now(),
-        });
-        setPostId(docRef.id);
-      }
+      window.localStorage.setItem(getDraftKey(originalSlug || slug), JSON.stringify(draftData));
     } catch (err) {
       console.error('저장 오류:', err);
       alert('저장에 실패했습니다.');
     } finally {
       setIsSaving(false);
     }
-  }, [isSaving, title, content, tags, postId, originalStatus]);
+  }, [isSaving, title, description, content, tags, slug, heroImage, originalSlug, getDraftKey]);
 
   // 나가기
   const handleExit = () => {
@@ -314,12 +359,16 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
           title={title}
           content={content}
           tags={tags}
-          postId={postId}
           onClose={() => setShowPublishModal(false)}
           calculateReadingTime={calculateReadingTime}
           initialHeroImage={heroImage}
           initialDescription={description}
           initialSlug={slug}
+          initialPubDate={originalPubDate}
+          originalSlug={originalSlug}
+          onPublished={(publishedSlug) => {
+            window.localStorage.removeItem(getDraftKey(originalSlug || publishedSlug));
+          }}
         />
       )}
     </div>
