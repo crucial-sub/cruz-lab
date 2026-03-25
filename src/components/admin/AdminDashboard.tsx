@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { DRAFT_KEY_PREFIX, getStoredEditorDrafts } from '@/lib/editor-drafts';
 import AdminGuard from './AdminGuard';
 import AdminLayout from './AdminLayout';
 
@@ -13,8 +14,6 @@ interface Props {
   publishedPosts: PublishedPost[];
 }
 
-const DRAFT_KEY_PREFIX = 'cruz-lab-editor-draft:';
-
 export default function AdminDashboard({ publishedPosts }: Props) {
   const [draftCount, setDraftCount] = useState(0);
 
@@ -22,7 +21,12 @@ export default function AdminDashboard({ publishedPosts }: Props) {
     if (typeof window === 'undefined') return;
 
     const draftKeys = Object.keys(window.localStorage).filter((key) => key.startsWith(DRAFT_KEY_PREFIX));
-    setDraftCount(draftKeys.length);
+    if (draftKeys.length === 0) {
+      setDraftCount(0);
+      return;
+    }
+
+    setDraftCount(getStoredEditorDrafts(window.localStorage).length);
   }, []);
 
   const recentPosts = useMemo(
