@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getStoredEditorDrafts } from '@/lib/editor-drafts';
+import { getStoredEditorDrafts, isCreateModeDraftKey } from '@/lib/editor-drafts';
 import { auth } from '@/lib/firebase';
 import AdminGuard from './AdminGuard';
 import AdminLayout from './AdminLayout';
@@ -223,9 +223,9 @@ export default function PostList({ initialPosts }: Props) {
                         <a
                           href={
                             post.source === 'local-draft'
-                              ? post.slug
-                                ? `/admin/edit?slug=${encodeURIComponent(post.slug)}`
-                                : '/admin/posts/new'
+                              ? isCreateModeDraftKey(post.draftKey || post.id)
+                                ? `/admin/posts/new?draft=${encodeURIComponent(post.draftKey || post.id)}`
+                                : `/admin/edit?slug=${encodeURIComponent(post.slug)}`
                               : `/admin/edit?slug=${encodeURIComponent(post.slug)}`
                           }
                           className="text-lg font-semibold text-text-primary hover:text-brand"

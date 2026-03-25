@@ -1,4 +1,14 @@
 export const DRAFT_KEY_PREFIX = 'cruz-lab-editor-draft:';
+export const LEGACY_NEW_DRAFT_KEY = `${DRAFT_KEY_PREFIX}new`;
+export const LOCAL_DRAFT_KEY_PREFIX = `${DRAFT_KEY_PREFIX}draft:`;
+
+export function createLocalDraftKey(draftId: string): string {
+  return `${LOCAL_DRAFT_KEY_PREFIX}${draftId}`;
+}
+
+export function isCreateModeDraftKey(draftKey: string): boolean {
+  return draftKey === LEGACY_NEW_DRAFT_KEY || draftKey.startsWith(LOCAL_DRAFT_KEY_PREFIX);
+}
 
 export interface EditorDraftPayload {
   title?: string;

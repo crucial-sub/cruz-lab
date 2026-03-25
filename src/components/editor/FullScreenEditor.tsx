@@ -8,7 +8,14 @@
  * - Firebase Storage 이미지 업로드 통합
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { hasDraftContent, removeEditorDraft, saveEditorDraft, type EditorDraftPayload } from '@/lib/editor-drafts';
+import {
+  createLocalDraftKey,
+  hasDraftContent,
+  LEGACY_NEW_DRAFT_KEY,
+  removeEditorDraft,
+  saveEditorDraft,
+  type EditorDraftPayload,
+} from '@/lib/editor-drafts';
 import { initializeFirebase } from '@/lib/firebase';
 import { parseMarkdownDocument } from '@/lib/markdown-publish';
 import MilkdownEditor from './MilkdownEditor';
@@ -20,9 +27,17 @@ interface Props {
 }
 
 export default function FullScreenEditor({ mode, postId: initialPostId }: Props) {
+  const createEphemeralDraftKey = useCallback(() => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return createLocalDraftKey(crypto.randomUUID());
+    }
+
+    return createLocalDraftKey(`${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  }, []);
+
   const getDraftKey = useCallback((targetSlug?: string) => {
     if (targetSlug) return `cruz-lab-editor-draft:${targetSlug}`;
-    return 'cruz-lab-editor-draft:new';
+    return LEGACY_NEW_DRAFT_KEY;
   }, []);
 
   // 상태
@@ -52,6 +67,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
   const [editorKey, setEditorKey] = useState(0);
   const autosaveTimerRef = useRef<number | null>(null);
   const lastPersistedDraftKeyRef = useRef<string | null>(null);
+  const activeCreateDraftKeyRef = useRef<string | null>(null);
 
   const markDirty = useCallback(() => {
     setHasUserChanges(true);
@@ -81,13 +97,29 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
       return;
     }
 
-    tryLoadDraft();
-  }, [mode, initialPostId]);
+    const urlParams = new URLSearchParams(window.location.search);
+    const explicitDraftKey = urlParams.get('draft');
 
-  const tryLoadDraft = useCallback((targetSlug?: string) => {
+    if (explicitDraftKey?.startsWith('cruz-lab-editor-draft:')) {
+      activeCreateDraftKeyRef.current = explicitDraftKey;
+      tryLoadDraft(undefined, explicitDraftKey);
+      return;
+    }
+
+    if (window.localStorage.getItem(LEGACY_NEW_DRAFT_KEY)) {
+      activeCreateDraftKeyRef.current = LEGACY_NEW_DRAFT_KEY;
+      tryLoadDraft(undefined, LEGACY_NEW_DRAFT_KEY);
+      return;
+    }
+
+    activeCreateDraftKeyRef.current = createEphemeralDraftKey();
+    setHasUserChanges(false);
+  }, [createEphemeralDraftKey, initialPostId, mode]);
+
+  const tryLoadDraft = useCallback((targetSlug?: string, explicitDraftKey?: string) => {
     if (typeof window === 'undefined') return;
 
-    const draftKey = getDraftKey(targetSlug);
+    const draftKey = explicitDraftKey || getDraftKey(targetSlug);
     const raw = window.localStorage.getItem(draftKey);
     if (!raw) return;
 
@@ -130,7 +162,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
       setOriginalPubDate(data.pubDate || '');
       setHasUserChanges(false);
       setEditorKey((prev) => prev + 1);
-      tryLoadDraft(targetSlug);
+      tryLoadDraft(targetSlug, getDraftKey(targetSlug));
     } catch (err) {
       console.error('포스트 로딩 오류:', err);
       setLoadError('포스트를 불러오는데 실패했습니다.');
@@ -164,7 +196,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
       setOriginalPubDate(data.pubDate?.toDate?.()?.toISOString?.() || new Date().toISOString());
       setHasUserChanges(false);
       setEditorKey((prev) => prev + 1);
-      tryLoadDraft(data.slug || undefined);
+      tryLoadDraft(data.slug || undefined, getDraftKey(data.slug || undefined));
     } catch (err) {
       console.error('포스트 로딩 오류:', err);
       setLoadError('포스트를 불러오는데 실패했습니다.');
@@ -278,7 +310,10 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
         return;
       }
 
-      const nextDraftKey = getDraftKey(originalSlug || slug);
+      const nextDraftKey =
+        mode === 'create'
+          ? activeCreateDraftKeyRef.current || createEphemeralDraftKey()
+          : getDraftKey(originalSlug || slug);
       const previousDraftKey = lastPersistedDraftKeyRef.current;
 
       if (previousDraftKey && previousDraftKey !== nextDraftKey) {
@@ -286,6 +321,9 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
       }
 
       saveEditorDraft(window.localStorage, nextDraftKey, draftData);
+      if (mode === 'create') {
+        activeCreateDraftKeyRef.current = nextDraftKey;
+      }
       lastPersistedDraftKeyRef.current = nextDraftKey;
       const savedAt = new Date(draftData.updatedDate || new Date().toISOString());
       setLastSavedAt(savedAt);
@@ -296,7 +334,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
         setIsSaving(false);
       }
     },
-    [buildDraftData, getDraftKey, originalSlug, slug]
+    [buildDraftData, createEphemeralDraftKey, getDraftKey, mode, originalSlug, slug]
   );
 
   // 임시저장
@@ -559,14 +597,18 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
           pubDate={originalPubDate}
           originalSlug={originalSlug}
           onPublished={(publishedSlug) => {
-            const nextDraftKey = getDraftKey(originalSlug || publishedSlug);
+            const nextDraftKey =
+              mode === 'create'
+                ? activeCreateDraftKeyRef.current
+                : getDraftKey(originalSlug || publishedSlug);
             if (lastPersistedDraftKeyRef.current) {
               removeEditorDraft(window.localStorage, lastPersistedDraftKeyRef.current);
             }
-            if (nextDraftKey !== lastPersistedDraftKeyRef.current) {
+            if (nextDraftKey && nextDraftKey !== lastPersistedDraftKeyRef.current) {
               removeEditorDraft(window.localStorage, nextDraftKey);
             }
             lastPersistedDraftKeyRef.current = null;
+            activeCreateDraftKeyRef.current = null;
           }}
         />
       )}
