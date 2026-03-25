@@ -1,7 +1,7 @@
 // 오프라인 포스트 캐싱
 // IndexedDB를 활용한 포스트 로컬 저장
 import { openDB, type IDBPDatabase } from 'idb';
-import type { Post } from './posts';
+import type { ContentPost as Post } from './content-posts';
 
 const DB_NAME = 'cruz-lab-offline';
 const DB_VERSION = 1;

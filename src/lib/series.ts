@@ -1,7 +1,6 @@
 // 시리즈 기능 - Firestore 연동
 import { collection, getDocs, getDoc, doc, query, where, orderBy } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Post } from './posts';
 
 /**
  * 시리즈 인터페이스

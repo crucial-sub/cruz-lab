@@ -303,7 +303,7 @@ export function createFirebaseUploader(config: ImageUploadConfig = {}): Uploader
     }
 
     // 각 미디어 파일 업로드 및 노드 생성
-    // 동영상은 마크다운 이미지 문법으로 삽입 (BlogPostView에서 video 태그로 변환됨)
+    // 동영상은 마크다운 이미지 문법으로 삽입 (공개 포스트 렌더러가 video 태그로 변환함)
     const nodes: Node[] = await Promise.all(
       mediaFiles.map(async (mediaFile) => {
         try {

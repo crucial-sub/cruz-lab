@@ -5,7 +5,6 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage, initializeFirebase } from '@/lib/firebase';
 import AdminGuard from '../AdminGuard';
 import AdminLayout from '../AdminLayout';
-import type { Post } from '@/lib/posts';
 import type { Series } from '@/lib/series';
 import imageCompression from 'browser-image-compression';
 import { Reorder } from 'framer-motion';
@@ -30,7 +29,17 @@ interface Props {
   mode: 'create' | 'edit';
 }
 
-interface PostItem extends Post {
+interface PostItem {
+  id: string;
+  title: string;
+  description: string;
+  tags: string[];
+  slug: string;
+  pubDate: Date;
+  updatedDate: Date;
+  readingTime: number;
+  seriesId?: string | null;
+  seriesOrder?: number | null;
   selected?: boolean;
 }
 
