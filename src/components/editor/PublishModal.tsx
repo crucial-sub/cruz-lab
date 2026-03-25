@@ -12,11 +12,15 @@ interface Props {
   tags: string[];
   onClose: () => void;
   calculateReadingTime: (content: string) => number;
-  // 편집 모드용 초기값
-  initialHeroImage?: string;
-  initialDescription?: string;
-  initialSlug?: string;
-  initialPubDate?: string;
+  heroImage: string;
+  setHeroImage: (value: string) => void;
+  description: string;
+  setDescription: (value: string) => void;
+  slug: string;
+  setSlug: (value: string) => void;
+  isPublic: boolean;
+  setIsPublic: (value: boolean) => void;
+  pubDate?: string;
   originalSlug?: string;
   onPublished?: (slug: string) => void;
 }
@@ -27,17 +31,18 @@ export default function PublishModal({
   tags,
   onClose,
   calculateReadingTime,
-  initialHeroImage = '',
-  initialDescription = '',
-  initialSlug = '',
-  initialPubDate = '',
+  heroImage,
+  setHeroImage,
+  description,
+  setDescription,
+  slug,
+  setSlug,
+  isPublic,
+  setIsPublic,
+  pubDate = '',
   originalSlug = '',
   onPublished,
 }: Props) {
-  const [description, setDescription] = useState(initialDescription);
-  const [slug, setSlug] = useState(initialSlug);
-  const [heroImage, setHeroImage] = useState(initialHeroImage);
-  const [isPublic, setIsPublic] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -124,7 +129,7 @@ export default function PublishModal({
       slug,
       readingTime: calculateReadingTime(content),
       isPublic,
-      pubDate: initialPubDate || new Date().toISOString(),
+      pubDate: pubDate || new Date().toISOString(),
       updatedDate: new Date().toISOString(),
       originalSlug,
       isUpdate: Boolean(originalSlug),

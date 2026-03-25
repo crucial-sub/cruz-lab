@@ -7,6 +7,7 @@ export interface EditorDraftPayload {
   tags?: string[];
   slug?: string;
   heroImage?: string;
+  isPublic?: boolean;
   updatedDate?: string;
   readingTime?: number;
 }
@@ -33,6 +34,7 @@ export function hasDraftContent(draft: EditorDraftPayload): boolean {
       draft.content?.trim() ||
       draft.slug?.trim() ||
       draft.heroImage?.trim() ||
+      typeof draft.isPublic === 'boolean' ||
       draft.tags?.length
   );
 }

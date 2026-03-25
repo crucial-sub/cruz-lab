@@ -42,6 +42,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
   const [heroImage, setHeroImage] = useState('');
   const [description, setDescription] = useState('');
   const [slug, setSlug] = useState('');
+  const [isPublic, setIsPublic] = useState(true);
   const [originalSlug, setOriginalSlug] = useState('');
   const [originalPubDate, setOriginalPubDate] = useState<string>('');
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -91,6 +92,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
       setHeroImage(draft.heroImage || '');
       setDescription(draft.description || '');
       setSlug(draft.slug || targetSlug || '');
+      setIsPublic(draft.isPublic ?? true);
       setLastSavedAt(draft.updatedDate ? new Date(draft.updatedDate) : null);
       setAutosaveState(draft.updatedDate ? 'saved' : 'idle');
       setEditorKey((prev) => prev + 1);
@@ -114,6 +116,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
       setHeroImage(data.heroImage || '');
       setDescription(data.description || '');
       setSlug(data.slug || targetSlug);
+      setIsPublic(data.isPublic ?? true);
       setOriginalSlug(data.slug || targetSlug);
       setOriginalPubDate(data.pubDate || '');
       setEditorKey((prev) => prev + 1);
@@ -146,6 +149,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
       setHeroImage(data.heroImage || '');
       setDescription(data.description || '');
       setSlug(data.slug || '');
+      setIsPublic(data.isPublic ?? true);
       setOriginalSlug(data.slug || '');
       setOriginalPubDate(data.pubDate?.toDate?.()?.toISOString?.() || new Date().toISOString());
       setEditorKey((prev) => prev + 1);
@@ -189,6 +193,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
       setTags(parsed.tags || []);
       setHeroImage(parsed.heroImage || '');
       setSlug(parsed.slug || '');
+      setIsPublic(parsed.isPublic ?? true);
       setOriginalPubDate(parsed.pubDate || '');
 
       if (mode === 'edit') {
@@ -245,9 +250,10 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
     tags,
     slug,
     heroImage,
+    isPublic,
     updatedDate: new Date().toISOString(),
     readingTime: calculateReadingTime(content),
-  }), [title, description, content, tags, slug, heroImage]);
+  }), [title, description, content, tags, slug, heroImage, isPublic]);
 
   const persistDraft = useCallback(
     (source: 'manual' | 'auto') => {
@@ -501,9 +507,15 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
           onClose={() => setShowPublishModal(false)}
           calculateReadingTime={calculateReadingTime}
           initialHeroImage={heroImage}
-          initialDescription={description}
-          initialSlug={slug}
-          initialPubDate={originalPubDate}
+          description={description}
+          setDescription={setDescription}
+          heroImage={heroImage}
+          setHeroImage={setHeroImage}
+          slug={slug}
+          setSlug={setSlug}
+          isPublic={isPublic}
+          setIsPublic={setIsPublic}
+          pubDate={originalPubDate}
           originalSlug={originalSlug}
           onPublished={(publishedSlug) => {
             window.localStorage.removeItem(getDraftKey(originalSlug || publishedSlug));
