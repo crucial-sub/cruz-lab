@@ -8,6 +8,7 @@
  * - Firebase Storage 이미지 업로드 통합
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { hasDraftContent, saveEditorDraft, type EditorDraftPayload } from '@/lib/editor-drafts';
 import { initializeFirebase } from '@/lib/firebase';
 import { parseMarkdownDocument } from '@/lib/markdown-publish';
 import MilkdownEditor from './MilkdownEditor';
@@ -34,6 +35,8 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [isLoading, setIsLoading] = useState(mode === 'edit');
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [autosaveState, setAutosaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   // 출간 설정 상태 (편집 시 기존 값 유지)
   const [heroImage, setHeroImage] = useState('');
@@ -45,6 +48,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
 
   // 에디터 마운트 키 (defaultValue 변경 시 에디터 재생성용)
   const [editorKey, setEditorKey] = useState(0);
+  const autosaveTimerRef = useRef<number | null>(null);
 
   // Firebase 초기화 및 데이터 로드
   useEffect(() => {
@@ -87,6 +91,8 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
       setHeroImage(draft.heroImage || '');
       setDescription(draft.description || '');
       setSlug(draft.slug || targetSlug || '');
+      setLastSavedAt(draft.updatedDate ? new Date(draft.updatedDate) : null);
+      setAutosaveState(draft.updatedDate ? 'saved' : 'idle');
       setEditorKey((prev) => prev + 1);
     } catch (error) {
       console.error('임시저장 불러오기 오류:', error);
@@ -232,30 +238,103 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
     return Math.ceil(words / wordsPerMinute);
   };
 
+  const buildDraftData = useCallback((): EditorDraftPayload => ({
+    title: title || '제목 없음',
+    description,
+    content,
+    tags,
+    slug,
+    heroImage,
+    updatedDate: new Date().toISOString(),
+    readingTime: calculateReadingTime(content),
+  }), [title, description, content, tags, slug, heroImage]);
+
+  const persistDraft = useCallback(
+    (source: 'manual' | 'auto') => {
+      const draftData = buildDraftData();
+
+      if (!hasDraftContent(draftData) || typeof window === 'undefined') {
+        return;
+      }
+
+      saveEditorDraft(window.localStorage, getDraftKey(originalSlug || slug), draftData);
+      const savedAt = new Date(draftData.updatedDate || new Date().toISOString());
+      setLastSavedAt(savedAt);
+      setAutosaveState('saved');
+
+      if (source === 'manual') {
+        setIsSaving(false);
+      }
+    },
+    [buildDraftData, getDraftKey, originalSlug, slug]
+  );
+
   // 임시저장
-  const handleSaveDraft = useCallback(async () => {
+  const handleSaveDraft = useCallback(() => {
     if (isSaving) return;
 
     setIsSaving(true);
     try {
-      const draftData = {
-        title: title || '제목 없음',
-        description,
-        content,
-        tags,
-        slug,
-        heroImage,
-        updatedDate: new Date().toISOString(),
-        readingTime: calculateReadingTime(content),
-      };
-      window.localStorage.setItem(getDraftKey(originalSlug || slug), JSON.stringify(draftData));
+      persistDraft('manual');
     } catch (err) {
       console.error('저장 오류:', err);
+      setAutosaveState('error');
       alert('저장에 실패했습니다.');
-    } finally {
       setIsSaving(false);
     }
-  }, [isSaving, title, description, content, tags, slug, heroImage, originalSlug, getDraftKey]);
+  }, [isSaving, persistDraft]);
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const draftData = buildDraftData();
+    if (!hasDraftContent(draftData)) return;
+
+    setAutosaveState('saving');
+
+    if (autosaveTimerRef.current) {
+      window.clearTimeout(autosaveTimerRef.current);
+    }
+
+    autosaveTimerRef.current = window.setTimeout(() => {
+      try {
+        persistDraft('auto');
+      } catch (error) {
+        console.error('자동저장 오류:', error);
+        setAutosaveState('error');
+      }
+    }, 1500);
+
+    return () => {
+      if (autosaveTimerRef.current) {
+        window.clearTimeout(autosaveTimerRef.current);
+      }
+    };
+  }, [buildDraftData, isLoading, persistDraft]);
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const handlePageHide = () => {
+      try {
+        persistDraft('auto');
+      } catch (error) {
+        console.error('페이지 종료 전 저장 오류:', error);
+      }
+    };
+
+    window.addEventListener('pagehide', handlePageHide);
+    return () => window.removeEventListener('pagehide', handlePageHide);
+  }, [isLoading, persistDraft]);
+
+  const formatSavedAt = (date: Date | null) => {
+    if (!date) return '';
+
+    return new Intl.DateTimeFormat('ko-KR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date);
+  };
 
   // 나가기
   const handleExit = () => {
@@ -385,6 +464,11 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
         </button>
 
         <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-400">
+            {autosaveState === 'saving' && '자동 저장 중...'}
+            {autosaveState === 'saved' && lastSavedAt && `자동 저장됨 · ${formatSavedAt(lastSavedAt)}`}
+            {autosaveState === 'error' && '자동 저장 실패'}
+          </span>
           <button
             type="button"
             onClick={() => importInputRef.current?.click()}
