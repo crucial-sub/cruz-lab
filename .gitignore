@@ -33,5 +33,6 @@ functions/node_modules/
 # etc
 .playwright-mcp/
 .claude/
-docs/
+docs/*
+!docs/cms-rebuild-tracker.md
 .serena/
