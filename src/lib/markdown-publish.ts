@@ -55,6 +55,93 @@ function parseFrontmatterValue(rawValue: string): unknown {
   return value.replace(/^['"]|['"]$/g, '');
 }
 
+function stripSharedIndent(lines: string[]): string[] {
+  const nonEmptyLines = lines.filter((line) => line.trim().length > 0);
+  if (nonEmptyLines.length === 0) return lines.map(() => '');
+
+  const minIndent = Math.min(
+    ...nonEmptyLines.map((line) => {
+      const match = line.match(/^\s*/);
+      return match ? match[0].length : 0;
+    })
+  );
+
+  return lines.map((line) => line.slice(Math.min(minIndent, line.length)));
+}
+
+function parseIndentedBlock(lines: string[]): unknown {
+  const normalizedLines = stripSharedIndent(lines);
+  const trimmedLines = normalizedLines.filter((line) => line.trim().length > 0);
+
+  if (trimmedLines.length === 0) return '';
+
+  const isListBlock = trimmedLines.every((line) => line.trimStart().startsWith('- '));
+  if (isListBlock) {
+    return trimmedLines
+      .map((line) => line.trimStart().replace(/^- /, ''))
+      .map((line) => parseFrontmatterValue(line))
+      .filter((item): item is string => typeof item === 'string' && item.length > 0);
+  }
+
+  return normalizedLines.join('\n').trim();
+}
+
+function parseFrontmatterBlock(frontmatterBlock: string): Record<string, unknown> {
+  const lines = frontmatterBlock.split('\n');
+  const frontmatter: Record<string, unknown> = {};
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const trimmed = line.trim();
+
+    if (!trimmed || trimmed.startsWith('#')) continue;
+
+    const match = line.match(/^([A-Za-z0-9_-]+):(.*)$/);
+    if (!match) continue;
+
+    const [, key, rawRest] = match;
+    const rest = rawRest.trim();
+    const currentIndent = line.match(/^\s*/)?.[0].length ?? 0;
+
+    if (rest && rest !== '|' && rest !== '>') {
+      frontmatter[key] = parseFrontmatterValue(rest);
+      continue;
+    }
+
+    const nestedLines: string[] = [];
+    let cursor = index + 1;
+
+    for (; cursor < lines.length; cursor += 1) {
+      const nextLine = lines[cursor];
+      const nextTrimmed = nextLine.trim();
+      const nextIndent = nextLine.match(/^\s*/)?.[0].length ?? 0;
+
+      if (!nextTrimmed) {
+        nestedLines.push(nextLine);
+        continue;
+      }
+
+      if (nextIndent <= currentIndent) break;
+      nestedLines.push(nextLine);
+    }
+
+    if (rest === '|' || rest === '>') {
+      const blockLines = stripSharedIndent(nestedLines);
+      const joined =
+        rest === '>'
+          ? blockLines.map((item) => item.trim()).join(' ').trim()
+          : blockLines.join('\n').trimEnd();
+      frontmatter[key] = joined;
+    } else {
+      frontmatter[key] = parseIndentedBlock(nestedLines);
+    }
+
+    index = cursor - 1;
+  }
+
+  return frontmatter;
+}
+
 function fileNameToSlug(fileName?: string): string {
   if (!fileName) return '';
 
@@ -72,21 +159,7 @@ export function parseMarkdownDocument(markdown: string, fileName?: string): Pars
   const frontmatterMatch = normalized.match(/^---\n([\s\S]*?)\n---\n*/);
   const frontmatterBlock = frontmatterMatch?.[1] || '';
   const content = frontmatterMatch ? normalized.slice(frontmatterMatch[0].length) : normalized;
-
-  const frontmatter = Object.fromEntries(
-    frontmatterBlock
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => {
-        const separatorIndex = line.indexOf(':');
-        if (separatorIndex === -1) return [line, ''];
-
-        const key = line.slice(0, separatorIndex).trim();
-        const value = line.slice(separatorIndex + 1);
-        return [key, parseFrontmatterValue(value)];
-      })
-  ) as Record<string, unknown>;
+  const frontmatter = parseFrontmatterBlock(frontmatterBlock);
 
   const headingTitle =
     content.match(/^#\s+(.+)$/m)?.[1]?.trim() ||

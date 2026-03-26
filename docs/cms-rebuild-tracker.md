@@ -26,6 +26,7 @@
 - `done` 운영 경로와 무관한 레거시 에디터 흔적 일부를 정리했다.
 - `done` markdown 파이프라인 평가 스크립트와 에디터 후보 비교 문서를 추가했다.
 - `done` admin 작성 화면에 CodeMirror 6 기반 1차 프로토타입을 연결했다.
+- `done` frontmatter import 파서를 강화해 block list tags 손실을 해결했다.
 
 ## 반드시 더 해야 하는 것
 
@@ -159,3 +160,4 @@
 - 2026-03-26: markdown 파이프라인 평가 스크립트를 추가하고, 후보 비교 문서에서 `CodeMirror 6`을 1차 권장안으로 정리했다.
 - 2026-03-26: 평가 스크립트 실행 결과 block list tags 손실을 재현했고, 빌드에서 큰 관리자 에디터 chunk도 다시 확인했다.
 - 2026-03-26: admin 에디터를 CodeMirror 6 1차 프로토타입으로 교체했고, `npm run build`와 `npm run editor:evaluate`를 다시 통과했다.
+- 2026-03-26: frontmatter 파서를 강화한 뒤 `npm run editor:evaluate`에서 block list tags가 정상 유지되는 것을 확인했다.

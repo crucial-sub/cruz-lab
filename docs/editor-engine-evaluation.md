@@ -36,16 +36,14 @@ npm run editor:evaluate
 
 현재 스크립트 기준으로 확인 가능한 사실:
 
-- block list 형식의 `tags`는 현재 파서가 읽지 못한다.
+- block list 형식의 `tags`는 이제 import 단계에서 읽을 수 있다.
 - publish 결과는 frontmatter를 고정 포맷으로 다시 쓴다.
 - 즉, 지금 구조는 “markdown 문자열 원본 보존”보다 “현재 시스템이 요구하는 형식으로 재생성”에 가깝다.
-- 실제 평가 스크립트 결과에서도 `parsed tags: []`가 나왔고, publish preview는 `tags: []`로 출력됐다.
+- 실제 평가 스크립트 결과에서도 `parsed tags: ["CMS","Markdown","한글"]`가 나왔고, publish preview에도 같은 태그가 유지됐다.
 
 ```text
 findings:
-- block list 형식의 tags를 읽지 못함
 - 원본 markdown과 publish 결과가 동일하지 않음
-- 출간 결과에서 tags 정보가 비어 있음
 ```
 
 이건 CMS가 브라우저 안에서 쓰기 편하냐와 별개로, 외부에서 작성한 markdown을 신뢰성 있게 받아들이는 데 불리하다.
@@ -159,6 +157,7 @@ findings:
 - 외부에서 작성한 markdown을 거의 그대로 가져와서 브라우저에서 고치고 다시 publish할 수 있어야 한다.
 - 이 요구에는 ProseMirror 계열 WYSIWYG보다 markdown-native 접근이 더 잘 맞는다.
 - 현재 `Milkdown` 경로는 보정 코드와 번들 무게까지 같이 안고 있어서, 유지 비용 대비 이점이 줄어든 상태다.
+- 다만 frontmatter parsing 자체는 이번 단계에서 개선됐으므로, 남은 핵심 문제는 `표현 보존`과 `editor UX` 쪽으로 더 좁혀졌다.
 
 즉, 다음 단계는 `Milkdown을 더 고치는 것`보다 `CodeMirror 6 기반 작성 흐름을 1차 프로토타입으로 붙이는 것`이 맞다.
 
