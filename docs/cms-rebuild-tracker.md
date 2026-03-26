@@ -27,6 +27,7 @@
 - `done` markdown 파이프라인 평가 스크립트와 에디터 후보 비교 문서를 추가했다.
 - `done` admin 작성 화면에 CodeMirror 6 기반 1차 프로토타입을 연결했다.
 - `done` frontmatter import 파서를 강화해 block list tags 손실을 해결했다.
+- `done` 빠른 삽입 패널과 체크리스트/표 템플릿을 추가했다.
 
 ## 반드시 더 해야 하는 것
 
@@ -54,7 +55,9 @@
 - `in_progress` 에픽 4 현재 상태
   - CodeMirror 6 기반 admin 작성 화면 연결 완료
   - 이미지 붙여넣기/드롭, 저장 단축키, 기본 서식 단축키까지 반영
-  - slash 대체 UX, 표/체크리스트 작성성, 번들 분할은 다음 단계
+  - 빠른 삽입 패널로 slash 대체 UX 시작
+  - 체크리스트, 표, 인용구, 코드블록 템플릿 제공
+  - 번들 분할과 더 정교한 작성성 보강은 다음 단계
 - `next` 에픽 5. 실제 포스팅 플로우 검증
   - 외부 md 불러오기
   - 브라우저 편집
@@ -161,3 +164,4 @@
 - 2026-03-26: 평가 스크립트 실행 결과 block list tags 손실을 재현했고, 빌드에서 큰 관리자 에디터 chunk도 다시 확인했다.
 - 2026-03-26: admin 에디터를 CodeMirror 6 1차 프로토타입으로 교체했고, `npm run build`와 `npm run editor:evaluate`를 다시 통과했다.
 - 2026-03-26: frontmatter 파서를 강화한 뒤 `npm run editor:evaluate`에서 block list tags가 정상 유지되는 것을 확인했다.
+- 2026-03-26: 빠른 삽입 패널과 블록 템플릿을 추가했고, `npm run build`와 `npm run editor:evaluate`를 다시 통과했다.

@@ -64,18 +64,26 @@ findings:
 - markdown 문자열 직접 편집
 - `⌘/Ctrl+B`, `⌘/Ctrl+I`, `⌘/Ctrl+K`, `⌘/Ctrl+S`, heading 전환 단축키
 - 이미지 붙여넣기/드롭 업로드 후 markdown 삽입
+- 빠른 삽입 패널과 블록 템플릿
 - 기존 local draft, import, publish 흐름 유지
 
 이번 단계에서 의도적으로 뺀 것:
 
-- slash menu
-- Milkdown 전용 code block / blockquote escape 플러그인
+- 완전한 slash menu
+- Milkdown 전용 code block / blockquote escape 플러그인의 1:1 대체
 - ProseMirror 기반 rich block UI
 
 빌드 기준 변화:
 
 - `EditorPage` client chunk: 약 `734 kB -> 668 kB`
 - `EditorPage` CSS: 약 `34 kB -> 6 kB`
+
+그 다음 보강:
+
+- 빈 줄에서 `/`를 누르면 빠른 삽입 패널이 열린다.
+- `⌘/Ctrl+Shift+P`로도 같은 패널을 열 수 있다.
+- 체크리스트, 표, 인용구, 코드블록, 구분선 같은 자주 쓰는 블록을 템플릿으로 바로 넣을 수 있다.
+- 이 단계 이후 CSS는 약 `8.3 kB`, `EditorPage` chunk는 약 `673 kB` 수준이다.
 
 즉, 지금 프로토타입은 완성형은 아니지만 아래 두 가지는 입증했다.
 

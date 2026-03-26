@@ -135,6 +135,7 @@
   gap: 0.5rem;
 }
 
+.quick-insert-trigger,
 .keyboard-shortcuts-trigger {
   display: inline-flex;
   align-items: center;
@@ -149,13 +150,140 @@
   transition: all 0.2s ease;
 }
 
+.quick-insert-trigger:hover,
 .keyboard-shortcuts-trigger:hover {
   color: var(--editor-text);
   border-color: #10b981;
 }
 
+.quick-insert-trigger-icon,
 .keyboard-shortcuts-trigger-icon {
   font-size: 0.95rem;
+}
+
+.quick-insert-trigger-icon {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.quick-insert-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(6px);
+}
+
+.quick-insert-panel {
+  width: min(760px, calc(100vw - 2rem));
+  max-height: calc(100vh - 3rem);
+  overflow: auto;
+  border-radius: 18px;
+  border: 1px solid var(--editor-border);
+  background: var(--editor-bg);
+  color: var(--editor-text);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+}
+
+.quick-insert-header,
+.quick-insert-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+}
+
+.quick-insert-header {
+  border-bottom: 1px solid var(--editor-border);
+}
+
+.quick-insert-footer {
+  border-top: 1px solid var(--editor-border);
+}
+
+.quick-insert-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.quick-insert-subtitle,
+.quick-insert-hint {
+  color: var(--editor-text-secondary);
+  font-size: 0.9rem;
+}
+
+.quick-insert-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  color: var(--editor-text-secondary);
+}
+
+.quick-insert-close:hover {
+  border-color: var(--editor-border);
+  color: var(--editor-text);
+}
+
+.quick-insert-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.quick-insert-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-height: 92px;
+  padding: 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--editor-border);
+  background: transparent;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.quick-insert-item:hover {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.06);
+  transform: translateY(-1px);
+}
+
+.quick-insert-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.quick-insert-item-label {
+  font-weight: 700;
+  color: var(--editor-text);
+}
+
+.quick-insert-item-key {
+  padding: 0.22rem 0.45rem;
+  border-radius: 8px;
+  background: var(--editor-code-bg);
+  color: var(--editor-text-secondary);
+  font-family: var(--editor-font-code);
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
+.quick-insert-item-description {
+  color: var(--editor-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .keyboard-shortcuts-backdrop {
@@ -329,6 +457,10 @@
   .codemirror-editor-wrapper {
     --editor-padding-x: 1rem;
     --editor-padding-y: 1rem;
+  }
+
+  .quick-insert-grid {
+    grid-template-columns: 1fr;
   }
 
   .keyboard-shortcuts-key {
