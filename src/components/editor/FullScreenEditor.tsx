@@ -6,7 +6,7 @@
  * - 임시저장은 localStorage에 저장
  * - Firebase Storage 이미지 업로드 통합
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { Suspense, lazy, useState, useEffect, useCallback, useRef } from 'react';
 import {
   createLocalDraftKey,
   hasDraftContent,
@@ -17,12 +17,37 @@ import {
 } from '@/lib/editor-drafts';
 import { initializeFirebase } from '@/lib/firebase';
 import { parseMarkdownDocument } from '@/lib/markdown-publish';
-import CodeMirrorEditor from './CodeMirrorEditor';
-import PublishModal from './PublishModal';
+
+const CodeMirrorEditor = lazy(() => import('./CodeMirrorEditor'));
+const PublishModal = lazy(() => import('./PublishModal'));
 
 interface Props {
   mode: 'create' | 'edit';
   postId?: string;
+}
+
+function EditorSurfaceFallback() {
+  return (
+    <div className="flex min-h-[420px] items-center justify-center rounded-2xl border border-gray-100 bg-gray-50">
+      <div className="flex flex-col items-center gap-3 text-gray-400">
+        <div className="h-7 w-7 animate-spin rounded-full border-4 border-brand border-t-transparent" />
+        <p className="text-sm">에디터 준비 중...</p>
+      </div>
+    </div>
+  );
+}
+
+function PublishModalFallback() {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="flex w-full max-w-xl items-center justify-center rounded-2xl bg-white p-10">
+        <div className="flex flex-col items-center gap-3 text-gray-500">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand border-t-transparent" />
+          <p className="text-sm">출간 설정 불러오는 중...</p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function FullScreenEditor({ mode, postId: initialPostId }: Props) {
@@ -497,17 +522,19 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
         {/* CodeMirror 에디터 - 992px 중앙 정렬 */}
         <div className="flex-1 overflow-auto px-8 py-2">
           <div className="mx-auto w-full max-w-[992px]">
-            <CodeMirrorEditor
-              key={editorKey}
-              defaultValue={content}
-              onChange={handleContentChange}
-              placeholder="당신의 이야기를 적어보세요..."
-              showShortcutsHelp={true}
-              enableImageUpload={true}
-              onUploadError={handleUploadError}
-              onSave={handleSaveDraft}
-              className="h-full w-full"
-            />
+            <Suspense fallback={<EditorSurfaceFallback />}>
+              <CodeMirrorEditor
+                key={editorKey}
+                defaultValue={content}
+                onChange={handleContentChange}
+                placeholder="당신의 이야기를 적어보세요..."
+                showShortcutsHelp={true}
+                enableImageUpload={true}
+                onUploadError={handleUploadError}
+                onSave={handleSaveDraft}
+                className="h-full w-full"
+              />
+            </Suspense>
           </div>
         </div>
       </div>
@@ -565,49 +592,51 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
 
       {/* 출간 모달 */}
       {showPublishModal && (
-        <PublishModal
-          title={title}
-          content={content}
-          tags={tags}
-          onClose={() => setShowPublishModal(false)}
-          calculateReadingTime={calculateReadingTime}
-          description={description}
-          setDescription={(value) => {
-            markDirty();
-            setDescription(value);
-          }}
-          heroImage={heroImage}
-          setHeroImage={(value) => {
-            markDirty();
-            setHeroImage(value);
-          }}
-          slug={slug}
-          setSlug={(value) => {
-            markDirty();
-            setSlug(value);
-          }}
-          isPublic={isPublic}
-          setIsPublic={(value) => {
-            markDirty();
-            setIsPublic(value);
-          }}
-          pubDate={originalPubDate}
-          originalSlug={originalSlug}
-          onPublished={(publishedSlug) => {
-            const nextDraftKey =
-              mode === 'create'
-                ? activeCreateDraftKeyRef.current
-                : getDraftKey(originalSlug || publishedSlug);
-            if (lastPersistedDraftKeyRef.current) {
-              removeEditorDraft(window.localStorage, lastPersistedDraftKeyRef.current);
-            }
-            if (nextDraftKey && nextDraftKey !== lastPersistedDraftKeyRef.current) {
-              removeEditorDraft(window.localStorage, nextDraftKey);
-            }
-            lastPersistedDraftKeyRef.current = null;
-            activeCreateDraftKeyRef.current = null;
-          }}
-        />
+        <Suspense fallback={<PublishModalFallback />}>
+          <PublishModal
+            title={title}
+            content={content}
+            tags={tags}
+            onClose={() => setShowPublishModal(false)}
+            calculateReadingTime={calculateReadingTime}
+            description={description}
+            setDescription={(value) => {
+              markDirty();
+              setDescription(value);
+            }}
+            heroImage={heroImage}
+            setHeroImage={(value) => {
+              markDirty();
+              setHeroImage(value);
+            }}
+            slug={slug}
+            setSlug={(value) => {
+              markDirty();
+              setSlug(value);
+            }}
+            isPublic={isPublic}
+            setIsPublic={(value) => {
+              markDirty();
+              setIsPublic(value);
+            }}
+            pubDate={originalPubDate}
+            originalSlug={originalSlug}
+            onPublished={(publishedSlug) => {
+              const nextDraftKey =
+                mode === 'create'
+                  ? activeCreateDraftKeyRef.current
+                  : getDraftKey(originalSlug || publishedSlug);
+              if (lastPersistedDraftKeyRef.current) {
+                removeEditorDraft(window.localStorage, lastPersistedDraftKeyRef.current);
+              }
+              if (nextDraftKey && nextDraftKey !== lastPersistedDraftKeyRef.current) {
+                removeEditorDraft(window.localStorage, nextDraftKey);
+              }
+              lastPersistedDraftKeyRef.current = null;
+              activeCreateDraftKeyRef.current = null;
+            }}
+          />
+        </Suspense>
       )}
     </div>
   );

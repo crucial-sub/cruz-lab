@@ -28,6 +28,9 @@
 - `done` admin 작성 화면에 CodeMirror 6 기반 1차 프로토타입을 연결했다.
 - `done` frontmatter import 파서를 강화해 block list tags 손실을 해결했다.
 - `done` 빠른 삽입 패널과 체크리스트/표 템플릿을 추가했다.
+- `done` CodeMirror 전체 언어 팩 import를 제거해 editor bundle을 줄였다.
+- `done` admin 진입 경로에서 에디터 본체와 출간 모달을 lazy loading으로 분리했다.
+- `done` 관리자 인증 훅을 auth 전용 Firebase 경로로 분리해 `AdminGuard` chunk를 줄였다.
 
 ## 반드시 더 해야 하는 것
 
@@ -57,7 +60,10 @@
   - 이미지 붙여넣기/드롭, 저장 단축키, 기본 서식 단축키까지 반영
   - 빠른 삽입 패널로 slash 대체 UX 시작
   - 체크리스트, 표, 인용구, 코드블록 템플릿 제공
-  - 번들 분할과 더 정교한 작성성 보강은 다음 단계
+  - 전체 언어 팩 import 제거 후 `CodeMirrorEditor` chunk를 약 `622 kB` 수준으로 유지
+  - `EditorPage -> FullScreenEditor -> CodeMirrorEditor/PublishModal` lazy loading으로 admin 작성 화면 초기 진입 chunk를 크게 줄임
+  - `AdminGuard`를 auth 전용 경로로 분리해 chunk를 약 `507 kB -> 162 kB`로 축소
+  - 남은 최적화는 Firebase shared chunk와 이미지 압축 의존을 더 세분화하는 쪽
 - `next` 에픽 5. 실제 포스팅 플로우 검증
   - 외부 md 불러오기
   - 브라우저 편집
@@ -78,15 +84,16 @@
 ### 2026-03-26 기준 확인된 사실
 
 - 공개 블로그와 CMS 출간 경로는 이미 markdown 중심으로 정리됐다. 현재 남은 핵심 문제는 퍼블리싱 파이프라인보다 에디터 자체다.
-- 현재 작성 에디터는 여전히 `MilkdownEditor` 기반이다.
-- 에디터 내부에는 아래 같은 보정 코드가 이미 들어가 있다.
-  - 저장 시 `\\**`, `\\*`, `\\_`를 다시 복원하는 정규식 처리
-  - import 시 한국어와 `**bold**`가 붙는 경우를 막기 위한 `ZWSP` 삽입
-  - 코드블록 탈출, 인용구 탈출, 링크 다이얼로그, slash, 업로드, 단축키 같은 커스텀 플러그인 누적
-- `src/pages/admin/edit.astro`와 `src/pages/admin/posts/new.astro`에는 아직 CodeMirror 전제의 주석과 스타일이 남아 있다. 실제 엔진은 Milkdown인데 설명과 코드 흔적이 섞여 있다.
+- 현재 작성 에디터의 운영 경로는 `CodeMirrorEditor` 기반이다.
+- 현재 에디터에는 아래 같은 작성 보조가 이미 들어가 있다.
+  - 기본 서식 단축키
+  - 빠른 삽입 패널
+  - 이미지 붙여넣기/드롭 업로드
+  - 로컬 draft 자동저장과 출간 메타데이터 동기화
+- `src/pages/admin/edit.astro`와 `src/pages/admin/posts/new.astro`의 설명도 CodeMirror 기준으로 정리됐다.
 - 현재 의존성에는 `Milkdown`, `CodeMirror`, `Tiptap`이 모두 함께 들어 있다. 즉 기술 선택이 이미 끝난 상태가 아니라, 실험 흔적이 저장소에 같이 남아 있는 상태다.
-- 실제 화면은 `FullScreenEditor -> MilkdownEditor`로 연결되는데, 저장소 안에는 `@tiptap/react`를 참조하는 `EditorToolbar.tsx`도 남아 있다. 현재 사용 여부와 정리 대상 여부를 분리해서 판단해야 한다.
-- 외부 markdown import는 `FullScreenEditor`에서 `parseMarkdownDocument()`로 frontmatter를 먼저 읽고, 본문만 `MilkdownEditor`에 넣는 구조다.
+- 실제 화면은 `EditorPage -> FullScreenEditor -> CodeMirrorEditor`로 연결된다.
+- 외부 markdown import는 `FullScreenEditor`에서 `parseMarkdownDocument()`로 frontmatter를 먼저 읽고, 본문 markdown 문자열을 현재 에디터 상태에 채우는 구조다.
 - publish는 `generateMarkdownContent()`가 frontmatter를 새로 생성하는 방식이라, import된 원본 frontmatter 표현을 그대로 보존하지 않는다.
 
 ### 코드 기준으로 확인된 구체적 한계
@@ -99,17 +106,13 @@
   - 날짜는 항상 ISO 문자열로 정규화된다.
   - tags는 항상 inline 배열 형식으로 다시 출력된다.
   - 원본 frontmatter의 줄바꿈, 순서, 주석, block list 표현은 유지되지 않는다.
-- `MilkdownEditor`는 markdown fidelity 문제를 엔진 내부가 아니라 후처리와 전처리로 메우고 있다.
-  - 저장 시 `\\**`, `\\*`, `\\_` 복원 정규식 사용
-  - import 시 한글과 `**bold**`가 붙는 케이스에 ZWSP 삽입
-- 내부 `Milkdown` import 버튼 경로는 컴포넌트 안에 남아 있지만, 실제 화면에서는 `showImportButton={false}`로 숨겨 둔 상태다.
+- 이전 `Milkdown` 경로에서 쓰던 보정 로직은 이제 운영 경로 밖으로 밀려났지만, 관련 의존성과 일부 레거시 파일은 저장소에 남아 있다.
 
 ### 지금 보이는 구조적 문제
 
-- Markdown fidelity 문제를 엔진 내부에서 해결하지 못하고 후처리 정규식과 ZWSP 보정에 기대고 있다.
+- Markdown fidelity 문제는 엔진 교체로 일부 완화됐지만, frontmatter 재생성과 표현 정규화 문제는 아직 남아 있다.
 - 단축키는 브라우저 충돌을 피하려고 `Cmd/Ctrl + Alt` 조합으로 우회했지만, 이것만으로는 Obsidian처럼 자연스러운 작성 경험을 주기 어렵다.
-- import 경로가 두 군데였다가 하나로 정리되긴 했지만, 에디터 내부 parser가 외부 markdown을 얼마나 정확하게 보존하는지는 아직 검증이 부족하다.
-- 관리 페이지 설명과 실제 엔진이 어긋나 있어서 유지보수 관점에서도 혼란이 남아 있다.
+- import 경로가 하나로 정리되긴 했지만, 에디터 내부 parser가 외부 markdown을 얼마나 정확하게 보존하는지는 아직 검증이 부족하다.
 - 사용하지 않는 실험 흔적까지 함께 남아 있어서, "현재 운영 경로"와 "버려진 경로"를 먼저 구분하지 않으면 다음 교체 작업에서 더 헷갈릴 가능성이 높다.
 
 ### 현재 가설
@@ -165,3 +168,5 @@
 - 2026-03-26: admin 에디터를 CodeMirror 6 1차 프로토타입으로 교체했고, `npm run build`와 `npm run editor:evaluate`를 다시 통과했다.
 - 2026-03-26: frontmatter 파서를 강화한 뒤 `npm run editor:evaluate`에서 block list tags가 정상 유지되는 것을 확인했다.
 - 2026-03-26: 빠른 삽입 패널과 블록 템플릿을 추가했고, `npm run build`와 `npm run editor:evaluate`를 다시 통과했다.
+- 2026-03-26: `@codemirror/language-data` 전체 import를 제거한 뒤 `EditorPage` chunk가 약 `643 kB`로 줄어든 것을 확인했다.
+- 2026-03-26: `EditorPage`, `FullScreenEditor`, `PublishModal`을 lazy loading으로 분리했고, `AdminGuard`는 auth 전용 Firebase 경로로 분리해 admin 초기 진입 chunk를 더 줄였다.

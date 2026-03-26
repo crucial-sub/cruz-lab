@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { markdown } from '@codemirror/lang-markdown';
-import { languages } from '@codemirror/language-data';
 import { EditorSelection } from '@codemirror/state';
 import { EditorView, keymap, placeholder as placeholderExtension } from '@codemirror/view';
 import type { ViewUpdate } from '@codemirror/view';
@@ -495,7 +494,7 @@ export default function CodeMirrorEditor({
       indentOnInput(),
       bracketMatching(),
       indentUnit.of('  '),
-      markdown({ codeLanguages: languages, addKeymap: true }),
+      markdown({ addKeymap: true }),
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       EditorView.lineWrapping,
       placeholderExtension(placeholder),

@@ -5,9 +5,9 @@ import {
   onAuthStateChanged,
   signInWithPopup,
   signOut,
-  type User
+  type User,
 } from 'firebase/auth';
-import { auth, googleProvider, initializeFirebase } from '@/lib/firebase';
+import { getClientAuth, getClientGoogleProvider, initializeClientAuth } from '@/lib/firebase-auth-client';
 
 // 관리자 이메일 (환경 변수에서 로드, 클라이언트에서도 검증)
 const ADMIN_EMAIL = import.meta.env.PUBLIC_ADMIN_EMAIL || '';
@@ -40,7 +40,7 @@ export function useAdminAuth(): UseAdminAuthReturn {
     }
 
     // Firebase 서비스 초기화
-    initializeFirebase();
+    const auth = initializeClientAuth().auth;
 
     // 인증 상태 변경 리스너
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -81,6 +81,8 @@ export function useAdminAuth(): UseAdminAuthReturn {
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
 
+      const auth = getClientAuth();
+      const googleProvider = getClientGoogleProvider();
       const result = await signInWithPopup(auth, googleProvider);
 
       // 관리자 이메일 검증
@@ -102,7 +104,7 @@ export function useAdminAuth(): UseAdminAuthReturn {
   // 로그아웃
   const logout = useCallback(async () => {
     try {
-      await signOut(auth);
+      await signOut(getClientAuth());
     } catch (error) {
       console.error('로그아웃 오류:', error);
     }

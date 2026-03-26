@@ -10,7 +10,7 @@
 
 1. `FullScreenEditor`가 외부 markdown 파일을 읽는다.
 2. `parseMarkdownDocument()`가 frontmatter를 단순 파싱한다.
-3. 본문만 `MilkdownEditor`로 넘긴다.
+3. 본문 markdown 문자열을 현재 에디터 상태로 넘긴다.
 4. 출간 시 `generateMarkdownContent()`가 frontmatter를 다시 조립한다.
 
 이 구조 때문에 import와 publish 사이에서 원본 markdown 표현이 그대로 유지되지 않는다.
@@ -50,10 +50,10 @@ findings:
 
 추가로 현재 빌드 결과에서 관리자 에디터 번들은 여전히 크다.
 
-- `EditorPage` client chunk: 약 734 kB
-- `AdminGuard` client chunk: 약 507 kB
+- `CodeMirrorEditor` client chunk: 약 622 kB
+- `firebase` shared chunk: 약 345 kB
 
-즉, 에디터 엔진 선택은 markdown fidelity뿐 아니라 번들 크기와 초기 로드 비용 관점에서도 다시 보는 편이 맞다.
+즉, 에디터 엔진 선택은 markdown fidelity뿐 아니라 번들 크기와 초기 로드 비용 관점에서도 계속 같이 봐야 한다.
 
 ## CodeMirror 6 프로토타입 적용 결과
 
@@ -84,6 +84,15 @@ findings:
 - `⌘/Ctrl+Shift+P`로도 같은 패널을 열 수 있다.
 - 체크리스트, 표, 인용구, 코드블록, 구분선 같은 자주 쓰는 블록을 템플릿으로 바로 넣을 수 있다.
 - 이 단계 이후 CSS는 약 `8.3 kB`, `EditorPage` chunk는 약 `673 kB` 수준이다.
+- `@codemirror/language-data` 전체 import를 제거한 뒤 `EditorPage` chunk는 약 `643 kB`까지 더 내려갔다.
+- 현재 trade-off는 editor 내부 코드펜스 언어 매칭을 generic markdown 수준으로 둔다는 점이다.
+- `React.lazy`로 `FullScreenEditor`, `CodeMirrorEditor`, `PublishModal`을 분리한 뒤에는 admin 작성 페이지의 진입 chunk가 크게 줄었다.
+  - `EditorPage`: 약 `2.1 kB`
+  - `FullScreenEditor`: 약 `14.9 kB`
+  - `PublishModal`: 약 `8.4 kB`
+  - `CodeMirrorEditor`: 약 `622.0 kB`
+- `useAdminAuth`가 `auth` 전용 초기화 경로를 쓰게 바뀌면서 `AdminGuard` chunk는 약 `507 kB -> 162 kB`로 내려갔다.
+- 대신 Firebase 공용 코드가 별도 `firebase` chunk로 약 `345 kB` 남아 있고, 이건 아직 더 줄일 여지가 있다.
 
 즉, 지금 프로토타입은 완성형은 아니지만 아래 두 가지는 입증했다.
 
@@ -175,4 +184,4 @@ findings:
 - frontmatter도 가능한 한 표준 YAML 파서를 써서 읽는다.
 - import, draft, publish가 모두 같은 markdown 문서를 기준으로 움직이게 한다.
 - 에디터 교체 후에도 현재 publish 경로와 로컬 draft 경험은 최대한 유지한다.
-- 다음 단계에서는 언어 팩과 에디터 번들 분할, 그리고 slash 대체 UX를 별도로 검토한다.
+- 다음 단계에서는 Firebase shared chunk와 이미지 압축 의존을 더 세분화하고, 필요한 코드 언어만 선별 로드하는 방식을 검토한다.
