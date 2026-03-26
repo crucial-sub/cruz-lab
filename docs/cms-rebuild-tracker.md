@@ -72,6 +72,23 @@
 - `src/pages/admin/edit.astro`와 `src/pages/admin/posts/new.astro`에는 아직 CodeMirror 전제의 주석과 스타일이 남아 있다. 실제 엔진은 Milkdown인데 설명과 코드 흔적이 섞여 있다.
 - 현재 의존성에는 `Milkdown`, `CodeMirror`, `Tiptap`이 모두 함께 들어 있다. 즉 기술 선택이 이미 끝난 상태가 아니라, 실험 흔적이 저장소에 같이 남아 있는 상태다.
 - 실제 화면은 `FullScreenEditor -> MilkdownEditor`로 연결되는데, 저장소 안에는 `@tiptap/react`를 참조하는 `EditorToolbar.tsx`도 남아 있다. 현재 사용 여부와 정리 대상 여부를 분리해서 판단해야 한다.
+- 외부 markdown import는 `FullScreenEditor`에서 `parseMarkdownDocument()`로 frontmatter를 먼저 읽고, 본문만 `MilkdownEditor`에 넣는 구조다.
+- publish는 `generateMarkdownContent()`가 frontmatter를 새로 생성하는 방식이라, import된 원본 frontmatter 표현을 그대로 보존하지 않는다.
+
+### 코드 기준으로 확인된 구체적 한계
+
+- `parseMarkdownDocument()`는 사실상 단순 frontmatter 파서다.
+  - 한 줄짜리 `key: value`만 기준으로 읽는다.
+  - 배열은 `tags: ["a", "b"]` 같은 inline 형식에 유리하고, 일반 YAML block list는 처리하지 못한다.
+  - multiline string, folded style, nested object 같은 일반 YAML 패턴은 지원하지 않는다.
+- `generateMarkdownContent()`는 출간 시 frontmatter를 고정된 형식으로 다시 만든다.
+  - 날짜는 항상 ISO 문자열로 정규화된다.
+  - tags는 항상 inline 배열 형식으로 다시 출력된다.
+  - 원본 frontmatter의 줄바꿈, 순서, 주석, block list 표현은 유지되지 않는다.
+- `MilkdownEditor`는 markdown fidelity 문제를 엔진 내부가 아니라 후처리와 전처리로 메우고 있다.
+  - 저장 시 `\\**`, `\\*`, `\\_` 복원 정규식 사용
+  - import 시 한글과 `**bold**`가 붙는 케이스에 ZWSP 삽입
+- 내부 `Milkdown` import 버튼 경로는 컴포넌트 안에 남아 있지만, 실제 화면에서는 `showImportButton={false}`로 숨겨 둔 상태다.
 
 ### 지금 보이는 구조적 문제
 
@@ -87,6 +104,33 @@
 - 이 기준이면 `Milkdown`을 계속 보정하는 방향보다 `CodeMirror 6` 중심의 markdown-native 편집 흐름이 더 유리할 가능성이 크다.
 - 다만 `Tiptap`은 구조화된 확장성과 UI 제작 자유도가 높아서, slash/toolbar/image UX를 강하게 밀고 싶으면 비교 대상에서 바로 제외하면 안 된다.
 
+## 재현 샘플과 확인 포인트
+
+- 재현용 샘플 파일: [editor-roundtrip-stress.md](/Users/parkjungsub/projects/cruz-lab/fixtures/editor-roundtrip-stress.md)
+- 이 샘플로 확인할 항목
+  - block list 형태의 `tags`가 import 시 제대로 들어오는지
+  - 한글 조사와 `**bold**`, 링크, 인라인 코드가 맞닿을 때 보이지 않는 문자가 끼는지
+  - import 후 수정 없이 publish했을 때 frontmatter 표현이 얼마나 바뀌는지
+  - 표, 체크리스트, 코드블록, raw HTML이 round-trip에서 보존되는지
+
+## 에픽 1 산출물 목표
+
+- 현재 에디터 문제를 `엔진 한계 / 현재 구현 버그 / 브라우저 제약 / 레거시 흔적` 네 범주로 정리한다.
+- `Milkdown`, `CodeMirror 6`, `Tiptap` 비교표를 같은 문서에 추가한다.
+- 다음 에픽에서 바로 기술 선택을 할 수 있을 정도로 판단 근거를 모은다.
+
+## 후보 비교 초안
+
+| 기준 | Milkdown | CodeMirror 6 | Tiptap | 현재 메모 |
+| --- | --- | --- | --- | --- |
+| markdown fidelity | 낮음 | 높음 | 중간 | Milkdown은 보정 코드가 이미 많고, Tiptap은 markdown 변환 계층이 추가로 필요하다. |
+| 외부 md import 단순성 | 낮음 | 높음 | 중간 | CodeMirror는 markdown 문자열을 직접 다루기 쉽다. |
+| publish round-trip 예측 가능성 | 낮음 | 높음 | 중간 | 지금 구조 문제를 가장 덜 꼬이게 가져갈 후보는 CodeMirror다. |
+| 플러그인/리치 UI 확장성 | 중간 | 중간 | 높음 | slash, toolbar, node UI 쪽은 Tiptap이 유리하다. |
+| Obsidian 유사 작성 경험 | 낮음 | 높음 | 중간 | 마크다운을 직접 보면서 쓰는 흐름은 CodeMirror 쪽이 자연스럽다. |
+| 현재 코드 재사용성 | 높음 | 중간 | 낮음 | Milkdown은 유지 비용이 크고, Tiptap은 사실상 다시 짜야 할 가능성이 높다. |
+| 현재 시점 가설 | 보류 | 유력 | 보류 | 최종 결정 전 실제 샘플 round-trip 확인 필요 |
+
 ## 다음 에픽에서 꼭 확인할 것
 
 - 샘플 markdown 문서를 정해서 `import -> edit without change -> publish` 후 diff 비교
@@ -99,3 +143,4 @@
 ## 진행 기록
 
 - 2026-03-26: 트래커 문서를 만들고, 현재 CMS 정리 완료 항목과 에디터 전수조사 출발점을 고정했다.
+- 2026-03-26: import/publish 경로를 코드 기준으로 다시 확인했고, round-trip 재현용 markdown 샘플을 추가했다.
