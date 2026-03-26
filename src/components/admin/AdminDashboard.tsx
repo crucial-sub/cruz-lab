@@ -211,7 +211,7 @@ export default function AdminDashboard({ publishedPosts }: Props) {
                       ? '현재 서버 설정으로 출간을 진행할 수 있습니다.'
                       : '출간 전 확인이 필요한 서버 설정이 있습니다.'}
                   </div>
-                  <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-3">
                     {publishStatus.checks.map((check) => (
                       <div
                         key={check.id}
@@ -221,15 +221,16 @@ export default function AdminDashboard({ publishedPosts }: Props) {
                             : 'border-amber-500/20 bg-amber-500/5'
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                           <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">
                               상태 체크
                             </p>
                             <p className="mt-2 text-base font-semibold text-text-primary">{check.label}</p>
+                            <p className="mt-3 max-w-xl text-sm leading-6 text-text-secondary">{check.detail}</p>
                           </div>
                           <span
-                            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            className={`shrink-0 self-start rounded-full px-2.5 py-1 text-xs font-semibold ${
                               check.ready
                                 ? 'bg-emerald-500/15 text-emerald-500'
                                 : 'bg-amber-500/15 text-amber-500'
@@ -244,7 +245,6 @@ export default function AdminDashboard({ publishedPosts }: Props) {
                                 : '확인 필요'}
                           </span>
                         </div>
-                        <p className="mt-3 text-sm leading-6 text-text-secondary">{check.detail}</p>
                       </div>
                     ))}
                   </div>

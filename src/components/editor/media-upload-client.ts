@@ -14,6 +14,11 @@ const defaultConfig: Required<Omit<ImageUploadConfig, 'onProgress' | 'onError'>>
   quality: 0.85,
 };
 
+interface BucketUploadFailure {
+  bucketName: string;
+  error: unknown;
+}
+
 function generateUniqueFileName(originalName: string): string {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 8);
@@ -136,7 +141,7 @@ export async function uploadImageToFirebase(
     if (storageBucketCandidates.length === 0) {
       throw new Error('Firebase Storage bucket 설정이 없습니다. PUBLIC_FIREBASE_STORAGE_BUCKET 값을 확인해주세요.');
     }
-    let lastError: Error | null = null;
+    let lastFailure: BucketUploadFailure | null = null;
 
     for (let index = 0; index < storageBucketCandidates.length; index += 1) {
       const candidate = storageBucketCandidates[index];
@@ -161,7 +166,7 @@ export async function uploadImageToFirebase(
               onProgress?.(progress, 'uploading', file.name);
             },
             (error) => {
-              reject(normalizeUploadError(error, candidate));
+              reject({ bucketName: candidate, error });
             },
             async () => {
               try {
@@ -169,14 +174,18 @@ export async function uploadImageToFirebase(
                 onProgress?.(100, 'success', file.name);
                 resolve(downloadURL);
               } catch (error) {
-                reject(normalizeUploadError(error, candidate));
+                reject({ bucketName: candidate, error });
               }
             }
           );
         });
       } catch (error) {
-        lastError = normalizeUploadError(error, candidate);
-        const shouldRetry = index < storageBucketCandidates.length - 1 && isRetriableBucketError(error);
+        const failure = isBucketUploadFailure(error)
+          ? error
+          : { bucketName: candidate, error };
+        lastFailure = failure;
+        const shouldRetry =
+          index < storageBucketCandidates.length - 1 && isRetriableBucketError(failure.error);
 
         if (!shouldRetry) {
           break;
@@ -184,13 +193,26 @@ export async function uploadImageToFirebase(
       }
     }
 
-    throw lastError ?? new Error('Firebase Storage 업로드에 실패했습니다.');
+    if (lastFailure) {
+      throw normalizeUploadError(lastFailure.error, lastFailure.bucketName);
+    }
+
+    throw new Error('Firebase Storage 업로드에 실패했습니다.');
   } catch (error) {
     const normalizedError = normalizeUploadError(error);
     onProgress?.(0, 'error', file.name);
     onError?.(normalizedError);
     throw normalizedError;
   }
+}
+
+function isBucketUploadFailure(error: unknown): error is BucketUploadFailure {
+  return Boolean(
+    error &&
+      typeof error === 'object' &&
+      'bucketName' in error &&
+      'error' in error
+  );
 }
 
 function isRetriableBucketError(error: unknown) {
