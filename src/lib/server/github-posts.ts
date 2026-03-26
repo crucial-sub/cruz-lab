@@ -47,6 +47,66 @@ async function githubRequest(path: string, init: RequestInit = {}) {
   });
 }
 
+async function githubApiRequest(path: string, init: RequestInit = {}) {
+  const token = import.meta.env.GITHUB_TOKEN;
+
+  if (!token) {
+    throw new Error('GITHUB_TOKEN이 설정되지 않았습니다.');
+  }
+
+  return fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json',
+      'User-Agent': 'cruz-lab-web-cms',
+      ...(init.headers || {}),
+    },
+  });
+}
+
+async function readGitHubError(response: Response) {
+  try {
+    const payload = (await response.json()) as { message?: string };
+    return payload.message || `${response.status} ${response.statusText}`;
+  } catch {
+    return `${response.status} ${response.statusText}`;
+  }
+}
+
+export async function probeGitHubPublishTarget() {
+  const target = getGitHubPublishTarget();
+
+  if (!import.meta.env.GITHUB_TOKEN) {
+    return {
+      ready: false,
+      detail: 'GITHUB_TOKEN이 없어 GitHub 저장소와 브랜치 접근을 실제로 확인할 수 없습니다.',
+    };
+  }
+
+  const branchResponse = await githubApiRequest(`/branches/${GITHUB_BRANCH}`);
+  if (!branchResponse.ok) {
+    return {
+      ready: false,
+      detail: `GitHub API가 ${target.repository}의 ${target.branch} 브랜치를 확인하지 못했습니다. (${await readGitHubError(branchResponse)})`,
+    };
+  }
+
+  const postsPathResponse = await githubApiRequest(`/contents/${POSTS_PATH}?ref=${GITHUB_BRANCH}`);
+  if (!postsPathResponse.ok) {
+    return {
+      ready: false,
+      detail: `GitHub API가 ${target.postsPath} 경로를 확인하지 못했습니다. (${await readGitHubError(postsPathResponse)})`,
+    };
+  }
+
+  return {
+    ready: true,
+    detail: `GitHub API에서 ${target.repository}의 ${target.branch} 브랜치와 ${target.postsPath} 경로 접근을 확인했습니다.`,
+  };
+}
+
 export async function upsertPostFile({
   fileName,
   content,

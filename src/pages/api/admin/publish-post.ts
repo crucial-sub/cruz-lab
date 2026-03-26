@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { verifyAdminIdToken } from '@/lib/server/admin-auth';
 import { deletePostFile, upsertPostFile } from '@/lib/server/github-posts';
+import { getPublicPostUrl } from '@/lib/server/site-url';
 import { generateMarkdownContent, generateMarkdownFileName } from '@/lib/markdown-publish';
 
 export const prerender = false;
@@ -51,7 +52,7 @@ export const POST: APIRoute = async ({ request }) => {
         : `✨ 새 포스트 발행: ${body.title}`,
     });
 
-    const publicUrl = new URL(`/blog/${body.slug}`, request.url).toString();
+    const publicUrl = getPublicPostUrl(request, body.slug);
 
     return new Response(
       JSON.stringify({

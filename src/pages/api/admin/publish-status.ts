@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { verifyAdminIdToken } from '@/lib/server/admin-auth';
-import { getGitHubPublishTarget } from '@/lib/server/github-posts';
+import { getGitHubPublishTarget, probeGitHubPublishTarget } from '@/lib/server/github-posts';
+import { getPublishSiteInfo } from '@/lib/server/site-url';
 
 export const prerender = false;
 
@@ -23,42 +24,46 @@ export const GET: APIRoute = async ({ request }) => {
     }
 
     const target = getGitHubPublishTarget();
+    const siteInfo = getPublishSiteInfo(request);
+    const gitHubTargetCheck = await probeGitHubPublishTarget();
     const checks = [
       {
-        id: 'github-token',
-        label: 'GitHub 토큰',
-        ready: Boolean(import.meta.env.GITHUB_TOKEN),
-        detail: import.meta.env.GITHUB_TOKEN
-          ? '서버에서 GitHub API 호출에 필요한 토큰을 읽을 수 있습니다.'
-          : 'GITHUB_TOKEN이 없어 markdown 파일을 GitHub에 반영할 수 없습니다.',
+        id: 'admin-session',
+        label: '관리자 세션',
+        kind: 'active' as const,
+        ready: true,
+        detail: `현재 세션은 ${adminUser.email} 계정 기준으로 관리자 인증을 통과했습니다.`,
       },
       {
-        id: 'firebase-api-key',
-        label: 'Firebase 인증 키',
-        ready: Boolean(import.meta.env.PUBLIC_FIREBASE_API_KEY),
-        detail: import.meta.env.PUBLIC_FIREBASE_API_KEY
-          ? '관리자 인증 확인용 Firebase API 키가 설정돼 있습니다.'
-          : 'PUBLIC_FIREBASE_API_KEY가 없어 관리자 인증 확인이 불안정합니다.',
+        id: 'github-target',
+        label: 'GitHub 반영 대상',
+        kind: 'active' as const,
+        ready: gitHubTargetCheck.ready,
+        detail: gitHubTargetCheck.detail,
       },
       {
-        id: 'admin-email',
-        label: '관리자 이메일',
-        ready: Boolean(import.meta.env.PUBLIC_ADMIN_EMAIL),
-        detail: import.meta.env.PUBLIC_ADMIN_EMAIL
-          ? `관리자 계정은 ${import.meta.env.PUBLIC_ADMIN_EMAIL} 기준으로 확인됩니다.`
-          : 'PUBLIC_ADMIN_EMAIL이 없어 관리자 권한 검증 기준이 없습니다.',
+        id: 'public-site',
+        label: '공개 사이트 기준',
+        kind: 'config' as const,
+        ready: Boolean(siteInfo.publicSiteUrl),
+        detail:
+          siteInfo.publicSiteUrl === siteInfo.currentOrigin
+            ? `현재 접속 origin과 공개 사이트 기준이 같습니다. (${siteInfo.publicSiteUrl})`
+            : `현재 접속 origin은 ${siteInfo.currentOrigin}이고, 공개 링크는 ${siteInfo.publicSiteUrl} 기준으로 계산합니다.`,
       },
     ];
 
     return new Response(
       JSON.stringify({
         ready: checks.every((check) => check.ready),
+        verifiedAt: new Date().toISOString(),
         checks,
         target: {
           repository: target.repository,
           branch: target.branch,
           postsPath: target.postsPath,
-          siteUrl: new URL('/', request.url).toString(),
+          siteUrl: siteInfo.publicSiteUrl,
+          currentOrigin: siteInfo.currentOrigin,
         },
       }),
       {

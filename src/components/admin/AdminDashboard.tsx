@@ -226,7 +226,13 @@ export default function AdminDashboard({ publishedPosts }: Props) {
                                 : 'bg-amber-500/10 text-amber-600'
                             }`}
                           >
-                            {check.ready ? '정상' : '확인 필요'}
+                            {check.kind === 'active'
+                              ? check.ready
+                                ? '실시간 확인'
+                                : '실시간 실패'
+                              : check.ready
+                                ? '정상'
+                                : '확인 필요'}
                           </span>
                         </div>
                         <p className="mt-2 text-sm leading-6 text-text-secondary">{check.detail}</p>
@@ -235,15 +241,19 @@ export default function AdminDashboard({ publishedPosts }: Props) {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-border bg-bg p-4">
-                  <p className="text-sm font-semibold text-text-primary">출간 대상</p>
-                  <div className="mt-3 space-y-2 text-sm text-text-secondary">
-                    <p>저장소 · {publishStatus.target.repository}</p>
-                    <p>브랜치 · {publishStatus.target.branch}</p>
-                    <p>포스트 경로 · {publishStatus.target.postsPath}</p>
-                    <p>공개 사이트 · {publishStatus.target.siteUrl}</p>
+                  <div className="rounded-xl border border-border bg-bg p-4">
+                    <p className="text-sm font-semibold text-text-primary">출간 대상</p>
+                    <div className="mt-3 space-y-2 text-sm text-text-secondary">
+                      <p>저장소 · {publishStatus.target.repository}</p>
+                      <p>브랜치 · {publishStatus.target.branch}</p>
+                      <p>포스트 경로 · {publishStatus.target.postsPath}</p>
+                      <p>공개 사이트 · {publishStatus.target.siteUrl}</p>
+                      {publishStatus.target.currentOrigin !== publishStatus.target.siteUrl && (
+                        <p>현재 접속 origin · {publishStatus.target.currentOrigin}</p>
+                      )}
+                      <p>마지막 확인 · {new Date(publishStatus.verifiedAt).toLocaleString('ko-KR')}</p>
+                    </div>
                   </div>
-                </div>
               </div>
             )}
           </div>
