@@ -119,6 +119,10 @@ findings: none
   - `beforeunload` 경고는 실제 변경이 있을 때만 붙는다.
   - 관리자 목록은 focus/storage 이벤트 기준으로 로컬 초안을 다시 읽고, 발행 글에 대응되는 로컬 초안 여부를 보여준다.
   - 이 변경으로 `FullScreenEditor` chunk는 약 `13.27 kB -> 15.22 kB`, `PostList`는 약 `7.92 kB -> 8.50 kB`로 소폭 늘었다.
+- 메타데이터 가시성도 올렸다.
+  - 본문 화면 상단에 `Publish Readiness` 패널을 추가해 slug, 설명, 공개 상태, 예상 읽기 시간, 썸네일 준비 여부를 모달 밖에서 바로 본다.
+  - 설명은 본문에서 자동 채우는 버튼으로 바로 생성할 수 있다.
+  - 이 변경으로 `FullScreenEditor` chunk는 약 `15.22 kB -> 20.32 kB`로 한 번 더 늘었다.
 
 즉, 지금 프로토타입은 완성형은 아니지만 아래 두 가지는 입증했다.
 
@@ -210,4 +214,4 @@ findings: none
 - frontmatter는 지원 범위를 명확히 정한 보수적 파서와 직렬화기로 유지한다.
 - import, draft, publish가 모두 같은 markdown 문서를 기준으로 움직이게 한다.
 - 에디터 교체 후에도 현재 publish 경로와 로컬 draft 경험은 최대한 유지한다.
-- 다음 단계에서는 실제 운영 환경에서 publish 후 GitHub 반영과 사이트 배포 반영까지 검증할지, 아니면 CodeMirror 자체 번들과 남아 있는 `proxy` chunk를 더 줄일지 판단한다.
+- 다음 단계에서는 메타 패널과 출간 모달 사이에 남아 있는 역할 중복을 더 줄일지, 아니면 실제 운영 환경에서 publish 후 GitHub 반영과 사이트 배포 반영까지 검증할지 판단한다.

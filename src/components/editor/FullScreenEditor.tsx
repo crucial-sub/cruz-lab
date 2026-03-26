@@ -20,6 +20,7 @@ import {
   generateMarkdownFileName,
   parseMarkdownDocument,
 } from '@/lib/markdown-publish';
+import { EditorMetaPanel } from './EditorMetaPanel';
 
 const CodeMirrorEditor = lazy(() => import('./CodeMirrorEditor'));
 const PublishModal = lazy(() => import('./PublishModal'));
@@ -599,6 +600,29 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
               className="bg-transparent text-gray-500 placeholder:text-gray-400 focus:outline-none"
             />
           </div>
+
+          <EditorMetaPanel
+            title={title}
+            content={content}
+            slug={slug}
+            setSlug={(value) => {
+              markDirty();
+              setSlug(value);
+            }}
+            description={description}
+            setDescription={(value) => {
+              markDirty();
+              setDescription(value);
+            }}
+            isPublic={isPublic}
+            setIsPublic={(value) => {
+              markDirty();
+              setIsPublic(value);
+            }}
+            tagCount={tags.length}
+            hasHeroImage={Boolean(heroImage)}
+            readingTime={calculateReadingTime(content)}
+          />
         </div>
 
         {/* CodeMirror 에디터 - 992px 중앙 정렬 */}
