@@ -1,6 +1,6 @@
 // 출간 설정 모달
 // 썸네일, 설명, URL, 공개 설정 등
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { getClientAuth } from '@/lib/firebase-auth-client';
 import { getClientStorage } from '@/lib/firebase-storage-client';
 import { generateMarkdownContent } from '@/lib/markdown-publish';
@@ -14,11 +14,8 @@ interface Props {
   heroImage: string;
   setHeroImage: (value: string) => void;
   description: string;
-  setDescription: (value: string) => void;
   slug: string;
-  setSlug: (value: string) => void;
   isPublic: boolean;
-  setIsPublic: (value: boolean) => void;
   pubDate?: string;
   originalSlug?: string;
   onPublished?: (slug: string) => void;
@@ -33,11 +30,8 @@ export default function PublishModal({
   heroImage,
   setHeroImage,
   description,
-  setDescription,
   slug,
-  setSlug,
   isPublic,
-  setIsPublic,
   pubDate = '',
   originalSlug = '',
   onPublished,
@@ -45,20 +39,6 @@ export default function PublishModal({
   const [isUploading, setIsUploading] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // slug 자동 생성 (한글 포함 가능)
-  useEffect(() => {
-    if (!slug && title) {
-      const generatedSlug = title
-        .toLowerCase()
-        .replace(/[^a-z0-9가-힣\s-]/g, '')  // 영문/숫자/한글 허용
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .trim()
-        .substring(0, 50);
-      setSlug(generatedSlug);
-    }
-  }, [title, slug]);
 
   // 썸네일 업로드 (이미지 또는 동영상)
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -138,13 +118,48 @@ export default function PublishModal({
     };
   };
 
+  const payload = buildPayload();
+  const readinessItems = [
+    {
+      id: 'title',
+      label: '제목',
+      value: title || '제목 없음',
+      ready: Boolean(title.trim()),
+    },
+    {
+      id: 'slug',
+      label: 'URL',
+      value: slug ? `/blog/${slug}` : 'slug가 비어 있습니다.',
+      ready: Boolean(slug.trim()),
+    },
+    {
+      id: 'description',
+      label: '설명',
+      value: payload.description || '설명이 비어 있습니다.',
+      ready: Boolean(payload.description.trim()),
+    },
+    {
+      id: 'visibility',
+      label: '공개 상태',
+      value: isPublic ? '전체 공개' : '비공개',
+      ready: true,
+    },
+    {
+      id: 'thumbnail',
+      label: '썸네일',
+      value: heroImage ? '준비됨' : '없음',
+      ready: Boolean(heroImage),
+    },
+  ];
+
+  const publishWarnings = readinessItems.filter((item) => !item.ready);
+
   const handleDownloadMarkdown = () => {
     if (!title || !slug) {
       alert('제목과 URL을 먼저 확인해주세요.');
       return;
     }
 
-    const payload = buildPayload();
     const markdown = generateMarkdownContent(payload);
     const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -273,84 +288,94 @@ export default function PublishModal({
           </div>
         </div>
 
-        {/* 우측: 설정 */}
+        {/* 우측: 최종 확인 */}
         <div className="w-72 space-y-6">
-          {/* 공개 설정 */}
           <div>
             <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
-              공개 설정
+              최종 확인
             </h3>
-            <div className="flex gap-2">
+            <div className="space-y-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/70">
+              {readinessItems.map((item) => (
+                <div key={item.id} className="rounded-xl bg-white/80 px-3 py-3 dark:bg-[#242424]">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">
+                      {item.label}
+                    </span>
+                    <span
+                      className={`text-xs font-medium ${
+                        item.ready ? 'text-emerald-600' : 'text-amber-600'
+                      }`}
+                    >
+                      {item.ready ? '준비됨' : '확인 필요'}
+                    </span>
+                  </div>
+                  <p className="mt-2 break-all text-sm text-gray-700 dark:text-gray-200">
+                    {item.value}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/70">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                  메타데이터 수정
+                </h4>
+                <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                  slug, 설명, 공개 상태는 본문 화면 상단 패널에서 바로 수정할 수 있습니다.
+                </p>
+              </div>
               <button
-                onClick={() => setIsPublic(true)}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 px-4 py-3 font-medium transition-colors ${
-                  isPublic
-                    ? 'border-brand bg-brand/5 text-brand'
-                    : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'
-                }`}
+                type="button"
+                onClick={onClose}
+                className="rounded-xl border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-white dark:border-gray-700 dark:text-gray-300 dark:hover:bg-[#242424]"
               >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                전체 공개
-              </button>
-              <button
-                onClick={() => setIsPublic(false)}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 px-4 py-3 font-medium transition-colors ${
-                  !isPublic
-                    ? 'border-brand bg-brand/5 text-brand'
-                    : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'
-                }`}
-              >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-                비공개
+                다시 수정
               </button>
             </div>
           </div>
 
-          {/* URL 설정 */}
-          <div>
-            <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
-              URL 설정
-            </h3>
-            <div className="flex items-center rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
-              <span className="text-sm text-gray-500">/blog/</span>
-              <input
-                type="text"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9가-힣-]/g, ''))}
-                placeholder="포스트-제목"
-                className="flex-1 bg-transparent text-sm text-gray-900 focus:outline-none dark:text-white"
-              />
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/70">
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+              출간 정보
+            </h4>
+            <div className="mt-3 space-y-2 text-sm text-gray-600 dark:text-gray-300">
+              <p>태그 · {tags.length}개</p>
+              <p>예상 읽기 시간 · {payload.readingTime}분</p>
+              <p>{originalSlug ? '기존 포스트 수정' : '새 포스트 발행'}</p>
             </div>
           </div>
 
-          {/* 설명 */}
-          <div>
-            <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
-              포스트 설명
-            </h3>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value.substring(0, 150))}
-              placeholder="포스트를 짧게 소개해보세요"
-              rows={4}
-              className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-            />
+          {publishWarnings.length > 0 && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              <p className="font-semibold">출간 전 확인이 필요한 항목이 있습니다.</p>
+              <ul className="mt-2 space-y-1">
+                {publishWarnings.map((item) => (
+                  <li key={item.id}>- {item.label}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/70">
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+              로컬 백업
+            </h4>
+            <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+              최종 출간 전에 현재 상태를 markdown 파일로 내려받아 둘 수 있습니다.
+            </p>
+            <button
+              onClick={handleDownloadMarkdown}
+              className="mt-3 w-full rounded-xl border border-gray-200 px-4 py-3 font-medium text-gray-600 hover:bg-white dark:border-gray-700 dark:text-gray-300 dark:hover:bg-[#242424]"
+            >
+              Markdown 내려받기
+            </button>
           </div>
 
           {/* 버튼 */}
           <div className="flex flex-col gap-3 pt-4">
-            <button
-              onClick={handleDownloadMarkdown}
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
-            >
-              Markdown 내려받기
-            </button>
             <div className="flex gap-3">
             <button
               onClick={onClose}

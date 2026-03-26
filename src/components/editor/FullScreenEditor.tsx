@@ -721,25 +721,13 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
             onClose={() => setShowPublishModal(false)}
             calculateReadingTime={calculateReadingTime}
             description={description}
-            setDescription={(value) => {
-              markDirty();
-              setDescription(value);
-            }}
             heroImage={heroImage}
             setHeroImage={(value) => {
               markDirty();
               setHeroImage(value);
             }}
             slug={slug}
-            setSlug={(value) => {
-              markDirty();
-              setSlug(value);
-            }}
             isPublic={isPublic}
-            setIsPublic={(value) => {
-              markDirty();
-              setIsPublic(value);
-            }}
             pubDate={originalPubDate}
             originalSlug={originalSlug}
             onPublished={(publishedSlug) => {
