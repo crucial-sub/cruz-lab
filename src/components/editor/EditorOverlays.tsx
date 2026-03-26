@@ -47,13 +47,16 @@ export function QuickInsertDialog({
   return (
     <div
       className="quick-insert-backdrop"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="quick-insert-title"
     >
+      <button
+        type="button"
+        className="editor-overlay-dismiss"
+        onClick={onClose}
+        aria-label="빠른 삽입 닫기"
+      />
       <div className="quick-insert-panel">
         <div className="quick-insert-header">
           <div>
@@ -109,13 +112,16 @@ export function KeyboardShortcutsDialog({
   return (
     <div
       className="keyboard-shortcuts-backdrop"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="codemirror-shortcuts-title"
     >
+      <button
+        type="button"
+        className="editor-overlay-dismiss"
+        onClick={onClose}
+        aria-label="키보드 단축키 닫기"
+      />
       <div className="keyboard-shortcuts-modal">
         <div className="keyboard-shortcuts-header">
           <h2 id="codemirror-shortcuts-title" className="keyboard-shortcuts-title">

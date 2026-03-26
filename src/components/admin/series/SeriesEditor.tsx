@@ -38,6 +38,11 @@ interface PostItem {
   status: 'published' | 'draft';
 }
 
+const SERIES_NAME_INPUT_ID = 'series-name';
+const SERIES_SLUG_INPUT_ID = 'series-slug';
+const SERIES_DESCRIPTION_INPUT_ID = 'series-description';
+const SERIES_ORDER_INPUT_ID = 'series-order';
+
 export default function SeriesEditor({ seriesId, mode }: Props) {
   // 메타데이터 상태
   const [name, setName] = useState('');
@@ -346,8 +351,9 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
                         <div className="p-6 space-y-5">
                             <div className="grid gap-5 md:grid-cols-2">
                                 <div>
-                                    <label className="mb-2 block text-sm font-semibold text-text-secondary">시리즈 이름</label>
+                                    <label htmlFor={SERIES_NAME_INPUT_ID} className="mb-2 block text-sm font-semibold text-text-secondary">시리즈 이름</label>
                                     <input 
+                                        id={SERIES_NAME_INPUT_ID}
                                         type="text" 
                                         value={name}
                                         onChange={e => setName(e.target.value)}
@@ -356,8 +362,9 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-2 block text-sm font-semibold text-text-secondary">URL 슬러그</label>
+                                    <label htmlFor={SERIES_SLUG_INPUT_ID} className="mb-2 block text-sm font-semibold text-text-secondary">URL 슬러그</label>
                                     <input 
+                                        id={SERIES_SLUG_INPUT_ID}
                                         type="text" 
                                         value={slug}
                                         onChange={e => setSlug(e.target.value)}
@@ -368,8 +375,9 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
                             </div>
 
                             <div>
-                                <label className="mb-2 block text-sm font-semibold text-text-secondary">시리즈 설명</label>
+                                <label htmlFor={SERIES_DESCRIPTION_INPUT_ID} className="mb-2 block text-sm font-semibold text-text-secondary">시리즈 설명</label>
                                 <textarea 
+                                    id={SERIES_DESCRIPTION_INPUT_ID}
                                     value={description}
                                     onChange={e => setDescription(e.target.value)}
                                     rows={4}
@@ -513,9 +521,10 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
                             </div>
 
                             <div className="pt-4 border-t border-border">
-                                <label className="mb-2 block text-sm font-semibold text-text-secondary">정렬 순서</label>
+                                <label htmlFor={SERIES_ORDER_INPUT_ID} className="mb-2 block text-sm font-semibold text-text-secondary">정렬 순서</label>
                                 <div className="relative">
                                     <input 
+                                        id={SERIES_ORDER_INPUT_ID}
                                         type="number" 
                                         value={order}
                                         onChange={e => setOrder(Number(e.target.value))}
@@ -616,9 +625,12 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
                                 />
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
-                                <label className="flex items-center gap-2 cursor-pointer group">
-                                    <div 
-                                        onClick={toggleSelectAll}
+                                <button
+                                    type="button"
+                                    onClick={toggleSelectAll}
+                                    className="flex items-center gap-2 group"
+                                >
+                                    <span 
                                         className={`flex h-5 w-5 items-center justify-center rounded border transition-all ${
                                             selectedInModal.size > 0 && selectedInModal.size === filteredPostsInModal.filter(p => !seriesPosts.find(sp => sp.id === p.id)).length
                                             ? 'bg-brand border-brand text-white' 
@@ -626,9 +638,9 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
                                         }`}
                                     >
                                         {selectedInModal.size > 0 && <Check size={14} strokeWidth={4} />}
-                                    </div>
+                                    </span>
                                     <span className="text-sm font-bold text-text-secondary select-none">전체 선택</span>
-                                </label>
+                                </button>
                             </div>
                         </div>
 
@@ -640,10 +652,12 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
                                     const isSelected = selectedInModal.has(post.id);
                                     
                                     return (
-                                        <div 
+                                        <button
+                                            type="button"
                                             key={post.id} 
+                                            disabled={Boolean(isAlreadyInSeries)}
                                             onClick={() => !isAlreadyInSeries && togglePostSelection(post.id)}
-                                            className={`flex items-center justify-between rounded-xl border p-4 transition-all ${
+                                            className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition-all ${
                                                 isAlreadyInSeries 
                                                 ? 'bg-bg-card/30 border-border opacity-50 cursor-not-allowed' 
                                                 : isSelected
@@ -684,7 +698,7 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
                                                     추가됨
                                                 </div>
                                             )}
-                                        </div>
+                                        </button>
                                     );
                                 })}
                                 

@@ -6,6 +6,8 @@ import { generateMarkdownContent } from '@/lib/markdown-publish';
 import { saveLastPublishFeedback, type PublishFeedback } from '@/lib/publish-feedback';
 import type { PublishStatusPayload } from '@/lib/publish-status';
 
+const MARKDOWN_STRIP_PATTERN = /#|\*|`|>|\[|\]|-/g;
+
 interface Props {
   title: string;
   content: string;
@@ -45,7 +47,7 @@ export default function PublishModal({
       description ||
       content
         .substring(0, 150)
-        .replace(/[#*`>\-\[\]]/g, '')
+        .replace(MARKDOWN_STRIP_PATTERN, '')
         .replace(/\n+/g, ' ')
         .trim();
 

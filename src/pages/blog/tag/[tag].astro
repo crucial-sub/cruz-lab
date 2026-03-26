@@ -1,7 +1,7 @@
 ---
 export const prerender = true;
 
-import { getCollection } from 'astro:content';
+import { getCollection, type CollectionEntry } from 'astro:content';
 import BlogCard from '@/components/islands/BlogCard';
 import FadeInSection from '@/components/islands/FadeInSection';
 import BaseLayout from '@/layouts/BaseLayout.astro';
@@ -24,7 +24,11 @@ export async function getStaticPaths() {
   }));
 }
 
-const { tag, posts, allTags } = Astro.props;
+const { tag, posts, allTags } = Astro.props as {
+  tag: string;
+  posts: CollectionEntry<'blog'>[];
+  allTags: string[];
+};
 
 const title = `${tag} 태그 포스트`;
 const description = `${tag} 태그가 포함된 블로그 포스트 목록`;
@@ -90,7 +94,7 @@ const description = `${tag} 태그가 포함된 블로그 포스트 목록`;
     <FadeInSection client:visible delay={0.2}>
       <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {
-          posts.map((post: any, index: number) => (
+          posts.map((post, index: number) => (
             <BlogCard
               client:visible
               title={post.data.title}

@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 import { UploadProgress } from './UploadProgress';
 import type { UploadStatus } from './upload-types';
 
+const MARKDOWN_STRIP_PATTERN = /#|\*|`|>|\[|\]|-/g;
+
 interface EditorMetaPanelProps {
   title: string;
   content: string;
@@ -94,7 +96,7 @@ export function EditorMetaPanel({
   const readyCount = readinessItems.filter((item) => item.ready).length;
   const autoDescription = content
     .substring(0, 150)
-    .replace(/[#*`>\-\[\]]/g, '')
+    .replace(MARKDOWN_STRIP_PATTERN, '')
     .replace(/\n+/g, ' ')
     .trim();
 

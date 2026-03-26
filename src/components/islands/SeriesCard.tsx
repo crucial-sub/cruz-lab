@@ -23,7 +23,6 @@ interface SeriesCardProps {
 }
 
 export default function SeriesCard({
-  id,
   name,
   slug,
   description,
@@ -94,6 +93,7 @@ export default function SeriesCard({
   return (
     <motion.a
       href={`/series/${slug}`}
+      data-series-id={id}
       ref={cardRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}

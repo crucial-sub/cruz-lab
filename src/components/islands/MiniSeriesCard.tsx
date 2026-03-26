@@ -17,7 +17,6 @@ interface MiniSeriesCardProps {
 }
 
 export default function MiniSeriesCard({
-  id,
   name,
   slug,
   description,
@@ -36,6 +35,7 @@ export default function MiniSeriesCard({
   return (
     <a
       href={`/series/${slug}`}
+      data-series-id={id}
       className="group block rounded-xl border border-border bg-bg-card p-5 transition-all hover:border-brand hover:shadow-lg hover:shadow-brand/10"
     >
       {/* 헤더 */}

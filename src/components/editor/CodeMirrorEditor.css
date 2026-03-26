@@ -177,7 +177,16 @@
   backdrop-filter: blur(6px);
 }
 
+.editor-overlay-dismiss {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: transparent;
+}
+
 .quick-insert-panel {
+  position: relative;
+  z-index: 1;
   width: min(760px, calc(100vw - 2rem));
   max-height: calc(100vh - 3rem);
   overflow: auto;
@@ -298,6 +307,8 @@
 }
 
 .keyboard-shortcuts-modal {
+  position: relative;
+  z-index: 1;
   width: min(520px, calc(100vw - 2rem));
   max-height: calc(100vh - 3rem);
   overflow: auto;

@@ -7,7 +7,19 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 
 const title = 'Blog';
 const description = 'Cruz의 개발 블로그 - 프론트엔드, 시스템 프로그래밍, 학습 기록';
-const posts = (await getPublishedContentPosts()).map(({ content, ...post }) => post);
+const posts = (await getPublishedContentPosts()).map((post) => ({
+  id: post.id,
+  title: post.title,
+  description: post.description,
+  heroImage: post.heroImage,
+  heroVideo: post.heroVideo,
+  tags: post.tags,
+  slug: post.slug,
+  pubDate: post.pubDate,
+  updatedDate: post.updatedDate,
+  readingTime: post.readingTime,
+  isPublic: post.isPublic,
+}));
 const tags = await getAllContentTags();
 ---
 

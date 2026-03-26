@@ -154,7 +154,7 @@ findings: none
   - 즉 브라우저 관리자 로그인 전에 “지금 출간 흐름이 운영 기준으로 준비됐는가”를 CLI에서도 다시 확인할 수 있다.
 - 현재 저장소 수준의 기술 선택 흔적도 더 정리됐다.
   - `Milkdown`, `Tiptap`, `Prism` 계열 패키지는 제거했고, lockfile도 현재 `CodeMirror` 운영 경로 기준으로 줄였다.
-  - lint는 `globals` 추가와 `.vercel` ignore 반영으로 다시 실행 가능한 상태가 됐다.
+  - lint는 `globals` 추가와 `.vercel` ignore 반영으로 다시 실행 가능한 상태를 넘어서, 앱 코드 이슈 정리까지 마치고 다시 통과한다.
   - `astro.config.mjs`의 오래된 Milkdown optimizeDeps include도 제거해서 dependency cleanup 이후 build 경고를 더 줄였다.
 
 즉, 지금 프로토타입은 완성형은 아니지만 아래 두 가지는 입증했다.

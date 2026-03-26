@@ -70,7 +70,7 @@ export default function InteractiveHero({
               👋
             </motion.span>
             ,<br />
-            I'm <span className="text-brand">{name}</span>
+            I&apos;m <span className="text-brand">{name}</span>
           </motion.h1>
 
           <motion.div
