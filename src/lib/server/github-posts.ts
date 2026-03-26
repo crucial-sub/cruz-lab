@@ -135,6 +135,28 @@ export async function probeGitHubPublishTarget() {
   };
 }
 
+export async function probeGitHubPostFile(filePath?: string) {
+  if (!filePath) {
+    return {
+      ready: false,
+      detail: '출간 응답에 GitHub 파일 경로가 없어 다시 확인할 수 없습니다.',
+    };
+  }
+
+  const response = await githubRequest(filePath);
+  if (!response.ok) {
+    return {
+      ready: false,
+      detail: `GitHub 파일 확인 실패: ${await readGitHubError(response)}`,
+    };
+  }
+
+  return {
+    ready: true,
+    detail: `${filePath} 파일이 GitHub 저장소에 존재합니다.`,
+  };
+}
+
 export async function upsertPostFile({
   fileName,
   content,

@@ -45,3 +45,20 @@ export async function probePublicSiteUrl(publicSiteUrl: string) {
     };
   }
 }
+
+export async function probePublicUrl(publicUrl: string) {
+  try {
+    const response = await fetch(publicUrl, { redirect: 'follow' });
+    return {
+      ready: response.ok,
+      detail: response.ok
+        ? `공개 페이지 응답 확인: ${response.status} ${response.statusText}`
+        : `공개 페이지 응답 실패: ${response.status} ${response.statusText}`,
+    };
+  } catch (error) {
+    return {
+      ready: false,
+      detail: `공개 페이지 확인 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
+    };
+  }
+}

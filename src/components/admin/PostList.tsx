@@ -6,6 +6,7 @@ import {
   readLastPublishFeedback,
   type PublishFeedback,
 } from '@/lib/publish-feedback';
+import type { PublishVerificationPayload } from '@/lib/publish-verification';
 import AdminGuard from './AdminGuard';
 import AdminLayout from './AdminLayout';
 
@@ -63,6 +64,9 @@ export default function PostList({ initialPosts }: Props) {
   const [deleteConfirm, setDeleteConfirm] = useState<Post | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [lastPublishFeedback, setLastPublishFeedback] = useState<PublishFeedback | null>(null);
+  const [publishVerification, setPublishVerification] = useState<PublishVerificationPayload | null>(null);
+  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -96,6 +100,45 @@ export default function PostList({ initialPosts }: Props) {
     if (!feedback) return;
     setLastPublishFeedback(feedback);
   }, []);
+
+  const verifyLastPublish = async (feedback: PublishFeedback) => {
+    try {
+      setVerificationLoading(true);
+      setVerificationError(null);
+
+      const token = await getClientAuth().currentUser?.getIdToken();
+      if (!token) {
+        throw new Error('로그인 정보를 확인할 수 없습니다.');
+      }
+
+      const response = await fetch('/api/admin/publish-verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          slug: feedback.slug,
+          filePath: feedback.filePath,
+          publicUrl: feedback.publicUrl,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || '출간 반영 검증에 실패했습니다.');
+      }
+
+      setPublishVerification(result);
+    } catch (error) {
+      setVerificationError(
+        error instanceof Error ? error.message : '출간 반영 검증에 실패했습니다.'
+      );
+    } finally {
+      setVerificationLoading(false);
+    }
+  };
 
   const draftSlugSet = useMemo(
     () => new Set(draftPosts.map((post) => post.slug).filter(Boolean)),
@@ -239,6 +282,14 @@ export default function PostList({ initialPosts }: Props) {
                           최신 커밋 보기
                         </a>
                       )}
+                      <button
+                        type="button"
+                        onClick={() => verifyLastPublish(lastPublishFeedback)}
+                        disabled={verificationLoading}
+                        className="rounded-xl border border-emerald-200 px-4 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-50 disabled:opacity-60"
+                      >
+                        {verificationLoading ? '반영 확인 중...' : '반영 다시 확인'}
+                      </button>
                     </div>
                   </div>
 
@@ -274,6 +325,52 @@ export default function PostList({ initialPosts }: Props) {
                   </ol>
                 </div>
               </div>
+
+              {(publishVerification || verificationError) && (
+                <div className="mt-4 rounded-2xl border border-emerald-200 bg-white/80 p-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                        출간 반영 재검증
+                      </p>
+                      <p className="mt-1 text-sm text-emerald-950">
+                        {verificationError
+                          ? verificationError
+                          : publishVerification?.ready
+                            ? 'GitHub 파일과 공개 페이지 응답이 모두 확인됐습니다.'
+                            : '일부 반영 상태를 다시 확인해야 합니다.'}
+                      </p>
+                    </div>
+                    {publishVerification && (
+                      <p className="text-xs text-emerald-800/70">
+                        마지막 확인 · {new Date(publishVerification.verifiedAt).toLocaleString('ko-KR')}
+                      </p>
+                    )}
+                  </div>
+
+                  {publishVerification && (
+                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                      {publishVerification.checks.map((check) => (
+                        <div key={check.id} className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-semibold text-emerald-950">{check.label}</p>
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                                check.ready
+                                  ? 'bg-emerald-500/10 text-emerald-700'
+                                  : 'bg-amber-500/10 text-amber-700'
+                              }`}
+                            >
+                              {check.ready ? '정상' : '확인 필요'}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-sm leading-6 text-emerald-900/80">{check.detail}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
