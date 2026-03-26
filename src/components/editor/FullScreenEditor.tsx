@@ -101,20 +101,19 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
     if (mode === 'edit') {
       const urlParams = new URLSearchParams(window.location.search);
       const targetSlug = urlParams.get('slug');
-      const legacyPostId = urlParams.get('id') || initialPostId;
 
       if (targetSlug) {
         loadMarkdownPost(targetSlug);
         return;
       }
 
-      if (!legacyPostId) {
+      if (!initialPostId) {
         setLoadError('포스트 slug가 없습니다.');
         setIsLoading(false);
         return;
       }
 
-      loadLegacyPost(legacyPostId);
+      loadMarkdownPost(initialPostId);
       return;
     }
 
@@ -193,39 +192,6 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
   };
 
   // 레거시 Firestore 문서 로드
-  const loadLegacyPost = async (id: string) => {
-    try {
-      const { getClientDb } = await import('@/lib/firebase-firestore-client');
-      const { doc, getDoc } = await import('firebase/firestore');
-      const docRef = doc(getClientDb(), 'posts', id);
-      const docSnap = await getDoc(docRef);
-
-      if (!docSnap.exists()) {
-        setLoadError('포스트를 찾을 수 없습니다.');
-        return;
-      }
-
-      const data = docSnap.data();
-      setTitle(data.title || '');
-      setContent(data.content || '');
-      setTags(data.tags || []);
-      setHeroImage(data.heroImage || '');
-      setDescription(data.description || '');
-      setSlug(data.slug || '');
-      setIsPublic(data.isPublic ?? true);
-      setOriginalSlug(data.slug || '');
-      setOriginalPubDate(data.pubDate?.toDate?.()?.toISOString?.() || new Date().toISOString());
-      setHasUserChanges(false);
-      setEditorKey((prev) => prev + 1);
-      tryLoadDraft(data.slug || undefined, getDraftKey(data.slug || undefined));
-    } catch (err) {
-      console.error('포스트 로딩 오류:', err);
-      setLoadError('포스트를 불러오는데 실패했습니다.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // 마크다운 변경 핸들러
   const handleContentChange = useCallback((markdown: string) => {
     setHasUserChanges(true);

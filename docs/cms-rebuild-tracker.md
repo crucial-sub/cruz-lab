@@ -33,6 +33,8 @@
 - `done` 관리자 인증 훅을 auth 전용 Firebase 경로로 분리해 `AdminGuard` chunk를 줄였다.
 - `done` Firebase 클라이언트 경로를 auth, storage, firestore 서비스별로 분리했다.
 - `done` 업로드 경로에서 `firebase/storage`와 `browser-image-compression`을 실제 사용 시점에만 읽도록 바꿨다.
+- `done` 시리즈 관리 화면을 클라이언트 Firestore 직접 접근에서 서버 API 기반으로 전환했다.
+- `done` 포스트 편집 화면의 레거시 Firestore `?id=` fallback을 제거했다.
 
 ## 반드시 더 해야 하는 것
 
@@ -67,7 +69,9 @@
   - `AdminGuard`를 auth 전용 경로로 분리해 chunk를 약 `507 kB -> 162 kB`로 축소
   - `firebase` shared chunk를 auth, storage, firestore 경로로 분리
   - `browser-image-compression`과 `firebase/storage`는 업로드 시점까지 미룸
-  - 남은 최적화는 Firestore 런타임 chunk와 legacy Firestore 편집 fallback을 더 줄이는 쪽
+  - 시리즈 관리 화면은 `/api/admin/series` 기준으로 동작
+  - 포스트 편집 화면은 markdown slug 기준 경로만 유지
+  - 남은 최적화는 CodeMirror 번들과 기타 공용 client chunk를 더 줄이는 쪽
 - `next` 에픽 5. 실제 포스팅 플로우 검증
   - 외부 md 불러오기
   - 브라우저 편집
@@ -100,7 +104,8 @@
 - 외부 markdown import는 `FullScreenEditor`에서 `parseMarkdownDocument()`로 frontmatter를 먼저 읽고, 본문 markdown 문자열을 현재 에디터 상태에 채우는 구조다.
 - publish는 `generateMarkdownContent()`가 frontmatter를 새로 생성하는 방식이라, import된 원본 frontmatter 표현을 그대로 보존하지 않는다.
 - 현재 운영 경로에서 Firebase 접근은 `auth / storage / firestore` 서비스별 모듈로 분리됐다.
-- 다만 시리즈 관리와 레거시 Firestore post 로딩 때문에 Firestore 런타임 의존은 여전히 남아 있다.
+- 시리즈 관리 CRUD는 이제 서버 API 경유로 처리한다.
+- 포스트 편집 화면의 레거시 Firestore post 로딩 fallback은 제거됐다.
 
 ### 코드 기준으로 확인된 구체적 한계
 
@@ -177,3 +182,4 @@
 - 2026-03-26: `@codemirror/language-data` 전체 import를 제거한 뒤 `EditorPage` chunk가 약 `643 kB`로 줄어든 것을 확인했다.
 - 2026-03-26: `EditorPage`, `FullScreenEditor`, `PublishModal`을 lazy loading으로 분리했고, `AdminGuard`는 auth 전용 Firebase 경로로 분리해 admin 초기 진입 chunk를 더 줄였다.
 - 2026-03-26: Firebase 접근을 auth, storage, firestore 서비스별로 분리했고, 업로드 경로는 `firebase/storage`와 `browser-image-compression`을 실제 사용 시점에만 읽도록 바꿨다.
+- 2026-03-26: 시리즈 관리 화면을 `/api/admin/series` 서버 API 기반으로 전환했고, 포스트 편집의 레거시 Firestore `?id=` fallback도 제거했다.

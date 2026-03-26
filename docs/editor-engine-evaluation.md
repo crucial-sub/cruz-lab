@@ -94,10 +94,11 @@ findings:
 - `useAdminAuth`가 `auth` 전용 초기화 경로를 쓰게 바뀌면서 `AdminGuard` chunk는 약 `507 kB -> 162 kB`로 내려갔다.
 - 이후 `auth / storage / firestore` 경로를 서비스별 모듈로 분리하고, 업로드 시점에만 `firebase/storage`, `browser-image-compression`을 읽도록 바꿨다.
   - 기존 `firebase` shared chunk 약 `345 kB`는 더 이상 한 덩어리로 남지 않는다.
-  - 대신 `firebase-storage-client` 약 `45.3 kB`, Firestore 런타임 chunk 약 `300.2 kB`로 나뉜다.
+  - `firebase-storage-client`는 약 `45.3 kB`다.
   - `PublishModal`은 약 `8.9 kB`로 유지되고, 썸네일 업로드를 눌렀을 때만 storage/compression 의존을 읽는다.
-  - `SeriesEditor`도 이미지 업로드와 Firestore 저장 함수를 필요한 시점에 늦게 읽는다.
-- 남은 큰 의존은 Firestore 런타임 chunk다. 이건 시리즈 관리와 레거시 Firestore post 로딩 경로 때문에 남아 있다.
+  - `SeriesEditor`와 `SeriesList`는 Firestore를 직접 읽지 않고 `/api/admin/series`를 통해 서버 API로 동작한다.
+  - `FullScreenEditor`의 레거시 `?id=` Firestore 편집 fallback도 제거했다.
+- 그 결과, 이번 빌드 기준으로 클라이언트 쪽 큰 Firestore 런타임 chunk는 더 이상 보이지 않는다.
 
 즉, 지금 프로토타입은 완성형은 아니지만 아래 두 가지는 입증했다.
 
@@ -189,4 +190,4 @@ findings:
 - frontmatter도 가능한 한 표준 YAML 파서를 써서 읽는다.
 - import, draft, publish가 모두 같은 markdown 문서를 기준으로 움직이게 한다.
 - 에디터 교체 후에도 현재 publish 경로와 로컬 draft 경험은 최대한 유지한다.
-- 다음 단계에서는 Firestore 런타임 의존을 더 좁히고, 레거시 Firestore post 편집 fallback을 없앨 수 있는지 검토한다.
+- 다음 단계에서는 CodeMirror 자체 번들과 남아 있는 `proxy` chunk를 더 줄일 수 있는지 검토한다.

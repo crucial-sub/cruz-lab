@@ -1,6 +1,6 @@
 // 시리즈 목록 관리 컴포넌트
 import { useState, useEffect } from 'react';
-import { getClientDb } from '@/lib/firebase-firestore-client';
+import { getClientAuth } from '@/lib/firebase-auth-client';
 import AdminGuard from '../AdminGuard';
 import AdminLayout from '../AdminLayout';
 import type { Series } from '@/lib/series';
@@ -15,28 +15,26 @@ export default function SeriesList() {
   useEffect(() => {
     async function fetchSeries() {
       try {
-        const { collection, query, orderBy, getDocs } = await import('firebase/firestore');
-        const db = getClientDb();
-        const seriesRef = collection(db, 'series');
-        const q = query(seriesRef, orderBy('order', 'asc'));
-        const snapshot = await getDocs(q);
+        const idToken = await getClientAuth().currentUser?.getIdToken();
+        if (!idToken) {
+          throw new Error('관리자 로그인 정보를 확인할 수 없습니다.');
+        }
 
-        const seriesData = snapshot.docs.map((doc) => {
-            const data = doc.data();
-            return {
-                id: doc.id,
-                name: data.name || '',
-                slug: data.slug || doc.id,
-                description: data.description || '',
-                coverImage: data.coverImage || undefined,
-                postIds: data.postIds || [],
-                postCount: data.postCount || 0,
-                createdAt: data.createdAt?.toDate() || new Date(),
-                updatedAt: data.updatedAt?.toDate() || new Date(),
-                isPublic: data.isPublic ?? false,
-                order: data.order ?? 999,
-            };
+        const response = await fetch('/api/admin/series', {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
         });
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.message || '시리즈 목록을 불러오지 못했습니다.');
+        }
+
+        const seriesData = (result.series || []).map((series: Series & { createdAt: string; updatedAt: string }) => ({
+          ...series,
+          createdAt: new Date(series.createdAt),
+          updatedAt: new Date(series.updatedAt),
+        })) as Series[];
 
         setSeriesList(seriesData);
       } catch (error) {
@@ -53,9 +51,21 @@ export default function SeriesList() {
   const handleDelete = async (seriesId: string) => {
     setIsDeleting(true);
     try {
-      const { deleteDoc, doc } = await import('firebase/firestore');
-      const db = getClientDb();
-      await deleteDoc(doc(db, 'series', seriesId));
+      const idToken = await getClientAuth().currentUser?.getIdToken();
+      if (!idToken) {
+        throw new Error('관리자 로그인 정보를 확인할 수 없습니다.');
+      }
+
+      const response = await fetch(`/api/admin/series?id=${encodeURIComponent(seriesId)}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || '시리즈 삭제에 실패했습니다.');
+      }
 
       setSeriesList(seriesList.filter((s) => s.id !== seriesId));
       setDeleteConfirm(null);

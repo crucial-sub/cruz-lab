@@ -1,7 +1,6 @@
 // 시리즈 에디터 컴포넌트
 import { useState, useEffect, useMemo } from 'react';
 import { getClientAuth } from '@/lib/firebase-auth-client';
-import { getClientDb } from '@/lib/firebase-firestore-client';
 import { getClientStorage } from '@/lib/firebase-storage-client';
 import AdminGuard from '../AdminGuard';
 import AdminLayout from '../AdminLayout';
@@ -94,13 +93,20 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
 
         // 2. 수정 모드일 경우 시리즈 데이터 로딩
         if (mode === 'edit' && seriesId) {
-          const { doc, getDoc } = await import('firebase/firestore');
-          const db = getClientDb();
-          const seriesRef = doc(db, 'series', seriesId);
-          const seriesSnap = await getDoc(seriesRef);
-          
-          if (seriesSnap.exists()) {
-            const data = seriesSnap.data();
+          const seriesResponse = await fetch(`/api/admin/series?id=${encodeURIComponent(seriesId)}`, {
+            headers: {
+              Authorization: `Bearer ${idToken}`,
+            },
+          });
+          const seriesResult = await seriesResponse.json();
+
+          if (!seriesResponse.ok) {
+            throw new Error(seriesResult.message || '시리즈를 불러오지 못했습니다.');
+          }
+
+          const data = seriesResult.series;
+
+          if (data) {
             setName(data.name || '');
             setSlug(data.slug || '');
             setDescription(data.description || '');
@@ -246,9 +252,8 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
 
     setIsSaving(true);
     try {
-        const { Timestamp, addDoc, collection, doc, updateDoc } = await import('firebase/firestore');
-        const db = getClientDb();
         const seriesData = {
+            id: mode === 'edit' ? seriesId : undefined,
             name,
             slug,
             description,
@@ -256,19 +261,27 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
             isPublic,
             order: Number(order),
             postIds: seriesPosts.map(p => p.slug),
-            postCount: seriesPosts.length,
-            updatedAt: Timestamp.now(),
         };
 
-        if (mode === 'create') {
-            await addDoc(collection(db, 'series'), {
-                ...seriesData,
-                createdAt: Timestamp.now()
-            });
-        } else if (seriesId) {
-             const seriesRef = doc(db, 'series', seriesId);
-             await updateDoc(seriesRef, seriesData);
+        const idToken = await getClientAuth().currentUser?.getIdToken();
+        if (!idToken) {
+            throw new Error('관리자 로그인 정보를 확인할 수 없습니다.');
         }
+
+        const response = await fetch('/api/admin/series', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${idToken}`,
+            },
+            body: JSON.stringify(seriesData),
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.message || '시리즈 저장에 실패했습니다.');
+        }
+
         window.location.href = '/admin/series';
 
     } catch (err) {
