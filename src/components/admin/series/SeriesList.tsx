@@ -1,6 +1,6 @@
 // 시리즈 목록 관리 컴포넌트
 import { useState, useEffect } from 'react';
-import { getClientAuth } from '@/lib/firebase-auth-client';
+import { getClientAdminIdToken } from '@/lib/firebase-auth-client';
 import AdminGuard from '../AdminGuard';
 import AdminLayout from '../AdminLayout';
 import type { Series } from '@/lib/series';
@@ -15,10 +15,7 @@ export default function SeriesList() {
   useEffect(() => {
     async function fetchSeries() {
       try {
-        const idToken = await getClientAuth().currentUser?.getIdToken();
-        if (!idToken) {
-          throw new Error('관리자 로그인 정보를 확인할 수 없습니다.');
-        }
+        const idToken = await getClientAdminIdToken();
 
         const response = await fetch('/api/admin/series', {
           headers: {
@@ -51,10 +48,7 @@ export default function SeriesList() {
   const handleDelete = async (seriesId: string) => {
     setIsDeleting(true);
     try {
-      const idToken = await getClientAuth().currentUser?.getIdToken();
-      if (!idToken) {
-        throw new Error('관리자 로그인 정보를 확인할 수 없습니다.');
-      }
+      const idToken = await getClientAdminIdToken();
 
       const response = await fetch(`/api/admin/series?id=${encodeURIComponent(seriesId)}`, {
         method: 'DELETE',

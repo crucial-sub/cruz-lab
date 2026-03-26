@@ -154,10 +154,15 @@ findings: none
   - 즉 브라우저 관리자 로그인 전에 “지금 출간 흐름이 운영 기준으로 준비됐는가”를 CLI에서도 다시 확인할 수 있다.
   - 브라우저 관리자 세션에 들어간 뒤에도, 마지막 출간 배너에서 GitHub 파일 존재 여부와 공개 페이지 응답을 다시 확인할 수 있게 됐다.
   - 이제 `npm run publish:verify -- --slug ...`로 특정 포스트의 GitHub 파일/공개 페이지 응답을 CLI에서 다시 확인할 수도 있다.
-- 현재 저장소 수준의 기술 선택 흔적도 더 정리됐다.
+  - 현재 저장소 수준의 기술 선택 흔적도 더 정리됐다.
   - `Milkdown`, `Tiptap`, `Prism` 계열 패키지는 제거했고, lockfile도 현재 `CodeMirror` 운영 경로 기준으로 줄였다.
   - lint는 `globals` 추가와 `.vercel` ignore 반영으로 다시 실행 가능한 상태를 넘어서, 앱 코드 이슈 정리까지 마치고 다시 통과한다.
   - `astro.config.mjs`의 오래된 Milkdown optimizeDeps include도 제거해서 dependency cleanup 이후 build 경고를 더 줄였다.
+- 로컬 관리자 실사용 기준 안정화도 한 번 더 진행했다.
+  - dashboard, 출간 모달, 시리즈 관리, 포스트 목록은 `currentUser`를 바로 읽는 대신 공통 auth helper로 토큰을 기다려 가져온다.
+  - 썸네일 업로드는 Storage bucket 미설정과 로그인 상태 문제를 더 분명한 메시지로 알려준다.
+  - `FullScreenEditor`는 메타 패널과 에디터를 같은 세로 공간에 억지로 우겨넣지 않고, 본문 화면 자체가 자연스럽게 스크롤되도록 레이아웃을 다시 잡았다.
+  - 출간 모달은 backdrop 닫기, ESC 닫기, 내부 스크롤, responsive column 구조를 갖춰 로컬 뷰포트에서 버튼이 가려지지 않게 했다.
 
 즉, 지금 프로토타입은 완성형은 아니지만 아래 두 가지는 입증했다.
 

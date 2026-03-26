@@ -44,11 +44,13 @@ function EditorSurfaceFallback() {
 
 function PublishModalFallback() {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="flex w-full max-w-xl items-center justify-center rounded-2xl bg-white p-10">
-        <div className="flex flex-col items-center gap-3 text-gray-500">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand border-t-transparent" />
-          <p className="text-sm">출간 설정 불러오는 중...</p>
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4">
+      <div className="flex min-h-full items-center justify-center">
+        <div className="flex w-full max-w-xl items-center justify-center rounded-2xl bg-white p-10">
+          <div className="flex flex-col items-center gap-3 text-gray-500">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand border-t-transparent" />
+            <p className="text-sm">출간 설정 불러오는 중...</p>
+          </div>
         </div>
       </div>
     </div>
@@ -554,9 +556,8 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
       />
 
       {/* 에디터 컨텐츠 영역 - 배경은 전체 너비, 콘텐츠는 992px 중앙 정렬 */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* 콘텐츠 컨테이너 - Readable Line Length (992px, Obsidian 스타일) */}
-        <div className="mx-auto w-full max-w-[992px] px-8 pt-8">
+      <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-[992px] px-4 pb-6 pt-6 sm:px-6 lg:px-8">
           {/* 제목 */}
           <input
             type="text"
@@ -628,11 +629,8 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
             }}
             readingTime={calculateReadingTime(content)}
           />
-        </div>
 
-        {/* CodeMirror 에디터 - 992px 중앙 정렬 */}
-        <div className="flex-1 overflow-auto px-8 py-2">
-          <div className="mx-auto w-full max-w-[992px]">
+          <div className="mt-6 min-h-[55vh]">
             <Suspense fallback={<EditorSurfaceFallback />}>
               <CodeMirrorEditor
                 key={editorKey}
@@ -643,7 +641,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
                 enableImageUpload={true}
                 onUploadError={handleUploadError}
                 onSave={handleSaveDraft}
-                className="h-full w-full"
+                className="h-full min-h-[55vh] w-full"
               />
             </Suspense>
           </div>

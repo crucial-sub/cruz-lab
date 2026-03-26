@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getStoredEditorDrafts, isCreateModeDraftKey } from '@/lib/editor-drafts';
-import { getClientAuth } from '@/lib/firebase-auth-client';
+import { getClientAdminIdToken } from '@/lib/firebase-auth-client';
 import {
   clearLastPublishFeedback,
   readLastPublishFeedback,
@@ -106,10 +106,7 @@ export default function PostList({ initialPosts }: Props) {
       setVerificationLoading(true);
       setVerificationError(null);
 
-      const token = await getClientAuth().currentUser?.getIdToken();
-      if (!token) {
-        throw new Error('로그인 정보를 확인할 수 없습니다.');
-      }
+      const token = await getClientAdminIdToken();
 
       const response = await fetch('/api/admin/publish-verify', {
         method: 'POST',
@@ -186,10 +183,7 @@ export default function PostList({ initialPosts }: Props) {
         return;
       }
 
-      const token = await getClientAuth().currentUser?.getIdToken();
-      if (!token) {
-        throw new Error('로그인 정보를 확인할 수 없습니다.');
-      }
+      const token = await getClientAdminIdToken();
 
       const response = await fetch('/api/admin/delete-post', {
         method: 'POST',

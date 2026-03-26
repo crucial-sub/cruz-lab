@@ -1,5 +1,5 @@
 import type { UploadTaskSnapshot } from 'firebase/storage';
-import { getClientAuth } from '@/lib/firebase-auth-client';
+import { waitForClientAuthUser } from '@/lib/firebase-auth-client';
 import { getClientStorage } from '@/lib/firebase-storage-client';
 import type { ImageUploadConfig } from './upload-types';
 
@@ -103,19 +103,6 @@ export async function uploadImageToFirebase(
   file: File,
   config: ImageUploadConfig = {}
 ): Promise<string> {
-  const currentUser = getClientAuth().currentUser;
-  if (!currentUser) {
-    const error = new Error('이미지를 업로드하려면 로그인이 필요합니다.');
-    config.onError?.(error);
-    throw error;
-  }
-
-  try {
-    await currentUser.getIdToken(true);
-  } catch (tokenError) {
-    console.error('토큰 갱신 실패:', tokenError);
-  }
-
   const mergedConfig = { ...defaultConfig, ...config };
   const { maxFileSize, allowedTypes, storagePath, maxWidth, maxHeight, quality, onProgress, onError } =
     mergedConfig;
@@ -134,6 +121,9 @@ export async function uploadImageToFirebase(
   }
 
   try {
+    const currentUser = await waitForClientAuthUser({ requireAdmin: true });
+    await currentUser.getIdToken(true);
+
     onProgress?.(0, 'uploading', file.name);
 
     const isVideo = VIDEO_MIME_TYPES.includes(file.type);
@@ -143,6 +133,10 @@ export async function uploadImageToFirebase(
 
     const { ref, uploadBytesResumable, getDownloadURL } = await import('firebase/storage');
     const storage = getClientStorage();
+    const bucket = storage.app.options.storageBucket;
+    if (!bucket) {
+      throw new Error('Firebase Storage bucket 설정이 없습니다. PUBLIC_FIREBASE_STORAGE_BUCKET 값을 확인해주세요.');
+    }
     const storageRef = ref(storage, filePath);
 
     const uploadTask = uploadBytesResumable(storageRef, uploadBlob, {
@@ -161,9 +155,10 @@ export async function uploadImageToFirebase(
           onProgress?.(progress, 'uploading', file.name);
         },
         (error) => {
+          const normalizedError = normalizeUploadError(error);
           onProgress?.(0, 'error', file.name);
-          onError?.(error);
-          reject(error);
+          onError?.(normalizedError);
+          reject(normalizedError);
         },
         async () => {
           try {
@@ -171,16 +166,36 @@ export async function uploadImageToFirebase(
             onProgress?.(100, 'success', file.name);
             resolve(downloadURL);
           } catch (error) {
+            const normalizedError = normalizeUploadError(error);
             onProgress?.(0, 'error', file.name);
-            onError?.(error as Error);
-            reject(error);
+            onError?.(normalizedError);
+            reject(normalizedError);
           }
         }
       );
     });
   } catch (error) {
+    const normalizedError = normalizeUploadError(error);
     onProgress?.(0, 'error', file.name);
-    onError?.(error as Error);
-    throw error;
+    onError?.(normalizedError);
+    throw normalizedError;
+  }
+}
+
+function normalizeUploadError(error: unknown) {
+  const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
+  const message = error instanceof Error ? error.message : '업로드 중 알 수 없는 오류가 발생했습니다.';
+
+  switch (code) {
+    case 'storage/unauthorized':
+      return new Error('현재 로그인으로는 파일 업로드 권한이 없습니다. 관리자 로그인 상태를 다시 확인해주세요.');
+    case 'storage/canceled':
+      return new Error('파일 업로드가 취소됐습니다.');
+    case 'storage/retry-limit-exceeded':
+      return new Error('업로드 시간이 초과됐습니다. 잠시 후 다시 시도해주세요.');
+    case 'storage/unknown':
+      return new Error('Firebase Storage 업로드에 실패했습니다. 로그인 상태와 Storage bucket 설정을 먼저 확인해주세요.');
+    default:
+      return error instanceof Error ? error : new Error(message);
   }
 }

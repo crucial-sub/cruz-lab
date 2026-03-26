@@ -1,7 +1,7 @@
 // 출간 설정 모달
 // 최종 확인, 로컬 백업, 출간 액션
 import { useEffect, useState } from 'react';
-import { getClientAuth } from '@/lib/firebase-auth-client';
+import { getClientAdminIdToken } from '@/lib/firebase-auth-client';
 import { generateMarkdownContent } from '@/lib/markdown-publish';
 import { saveLastPublishFeedback, type PublishFeedback } from '@/lib/publish-feedback';
 import type { PublishStatusPayload } from '@/lib/publish-status';
@@ -111,10 +111,7 @@ export default function PublishModal({
         setStatusLoading(true);
         setStatusError(null);
 
-        const idToken = await getClientAuth().currentUser?.getIdToken();
-        if (!idToken) {
-          throw new Error('관리자 인증 정보를 확인할 수 없습니다.');
-        }
+        const idToken = await getClientAdminIdToken();
 
         const response = await fetch('/api/admin/publish-status', {
           headers: {
@@ -145,6 +142,17 @@ export default function PublishModal({
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !isPublishing) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isPublishing, onClose]);
 
   const isPublishBlocked = Boolean(statusError) || (publishStatus ? !publishStatus.ready : statusLoading);
 
@@ -177,10 +185,7 @@ export default function PublishModal({
 
     setIsPublishing(true);
     try {
-      const idToken = await getClientAuth().currentUser?.getIdToken();
-      if (!idToken) {
-        throw new Error('관리자 인증 정보를 확인할 수 없습니다.');
-      }
+      const idToken = await getClientAdminIdToken();
 
       const response = await fetch('/api/admin/publish-post', {
         method: 'POST',
@@ -222,14 +227,31 @@ export default function PublishModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="flex w-full max-w-4xl gap-8 rounded-2xl bg-white p-8 dark:bg-[#1e1e1e]">
-        {/* 좌측: 미리보기 */}
-        <div className="flex-1">
-          <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-            포스트 미리보기
-          </h3>
-          <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4">
+      <button
+        type="button"
+        aria-label="출간 모달 닫기"
+        disabled={isPublishing}
+        onClick={onClose}
+        className="absolute inset-0 h-full w-full cursor-default disabled:cursor-not-allowed"
+      />
+      <div className="relative z-10 flex min-h-full items-center justify-center">
+        <div className="relative my-6 flex w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-[#1e1e1e] xl:max-h-[calc(100vh-3rem)] xl:flex-row">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isPublishing}
+            className="absolute right-4 top-4 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white/90 text-gray-500 shadow-sm transition hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:bg-[#242424]/90 dark:text-gray-300 dark:hover:text-white"
+            aria-label="출간 모달 닫기"
+          >
+            ×
+          </button>
+
+          <div className="min-h-0 flex-1 overflow-y-auto p-6 sm:p-8">
+            <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+              포스트 미리보기
+            </h3>
+            <div className="overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700">
             {/* 썸네일 미리보기 */}
             <div className="aspect-video bg-gray-100 dark:bg-gray-800">
               {heroImage ? (
@@ -262,170 +284,170 @@ export default function PublishModal({
               </p>
             </div>
           </div>
-        </div>
-
-        {/* 우측: 최종 확인 */}
-        <div className="w-72 space-y-6">
-          <div>
-            <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
-              최종 확인
-            </h3>
-            <div className="space-y-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/70">
-              {readinessItems.map((item) => (
-                <div key={item.id} className="rounded-xl bg-white/80 px-3 py-3 dark:bg-[#242424]">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">
-                      {item.label}
-                    </span>
-                    <span
-                      className={`text-xs font-medium ${
-                        item.ready ? 'text-emerald-600' : 'text-amber-600'
-                      }`}
-                    >
-                      {item.ready ? '준비됨' : '확인 필요'}
-                    </span>
-                  </div>
-                  <p className="mt-2 break-all text-sm text-gray-700 dark:text-gray-200">
-                    {item.value}
-                  </p>
-                </div>
-              ))}
-            </div>
           </div>
-
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/70">
-            <div className="flex items-center justify-between gap-3">
+          <aside className="flex w-full shrink-0 flex-col border-t border-gray-200 bg-gray-50/80 dark:border-gray-800 dark:bg-[#191919] xl:w-[380px] xl:border-l xl:border-t-0">
+            <div className="min-h-0 flex-1 overflow-y-auto p-6">
               <div>
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
-                  메타데이터 수정
-                </h4>
-                <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                  slug, 설명, 공개 상태는 본문 화면 상단 패널에서 바로 수정할 수 있습니다.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-xl border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-white dark:border-gray-700 dark:text-gray-300 dark:hover:bg-[#242424]"
-              >
-                다시 수정
-              </button>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/70">
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
-              출간 시스템 상태
-            </h4>
-            {statusLoading ? (
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                서버 준비 상태를 확인하는 중입니다...
-              </p>
-            ) : statusError ? (
-              <p className="mt-2 text-sm text-red-500">{statusError}</p>
-            ) : publishStatus ? (
-              <div className="mt-3 space-y-3">
-                <div
-                  className={`rounded-xl px-3 py-3 text-sm font-medium ${
-                    publishStatus.ready ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-                  }`}
-                >
-                  {publishStatus.ready
-                    ? '현재 서버 설정으로 출간을 진행할 수 있습니다.'
-                    : '서버 설정이 완전하지 않아 출간을 막습니다. 아래 항목을 먼저 확인해주세요.'}
-                </div>
-                <div className="space-y-2">
-                  {publishStatus.checks.map((check) => (
-                    <div key={check.id} className="rounded-xl bg-white/80 px-3 py-3 dark:bg-[#242424]">
+                <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
+                  최종 확인
+                </h3>
+                <div className="space-y-3 rounded-2xl border border-gray-200 bg-white/70 p-4 dark:border-gray-700 dark:bg-[#242424]">
+                  {readinessItems.map((item) => (
+                    <div key={item.id} className="rounded-xl bg-white px-3 py-3 dark:bg-[#1d1d1d]">
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">
-                          {check.label}
+                          {item.label}
                         </span>
-                        <span className={`text-xs font-medium ${check.ready ? 'text-emerald-600' : 'text-amber-600'}`}>
-                          {check.kind === 'active'
-                            ? check.ready
-                              ? '실시간 확인'
-                              : '실시간 실패'
-                            : check.ready
-                              ? '정상'
-                              : '확인 필요'}
+                        <span
+                          className={`text-xs font-medium ${
+                            item.ready ? 'text-emerald-600' : 'text-amber-600'
+                          }`}
+                        >
+                          {item.ready ? '준비됨' : '확인 필요'}
                         </span>
                       </div>
-                      <p className="mt-2 text-sm leading-6 text-gray-700 dark:text-gray-200">
-                        {check.detail}
+                      <p className="mt-2 break-all text-sm text-gray-700 dark:text-gray-200">
+                        {item.value}
                       </p>
                     </div>
                   ))}
                 </div>
-                <div className="rounded-xl border border-dashed border-gray-200 px-3 py-3 text-xs leading-6 text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                  <p>대상 저장소 · {publishStatus.target.repository}</p>
-                  <p>브랜치 · {publishStatus.target.branch}</p>
-                  <p>포스트 경로 · {publishStatus.target.postsPath}</p>
-                  <p>공개 사이트 · {publishStatus.target.siteUrl}</p>
-                  {publishStatus.target.currentOrigin !== publishStatus.target.siteUrl && (
-                    <p>현재 접속 origin · {publishStatus.target.currentOrigin}</p>
-                  )}
-                  <p>마지막 확인 · {new Date(publishStatus.verifiedAt).toLocaleString('ko-KR')}</p>
+              </div>
+
+              <div className="mt-6 rounded-2xl border border-gray-200 bg-white/70 p-4 dark:border-gray-700 dark:bg-[#242424]">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                      메타데이터 수정
+                    </h4>
+                    <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                      slug, 설명, 공개 상태는 본문 화면 상단 패널에서 바로 수정할 수 있습니다.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="rounded-xl border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-white dark:border-gray-700 dark:text-gray-300 dark:hover:bg-[#1d1d1d]"
+                  >
+                    다시 수정
+                  </button>
                 </div>
               </div>
-            ) : null}
-          </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/70">
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
-              출간 정보
-            </h4>
-            <div className="mt-3 space-y-2 text-sm text-gray-600 dark:text-gray-300">
-              <p>태그 · {tags.length}개</p>
-              <p>예상 읽기 시간 · {payload.readingTime}분</p>
-              <p>{originalSlug ? '기존 포스트 수정' : '새 포스트 발행'}</p>
+              <div className="mt-6 rounded-2xl border border-gray-200 bg-white/70 p-4 dark:border-gray-700 dark:bg-[#242424]">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                  출간 시스템 상태
+                </h4>
+                {statusLoading ? (
+                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    서버 준비 상태를 확인하는 중입니다...
+                  </p>
+                ) : statusError ? (
+                  <p className="mt-2 text-sm text-red-500">{statusError}</p>
+                ) : publishStatus ? (
+                  <div className="mt-3 space-y-3">
+                    <div
+                      className={`rounded-xl px-3 py-3 text-sm font-medium ${
+                        publishStatus.ready ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                      }`}
+                    >
+                      {publishStatus.ready
+                        ? '현재 서버 설정으로 출간을 진행할 수 있습니다.'
+                        : '서버 설정이 완전하지 않아 출간을 막습니다. 아래 항목을 먼저 확인해주세요.'}
+                    </div>
+                    <div className="space-y-2">
+                      {publishStatus.checks.map((check) => (
+                        <div key={check.id} className="rounded-xl bg-white px-3 py-3 dark:bg-[#1d1d1d]">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">
+                              {check.label}
+                            </span>
+                            <span className={`text-xs font-medium ${check.ready ? 'text-emerald-600' : 'text-amber-600'}`}>
+                              {check.kind === 'active'
+                                ? check.ready
+                                  ? '실시간 확인'
+                                  : '실시간 실패'
+                                : check.ready
+                                  ? '정상'
+                                  : '확인 필요'}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-sm leading-6 text-gray-700 dark:text-gray-200">
+                            {check.detail}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="rounded-xl border border-dashed border-gray-200 px-3 py-3 text-xs leading-6 text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                      <p>대상 저장소 · {publishStatus.target.repository}</p>
+                      <p>브랜치 · {publishStatus.target.branch}</p>
+                      <p>포스트 경로 · {publishStatus.target.postsPath}</p>
+                      <p>공개 사이트 · {publishStatus.target.siteUrl}</p>
+                      {publishStatus.target.currentOrigin !== publishStatus.target.siteUrl && (
+                        <p>현재 접속 origin · {publishStatus.target.currentOrigin}</p>
+                      )}
+                      <p>마지막 확인 · {new Date(publishStatus.verifiedAt).toLocaleString('ko-KR')}</p>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="mt-6 rounded-2xl border border-gray-200 bg-white/70 p-4 dark:border-gray-700 dark:bg-[#242424]">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                  출간 정보
+                </h4>
+                <div className="mt-3 space-y-2 text-sm text-gray-600 dark:text-gray-300">
+                  <p>태그 · {tags.length}개</p>
+                  <p>예상 읽기 시간 · {payload.readingTime}분</p>
+                  <p>{originalSlug ? '기존 포스트 수정' : '새 포스트 발행'}</p>
+                </div>
+              </div>
+
+              {publishWarnings.length > 0 && (
+                <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  <p className="font-semibold">출간 전 확인이 필요한 항목이 있습니다.</p>
+                  <ul className="mt-2 space-y-1">
+                    {publishWarnings.map((item) => (
+                      <li key={item.id}>- {item.label}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="mt-6 rounded-2xl border border-gray-200 bg-white/70 p-4 dark:border-gray-700 dark:bg-[#242424]">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                  로컬 백업
+                </h4>
+                <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                  최종 출간 전에 현재 상태를 markdown 파일로 내려받아 둘 수 있습니다.
+                </p>
+                <button
+                  onClick={handleDownloadMarkdown}
+                  className="mt-3 w-full rounded-xl border border-gray-200 px-4 py-3 font-medium text-gray-600 hover:bg-white dark:border-gray-700 dark:text-gray-300 dark:hover:bg-[#1d1d1d]"
+                >
+                  Markdown 내려받기
+                </button>
+              </div>
             </div>
-          </div>
 
-          {publishWarnings.length > 0 && (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-              <p className="font-semibold">출간 전 확인이 필요한 항목이 있습니다.</p>
-              <ul className="mt-2 space-y-1">
-                {publishWarnings.map((item) => (
-                  <li key={item.id}>- {item.label}</li>
-                ))}
-              </ul>
+            <div className="border-t border-gray-200 bg-white/90 p-5 dark:border-gray-800 dark:bg-[#171717]/90">
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  onClick={onClose}
+                  className="flex-1 rounded-xl border border-gray-200 px-4 py-3 font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handlePublish}
+                  disabled={isPublishing || isPublishBlocked}
+                  className="flex-1 rounded-xl bg-brand px-4 py-3 font-medium text-white hover:brightness-110 disabled:opacity-50"
+                >
+                  {isPublishing ? '출간 중...' : isPublishBlocked ? '출간 준비 확인 필요' : '출간하기'}
+                </button>
+              </div>
             </div>
-          )}
-
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/70">
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
-              로컬 백업
-            </h4>
-            <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
-              최종 출간 전에 현재 상태를 markdown 파일로 내려받아 둘 수 있습니다.
-            </p>
-            <button
-              onClick={handleDownloadMarkdown}
-              className="mt-3 w-full rounded-xl border border-gray-200 px-4 py-3 font-medium text-gray-600 hover:bg-white dark:border-gray-700 dark:text-gray-300 dark:hover:bg-[#242424]"
-            >
-              Markdown 내려받기
-            </button>
-          </div>
-
-          {/* 버튼 */}
-          <div className="flex flex-col gap-3 pt-4">
-            <div className="flex gap-3">
-              <button
-                onClick={onClose}
-                className="flex-1 rounded-xl border border-gray-200 px-4 py-3 font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
-              >
-                취소
-              </button>
-              <button
-                onClick={handlePublish}
-                disabled={isPublishing || isPublishBlocked}
-                className="flex-1 rounded-xl bg-brand px-4 py-3 font-medium text-white hover:brightness-110 disabled:opacity-50"
-              >
-                {isPublishing ? '출간 중...' : isPublishBlocked ? '출간 준비 확인 필요' : '출간하기'}
-              </button>
-            </div>
-          </div>
+          </aside>
         </div>
       </div>
     </div>

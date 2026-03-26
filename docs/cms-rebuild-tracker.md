@@ -54,6 +54,8 @@
 - `done` `.env.example`를 현재 출간 경로에 맞게 갱신해 `PUBLIC_SITE_URL`, `GITHUB_TOKEN` 요구사항을 명시했다.
 - `done` 사용하지 않는 `Milkdown`, `Tiptap`, `Prism` 계열 패키지를 제거하고 `globals`를 추가해 lint 환경을 복구했다.
 - `done` `astro.config.mjs`의 오래된 Milkdown optimizeDeps 경로를 제거해 dependency cleanup 이후 build 경고를 줄였다.
+- `done` 관리자 인증 토큰 조회를 공통 helper로 묶어 dashboard, 출간 모달, 시리즈 관리, 삭제/검증 API 호출에서 같은 인증 경로를 쓰게 정리했다.
+- `done` 에디터 레이아웃, 썸네일 업로드, 출간 모달 렌더링을 실사용 기준으로 손봐 로컬 관리자 화면에서 바로 테스트할 수 있게 보강했다.
 
 ## 반드시 더 해야 하는 것
 
@@ -204,3 +206,6 @@
 - 2026-03-26: `Milkdown`, `Tiptap`, `Prism` 계열 패키지를 `package.json`과 `pnpm-lock.yaml`에서 제거했고, `globals`를 추가한 뒤 `.vercel`을 lint ignore에 포함해 lint를 다시 통과할 수 있게 정리했다.
 - 2026-03-26: `astro.config.mjs`의 오래된 Milkdown optimizeDeps include를 제거했고, Hero, 시리즈 에디터, editor overlay, 블로그/시리즈 islands, 태그 페이지, Tailwind 설정까지 손봐서 lint를 다시 통과시켰다.
 - 2026-03-26: 남은 작업을 다시 분류해, 현재 범위에서 구현이 더 필요한 항목은 닫고 실제 브라우저 출간 smoke test와 배포 반영 시간 기록만 `blocked`로 남겼다.
+- 2026-03-26: 관리자 인증 토큰을 기다려서 가져오는 공통 helper를 추가했고, dashboard/출간 모달/시리즈 관리/포스트 목록이 더 이상 `currentUser` race에 바로 걸리지 않게 정리했다.
+- 2026-03-26: 썸네일 업로드는 Storage bucket 설정과 로그인 상태를 더 분명한 메시지로 안내하게 바꿨고, 편집 화면은 메타 패널이 editor 높이를 눌러버리지 않도록 레이아웃을 다시 잡았다.
+- 2026-03-26: 출간 모달은 backdrop 닫기, ESC 닫기, 내부 스크롤, 반응형 사이드 패널 구조를 추가해 버튼이 보이지 않거나 스크롤이 막히는 문제를 줄였다.

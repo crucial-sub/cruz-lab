@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { DRAFT_KEY_PREFIX, getStoredEditorDrafts } from '@/lib/editor-drafts';
-import { getClientAuth } from '@/lib/firebase-auth-client';
+import { getClientAdminIdToken } from '@/lib/firebase-auth-client';
 import type { PublishStatusPayload } from '@/lib/publish-status';
 import AdminGuard from './AdminGuard';
 import AdminLayout from './AdminLayout';
@@ -39,10 +39,7 @@ export default function AdminDashboard({ publishedPosts }: Props) {
     const loadPublishStatus = async () => {
       try {
         setStatusError(null);
-        const idToken = await getClientAuth().currentUser?.getIdToken();
-        if (!idToken) {
-          throw new Error('관리자 인증 정보를 확인할 수 없습니다.');
-        }
+        const idToken = await getClientAdminIdToken();
 
         const response = await fetch('/api/admin/publish-status', {
           headers: {

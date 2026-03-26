@@ -15,6 +15,8 @@
   --editor-panel-bg: rgba(255, 255, 255, 0.8);
 
   position: relative;
+  display: flex;
+  flex-direction: column;
   min-height: var(--editor-min-height);
   height: 100%;
   border: 1px solid var(--editor-border);
@@ -36,11 +38,15 @@
 }
 
 .codemirror-editor-shell {
+  display: flex;
+  flex: 1 1 auto;
   height: 100%;
   min-height: var(--editor-min-height);
 }
 
 .codemirror-editor-wrapper .cm-editor {
+  display: flex;
+  flex: 1 1 auto;
   height: 100%;
   min-height: var(--editor-min-height);
   font-family: var(--editor-font-family);
@@ -53,6 +59,7 @@
 }
 
 .codemirror-editor-wrapper .cm-scroller {
+  overflow: auto;
   font-family: var(--editor-font-family);
   line-height: 1.8;
 }

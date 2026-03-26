@@ -1,6 +1,6 @@
 // 시리즈 에디터 컴포넌트
 import { useState, useEffect, useMemo } from 'react';
-import { getClientAuth } from '@/lib/firebase-auth-client';
+import { getClientAdminIdToken } from '@/lib/firebase-auth-client';
 import { getClientStorage } from '@/lib/firebase-storage-client';
 import AdminGuard from '../AdminGuard';
 import AdminLayout from '../AdminLayout';
@@ -71,10 +71,7 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
         setIsLoading(true);
         setError(null);
 
-        const idToken = await getClientAuth().currentUser?.getIdToken();
-        if (!idToken) {
-          throw new Error('관리자 로그인 정보를 확인할 수 없습니다.');
-        }
+        const idToken = await getClientAdminIdToken();
 
         // 1. 전체 markdown 포스트 로딩 (선택 모달용)
         const postsResponse = await fetch('/api/admin/content-posts', {
@@ -159,6 +156,7 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
     if (!file) return;
 
     try {
+      await getClientAdminIdToken({ forceRefresh: true });
       const { default: imageCompression } = await import('browser-image-compression');
       const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
       const options = {
@@ -268,10 +266,7 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
             postIds: seriesPosts.map(p => p.slug),
         };
 
-        const idToken = await getClientAuth().currentUser?.getIdToken();
-        if (!idToken) {
-            throw new Error('관리자 로그인 정보를 확인할 수 없습니다.');
-        }
+        const idToken = await getClientAdminIdToken();
 
         const response = await fetch('/api/admin/series', {
             method: 'POST',

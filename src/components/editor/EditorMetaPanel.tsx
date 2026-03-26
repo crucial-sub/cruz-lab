@@ -119,9 +119,6 @@ export function EditorMetaPanel({
           setUploadStatus(status);
           setUploadFileName(fileName);
         },
-        onError: (error) => {
-          alert(error.message);
-        },
       });
       setHeroImage(url);
     } catch (error) {
