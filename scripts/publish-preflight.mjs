@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 
 const ROOT_DIR = process.cwd();
 const DEFAULT_PUBLIC_SITE_URL = 'https://cruzlab.dev/';

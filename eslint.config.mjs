@@ -10,7 +10,16 @@ import tseslint from 'typescript-eslint';
 
 export default [
   // 무시 경로
-  { ignores: ['dist', 'node_modules', '.astro', 'coverage'] },
+  { ignores: ['dist', 'node_modules', '.astro', '.vercel', 'coverage', 'functions/lib'] },
+
+  {
+    files: ['**/*.{js,mjs,cjs}'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
 
   // JS/TS 기본
   js.configs.recommended,

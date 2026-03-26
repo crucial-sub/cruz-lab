@@ -50,6 +50,8 @@
 - `done` 현재 운영 경로에 없는 Milkdown 레거시 에디터 소스와 전용 플러그인 파일을 정리했다.
 - `done` 브라우저 로그인 전에도 돌릴 수 있는 `publish:preflight` 스크립트와 현재 markdown 출간 경로 기준 runbook을 추가했다.
 - `done` `.env.example`를 현재 출간 경로에 맞게 갱신해 `PUBLIC_SITE_URL`, `GITHUB_TOKEN` 요구사항을 명시했다.
+- `done` 사용하지 않는 `Milkdown`, `Tiptap`, `Prism` 계열 패키지를 제거하고 `globals`를 추가해 lint 환경을 복구했다.
+- `done` `astro.config.mjs`의 오래된 Milkdown optimizeDeps 경로를 제거해 dependency cleanup 이후 build 경고를 줄였다.
 
 ## 반드시 더 해야 하는 것
 
@@ -159,6 +161,8 @@
 - 사용하지 않는 실험 흔적은 소스 기준으로 많이 걷어냈지만, 의존성과 lockfile에는 아직 정리할 흔적이 남아 있다.
 - 운영 확인 절차는 이제 UI와 CLI 양쪽에 있지만, “실제 새 글 1건 출간” 기준의 로그/시간 기록은 아직 없다.
 - 2026-03-26 기준 preflight에서는 로컬 `.env`에 `GITHUB_TOKEN`이 없어서 GitHub probe가 실패했고, 네트워크 허용 기준 공개 사이트 `/blog` 응답은 `200 OK`였다.
+- 2026-03-26 기준 남은 운영 검증 핵심 막힘은 로컬 `.env`에 `GITHUB_TOKEN`이 없다는 점이다.
+- 2026-03-26 기준 lint는 설정/패키지 오류 단계는 지나갔고, 실제 앱 코드 이슈 25개가 남아 있다.
 
 ### 현재 가설
 
@@ -230,3 +234,5 @@
 - 2026-03-26: 현재 운영 경로에 물리지 않는 Milkdown 레거시 에디터 소스와 전용 플러그인 파일을 저장소에서 제거했다.
 - 2026-03-26: `npm run publish:preflight` 스크립트와 `PUBLISHING.md` runbook을 추가해, 브라우저 로그인 전에도 운영 기준 점검과 출간 확인 순서를 볼 수 있게 했다.
 - 2026-03-26: `.env.example`에 `PUBLIC_SITE_URL`, `GITHUB_TOKEN`을 추가했고, preflight 실제 실행 결과 현재 로컬 환경에는 `GITHUB_TOKEN`이 없고 공개 사이트 `/blog` 응답은 `200 OK`임을 확인했다.
+- 2026-03-26: `Milkdown`, `Tiptap`, `Prism` 계열 패키지를 `package.json`과 `pnpm-lock.yaml`에서 제거했고, `globals`를 추가한 뒤 `.vercel`을 lint ignore에 포함해 lint를 다시 통과할 수 있게 정리했다.
+- 2026-03-26: `astro.config.mjs`의 오래된 Milkdown optimizeDeps include를 제거했고, lint는 이제 실제 앱 코드 이슈 25개만 남는 상태까지 줄였다.

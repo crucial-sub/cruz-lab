@@ -62,14 +62,7 @@ export default defineConfig({
       // 개발 서버 시작 시 항상 의존성 재스캔
       force: true,
       // 자주 사용하는 의존성 미리 번들링
-      include: [
-        'react',
-        'react-dom',
-        'framer-motion',
-        '@milkdown/kit/core',
-        '@milkdown/kit/preset/commonmark',
-        '@milkdown/kit/preset/gfm',
-      ],
+      include: ['react', 'react-dom', 'framer-motion'],
     },
     server: {
       // HMR 연결 안정성 향상
