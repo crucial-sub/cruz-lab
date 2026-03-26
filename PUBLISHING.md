@@ -18,6 +18,18 @@ npm run publish:preflight
 - 가능하면 GitHub API로 대상 저장소의 `main` 브랜치와 `content/posts` 경로에 접근 가능하고 push 권한이 있는지
 - 가능하면 공개 사이트 `/blog` 응답이 오는지
 
+출간 뒤 특정 포스트를 다시 확인하고 싶으면 아래 명령도 쓸 수 있다.
+
+```bash
+npm run publish:verify -- --slug <slug> --pub-date <ISO_DATE>
+```
+
+또는 파일 경로를 이미 알고 있으면:
+
+```bash
+npm run publish:verify -- --slug <slug> --file-path content/posts/YYYY-MM-DD-slug.md
+```
+
 ## 실제 출간 순서
 
 1. `/admin/posts/new` 또는 `/admin/edit?slug=...`로 들어간다.
@@ -46,6 +58,8 @@ npm run publish:preflight
    - 배포 지연인지, 실제 반영 실패인지 분리
 5. 필요하면 관리자 목록 배너의 `반영 다시 확인`
    - GitHub 파일 존재 여부와 공개 페이지 응답을 관리자 세션 기준으로 다시 확인
+6. 브라우저 밖에서 다시 보고 싶으면 `npm run publish:verify`
+   - 같은 기준으로 GitHub 파일과 공개 페이지 응답을 CLI에서 재검증
 
 ## 현재 한계
 
