@@ -20,6 +20,7 @@ import {
   generateMarkdownFileName,
   parseMarkdownDocument,
 } from '@/lib/markdown-publish';
+import type { PublishFeedback } from '@/lib/publish-feedback';
 import { EditorMetaPanel } from './EditorMetaPanel';
 
 const CodeMirrorEditor = lazy(() => import('./CodeMirrorEditor'));
@@ -730,11 +731,11 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
             isPublic={isPublic}
             pubDate={originalPubDate}
             originalSlug={originalSlug}
-            onPublished={(publishedSlug) => {
+            onPublished={(result: PublishFeedback) => {
               const nextDraftKey =
                 mode === 'create'
                   ? activeCreateDraftKeyRef.current
-                  : getDraftKey(originalSlug || publishedSlug);
+                  : getDraftKey(originalSlug || result.slug);
               if (lastPersistedDraftKeyRef.current) {
                 removeEditorDraft(window.localStorage, lastPersistedDraftKeyRef.current);
               }

@@ -7,6 +7,17 @@ interface GitHubFileResponse {
   sha: string;
 }
 
+interface GitHubCommitResponse {
+  commit?: {
+    sha?: string;
+    html_url?: string;
+  };
+  content?: {
+    path?: string;
+    html_url?: string;
+  };
+}
+
 async function githubRequest(path: string, init: RequestInit = {}) {
   const token = import.meta.env.GITHUB_TOKEN;
 
@@ -63,7 +74,16 @@ export async function upsertPostFile({
     throw new Error(await putResponse.text());
   }
 
-  return { filePath };
+  const putResult = (await putResponse.json()) as GitHubCommitResponse;
+
+  return {
+    filePath,
+    commitSha: putResult.commit?.sha,
+    commitUrl: putResult.commit?.html_url,
+    fileUrl:
+      putResult.content?.html_url ||
+      `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/blob/${GITHUB_BRANCH}/${filePath}`,
+  };
 }
 
 export async function deletePostFile({

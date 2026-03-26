@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getStoredEditorDrafts, isCreateModeDraftKey } from '@/lib/editor-drafts';
 import { getClientAuth } from '@/lib/firebase-auth-client';
+import {
+  clearLastPublishFeedback,
+  readLastPublishFeedback,
+  type PublishFeedback,
+} from '@/lib/publish-feedback';
 import AdminGuard from './AdminGuard';
 import AdminLayout from './AdminLayout';
 
@@ -57,6 +62,7 @@ export default function PostList({ initialPosts }: Props) {
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [deleteConfirm, setDeleteConfirm] = useState<Post | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [lastPublishFeedback, setLastPublishFeedback] = useState<PublishFeedback | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -81,6 +87,14 @@ export default function PostList({ initialPosts }: Props) {
       window.removeEventListener('focus', syncDraftPosts);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const feedback = readLastPublishFeedback(window.sessionStorage);
+    if (!feedback) return;
+    setLastPublishFeedback(feedback);
   }, []);
 
   const draftSlugSet = useMemo(
@@ -166,6 +180,103 @@ export default function PostList({ initialPosts }: Props) {
     <AdminGuard>
       <AdminLayout currentPath="/admin/posts">
         <div className="space-y-6">
+          {lastPublishFeedback && (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                    Publish Complete
+                  </p>
+                  <h2 className="mt-2 text-xl font-semibold text-emerald-950">
+                    {lastPublishFeedback.title} 출간이 끝났습니다.
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-emerald-900/80">
+                    GitHub markdown 파일은 갱신됐습니다. 공개 페이지 반영은 배포 타이밍에 따라 조금 늦을 수 있으니 아래 링크로 순서대로 확인하면 됩니다.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearLastPublishFeedback(window.sessionStorage);
+                    setLastPublishFeedback(null);
+                  }}
+                  className="rounded-xl border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
+                >
+                  닫기
+                </button>
+              </div>
+
+              <div className="mt-4 grid gap-4 lg:grid-cols-[1.2fr,0.8fr]">
+                <div className="space-y-3 rounded-2xl border border-emerald-200 bg-white/80 p-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                      확인 링크
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <a
+                        href={lastPublishFeedback.publicUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:brightness-110"
+                      >
+                        공개 페이지 보기
+                      </a>
+                      <a
+                        href={lastPublishFeedback.githubFileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-xl border border-emerald-200 px-4 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-50"
+                      >
+                        GitHub 파일 보기
+                      </a>
+                      {lastPublishFeedback.githubCommitUrl && (
+                        <a
+                          href={lastPublishFeedback.githubCommitUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="rounded-xl border border-emerald-200 px-4 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-50"
+                        >
+                          최신 커밋 보기
+                        </a>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                        파일 경로
+                      </p>
+                      <p className="mt-2 break-all text-sm text-emerald-950">
+                        {lastPublishFeedback.filePath}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                        커밋 SHA
+                      </p>
+                      <p className="mt-2 break-all text-sm text-emerald-950">
+                        {lastPublishFeedback.githubCommitSha || '응답 없음'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-emerald-200 bg-white/80 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                    운영 확인 순서
+                  </p>
+                  <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-6 text-emerald-950">
+                    <li>GitHub 파일 링크에서 markdown 내용이 맞는지 먼저 본다.</li>
+                    <li>커밋 링크가 있으면 main 브랜치에 반영됐는지 확인한다.</li>
+                    <li>공개 페이지 링크로 들어가 실제 렌더링이 맞는지 본다.</li>
+                    <li>반영이 늦으면 잠시 뒤 새로고침해서 배포 지연 여부만 한 번 더 본다.</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-text-primary">포스트 관리</h1>

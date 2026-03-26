@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { getClientAuth } from '@/lib/firebase-auth-client';
 import { generateMarkdownContent } from '@/lib/markdown-publish';
+import { saveLastPublishFeedback, type PublishFeedback } from '@/lib/publish-feedback';
 
 interface Props {
   title: string;
@@ -16,7 +17,7 @@ interface Props {
   isPublic: boolean;
   pubDate?: string;
   originalSlug?: string;
-  onPublished?: (slug: string) => void;
+  onPublished?: (result: PublishFeedback) => void;
 }
 
 export default function PublishModal({
@@ -144,7 +145,22 @@ export default function PublishModal({
         throw new Error(result.message || '출간에 실패했습니다.');
       }
 
-      onPublished?.(slug);
+      const publishFeedback: PublishFeedback = {
+        slug: result.slug || slug,
+        title,
+        filePath: result.filePath,
+        publicUrl: result.publicUrl,
+        githubFileUrl: result.githubFileUrl,
+        githubCommitUrl: result.githubCommitUrl,
+        githubCommitSha: result.githubCommitSha,
+        publishedAt: new Date().toISOString(),
+      };
+
+      if (typeof window !== 'undefined') {
+        saveLastPublishFeedback(window.sessionStorage, publishFeedback);
+      }
+
+      onPublished?.(publishFeedback);
       window.location.href = '/admin/posts';
     } catch (error) {
       console.error('출간 오류:', error);

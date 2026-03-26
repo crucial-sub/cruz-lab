@@ -51,11 +51,18 @@ export const POST: APIRoute = async ({ request }) => {
         : `✨ 새 포스트 발행: ${body.title}`,
     });
 
+    const publicUrl = new URL(`/blog/${body.slug}`, request.url).toString();
+
     return new Response(
       JSON.stringify({
         ok: true,
         filePath: result.filePath,
         slug: body.slug,
+        title: body.title,
+        publicUrl,
+        githubFileUrl: result.fileUrl,
+        githubCommitUrl: result.commitUrl,
+        githubCommitSha: result.commitSha,
       }),
       {
         status: 200,
