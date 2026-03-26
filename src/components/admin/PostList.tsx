@@ -25,6 +25,23 @@ interface Props {
   initialPosts: Post[];
 }
 
+function readLocalDraftPosts(storage: Storage): Post[] {
+  return getStoredEditorDrafts(storage).map((draft) => ({
+    id: draft.id,
+    draftKey: draft.draftKey,
+    title: draft.title,
+    description: draft.description,
+    status: 'draft' as const,
+    source: 'local-draft' as const,
+    tags: draft.tags,
+    slug: draft.slug,
+    createdAt: draft.updatedDate,
+    updatedDate: draft.updatedDate,
+    readingTime: draft.readingTime,
+    pubDate: draft.updatedDate,
+  }));
+}
+
 export default function PostList({ initialPosts }: Props) {
   const [publishedPosts, setPublishedPosts] = useState(
     initialPosts.map((post) => ({
@@ -44,23 +61,32 @@ export default function PostList({ initialPosts }: Props) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const storedDrafts = getStoredEditorDrafts(window.localStorage).map((draft) => ({
-      id: draft.id,
-      draftKey: draft.draftKey,
-      title: draft.title,
-      description: draft.description,
-      status: 'draft' as const,
-      source: 'local-draft' as const,
-      tags: draft.tags,
-      slug: draft.slug,
-      createdAt: draft.updatedDate,
-      updatedDate: draft.updatedDate,
-      readingTime: draft.readingTime,
-      pubDate: draft.updatedDate,
-    }));
+    const syncDraftPosts = () => {
+      setDraftPosts(readLocalDraftPosts(window.localStorage));
+    };
 
-    setDraftPosts(storedDrafts);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        syncDraftPosts();
+      }
+    };
+
+    syncDraftPosts();
+    window.addEventListener('storage', syncDraftPosts);
+    window.addEventListener('focus', syncDraftPosts);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('storage', syncDraftPosts);
+      window.removeEventListener('focus', syncDraftPosts);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
+
+  const draftSlugSet = useMemo(
+    () => new Set(draftPosts.map((post) => post.slug).filter(Boolean)),
+    [draftPosts]
+  );
 
   const posts = useMemo(
     () =>
@@ -241,6 +267,11 @@ export default function PostList({ initialPosts }: Props) {
                         >
                           {post.source === 'local-draft' ? '로컬 초안' : '발행됨'}
                         </span>
+                        {post.source === 'published' && draftSlugSet.has(post.slug) && (
+                          <span className="rounded-md bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand">
+                            로컬 초안 있음
+                          </span>
+                        )}
                       </div>
                       {post.description && (
                         <p className="mt-1 line-clamp-1 text-sm text-text-secondary">{post.description}</p>

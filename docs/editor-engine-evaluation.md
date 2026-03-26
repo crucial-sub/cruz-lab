@@ -113,6 +113,12 @@ findings: none
   - publish는 기존 포스트 스타일에 맞춰 block list tags와 quoted scalar 중심으로 frontmatter를 다시 만든다.
   - `heroImage`가 없으면 빈 문자열을 강제로 쓰지 않고, 실제 값이 있을 때만 넣는다.
   - `by-slug` API는 Astro content collection이 아니라 raw markdown 파일을 읽어 오므로, `isPublic: false` 글도 같은 경로로 편집할 수 있다.
+- 실제 작성 플로우 쪽도 한 번 더 보강했다.
+  - 에디터 하단에서 현재 상태를 바로 markdown 파일로 내보낼 수 있다.
+  - 로컬 초안을 폐기하고, 편집 모드에서는 발행 원본으로 되돌릴 수 있다.
+  - `beforeunload` 경고는 실제 변경이 있을 때만 붙는다.
+  - 관리자 목록은 focus/storage 이벤트 기준으로 로컬 초안을 다시 읽고, 발행 글에 대응되는 로컬 초안 여부를 보여준다.
+  - 이 변경으로 `FullScreenEditor` chunk는 약 `13.27 kB -> 15.22 kB`, `PostList`는 약 `7.92 kB -> 8.50 kB`로 소폭 늘었다.
 
 즉, 지금 프로토타입은 완성형은 아니지만 아래 두 가지는 입증했다.
 
@@ -204,4 +210,4 @@ findings: none
 - frontmatter는 지원 범위를 명확히 정한 보수적 파서와 직렬화기로 유지한다.
 - import, draft, publish가 모두 같은 markdown 문서를 기준으로 움직이게 한다.
 - 에디터 교체 후에도 현재 publish 경로와 로컬 draft 경험은 최대한 유지한다.
-- 다음 단계에서는 CodeMirror 자체 번들과 남아 있는 `proxy` chunk를 더 줄일지, 아니면 실제 작성 UX와 복잡한 YAML/주석 보존 범위를 더 넓힐지 판단한다.
+- 다음 단계에서는 실제 운영 환경에서 publish 후 GitHub 반영과 사이트 배포 반영까지 검증할지, 아니면 CodeMirror 자체 번들과 남아 있는 `proxy` chunk를 더 줄일지 판단한다.

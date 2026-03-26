@@ -15,7 +15,11 @@ import {
   saveEditorDraft,
   type EditorDraftPayload,
 } from '@/lib/editor-drafts';
-import { parseMarkdownDocument } from '@/lib/markdown-publish';
+import {
+  generateMarkdownContent,
+  generateMarkdownFileName,
+  parseMarkdownDocument,
+} from '@/lib/markdown-publish';
 
 const CodeMirrorEditor = lazy(() => import('./CodeMirrorEditor'));
 const PublishModal = lazy(() => import('./PublishModal'));
@@ -76,6 +80,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [autosaveState, setAutosaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [hasUserChanges, setHasUserChanges] = useState(false);
+  const [activeDraftKey, setActiveDraftKey] = useState<string | null>(null);
 
   // 출간 설정 상태 (편집 시 기존 값 유지)
   const [heroImage, setHeroImage] = useState('');
@@ -94,6 +99,33 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
 
   const markDirty = useCallback(() => {
     setHasUserChanges(true);
+  }, []);
+
+  const resetEditorState = useCallback(() => {
+    setTitle('');
+    setContent('');
+    setTags([]);
+    setTagInput('');
+    setHeroImage('');
+    setDescription('');
+    setSlug('');
+    setIsPublic(true);
+    setOriginalSlug('');
+    setOriginalPubDate('');
+    setLastSavedAt(null);
+    setAutosaveState('idle');
+    setHasUserChanges(false);
+    setEditorKey((prev) => prev + 1);
+  }, []);
+
+  const deriveSlug = useCallback((value: string) => {
+    return value
+      .toLowerCase()
+      .replace(/[^a-z0-9가-힣\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .trim()
+      .substring(0, 50);
   }, []);
 
   // Firebase 초기화 및 데이터 로드
@@ -122,17 +154,20 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
 
     if (explicitDraftKey?.startsWith('cruz-lab-editor-draft:')) {
       activeCreateDraftKeyRef.current = explicitDraftKey;
+      setActiveDraftKey(explicitDraftKey);
       tryLoadDraft(undefined, explicitDraftKey);
       return;
     }
 
     if (window.localStorage.getItem(LEGACY_NEW_DRAFT_KEY)) {
       activeCreateDraftKeyRef.current = LEGACY_NEW_DRAFT_KEY;
+      setActiveDraftKey(LEGACY_NEW_DRAFT_KEY);
       tryLoadDraft(undefined, LEGACY_NEW_DRAFT_KEY);
       return;
     }
 
     activeCreateDraftKeyRef.current = createEphemeralDraftKey();
+    setActiveDraftKey(null);
     setHasUserChanges(false);
   }, [createEphemeralDraftKey, initialPostId, mode]);
 
@@ -146,6 +181,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
     try {
       const draft = JSON.parse(raw);
       lastPersistedDraftKeyRef.current = draftKey;
+      setActiveDraftKey(draftKey);
       setTitle(draft.title || '');
       setContent(draft.content || '');
       setTags(draft.tags || []);
@@ -164,6 +200,8 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
 
   const loadMarkdownPost = async (targetSlug: string) => {
     try {
+      setActiveDraftKey(null);
+      lastPersistedDraftKeyRef.current = null;
       const response = await fetch(`/api/posts/by-slug?slug=${encodeURIComponent(targetSlug)}`);
       if (!response.ok) {
         setLoadError('포스트를 찾을 수 없습니다.');
@@ -312,6 +350,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
         activeCreateDraftKeyRef.current = nextDraftKey;
       }
       lastPersistedDraftKeyRef.current = nextDraftKey;
+      setActiveDraftKey(nextDraftKey);
       const savedAt = new Date(draftData.updatedDate || new Date().toISOString());
       setLastSavedAt(savedAt);
       setAutosaveState('saved');
@@ -323,6 +362,8 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
     },
     [buildDraftData, createEphemeralDraftKey, getDraftKey, mode, originalSlug, slug]
   );
+
+  const hasMeaningfulChanges = hasUserChanges && hasDraftContent(buildDraftData());
 
   // 임시저장
   const handleSaveDraft = useCallback(() => {
@@ -341,7 +382,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
 
   useEffect(() => {
     if (isLoading) return;
-    if (!hasUserChanges) return;
+    if (!hasMeaningfulChanges) return;
 
     const draftData = buildDraftData();
     if (!hasDraftContent(draftData)) return;
@@ -366,13 +407,13 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
         window.clearTimeout(autosaveTimerRef.current);
       }
     };
-  }, [buildDraftData, hasUserChanges, isLoading, persistDraft]);
+  }, [buildDraftData, hasMeaningfulChanges, isLoading, persistDraft]);
 
   useEffect(() => {
     if (isLoading) return;
 
     const handlePageHide = () => {
-      if (!hasUserChanges) return;
+      if (!hasMeaningfulChanges) return;
 
       try {
         persistDraft('auto');
@@ -383,7 +424,19 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
 
     window.addEventListener('pagehide', handlePageHide);
     return () => window.removeEventListener('pagehide', handlePageHide);
-  }, [hasUserChanges, isLoading, persistDraft]);
+  }, [hasMeaningfulChanges, isLoading, persistDraft]);
+
+  useEffect(() => {
+    if (isLoading || !hasMeaningfulChanges) return;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasMeaningfulChanges, isLoading]);
 
   const formatSavedAt = (date: Date | null) => {
     if (!date) return '';
@@ -396,10 +449,76 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
 
   // 나가기
   const handleExit = () => {
-    if (confirm('작성 중인 내용이 있습니다. 나가시겠습니까?')) {
+    if (!hasMeaningfulChanges || confirm('저장되지 않은 변경이 있습니다. 나가시겠습니까?')) {
       window.location.href = '/admin';
     }
   };
+
+  const handleDownloadMarkdown = useCallback(() => {
+    const resolvedSlug = slug || deriveSlug(title) || 'untitled-post';
+    const markdown = generateMarkdownContent({
+      title: title || '제목 없음',
+      description,
+      content,
+      heroImage,
+      tags,
+      slug: resolvedSlug,
+      readingTime: calculateReadingTime(content),
+      isPublic,
+      pubDate: originalPubDate || new Date().toISOString(),
+      updatedDate: new Date().toISOString(),
+    });
+
+    const fileName = generateMarkdownFileName({
+      slug: resolvedSlug,
+      pubDate: originalPubDate || new Date().toISOString(),
+    });
+
+    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [calculateReadingTime, content, deriveSlug, description, heroImage, isPublic, originalPubDate, slug, tags, title]);
+
+  const handleDiscardDraft = useCallback(async () => {
+    const draftKeyToRemove = lastPersistedDraftKeyRef.current || activeDraftKey;
+    const hasCurrentSnapshot = Boolean(draftKeyToRemove || hasMeaningfulChanges);
+
+    if (!hasCurrentSnapshot) {
+      return;
+    }
+
+    const message =
+      mode === 'edit'
+        ? '로컬 초안을 버리고 발행된 원본으로 되돌릴까요?'
+        : '현재 로컬 초안을 버리고 새 글 상태로 되돌릴까요?';
+
+    if (!window.confirm(message)) {
+      return;
+    }
+
+    if (typeof window !== 'undefined' && draftKeyToRemove) {
+      removeEditorDraft(window.localStorage, draftKeyToRemove);
+    }
+
+    lastPersistedDraftKeyRef.current = null;
+    setActiveDraftKey(null);
+    setAutosaveState('idle');
+    setLastSavedAt(null);
+    setHasUserChanges(false);
+
+    if (mode === 'edit') {
+      setIsLoading(true);
+      await loadMarkdownPost(originalSlug || slug || initialPostId || '');
+      return;
+    }
+
+    activeCreateDraftKeyRef.current = createEphemeralDraftKey();
+    resetEditorState();
+  }, [activeDraftKey, createEphemeralDraftKey, hasMeaningfulChanges, initialPostId, mode, originalSlug, resetEditorState, slug]);
 
   // 로딩 상태
   if (isLoading) {
@@ -532,10 +651,25 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
           </span>
           <button
             type="button"
+            onClick={handleDownloadMarkdown}
+            className="px-4 py-2 text-gray-500 hover:text-gray-700"
+          >
+            마크다운 내보내기
+          </button>
+          <button
+            type="button"
             onClick={() => importInputRef.current?.click()}
             className="px-4 py-2 text-gray-500 hover:text-gray-700"
           >
             마크다운 불러오기
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleDiscardDraft()}
+            disabled={!activeDraftKey && !hasMeaningfulChanges}
+            className="px-4 py-2 text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:text-gray-300"
+          >
+            초안 폐기
           </button>
           <button
             onClick={handleSaveDraft}
@@ -597,6 +731,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
               }
               lastPersistedDraftKeyRef.current = null;
               activeCreateDraftKeyRef.current = null;
+              setActiveDraftKey(null);
             }}
           />
         </Suspense>

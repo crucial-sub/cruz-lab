@@ -39,6 +39,8 @@
 - `done` 빠른 삽입 패널과 단축키 도움말을 `EditorOverlays` lazy chunk로 분리했다.
 - `done` 포스트 편집용 `by-slug` API를 raw markdown 파일 기준으로 바꿔 비공개 글도 같은 경로로 열 수 있게 했다.
 - `done` frontmatter import/publish 파서를 다시 맞춰 block list tags와 기본 multiline 값을 round-trip 기준으로 맞췄다.
+- `done` 에디터에서 마크다운 내보내기, 초안 폐기, beforeunload 경고를 추가해 실사용 포스팅 플로우를 보강했다.
+- `done` 관리자 포스트 목록이 focus/storage 기준으로 로컬 초안을 다시 읽고, 발행 글에 연결된 로컬 초안 여부도 보여주게 했다.
 
 ## 반드시 더 해야 하는 것
 
@@ -86,6 +88,7 @@
   - 브라우저 편집
   - 로컬 draft 저장/복원
   - publish 후 사이트 반영 확인
+  - 남은 일: 실제 운영 환경에서 GitHub 반영과 최종 배포 반영 시간을 포함해 한 번 더 확인
 
 ## 선택사항
 
@@ -107,6 +110,8 @@
   - 빠른 삽입 패널
   - 이미지 붙여넣기/드롭 업로드
   - 로컬 draft 자동저장과 출간 메타데이터 동기화
+  - 마크다운 내보내기
+  - 초안 폐기와 발행본 복원
 - `src/pages/admin/edit.astro`와 `src/pages/admin/posts/new.astro`의 설명도 CodeMirror 기준으로 정리됐다.
 - 현재 의존성에는 `Milkdown`, `CodeMirror`, `Tiptap`이 모두 함께 들어 있다. 즉 기술 선택이 이미 끝난 상태가 아니라, 실험 흔적이 저장소에 같이 남아 있는 상태다.
 - 실제 화면은 `EditorPage -> FullScreenEditor -> CodeMirrorEditor`로 연결된다.
@@ -118,6 +123,7 @@
 - 포스트 편집용 `by-slug` API는 이제 content collection이 아니라 `content/posts` raw markdown 파일을 직접 읽는다.
 - 업로드 로직은 Milkdown 플러그인 경로와 분리되어, CodeMirror 쪽에서 동적 import 가능한 순수 클라이언트 유틸로 정리됐다.
 - 모달성 UI인 빠른 삽입 패널과 단축키 도움말도 편집기 본체에서 분리할 수 있다.
+- 관리자 포스트 목록은 이제 focus/storage 이벤트 기준으로 로컬 초안 목록을 다시 읽고, 발행 글 옆에 `로컬 초안 있음` 배지를 붙인다.
 
 ### 코드 기준으로 확인된 구체적 한계
 
@@ -131,6 +137,7 @@
 - Markdown fidelity 문제는 fixture 기준으로 한 단계 완화됐지만, frontmatter 주석/순서 보존까지 해결된 것은 아니다.
 - 단축키는 브라우저 충돌을 피하려고 `Cmd/Ctrl + Alt` 조합으로 우회했지만, 이것만으로는 Obsidian처럼 자연스러운 작성 경험을 주기 어렵다.
 - import 경로가 하나로 정리되긴 했지만, 에디터 내부 parser가 외부 markdown을 얼마나 정확하게 보존하는지는 아직 검증이 부족하다.
+- 실제 publish 후 GitHub 반영과 사이트 최종 배포 반영까지는 아직 운영 환경에서 한 번 더 확인해야 한다.
 - 사용하지 않는 실험 흔적까지 함께 남아 있어서, "현재 운영 경로"와 "버려진 경로"를 먼저 구분하지 않으면 다음 교체 작업에서 더 헷갈릴 가능성이 높다.
 
 ### 현재 가설
@@ -193,3 +200,4 @@
 - 2026-03-26: CodeMirror 업로드 유틸을 Milkdown 플러그인 파일에서 분리했고, 이미지 업로드 시점에만 `media-upload-client`를 읽도록 바꿨다.
 - 2026-03-26: 빠른 삽입 패널과 단축키 도움말을 `EditorOverlays` lazy chunk로 분리해 CodeMirror 본체에서 떼어냈다.
 - 2026-03-26: `by-slug` API를 raw markdown 파일 기준으로 바꿔 비공개 글 편집 경로를 복구했고, frontmatter import/publish 파서를 다시 맞춰 fixture round-trip 평가를 `findings: none`까지 끌어올렸다.
+- 2026-03-26: 에디터 하단에 마크다운 내보내기와 초안 폐기를 추가했고, 나가기/새로고침 경고를 실제 변경이 있을 때만 뜨도록 정리했다. 관리자 포스트 목록은 로컬 초안 동기화와 `로컬 초안 있음` 표시를 지원한다.
