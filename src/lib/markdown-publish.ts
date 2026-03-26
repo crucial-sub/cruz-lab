@@ -3,6 +3,7 @@ export interface PublishPostInput {
   description: string;
   content: string;
   heroImage?: string;
+  heroVideo?: string;
   tags: string[];
   slug: string;
   readingTime: number;
@@ -16,6 +17,7 @@ export interface ParsedMarkdownDocument {
   description: string;
   content: string;
   heroImage: string;
+  heroVideo?: string;
   tags: string[];
   slug: string;
   pubDate?: string;
@@ -24,12 +26,33 @@ export interface ParsedMarkdownDocument {
   isPublic?: boolean;
 }
 
-function escapeYamlString(value: string): string {
-  return value.replace(/"/g, '\\"');
+interface SplitMarkdownDocument {
+  frontmatterBlock: string;
+  content: string;
 }
 
-export function normalizeIsoDate(value?: string): string {
-  return value ? new Date(value).toISOString() : new Date().toISOString();
+const FRONTMATTER_PATTERN = /^---\n([\s\S]*?)\n---\n*/;
+
+function fileNameToSlug(fileName?: string): string {
+  if (!fileName) return '';
+
+  return fileName
+    .replace(/\.[^.]+$/, '')
+    .replace(/^\d{4}-\d{2}-\d{2}-/, '')
+    .replace(/[^a-z0-9가-힣-]/gi, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase();
+}
+
+function splitMarkdownDocument(markdown: string): SplitMarkdownDocument {
+  const normalized = markdown.replace(/\r\n/g, '\n');
+  const frontmatterMatch = normalized.match(FRONTMATTER_PATTERN);
+
+  return {
+    frontmatterBlock: frontmatterMatch?.[1] || '',
+    content: frontmatterMatch ? normalized.slice(frontmatterMatch[0].length) : normalized,
+  };
 }
 
 function parseFrontmatterValue(rawValue: string): unknown {
@@ -79,8 +102,7 @@ function parseIndentedBlock(lines: string[]): unknown {
   if (isListBlock) {
     return trimmedLines
       .map((line) => line.trimStart().replace(/^- /, ''))
-      .map((line) => parseFrontmatterValue(line))
-      .filter((item): item is string => typeof item === 'string' && item.length > 0);
+      .map((line) => parseFrontmatterValue(line));
   }
 
   return normalizedLines.join('\n').trim();
@@ -142,23 +164,75 @@ function parseFrontmatterBlock(frontmatterBlock: string): Record<string, unknown
   return frontmatter;
 }
 
-function fileNameToSlug(fileName?: string): string {
-  if (!fileName) return '';
+function getStringField(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
 
-  return fileName
-    .replace(/\.[^.]+$/, '')
-    .replace(/^\d{4}-\d{2}-\d{2}-/, '')
-    .replace(/[^a-z0-9가-힣-]/gi, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .toLowerCase();
+function getBooleanField(value: unknown): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+function getNumberField(value: unknown): number | undefined {
+  return typeof value === 'number' ? value : undefined;
+}
+
+function getStringArrayField(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+function escapeYamlString(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function serializeScalar(value: unknown): string {
+  if (typeof value === 'boolean' || typeof value === 'number') {
+    return String(value);
+  }
+
+  return `"${escapeYamlString(String(value ?? ''))}"`;
+}
+
+function serializeFrontmatterEntry(key: string, value: unknown): string[] {
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return [`${key}: []`];
+    }
+
+    return [`${key}:`, ...value.map((item) => `  - ${serializeScalar(item)}`)];
+  }
+
+  if (typeof value === 'string' && value.includes('\n')) {
+    return [`${key}: |`, ...value.split('\n').map((line) => `  ${line}`)];
+  }
+
+  return [`${key}: ${serializeScalar(value)}`];
+}
+
+function serializeFrontmatter(post: PublishPostInput): string {
+  const entries = [
+    ['title', post.title],
+    ['description', post.description],
+    ['pubDate', normalizeIsoDate(post.pubDate)],
+    ['updatedDate', normalizeIsoDate(post.updatedDate)],
+    ...(post.heroImage ? [['heroImage', post.heroImage] as const] : []),
+    ...(post.heroVideo ? [['heroVideo', post.heroVideo] as const] : []),
+    ['tags', post.tags],
+    ['slug', post.slug],
+    ['readingTime', post.readingTime],
+    ['isPublic', post.isPublic],
+  ];
+
+  return entries
+    .flatMap(([key, value]) => serializeFrontmatterEntry(key, value))
+    .join('\n');
+}
+
+export function normalizeIsoDate(value?: string): string {
+  return value ? new Date(value).toISOString() : new Date().toISOString();
 }
 
 export function parseMarkdownDocument(markdown: string, fileName?: string): ParsedMarkdownDocument {
-  const normalized = markdown.replace(/\r\n/g, '\n');
-  const frontmatterMatch = normalized.match(/^---\n([\s\S]*?)\n---\n*/);
-  const frontmatterBlock = frontmatterMatch?.[1] || '';
-  const content = frontmatterMatch ? normalized.slice(frontmatterMatch[0].length) : normalized;
+  const { frontmatterBlock, content } = splitMarkdownDocument(markdown);
   const frontmatter = parseFrontmatterBlock(frontmatterBlock);
 
   const headingTitle =
@@ -166,36 +240,24 @@ export function parseMarkdownDocument(markdown: string, fileName?: string): Pars
     fileNameToSlug(fileName).replace(/-/g, ' ').trim();
 
   return {
-    title: typeof frontmatter.title === 'string' ? frontmatter.title : headingTitle,
-    description: typeof frontmatter.description === 'string' ? frontmatter.description : '',
+    title: getStringField(frontmatter.title) || headingTitle,
+    description: getStringField(frontmatter.description) || '',
     content: content.trim(),
-    heroImage: typeof frontmatter.heroImage === 'string' ? frontmatter.heroImage : '',
-    tags: Array.isArray(frontmatter.tags) ? frontmatter.tags.filter((tag): tag is string => typeof tag === 'string') : [],
-    slug: typeof frontmatter.slug === 'string' ? frontmatter.slug : fileNameToSlug(fileName),
-    pubDate: typeof frontmatter.pubDate === 'string' ? frontmatter.pubDate : undefined,
-    updatedDate: typeof frontmatter.updatedDate === 'string' ? frontmatter.updatedDate : undefined,
-    readingTime: typeof frontmatter.readingTime === 'number' ? frontmatter.readingTime : undefined,
-    isPublic: typeof frontmatter.isPublic === 'boolean' ? frontmatter.isPublic : undefined,
+    heroImage: getStringField(frontmatter.heroImage) || '',
+    heroVideo: getStringField(frontmatter.heroVideo),
+    tags: getStringArrayField(frontmatter.tags),
+    slug: getStringField(frontmatter.slug) || fileNameToSlug(fileName),
+    pubDate: getStringField(frontmatter.pubDate),
+    updatedDate: getStringField(frontmatter.updatedDate),
+    readingTime: getNumberField(frontmatter.readingTime),
+    isPublic: getBooleanField(frontmatter.isPublic),
   };
 }
 
 export function generateMarkdownContent(post: PublishPostInput): string {
-  const pubDate = normalizeIsoDate(post.pubDate);
-  const updatedDate = normalizeIsoDate(post.updatedDate);
-
-  const frontmatter = `---
-title: "${escapeYamlString(post.title)}"
-description: "${escapeYamlString(post.description)}"
-pubDate: "${pubDate}"
-updatedDate: "${updatedDate}"
-heroImage: "${post.heroImage || ''}"
-tags: [${post.tags.map((tag) => `"${escapeYamlString(tag)}"`).join(', ')}]
-slug: "${escapeYamlString(post.slug)}"
-readingTime: ${post.readingTime}
-isPublic: ${post.isPublic}
----`;
-
-  return `${frontmatter}\n\n${post.content}`.trimEnd() + '\n';
+  const body = post.content.trimEnd();
+  const frontmatter = serializeFrontmatter(post);
+  return `---\n${frontmatter}\n---\n\n${body}\n`;
 }
 
 export function generateMarkdownFileName({

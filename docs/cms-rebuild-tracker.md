@@ -37,6 +37,8 @@
 - `done` 포스트 편집 화면의 레거시 Firestore `?id=` fallback을 제거했다.
 - `done` CodeMirror 업로드 경로를 순수 클라이언트 유틸로 분리해 Milkdown 플러그인 정적 의존을 끊었다.
 - `done` 빠른 삽입 패널과 단축키 도움말을 `EditorOverlays` lazy chunk로 분리했다.
+- `done` 포스트 편집용 `by-slug` API를 raw markdown 파일 기준으로 바꿔 비공개 글도 같은 경로로 열 수 있게 했다.
+- `done` frontmatter import/publish 파서를 다시 맞춰 block list tags와 기본 multiline 값을 round-trip 기준으로 맞췄다.
 
 ## 반드시 더 해야 하는 것
 
@@ -45,6 +47,9 @@
   - 한글 입력, escape 보정, ZWSP 삽입 같은 보정 코드의 필요성과 한계를 분리
   - 단축키 충돌을 브라우저 제약과 현재 구현 문제로 나눠서 정리
   - 지금 에디터가 실제로 어떤 Markdown 원본을 보존하지 못하는지 샘플 기준으로 기록
+- `in_progress` 에픽 1 현재 상태
+  - fixture 기준 `import -> publish` round-trip 결과는 `findings: none`
+  - 다만 frontmatter 주석, 키 순서, 더 복잡한 YAML 표현까지 보존하는 단계는 아직 아님
 - `next` 에픽 2. 에디터 후보 비교와 기술 선택 확정
   - 비교 대상: `Milkdown`, `CodeMirror 6`, `Tiptap`
   - 비교 기준: markdown fidelity, 대용량 문서 성능, 단축키 제어, import/export 단순성, 플러그인 확장성
@@ -106,28 +111,24 @@
 - 현재 의존성에는 `Milkdown`, `CodeMirror`, `Tiptap`이 모두 함께 들어 있다. 즉 기술 선택이 이미 끝난 상태가 아니라, 실험 흔적이 저장소에 같이 남아 있는 상태다.
 - 실제 화면은 `EditorPage -> FullScreenEditor -> CodeMirrorEditor`로 연결된다.
 - 외부 markdown import는 `FullScreenEditor`에서 `parseMarkdownDocument()`로 frontmatter를 먼저 읽고, 본문 markdown 문자열을 현재 에디터 상태에 채우는 구조다.
-- publish는 `generateMarkdownContent()`가 frontmatter를 새로 생성하는 방식이라, import된 원본 frontmatter 표현을 그대로 보존하지 않는다.
+- publish는 `generateMarkdownContent()`가 frontmatter를 다시 생성하는 방식이지만, 현재 기본 포스트 포맷에서는 block list tags와 quoted scalar 형식을 맞추도록 보정됐다.
 - 현재 운영 경로에서 Firebase 접근은 `auth / storage / firestore` 서비스별 모듈로 분리됐다.
 - 시리즈 관리 CRUD는 이제 서버 API 경유로 처리한다.
 - 포스트 편집 화면의 레거시 Firestore post 로딩 fallback은 제거됐다.
+- 포스트 편집용 `by-slug` API는 이제 content collection이 아니라 `content/posts` raw markdown 파일을 직접 읽는다.
 - 업로드 로직은 Milkdown 플러그인 경로와 분리되어, CodeMirror 쪽에서 동적 import 가능한 순수 클라이언트 유틸로 정리됐다.
 - 모달성 UI인 빠른 삽입 패널과 단축키 도움말도 편집기 본체에서 분리할 수 있다.
 
 ### 코드 기준으로 확인된 구체적 한계
 
-- `parseMarkdownDocument()`는 사실상 단순 frontmatter 파서다.
-  - 한 줄짜리 `key: value`만 기준으로 읽는다.
-  - 배열은 `tags: ["a", "b"]` 같은 inline 형식에 유리하고, 일반 YAML block list는 처리하지 못한다.
-  - multiline string, folded style, nested object 같은 일반 YAML 패턴은 지원하지 않는다.
-- `generateMarkdownContent()`는 출간 시 frontmatter를 고정된 형식으로 다시 만든다.
-  - 날짜는 항상 ISO 문자열로 정규화된다.
-  - tags는 항상 inline 배열 형식으로 다시 출력된다.
-  - 원본 frontmatter의 줄바꿈, 순서, 주석, block list 표현은 유지되지 않는다.
+- `parseMarkdownDocument()`는 block list, inline array, literal/folded multiline string까지는 읽도록 확장됐다.
+- `generateMarkdownContent()`는 출간 시 frontmatter를 다시 만들지만, 현재 포스트에서 실제로 쓰는 block list tags와 quoted scalar 형식은 유지한다.
+- 다만 원본 frontmatter의 주석, 임의 키 순서, 더 복잡한 nested object까지 보존하는 수준은 아니다.
 - 이전 `Milkdown` 경로에서 쓰던 보정 로직은 이제 운영 경로 밖으로 밀려났지만, 관련 의존성과 일부 레거시 파일은 저장소에 남아 있다.
 
 ### 지금 보이는 구조적 문제
 
-- Markdown fidelity 문제는 엔진 교체로 일부 완화됐지만, frontmatter 재생성과 표현 정규화 문제는 아직 남아 있다.
+- Markdown fidelity 문제는 fixture 기준으로 한 단계 완화됐지만, frontmatter 주석/순서 보존까지 해결된 것은 아니다.
 - 단축키는 브라우저 충돌을 피하려고 `Cmd/Ctrl + Alt` 조합으로 우회했지만, 이것만으로는 Obsidian처럼 자연스러운 작성 경험을 주기 어렵다.
 - import 경로가 하나로 정리되긴 했지만, 에디터 내부 parser가 외부 markdown을 얼마나 정확하게 보존하는지는 아직 검증이 부족하다.
 - 사용하지 않는 실험 흔적까지 함께 남아 있어서, "현재 운영 경로"와 "버려진 경로"를 먼저 구분하지 않으면 다음 교체 작업에서 더 헷갈릴 가능성이 높다.
@@ -191,3 +192,4 @@
 - 2026-03-26: 시리즈 관리 화면을 `/api/admin/series` 서버 API 기반으로 전환했고, 포스트 편집의 레거시 Firestore `?id=` fallback도 제거했다.
 - 2026-03-26: CodeMirror 업로드 유틸을 Milkdown 플러그인 파일에서 분리했고, 이미지 업로드 시점에만 `media-upload-client`를 읽도록 바꿨다.
 - 2026-03-26: 빠른 삽입 패널과 단축키 도움말을 `EditorOverlays` lazy chunk로 분리해 CodeMirror 본체에서 떼어냈다.
+- 2026-03-26: `by-slug` API를 raw markdown 파일 기준으로 바꿔 비공개 글 편집 경로를 복구했고, frontmatter import/publish 파서를 다시 맞춰 fixture round-trip 평가를 `findings: none`까지 끌어올렸다.

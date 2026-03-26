@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { getContentPostBySlug } from '@/lib/content-posts';
+import { getEditablePostBySlug } from '@/lib/server/content-post-files';
 
 export const prerender = false;
 
@@ -13,7 +13,7 @@ export const GET: APIRoute = async ({ url }) => {
     });
   }
 
-  const post = await getContentPostBySlug(slug);
+  const post = await getEditablePostBySlug(slug);
 
   if (!post) {
     return new Response(JSON.stringify({ message: '포스트를 찾을 수 없습니다.' }), {

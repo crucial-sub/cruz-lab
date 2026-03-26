@@ -17,8 +17,8 @@
 
 대표 문제는 이렇다.
 
-- block list 형태의 YAML 배열을 읽지 못한다.
-- frontmatter의 줄 순서, 주석, 표현 방식이 보존되지 않는다.
+- block list 형태의 YAML 배열과 multiline 문자열을 안정적으로 다뤄야 한다.
+- frontmatter의 줄 순서나 주석 같은 원본 표현은 여전히 완전 보존 대상이 아니다.
 - 한글과 마크다운 문법이 맞닿는 케이스를 엔진 내부가 아니라 정규식과 ZWSP 보정으로 막고 있다.
 - 단축키는 브라우저 충돌을 피하기 위해 `Cmd/Ctrl + Alt` 조합으로 우회하고 있다.
 
@@ -36,17 +36,16 @@ npm run editor:evaluate
 
 현재 스크립트 기준으로 확인 가능한 사실:
 
-- block list 형식의 `tags`는 이제 import 단계에서 읽을 수 있다.
-- publish 결과는 frontmatter를 고정 포맷으로 다시 쓴다.
-- 즉, 지금 구조는 “markdown 문자열 원본 보존”보다 “현재 시스템이 요구하는 형식으로 재생성”에 가깝다.
-- 실제 평가 스크립트 결과에서도 `parsed tags: ["CMS","Markdown","한글"]`가 나왔고, publish preview에도 같은 태그가 유지됐다.
+- block list 형식의 `tags`는 import와 publish 모두에서 유지된다.
+- 현재 fixture 기준으로는 `import -> publish` 이후 frontmatter와 본문이 동일하게 나온다.
+- `by-slug` API도 이제 `content/posts`의 raw markdown 파일을 직접 읽기 때문에, 공개 여부와 무관하게 편집 경로가 같은 소스를 본다.
+- 즉, 현재 구조는 “markdown 원본을 다시 조립하되, 기존 포스트 작성 포맷에 최대한 맞춘다” 쪽으로 한 단계 정리됐다.
 
 ```text
-findings:
-- 원본 markdown과 publish 결과가 동일하지 않음
+findings: none
 ```
 
-이건 CMS가 브라우저 안에서 쓰기 편하냐와 별개로, 외부에서 작성한 markdown을 신뢰성 있게 받아들이는 데 불리하다.
+다만 이 결과는 현재 fixture 기준이다. frontmatter 주석, 키 순서 변경, 더 복잡한 YAML 표현까지 전부 보존한다는 뜻은 아니다.
 
 추가로 현재 빌드 결과에서 관리자 에디터 번들은 여전히 크다.
 
@@ -109,6 +108,11 @@ findings:
   - 새 `EditorOverlays` chunk는 약 `4.08 kB`다.
   - 그 결과 `CodeMirrorEditor` chunk는 약 `620.26 kB -> 616.99 kB`로 한 번 더 줄었다.
   - 의미는 크기 자체보다, 핵심 편집기와 모달성 UI의 로드 경계가 분명해졌다는 점이다.
+- `parseMarkdownDocument()`와 `generateMarkdownContent()`도 다시 맞췄다.
+  - import는 block list, inline array, literal/folded multiline 값을 읽는다.
+  - publish는 기존 포스트 스타일에 맞춰 block list tags와 quoted scalar 중심으로 frontmatter를 다시 만든다.
+  - `heroImage`가 없으면 빈 문자열을 강제로 쓰지 않고, 실제 값이 있을 때만 넣는다.
+  - `by-slug` API는 Astro content collection이 아니라 raw markdown 파일을 읽어 오므로, `isPublic: false` 글도 같은 경로로 편집할 수 있다.
 
 즉, 지금 프로토타입은 완성형은 아니지만 아래 두 가지는 입증했다.
 
@@ -197,7 +201,7 @@ findings:
 ## 다음 구현 원칙
 
 - source of truth는 항상 markdown 문자열 하나로 둔다.
-- frontmatter도 가능한 한 표준 YAML 파서를 써서 읽는다.
+- frontmatter는 지원 범위를 명확히 정한 보수적 파서와 직렬화기로 유지한다.
 - import, draft, publish가 모두 같은 markdown 문서를 기준으로 움직이게 한다.
 - 에디터 교체 후에도 현재 publish 경로와 로컬 draft 경험은 최대한 유지한다.
-- 다음 단계에서는 CodeMirror 자체 번들과 남아 있는 `proxy` chunk를 더 줄일 수 있는지, 그리고 round-trip fidelity 개선으로 다시 돌아갈지 판단한다.
+- 다음 단계에서는 CodeMirror 자체 번들과 남아 있는 `proxy` chunk를 더 줄일지, 아니면 실제 작성 UX와 복잡한 YAML/주석 보존 범위를 더 넓힐지 판단한다.
