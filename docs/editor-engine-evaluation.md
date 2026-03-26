@@ -104,6 +104,11 @@ findings:
   - `CodeMirrorEditor`는 이미지 업로드 시점에만 `media-upload-client`를 동적 import 한다.
   - 그 결과 `CodeMirrorEditor` chunk는 약 `622.48 kB -> 620.26 kB`로 소폭 줄었고, 업로드 전용 chunk `media-upload-client` 약 `2.83 kB`가 새로 생겼다.
   - 중요한 점은 크기 자체보다, `CodeMirror`가 `Milkdown` 업로드 플러그인 경로를 더 이상 정적으로 끌고 오지 않는 구조가 됐다는 점이다.
+- 빠른 삽입 패널과 단축키 도움말도 `EditorOverlays` 청크로 분리했다.
+  - `CodeMirrorEditor`는 이제 편집기 본체를 먼저 띄우고, 오버레이 UI는 열었을 때만 로드한다.
+  - 새 `EditorOverlays` chunk는 약 `4.08 kB`다.
+  - 그 결과 `CodeMirrorEditor` chunk는 약 `620.26 kB -> 616.99 kB`로 한 번 더 줄었다.
+  - 의미는 크기 자체보다, 핵심 편집기와 모달성 UI의 로드 경계가 분명해졌다는 점이다.
 
 즉, 지금 프로토타입은 완성형은 아니지만 아래 두 가지는 입증했다.
 
@@ -195,4 +200,4 @@ findings:
 - frontmatter도 가능한 한 표준 YAML 파서를 써서 읽는다.
 - import, draft, publish가 모두 같은 markdown 문서를 기준으로 움직이게 한다.
 - 에디터 교체 후에도 현재 publish 경로와 로컬 draft 경험은 최대한 유지한다.
-- 다음 단계에서는 CodeMirror 자체 번들과 남아 있는 `proxy` chunk, 그리고 도움말/빠른 삽입 UI를 더 분리할 수 있는지 검토한다.
+- 다음 단계에서는 CodeMirror 자체 번들과 남아 있는 `proxy` chunk를 더 줄일 수 있는지, 그리고 round-trip fidelity 개선으로 다시 돌아갈지 판단한다.
