@@ -1,8 +1,9 @@
 ---
 title: "[AI] RAG는 검색 기능이 아니라 흐름이다"
 description: "프롬프트, 청킹, 임베딩, 벡터 DB, 검색, 재정렬, 답변 생성까지 RAG 파이프라인을 한 번에 정리해보자"
-pubDate: "2026-03-26T06:09:10.621Z"
-updatedDate: "2026-03-26T06:09:10.621Z"
+pubDate: "2026-03-26T08:35:42.396Z"
+updatedDate: "2026-03-26T08:35:42.396Z"
+heroImage: "/uploads/heroes/2026/03/1403194918098-1774514119926-o44r9w.jpeg"
 tags:
   - "AI"
   - "RAG"
