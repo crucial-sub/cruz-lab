@@ -1,8 +1,7 @@
 /**
  * 풀스크린 에디터 컴포넌트
  *
- * Milkdown 기반 WYSIWYG 에디터로 Live Preview 모드를 지원합니다.
- * - 기존 Velog 스타일 좌우 분할 → 단일 WYSIWYG 에디터로 변경
+ * CodeMirror 6 기반 마크다운 에디터입니다.
  * - Markdown 기반 출간 경로 사용
  * - 임시저장은 localStorage에 저장
  * - Firebase Storage 이미지 업로드 통합
@@ -18,7 +17,7 @@ import {
 } from '@/lib/editor-drafts';
 import { initializeFirebase } from '@/lib/firebase';
 import { parseMarkdownDocument } from '@/lib/markdown-publish';
-import MilkdownEditor from './MilkdownEditor';
+import CodeMirrorEditor from './CodeMirrorEditor';
 import PublishModal from './PublishModal';
 
 interface Props {
@@ -495,20 +494,18 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
           </div>
         </div>
 
-        {/* Milkdown WYSIWYG 에디터 - 992px 중앙 정렬 */}
+        {/* CodeMirror 에디터 - 992px 중앙 정렬 */}
         <div className="flex-1 overflow-auto px-8 py-2">
           <div className="mx-auto w-full max-w-[992px]">
-            <MilkdownEditor
+            <CodeMirrorEditor
               key={editorKey}
               defaultValue={content}
               onChange={handleContentChange}
               placeholder="당신의 이야기를 적어보세요..."
-              enableSlash={true}
               showShortcutsHelp={true}
               enableImageUpload={true}
               onUploadError={handleUploadError}
               onSave={handleSaveDraft}
-              showImportButton={false}
               className="h-full w-full"
             />
           </div>

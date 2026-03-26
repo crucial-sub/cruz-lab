@@ -57,6 +57,33 @@ findings:
 
 즉, 에디터 엔진 선택은 markdown fidelity뿐 아니라 번들 크기와 초기 로드 비용 관점에서도 다시 보는 편이 맞다.
 
+## CodeMirror 6 프로토타입 적용 결과
+
+현재 admin 작성 화면은 1차 프로토타입으로 `CodeMirror 6` 기반으로 교체됐다.
+
+포함된 범위:
+
+- markdown 문자열 직접 편집
+- `⌘/Ctrl+B`, `⌘/Ctrl+I`, `⌘/Ctrl+K`, `⌘/Ctrl+S`, heading 전환 단축키
+- 이미지 붙여넣기/드롭 업로드 후 markdown 삽입
+- 기존 local draft, import, publish 흐름 유지
+
+이번 단계에서 의도적으로 뺀 것:
+
+- slash menu
+- Milkdown 전용 code block / blockquote escape 플러그인
+- ProseMirror 기반 rich block UI
+
+빌드 기준 변화:
+
+- `EditorPage` client chunk: 약 `734 kB -> 668 kB`
+- `EditorPage` CSS: 약 `34 kB -> 6 kB`
+
+즉, 지금 프로토타입은 완성형은 아니지만 아래 두 가지는 입증했다.
+
+- admin 에디터를 `CodeMirror 6`로 바꿔도 현재 draft/import/publish 파이프라인은 유지 가능하다.
+- 에디터 번들과 스타일 무게도 줄어든다.
+
 ## 후보 비교
 
 | 기준 | Milkdown | CodeMirror 6 | Tiptap |
@@ -141,3 +168,4 @@ findings:
 - frontmatter도 가능한 한 표준 YAML 파서를 써서 읽는다.
 - import, draft, publish가 모두 같은 markdown 문서를 기준으로 움직이게 한다.
 - 에디터 교체 후에도 현재 publish 경로와 로컬 draft 경험은 최대한 유지한다.
+- 다음 단계에서는 언어 팩과 에디터 번들 분할, 그리고 slash 대체 UX를 별도로 검토한다.
