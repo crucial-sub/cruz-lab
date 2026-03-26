@@ -31,6 +31,8 @@
 - `done` CodeMirror 전체 언어 팩 import를 제거해 editor bundle을 줄였다.
 - `done` admin 진입 경로에서 에디터 본체와 출간 모달을 lazy loading으로 분리했다.
 - `done` 관리자 인증 훅을 auth 전용 Firebase 경로로 분리해 `AdminGuard` chunk를 줄였다.
+- `done` Firebase 클라이언트 경로를 auth, storage, firestore 서비스별로 분리했다.
+- `done` 업로드 경로에서 `firebase/storage`와 `browser-image-compression`을 실제 사용 시점에만 읽도록 바꿨다.
 
 ## 반드시 더 해야 하는 것
 
@@ -63,7 +65,9 @@
   - 전체 언어 팩 import 제거 후 `CodeMirrorEditor` chunk를 약 `622 kB` 수준으로 유지
   - `EditorPage -> FullScreenEditor -> CodeMirrorEditor/PublishModal` lazy loading으로 admin 작성 화면 초기 진입 chunk를 크게 줄임
   - `AdminGuard`를 auth 전용 경로로 분리해 chunk를 약 `507 kB -> 162 kB`로 축소
-  - 남은 최적화는 Firebase shared chunk와 이미지 압축 의존을 더 세분화하는 쪽
+  - `firebase` shared chunk를 auth, storage, firestore 경로로 분리
+  - `browser-image-compression`과 `firebase/storage`는 업로드 시점까지 미룸
+  - 남은 최적화는 Firestore 런타임 chunk와 legacy Firestore 편집 fallback을 더 줄이는 쪽
 - `next` 에픽 5. 실제 포스팅 플로우 검증
   - 외부 md 불러오기
   - 브라우저 편집
@@ -95,6 +99,8 @@
 - 실제 화면은 `EditorPage -> FullScreenEditor -> CodeMirrorEditor`로 연결된다.
 - 외부 markdown import는 `FullScreenEditor`에서 `parseMarkdownDocument()`로 frontmatter를 먼저 읽고, 본문 markdown 문자열을 현재 에디터 상태에 채우는 구조다.
 - publish는 `generateMarkdownContent()`가 frontmatter를 새로 생성하는 방식이라, import된 원본 frontmatter 표현을 그대로 보존하지 않는다.
+- 현재 운영 경로에서 Firebase 접근은 `auth / storage / firestore` 서비스별 모듈로 분리됐다.
+- 다만 시리즈 관리와 레거시 Firestore post 로딩 때문에 Firestore 런타임 의존은 여전히 남아 있다.
 
 ### 코드 기준으로 확인된 구체적 한계
 
@@ -170,3 +176,4 @@
 - 2026-03-26: 빠른 삽입 패널과 블록 템플릿을 추가했고, `npm run build`와 `npm run editor:evaluate`를 다시 통과했다.
 - 2026-03-26: `@codemirror/language-data` 전체 import를 제거한 뒤 `EditorPage` chunk가 약 `643 kB`로 줄어든 것을 확인했다.
 - 2026-03-26: `EditorPage`, `FullScreenEditor`, `PublishModal`을 lazy loading으로 분리했고, `AdminGuard`는 auth 전용 Firebase 경로로 분리해 admin 초기 진입 chunk를 더 줄였다.
+- 2026-03-26: Firebase 접근을 auth, storage, firestore 서비스별로 분리했고, 업로드 경로는 `firebase/storage`와 `browser-image-compression`을 실제 사용 시점에만 읽도록 바꿨다.

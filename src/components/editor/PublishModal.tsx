@@ -1,10 +1,9 @@
 // 출간 설정 모달
 // 썸네일, 설명, URL, 공개 설정 등
 import { useState, useRef, useEffect } from 'react';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { auth, storage } from '@/lib/firebase';
+import { getClientAuth } from '@/lib/firebase-auth-client';
+import { getClientStorage } from '@/lib/firebase-storage-client';
 import { generateMarkdownContent } from '@/lib/markdown-publish';
-import imageCompression from 'browser-image-compression';
 
 interface Props {
   title: string;
@@ -82,6 +81,7 @@ export default function PublishModal({
         storagePath = `images/heroes/${fileName}`;
       } else {
         // 이미지는 webp로 압축
+        const { default: imageCompression } = await import('browser-image-compression');
         const options = {
           maxSizeMB: 1,
           maxWidthOrHeight: 1920,
@@ -93,6 +93,8 @@ export default function PublishModal({
         storagePath = `images/heroes/${fileName}`;
       }
 
+      const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
+      const storage = getClientStorage();
       const storageRef = ref(storage, storagePath);
       await uploadBytes(storageRef, uploadFile);
       const downloadURL = await getDownloadURL(storageRef);
@@ -166,7 +168,7 @@ export default function PublishModal({
 
     setIsPublishing(true);
     try {
-      const idToken = await auth.currentUser?.getIdToken();
+      const idToken = await getClientAuth().currentUser?.getIdToken();
       if (!idToken) {
         throw new Error('관리자 인증 정보를 확인할 수 없습니다.');
       }

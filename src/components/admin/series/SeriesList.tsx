@@ -1,7 +1,6 @@
 // 시리즈 목록 관리 컴포넌트
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, deleteDoc, doc } from 'firebase/firestore';
-import { db, initializeFirebase } from '@/lib/firebase';
+import { getClientDb } from '@/lib/firebase-firestore-client';
 import AdminGuard from '../AdminGuard';
 import AdminLayout from '../AdminLayout';
 import type { Series } from '@/lib/series';
@@ -16,7 +15,8 @@ export default function SeriesList() {
   useEffect(() => {
     async function fetchSeries() {
       try {
-        initializeFirebase();
+        const { collection, query, orderBy, getDocs } = await import('firebase/firestore');
+        const db = getClientDb();
         const seriesRef = collection(db, 'series');
         const q = query(seriesRef, orderBy('order', 'asc'));
         const snapshot = await getDocs(q);
@@ -53,6 +53,8 @@ export default function SeriesList() {
   const handleDelete = async (seriesId: string) => {
     setIsDeleting(true);
     try {
+      const { deleteDoc, doc } = await import('firebase/firestore');
+      const db = getClientDb();
       await deleteDoc(doc(db, 'series', seriesId));
 
       setSeriesList(seriesList.filter((s) => s.id !== seriesId));

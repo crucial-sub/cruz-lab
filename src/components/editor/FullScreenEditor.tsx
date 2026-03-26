@@ -15,7 +15,6 @@ import {
   saveEditorDraft,
   type EditorDraftPayload,
 } from '@/lib/editor-drafts';
-import { initializeFirebase } from '@/lib/firebase';
 import { parseMarkdownDocument } from '@/lib/markdown-publish';
 
 const CodeMirrorEditor = lazy(() => import('./CodeMirrorEditor'));
@@ -99,8 +98,6 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
 
   // Firebase 초기화 및 데이터 로드
   useEffect(() => {
-    initializeFirebase();
-
     if (mode === 'edit') {
       const urlParams = new URLSearchParams(window.location.search);
       const targetSlug = urlParams.get('slug');
@@ -198,9 +195,9 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
   // 레거시 Firestore 문서 로드
   const loadLegacyPost = async (id: string) => {
     try {
-      const { db } = await import('@/lib/firebase');
+      const { getClientDb } = await import('@/lib/firebase-firestore-client');
       const { doc, getDoc } = await import('firebase/firestore');
-      const docRef = doc(db, 'posts', id);
+      const docRef = doc(getClientDb(), 'posts', id);
       const docSnap = await getDoc(docRef);
 
       if (!docSnap.exists()) {

@@ -1,11 +1,10 @@
 // 시리즈 에디터 컴포넌트
 import { useState, useEffect, useMemo } from 'react';
-import { collection, doc, getDoc, Timestamp, addDoc, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { auth, db, storage, initializeFirebase } from '@/lib/firebase';
+import { getClientAuth } from '@/lib/firebase-auth-client';
+import { getClientDb } from '@/lib/firebase-firestore-client';
+import { getClientStorage } from '@/lib/firebase-storage-client';
 import AdminGuard from '../AdminGuard';
 import AdminLayout from '../AdminLayout';
-import imageCompression from 'browser-image-compression';
 import { Reorder } from 'framer-motion';
 import { 
   Plus, 
@@ -65,11 +64,10 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
   useEffect(() => {
     async function initData() {
       try {
-        initializeFirebase();
         setIsLoading(true);
         setError(null);
 
-        const idToken = await auth.currentUser?.getIdToken();
+        const idToken = await getClientAuth().currentUser?.getIdToken();
         if (!idToken) {
           throw new Error('관리자 로그인 정보를 확인할 수 없습니다.');
         }
@@ -96,6 +94,8 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
 
         // 2. 수정 모드일 경우 시리즈 데이터 로딩
         if (mode === 'edit' && seriesId) {
+          const { doc, getDoc } = await import('firebase/firestore');
+          const db = getClientDb();
           const seriesRef = doc(db, 'series', seriesId);
           const seriesSnap = await getDoc(seriesRef);
           
@@ -148,6 +148,8 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
     if (!file) return;
 
     try {
+      const { default: imageCompression } = await import('browser-image-compression');
+      const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
       const options = {
         maxSizeMB: 1,
         maxWidthOrHeight: 1920,
@@ -157,6 +159,7 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
       const compressedFile = await imageCompression(file, options);
       const timestamp = Date.now();
       const fileName = `series-covers/${timestamp}-${file.name.replace(/\.[^/.]+$/, '')}.webp`;
+      const storage = getClientStorage();
       const storageRef = ref(storage, fileName);
       
       await uploadBytes(storageRef, compressedFile);
@@ -243,6 +246,8 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
 
     setIsSaving(true);
     try {
+        const { Timestamp, addDoc, collection, doc, updateDoc } = await import('firebase/firestore');
+        const db = getClientDb();
         const seriesData = {
             name,
             slug,

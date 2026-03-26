@@ -8,13 +8,9 @@
  * - 이미지 최적화 (리사이즈, 압축)
  */
 
-import {
-  ref,
-  uploadBytesResumable,
-  getDownloadURL,
-  type UploadTaskSnapshot,
-} from 'firebase/storage';
-import { storage, auth, initializeFirebase } from '@/lib/firebase';
+import type { UploadTaskSnapshot } from 'firebase/storage';
+import { getClientAuth } from '@/lib/firebase-auth-client';
+import { getClientStorage } from '@/lib/firebase-storage-client';
 import { upload, uploadConfig, type Uploader } from '@milkdown/kit/plugin/upload';
 import type { Node } from '@milkdown/kit/prose/model';
 import type { MilkdownPlugin } from '@milkdown/kit/ctx';
@@ -184,13 +180,8 @@ export async function uploadImageToFirebase(
   file: File,
   config: ImageUploadConfig = {}
 ): Promise<string> {
-  // Firebase 초기화 확인
-  if (typeof window !== 'undefined') {
-    initializeFirebase();
-  }
-
   // 인증 상태 확인 - Firebase Storage 규칙에서 인증된 사용자만 업로드 허용
-  const currentUser = auth?.currentUser;
+  const currentUser = getClientAuth().currentUser;
   if (!currentUser) {
     const error = new Error('이미지를 업로드하려면 로그인이 필요합니다.');
     config.onError?.(error);
@@ -242,6 +233,8 @@ export async function uploadImageToFirebase(
     const filePath = `${storagePath}/${fileName}`;
 
     // Storage 참조 생성
+    const { ref, uploadBytesResumable, getDownloadURL } = await import('firebase/storage');
+    const storage = getClientStorage();
     const storageRef = ref(storage, filePath);
 
     // 업로드 시작

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getStoredEditorDrafts, isCreateModeDraftKey } from '@/lib/editor-drafts';
-import { auth } from '@/lib/firebase';
+import { getClientAuth } from '@/lib/firebase-auth-client';
 import AdminGuard from './AdminGuard';
 import AdminLayout from './AdminLayout';
 
@@ -103,7 +103,7 @@ export default function PostList({ initialPosts }: Props) {
         return;
       }
 
-      const token = await auth.currentUser?.getIdToken();
+      const token = await getClientAuth().currentUser?.getIdToken();
       if (!token) {
         throw new Error('로그인 정보를 확인할 수 없습니다.');
       }
