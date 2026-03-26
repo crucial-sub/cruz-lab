@@ -1,3 +1,7 @@
+import { useRef, useState } from 'react';
+import { UploadProgress } from './UploadProgress';
+import type { UploadStatus } from './upload-types';
+
 interface EditorMetaPanelProps {
   title: string;
   content: string;
@@ -8,8 +12,14 @@ interface EditorMetaPanelProps {
   isPublic: boolean;
   setIsPublic: (value: boolean) => void;
   tagCount: number;
-  hasHeroImage: boolean;
+  heroImage: string;
+  setHeroImage: (value: string) => void;
   readingTime: number;
+}
+
+function isVideoUrl(url?: string): boolean {
+  if (!url) return false;
+  return /\.(mp4|webm|mov|ogg)(\?|$)/i.test(url);
 }
 
 function buildReadinessItems({
@@ -17,8 +27,8 @@ function buildReadinessItems({
   slug,
   description,
   tagCount,
-  hasHeroImage,
-}: Pick<EditorMetaPanelProps, 'title' | 'slug' | 'description' | 'tagCount' | 'hasHeroImage'>) {
+  heroImage,
+}: Pick<EditorMetaPanelProps, 'title' | 'slug' | 'description' | 'tagCount' | 'heroImage'>) {
   return [
     {
       id: 'title',
@@ -50,8 +60,8 @@ function buildReadinessItems({
     {
       id: 'hero',
       label: '썸네일',
-      ready: hasHeroImage,
-      helper: hasHeroImage ? '준비됨' : '썸네일은 출간 모달에서 올릴 수 있습니다.',
+      ready: Boolean(heroImage),
+      helper: heroImage ? '준비됨' : '여기서 바로 썸네일을 올릴 수 있습니다.',
     },
   ];
 }
@@ -66,15 +76,20 @@ export function EditorMetaPanel({
   isPublic,
   setIsPublic,
   tagCount,
-  hasHeroImage,
+  heroImage,
+  setHeroImage,
   readingTime,
 }: EditorMetaPanelProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle');
+  const [uploadFileName, setUploadFileName] = useState<string | undefined>();
   const readinessItems = buildReadinessItems({
     title,
     slug,
     description,
     tagCount,
-    hasHeroImage,
+    heroImage,
   });
   const readyCount = readinessItems.filter((item) => item.ready).length;
   const autoDescription = content
@@ -83,8 +98,47 @@ export function EditorMetaPanel({
     .replace(/\n+/g, ' ')
     .trim();
 
+  const handleUploadHide = () => {
+    setUploadStatus('idle');
+    setUploadProgress(0);
+    setUploadFileName(undefined);
+  };
+
+  const handleHeroUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const { uploadImageToFirebase } = await import('./media-upload-client');
+      const url = await uploadImageToFirebase(file, {
+        storagePath: 'images/heroes',
+        onProgress: (progress, status, fileName) => {
+          setUploadProgress(progress);
+          setUploadStatus(status);
+          setUploadFileName(fileName);
+        },
+        onError: (error) => {
+          alert(error.message);
+        },
+      });
+      setHeroImage(url);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '썸네일 업로드에 실패했습니다.');
+    } finally {
+      event.target.value = '';
+    }
+  };
+
   return (
     <section className="mb-6 rounded-2xl border border-gray-100 bg-gray-50/80 p-5">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,video/*"
+        onChange={handleHeroUpload}
+        className="hidden"
+      />
+
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
@@ -195,10 +249,88 @@ export function EditorMetaPanel({
             </button>
           </div>
           <p className="text-xs leading-5 text-gray-400">
-            썸네일 업로드와 최종 미리보기는 출간 모달에서 계속 처리합니다.
+            공개 상태는 여기서 바로 바꾸고, 출간 모달에서는 최종 확인만 합니다.
           </p>
         </div>
       </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-[1.1fr,0.9fr]">
+        <div className="space-y-2">
+          <span className="text-sm font-medium text-gray-700">썸네일과 카드 미리보기</span>
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+            <div className="aspect-video bg-gray-100">
+              {heroImage ? (
+                isVideoUrl(heroImage) ? (
+                  <video
+                    src={heroImage}
+                    className="h-full w-full object-cover"
+                    muted
+                    autoPlay
+                    loop
+                    playsInline
+                  />
+                ) : (
+                  <img src={heroImage} alt="썸네일 미리보기" className="h-full w-full object-cover" />
+                )
+              ) : (
+                <div className="flex h-full items-center justify-center text-sm text-gray-400">
+                  아직 썸네일이 없습니다.
+                </div>
+              )}
+            </div>
+            <div className="space-y-2 p-4">
+              <h3 className="font-semibold text-gray-900">{title || '제목을 입력하세요'}</h3>
+              <p className="line-clamp-2 text-sm leading-6 text-gray-600">
+                {description || autoDescription || '설명을 입력하거나 본문으로 자동 채우기를 눌러보세요.'}
+              </p>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                <span>{isPublic ? '전체 공개' : '비공개'}</span>
+                <span>·</span>
+                <span>{readingTime}분 읽기</span>
+                <span>·</span>
+                <span>{slug ? `/blog/${slug}` : 'slug 미정'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <span className="text-sm font-medium text-gray-700">썸네일 관리</span>
+          <div className="rounded-2xl border border-gray-200 bg-white p-4">
+            <p className="text-sm leading-6 text-gray-600">
+              출간 카드에 쓰일 대표 이미지를 여기서 바로 올릴 수 있습니다.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="rounded-xl bg-brand px-4 py-3 text-sm font-medium text-white hover:brightness-110"
+              >
+                {heroImage ? '썸네일 교체' : '썸네일 업로드'}
+              </button>
+              {heroImage && (
+                <button
+                  type="button"
+                  onClick={() => setHeroImage('')}
+                  className="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                >
+                  썸네일 제거
+                </button>
+              )}
+            </div>
+            <p className="mt-3 text-xs leading-5 text-gray-400">
+              이미지와 동영상을 지원합니다. 업로드 후에는 카드 미리보기가 바로 갱신됩니다.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <UploadProgress
+        progress={uploadProgress}
+        status={uploadStatus}
+        fileName={uploadFileName}
+        onHide={handleUploadHide}
+      />
     </section>
   );
 }

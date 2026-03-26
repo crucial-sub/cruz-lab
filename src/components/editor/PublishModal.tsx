@@ -1,8 +1,7 @@
 // 출간 설정 모달
-// 썸네일, 설명, URL, 공개 설정 등
-import { useState, useRef } from 'react';
+// 최종 확인, 로컬 백업, 출간 액션
+import { useState } from 'react';
 import { getClientAuth } from '@/lib/firebase-auth-client';
-import { getClientStorage } from '@/lib/firebase-storage-client';
 import { generateMarkdownContent } from '@/lib/markdown-publish';
 
 interface Props {
@@ -12,7 +11,6 @@ interface Props {
   onClose: () => void;
   calculateReadingTime: (content: string) => number;
   heroImage: string;
-  setHeroImage: (value: string) => void;
   description: string;
   slug: string;
   isPublic: boolean;
@@ -28,7 +26,6 @@ export default function PublishModal({
   onClose,
   calculateReadingTime,
   heroImage,
-  setHeroImage,
   description,
   slug,
   isPublic,
@@ -36,62 +33,7 @@ export default function PublishModal({
   originalSlug = '',
   onPublished,
 }: Props) {
-  const [isUploading, setIsUploading] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // 썸네일 업로드 (이미지 또는 동영상)
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    try {
-      const timestamp = Date.now();
-      const isVideo = file.type.startsWith('video/');
-
-      let uploadFile: File | Blob = file;
-      let fileName: string;
-      let storagePath: string;
-
-      if (isVideo) {
-        // 동영상은 압축 없이 원본 업로드 (기존 images 경로 사용)
-        const ext = file.name.split('.').pop() || 'mp4';
-        fileName = `hero-${timestamp}.${ext}`;
-        storagePath = `images/heroes/${fileName}`;
-      } else {
-        // 이미지는 webp로 압축
-        const { default: imageCompression } = await import('browser-image-compression');
-        const options = {
-          maxSizeMB: 1,
-          maxWidthOrHeight: 1920,
-          useWebWorker: true,
-          fileType: 'image/webp' as const,
-        };
-        uploadFile = await imageCompression(file, options);
-        fileName = `hero-${timestamp}.webp`;
-        storagePath = `images/heroes/${fileName}`;
-      }
-
-      const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
-      const storage = getClientStorage();
-      const storageRef = ref(storage, storagePath);
-      await uploadBytes(storageRef, uploadFile);
-      const downloadURL = await getDownloadURL(storageRef);
-      setHeroImage(downloadURL);
-    } catch (error) {
-      console.error('썸네일 업로드 오류:', error);
-      alert(`업로드 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
-    } finally {
-      setIsUploading(false);
-      e.target.value = '';
-    }
-  };
-
-  // 썸네일 제거
-  const handleRemoveImage = () => {
-    setHeroImage('');
-  };
 
   const buildPayload = () => {
     const autoDescription =
@@ -224,54 +166,21 @@ export default function PublishModal({
             {/* 썸네일 미리보기 */}
             <div className="aspect-video bg-gray-100 dark:bg-gray-800">
               {heroImage ? (
-                <div className="relative h-full">
-                  {/\.(mp4|webm|mov)/.test(heroImage) ? (
-                    <video src={heroImage} className="h-full w-full object-cover" muted autoPlay loop playsInline />
-                  ) : (
-                    <img src={heroImage} alt="썸네일" className="h-full w-full object-cover" />
-                  )}
-                  <div className="absolute right-2 top-2 flex gap-2">
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="rounded-lg bg-white/90 px-3 py-1 text-sm text-gray-700 hover:bg-white"
-                    >
-                      재업로드
-                    </button>
-                    <button
-                      onClick={handleRemoveImage}
-                      className="rounded-lg bg-white/90 px-3 py-1 text-sm text-red-500 hover:bg-white"
-                    >
-                      제거
-                    </button>
-                  </div>
-                </div>
+                /\.(mp4|webm|mov)/.test(heroImage) ? (
+                  <video src={heroImage} className="h-full w-full object-cover" muted autoPlay loop playsInline />
+                ) : (
+                  <img src={heroImage} alt="썸네일" className="h-full w-full object-cover" />
+                )
               ) : (
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploading}
-                  className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-500 hover:text-brand"
-                >
-                  {isUploading ? (
-                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand border-t-transparent" />
-                  ) : (
-                    <>
-                      <svg className="h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <span className="text-sm">썸네일 업로드</span>
-                    </>
-                  )}
-                </button>
+                <div className="flex h-full flex-col items-center justify-center gap-2 text-gray-400">
+                  <svg className="h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="text-sm">본문 화면에서 썸네일을 먼저 올려주세요</span>
+                </div>
               )}
             </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,video/*"
-              onChange={handleImageUpload}
-              className="hidden"
-            />
 
             {/* 포스트 정보 미리보기 */}
             <div className="p-4">

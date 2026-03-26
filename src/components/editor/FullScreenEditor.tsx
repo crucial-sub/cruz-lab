@@ -620,7 +620,11 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
               setIsPublic(value);
             }}
             tagCount={tags.length}
-            hasHeroImage={Boolean(heroImage)}
+            heroImage={heroImage}
+            setHeroImage={(value) => {
+              markDirty();
+              setHeroImage(value);
+            }}
             readingTime={calculateReadingTime(content)}
           />
         </div>
@@ -722,10 +726,6 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
             calculateReadingTime={calculateReadingTime}
             description={description}
             heroImage={heroImage}
-            setHeroImage={(value) => {
-              markDirty();
-              setHeroImage(value);
-            }}
             slug={slug}
             isPublic={isPublic}
             pubDate={originalPubDate}
