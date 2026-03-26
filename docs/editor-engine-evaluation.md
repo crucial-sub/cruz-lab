@@ -1,0 +1,143 @@
+# Editor Engine Evaluation
+
+기준일: 2026-03-26
+
+목표: Cruz Lab의 다음 에디터 엔진을 결정하기 전에, 현재 markdown 파이프라인과 후보 기술을 같은 기준으로 비교한다.
+
+## 현재 파이프라인에서 확인한 문제
+
+현재 흐름은 아래처럼 두 단계로 나뉜다.
+
+1. `FullScreenEditor`가 외부 markdown 파일을 읽는다.
+2. `parseMarkdownDocument()`가 frontmatter를 단순 파싱한다.
+3. 본문만 `MilkdownEditor`로 넘긴다.
+4. 출간 시 `generateMarkdownContent()`가 frontmatter를 다시 조립한다.
+
+이 구조 때문에 import와 publish 사이에서 원본 markdown 표현이 그대로 유지되지 않는다.
+
+대표 문제는 이렇다.
+
+- block list 형태의 YAML 배열을 읽지 못한다.
+- frontmatter의 줄 순서, 주석, 표현 방식이 보존되지 않는다.
+- 한글과 마크다운 문법이 맞닿는 케이스를 엔진 내부가 아니라 정규식과 ZWSP 보정으로 막고 있다.
+- 단축키는 브라우저 충돌을 피하기 위해 `Cmd/Ctrl + Alt` 조합으로 우회하고 있다.
+
+## 재현 자산
+
+- round-trip 샘플: [editor-roundtrip-stress.md](/Users/parkjungsub/projects/cruz-lab/fixtures/editor-roundtrip-stress.md)
+- 평가 스크립트: [evaluate-markdown-pipeline.mjs](/Users/parkjungsub/projects/cruz-lab/scripts/evaluate-markdown-pipeline.mjs)
+- 실행 명령:
+
+```bash
+npm run editor:evaluate
+```
+
+## 현재 평가 결과
+
+현재 스크립트 기준으로 확인 가능한 사실:
+
+- block list 형식의 `tags`는 현재 파서가 읽지 못한다.
+- publish 결과는 frontmatter를 고정 포맷으로 다시 쓴다.
+- 즉, 지금 구조는 “markdown 문자열 원본 보존”보다 “현재 시스템이 요구하는 형식으로 재생성”에 가깝다.
+- 실제 평가 스크립트 결과에서도 `parsed tags: []`가 나왔고, publish preview는 `tags: []`로 출력됐다.
+
+```text
+findings:
+- block list 형식의 tags를 읽지 못함
+- 원본 markdown과 publish 결과가 동일하지 않음
+- 출간 결과에서 tags 정보가 비어 있음
+```
+
+이건 CMS가 브라우저 안에서 쓰기 편하냐와 별개로, 외부에서 작성한 markdown을 신뢰성 있게 받아들이는 데 불리하다.
+
+추가로 현재 빌드 결과에서 관리자 에디터 번들은 여전히 크다.
+
+- `EditorPage` client chunk: 약 734 kB
+- `AdminGuard` client chunk: 약 507 kB
+
+즉, 에디터 엔진 선택은 markdown fidelity뿐 아니라 번들 크기와 초기 로드 비용 관점에서도 다시 보는 편이 맞다.
+
+## 후보 비교
+
+| 기준 | Milkdown | CodeMirror 6 | Tiptap |
+| --- | --- | --- | --- |
+| markdown fidelity | 낮음 | 높음 | 중간 |
+| 외부 md import 단순성 | 낮음 | 높음 | 중간 |
+| round-trip 예측 가능성 | 낮음 | 높음 | 중간 |
+| 단축키 설계 자유도 | 중간 | 높음 | 중간 |
+| 리치 UI 확장성 | 중간 | 중간 | 높음 |
+| 현재 CMS 목표 적합성 | 낮음 | 높음 | 중간 |
+
+### Milkdown
+
+장점:
+
+- 지금 코드가 이미 가장 많이 붙어 있다.
+- slash, 이미지 업로드, 코드블록 UI 같은 기능이 어느 정도 있다.
+
+단점:
+
+- markdown fidelity 문제가 이미 보정 코드로 누적돼 있다.
+- 한글/escape/ZWSP 같은 예외 처리가 계속 늘어날 가능성이 크다.
+- 외부 markdown을 “있는 그대로” 다루는 용도에는 맞지 않는다.
+
+판단:
+
+- 유지보수 관점에서 가장 위험하다.
+- 더 보정해서 살릴 수도 있지만, 지금 필요한 방향과는 어긋난다.
+
+### CodeMirror 6
+
+장점:
+
+- markdown 문자열을 중심에 두기 쉽다.
+- import/export와 draft/publish를 같은 문자열 기준으로 설계할 수 있다.
+- Obsidian에 가까운 작성 경험을 구현하기 좋다.
+- 단축키와 키맵 제어가 상대적으로 명확하다.
+
+단점:
+
+- slash menu, 이미지 업로드, 링크 다이얼로그 같은 UI는 다시 붙여야 한다.
+- 지금 있는 Milkdown 플러그인을 거의 그대로 재사용하긴 어렵다.
+
+판단:
+
+- 현재 목표와 가장 잘 맞는다.
+- “브라우저 안에서 쓰되 markdown 원본은 신뢰 가능해야 한다”는 요구에 제일 자연스럽다.
+
+### Tiptap
+
+장점:
+
+- 리치 에디터 UI를 만들기 쉽다.
+- 확장성과 문서화가 좋다.
+
+단점:
+
+- markdown은 여전히 변환 계층을 거친다.
+- 지금 문제의 핵심인 round-trip fidelity를 직접 해결해주지 않는다.
+- 현재 목표보다 Notion 스타일 편집기에 더 가깝다.
+
+판단:
+
+- 제품형 리치 에디터를 만들고 싶다면 좋지만, 지금 CMS 문제의 1순위를 해결하는 선택은 아니다.
+
+## 1차 결론
+
+현재 기준의 추천은 `CodeMirror 6`이다.
+
+이유는 단순하다.
+
+- 지금 문제의 핵심은 기능 수가 아니라 markdown fidelity다.
+- 외부에서 작성한 markdown을 거의 그대로 가져와서 브라우저에서 고치고 다시 publish할 수 있어야 한다.
+- 이 요구에는 ProseMirror 계열 WYSIWYG보다 markdown-native 접근이 더 잘 맞는다.
+- 현재 `Milkdown` 경로는 보정 코드와 번들 무게까지 같이 안고 있어서, 유지 비용 대비 이점이 줄어든 상태다.
+
+즉, 다음 단계는 `Milkdown을 더 고치는 것`보다 `CodeMirror 6 기반 작성 흐름을 1차 프로토타입으로 붙이는 것`이 맞다.
+
+## 다음 구현 원칙
+
+- source of truth는 항상 markdown 문자열 하나로 둔다.
+- frontmatter도 가능한 한 표준 YAML 파서를 써서 읽는다.
+- import, draft, publish가 모두 같은 markdown 문서를 기준으로 움직이게 한다.
+- 에디터 교체 후에도 현재 publish 경로와 로컬 draft 경험은 최대한 유지한다.

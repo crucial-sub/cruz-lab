@@ -24,6 +24,7 @@
 - `done` draft key 정리와 새 글 고유 draft key 관리를 추가했다.
 - `done` 글을 보기만 했을 때 draft가 생기지 않도록 자동저장 조건을 조정했다.
 - `done` 운영 경로와 무관한 레거시 에디터 흔적 일부를 정리했다.
+- `done` markdown 파이프라인 평가 스크립트와 에디터 후보 비교 문서를 추가했다.
 
 ## 반드시 더 해야 하는 것
 
@@ -36,6 +37,9 @@
   - 비교 대상: `Milkdown`, `CodeMirror 6`, `Tiptap`
   - 비교 기준: markdown fidelity, 대용량 문서 성능, 단축키 제어, import/export 단순성, 플러그인 확장성
   - 최종안 1개와 탈락 이유를 문서로 남기기
+- `next` 에픽 2의 현재 권장안: `CodeMirror 6`
+  - 근거 문서: `docs/editor-engine-evaluation.md`
+  - 남은 일: 실제 1차 프로토타입을 붙여도 import/draft/publish 경로가 단순해지는지 확인
 - `next` 에픽 3. 선택한 에디터 방향으로 설계 확정
   - 작성 데이터 모델
   - draft 호환 전략
@@ -147,3 +151,5 @@
 - 2026-03-26: import/publish 경로를 코드 기준으로 다시 확인했고, round-trip 재현용 markdown 샘플을 추가했다.
 - 2026-03-26: 실제 운영 경로와 무관한 `CodeMirror` 페이지 스타일과 미사용 `Tiptap` 툴바 컴포넌트를 제거했다.
 - 2026-03-26: 레거시 흔적 정리 후 `npm run build` 통과를 확인했다.
+- 2026-03-26: markdown 파이프라인 평가 스크립트를 추가하고, 후보 비교 문서에서 `CodeMirror 6`을 1차 권장안으로 정리했다.
+- 2026-03-26: 평가 스크립트 실행 결과 block list tags 손실을 재현했고, 빌드에서 큰 관리자 에디터 chunk도 다시 확인했다.

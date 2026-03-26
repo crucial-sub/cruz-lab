@@ -35,4 +35,5 @@ functions/node_modules/
 .claude/
 docs/*
 !docs/cms-rebuild-tracker.md
+!docs/editor-engine-evaluation.md
 .serena/
