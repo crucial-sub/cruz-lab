@@ -32,6 +32,8 @@ npm run publish:verify -- --slug <slug> --file-path content/posts/YYYY-MM-DD-slu
 
 ## 실제 출간 순서
 
+브라우저에서 직접 따라가야 하는 최종 smoke test는 [PUBLISH-SMOKE-TEST.md](/Users/parkjungsub/projects/cruz-lab/PUBLISH-SMOKE-TEST.md) 에 따로 정리돼 있다.
+
 1. `/admin/posts/new` 또는 `/admin/edit?slug=...`로 들어간다.
 2. 본문 화면에서 제목, slug, 설명, 공개 상태, 썸네일을 먼저 확인한다.
 3. `출간하기`를 눌러 Publish Modal을 연다.

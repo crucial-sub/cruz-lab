@@ -57,57 +57,18 @@
 
 ## 반드시 더 해야 하는 것
 
-- `in_progress` 에픽 1. 현재 에디터 문제 전수조사
-  - Markdown import/export fidelity 문제를 재현 가능한 사례로 정리
-  - 한글 입력, escape 보정, ZWSP 삽입 같은 보정 코드의 필요성과 한계를 분리
-  - 단축키 충돌을 브라우저 제약과 현재 구현 문제로 나눠서 정리
-  - 지금 에디터가 실제로 어떤 Markdown 원본을 보존하지 못하는지 샘플 기준으로 기록
-- `in_progress` 에픽 1 현재 상태
-  - fixture 기준 `import -> publish` round-trip 결과는 `findings: none`
-  - 다만 frontmatter 주석, 키 순서, 더 복잡한 YAML 표현까지 보존하는 단계는 아직 아님
-- `next` 에픽 2. 에디터 후보 비교와 기술 선택 확정
-  - 비교 대상: `Milkdown`, `CodeMirror 6`, `Tiptap`
-  - 비교 기준: markdown fidelity, 대용량 문서 성능, 단축키 제어, import/export 단순성, 플러그인 확장성
-  - 최종안 1개와 탈락 이유를 문서로 남기기
-- `next` 에픽 2의 현재 권장안: `CodeMirror 6`
-  - 근거 문서: `docs/editor-engine-evaluation.md`
-  - 남은 일: 실제 1차 프로토타입을 붙여도 import/draft/publish 경로가 단순해지는지 확인
-- `next` 에픽 3. 선택한 에디터 방향으로 설계 확정
-  - 작성 데이터 모델
-  - draft 호환 전략
-  - publish 연계 방식
-  - 이미지 업로드와 메타데이터 입력 흐름
-- `next` 에픽 4. 에디터 개선 또는 교체 1차 구현
-  - 최소 작성 플로우 완성
-  - 외부 markdown import 후 round-trip 품질 확보
-  - 기존 publish/draft 흐름과 자연스럽게 연결
-- `in_progress` 에픽 4 현재 상태
-  - CodeMirror 6 기반 admin 작성 화면 연결 완료
-  - 이미지 붙여넣기/드롭, 저장 단축키, 기본 서식 단축키까지 반영
-  - 빠른 삽입 패널로 slash 대체 UX 시작
-  - 체크리스트, 표, 인용구, 코드블록 템플릿 제공
-  - 전체 언어 팩 import 제거 후 `CodeMirrorEditor` chunk를 약 `622 kB` 수준으로 유지
-  - `EditorPage -> FullScreenEditor -> CodeMirrorEditor/PublishModal` lazy loading으로 admin 작성 화면 초기 진입 chunk를 크게 줄임
-  - `AdminGuard`를 auth 전용 경로로 분리해 chunk를 약 `507 kB -> 162 kB`로 축소
-  - `firebase` shared chunk를 auth, storage, firestore 경로로 분리
-  - `browser-image-compression`과 `firebase/storage`는 업로드 시점까지 미룸
-  - 시리즈 관리 화면은 `/api/admin/series` 기준으로 동작
-  - 포스트 편집 화면은 markdown slug 기준 경로만 유지
-  - `CodeMirrorEditor`는 업로드 시점에만 `media-upload-client`를 읽도록 분리
-  - 빠른 삽입 패널과 단축키 도움말은 `EditorOverlays` chunk로 분리
-  - 남은 최적화는 CodeMirror 번들과 기타 공용 client chunk를 더 줄이거나, round-trip fidelity 개선으로 다시 돌아가는 쪽
-- `next` 에픽 5. 실제 포스팅 플로우 검증
-  - 외부 md 불러오기
-  - 브라우저 편집
-  - 로컬 draft 저장/복원
-  - publish 후 사이트 반영 확인
-  - 현재 상태: 출간 후 GitHub 파일, 커밋, 공개 URL을 바로 확인하는 운영 체크리스트 배너가 생겼다.
-  - 현재 상태: 출간 전 진단도 GitHub 대상 브랜치/포스트 경로를 실시간으로 확인하고, 공개 사이트 기준 URL과 현재 origin 차이를 보여준다.
-  - 현재 상태: 브라우저 밖에서도 `npm run publish:preflight`로 운영 기준 사전 점검을 할 수 있다.
-  - 남은 일: 실제 운영 환경에서 GitHub 반영과 최종 배포 반영 시간을 포함해 한 번 더 확인
+- `blocked` 실제 브라우저 관리자 세션 기준 출간 smoke test 1건 실행
+  - 참고 문서: `PUBLISH-SMOKE-TEST.md`
+  - 확인 범위: Publish Modal 진단, GitHub 파일, GitHub 커밋, 공개 페이지, 관리자 배너 재검증, CLI `publish:verify`
+  - 현재 막힘: 이 단계는 실제 관리자 로그인과 버튼 클릭이 필요하다.
+- `blocked` 실제 운영 환경에서 배포 반영 시간 체감 기록
+  - 새 글 1건 기준으로 GitHub 반영 시각과 공개 페이지 반영 시각을 직접 적어야 한다.
+  - 현재 상태: 도구와 확인 경로는 준비됐지만, 실측 기록은 아직 없다.
 
 ## 선택사항
 
+- `optional` frontmatter 주석/키 순서까지 보존하는 고급 round-trip
+- `optional` CodeMirror 번들 추가 최적화
 - `optional` Obsidian 스타일 단축키 확장
 - `optional` slash command 고도화
 - `optional` 표 편집과 체크리스트 UX 개선
@@ -165,6 +126,7 @@
 - 2026-03-26 기준 네트워크 허용 preflight에서 `GITHUB_TOKEN`, GitHub push 권한, 대상 저장소 probe, 공개 사이트 `/blog` 응답까지 모두 통과했다.
 - 2026-03-26 기준 남은 운영 검증 핵심은 브라우저 관리자 세션에서 실제 `publish -> GitHub -> 공개 페이지`를 한 번 끝까지 확인하는 일이다.
 - 2026-03-26 기준 lint는 다시 통과한다. 설정/패키지 문제와 당시 남아 있던 앱 코드 이슈 25개도 함께 정리했다.
+- 2026-03-26 기준 현재 범위의 기술 선택은 사실상 끝났다. 운영 경로는 `CodeMirror 6`이고, 남은 일은 엔진 교체보다 실제 운영 smoke test에 가깝다.
 
 ### 현재 가설
 
@@ -241,3 +203,4 @@
 - 2026-03-26: `publish:verify` CLI를 추가해 브라우저 밖에서도 slug 기준으로 GitHub 파일과 공개 페이지 응답을 다시 확인할 수 있게 했다.
 - 2026-03-26: `Milkdown`, `Tiptap`, `Prism` 계열 패키지를 `package.json`과 `pnpm-lock.yaml`에서 제거했고, `globals`를 추가한 뒤 `.vercel`을 lint ignore에 포함해 lint를 다시 통과할 수 있게 정리했다.
 - 2026-03-26: `astro.config.mjs`의 오래된 Milkdown optimizeDeps include를 제거했고, Hero, 시리즈 에디터, editor overlay, 블로그/시리즈 islands, 태그 페이지, Tailwind 설정까지 손봐서 lint를 다시 통과시켰다.
+- 2026-03-26: 남은 작업을 다시 분류해, 현재 범위에서 구현이 더 필요한 항목은 닫고 실제 브라우저 출간 smoke test와 배포 반영 시간 기록만 `blocked`로 남겼다.
