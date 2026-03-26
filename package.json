@@ -8,6 +8,7 @@
     "clean": "rm -rf .astro node_modules/.astro",
     "build": "astro build",
     "editor:evaluate": "node scripts/evaluate-markdown-pipeline.mjs",
+    "publish:preflight": "node scripts/publish-preflight.mjs",
     "preview": "astro preview",
     "astro": "astro",
     "format": "prettier . --write",
