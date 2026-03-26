@@ -51,6 +51,7 @@ npm run publish:preflight
 
 ## 2026-03-26 확인 결과
 
-- 로컬 `.env` 기준으로 `PUBLIC_FIREBASE_API_KEY`, `PUBLIC_ADMIN_EMAIL`은 설정돼 있었다.
-- 같은 기준으로 `GITHUB_TOKEN`은 없어서 GitHub 대상 저장소 probe는 건너뛰었다.
-- 네트워크 허용 preflight에서는 `https://cruzlab.dev/blog` 응답이 `200 OK`로 확인됐다.
+- 로컬 `.env` 기준으로 `PUBLIC_FIREBASE_API_KEY`, `PUBLIC_ADMIN_EMAIL`, `GITHUB_TOKEN`이 모두 설정돼 있었다.
+- 네트워크 허용 preflight에서 `crucial-sub/cruz-lab / main / content/posts` GitHub 대상 저장소 probe가 통과했다.
+- 같은 기준으로 `https://cruzlab.dev/blog` 공개 사이트 응답도 `200 OK`로 확인됐다.
+- 아직 브라우저 관리자 세션을 통한 실제 `publish -> GitHub 커밋 -> 공개 페이지 반영` 1건 실출간 검증은 남아 있다.
