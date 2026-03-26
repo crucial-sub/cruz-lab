@@ -28,6 +28,14 @@ interface GitHubCommitResponse {
   };
 }
 
+interface GitHubRepoResponse {
+  permissions?: {
+    push?: boolean;
+    admin?: boolean;
+    maintain?: boolean;
+  };
+}
+
 async function githubRequest(path: string, init: RequestInit = {}) {
   const token = import.meta.env.GITHUB_TOKEN;
 
@@ -85,6 +93,26 @@ export async function probeGitHubPublishTarget() {
     };
   }
 
+  const repoResponse = await githubApiRequest('');
+  if (!repoResponse.ok) {
+    return {
+      ready: false,
+      detail: `GitHub API가 ${target.repository} 저장소 접근을 확인하지 못했습니다. (${await readGitHubError(repoResponse)})`,
+    };
+  }
+
+  const repoPayload = (await repoResponse.json()) as GitHubRepoResponse;
+  const hasWritePermission = Boolean(
+    repoPayload.permissions?.push || repoPayload.permissions?.admin || repoPayload.permissions?.maintain
+  );
+
+  if (!hasWritePermission) {
+    return {
+      ready: false,
+      detail: `GitHub 토큰으로 ${target.repository} 저장소를 읽을 수 있지만, ${target.branch} 브랜치에 반영할 push 권한은 확인되지 않았습니다.`,
+    };
+  }
+
   const branchResponse = await githubApiRequest(`/branches/${GITHUB_BRANCH}`);
   if (!branchResponse.ok) {
     return {
@@ -103,7 +131,7 @@ export async function probeGitHubPublishTarget() {
 
   return {
     ready: true,
-    detail: `GitHub API에서 ${target.repository}의 ${target.branch} 브랜치와 ${target.postsPath} 경로 접근을 확인했습니다.`,
+    detail: `GitHub API에서 ${target.repository}의 push 권한과 ${target.branch} 브랜치, ${target.postsPath} 경로 접근을 확인했습니다.`,
   };
 }
 

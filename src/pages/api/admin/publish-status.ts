@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { verifyAdminIdToken } from '@/lib/server/admin-auth';
 import { getGitHubPublishTarget, probeGitHubPublishTarget } from '@/lib/server/github-posts';
-import { getPublishSiteInfo } from '@/lib/server/site-url';
+import { getPublishSiteInfo, probePublicSiteUrl } from '@/lib/server/site-url';
 
 export const prerender = false;
 
@@ -26,6 +26,7 @@ export const GET: APIRoute = async ({ request }) => {
     const target = getGitHubPublishTarget();
     const siteInfo = getPublishSiteInfo(request);
     const gitHubTargetCheck = await probeGitHubPublishTarget();
+    const publicSiteCheck = await probePublicSiteUrl(siteInfo.publicSiteUrl);
     const checks = [
       {
         id: 'admin-session',
@@ -42,7 +43,7 @@ export const GET: APIRoute = async ({ request }) => {
         detail: gitHubTargetCheck.detail,
       },
       {
-        id: 'public-site',
+        id: 'public-site-origin',
         label: '공개 사이트 기준',
         kind: 'config' as const,
         ready: Boolean(siteInfo.publicSiteUrl),
@@ -50,6 +51,13 @@ export const GET: APIRoute = async ({ request }) => {
           siteInfo.publicSiteUrl === siteInfo.currentOrigin
             ? `현재 접속 origin과 공개 사이트 기준이 같습니다. (${siteInfo.publicSiteUrl})`
             : `현재 접속 origin은 ${siteInfo.currentOrigin}이고, 공개 링크는 ${siteInfo.publicSiteUrl} 기준으로 계산합니다.`,
+      },
+      {
+        id: 'public-site-live',
+        label: '공개 사이트 응답',
+        kind: 'active' as const,
+        ready: publicSiteCheck.ready,
+        detail: publicSiteCheck.detail,
       },
     ];
 

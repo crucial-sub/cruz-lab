@@ -28,3 +28,20 @@ export function getPublicPostUrl(request: Request, slug: string) {
   const { publicSiteUrl } = getPublishSiteInfo(request);
   return new URL(`/blog/${slug}`, publicSiteUrl).toString();
 }
+
+export async function probePublicSiteUrl(publicSiteUrl: string) {
+  try {
+    const response = await fetch(new URL('/blog', publicSiteUrl), { redirect: 'follow' });
+    return {
+      ready: response.ok,
+      detail: response.ok
+        ? `공개 사이트 응답 확인: ${response.status} ${response.statusText}`
+        : `공개 사이트 응답 실패: ${response.status} ${response.statusText}`,
+    };
+  } catch (error) {
+    return {
+      ready: false,
+      detail: `공개 사이트 확인 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
+    };
+  }
+}

@@ -97,10 +97,38 @@ async function probeGitHub(envValues) {
       };
     }
 
+    const repoResponse = await fetch(
+      `https://api.github.com/repos/${TARGET.repository}`,
+      { headers }
+    );
+
+    if (!repoResponse.ok) {
+      return {
+        ok: false,
+        skipped: false,
+        detail: `GitHub 저장소 권한 확인 실패: ${repoResponse.status} ${repoResponse.statusText}`,
+      };
+    }
+
+    const repoPayload = await repoResponse.json();
+    const hasWritePermission = Boolean(
+      repoPayload?.permissions?.push ||
+      repoPayload?.permissions?.admin ||
+      repoPayload?.permissions?.maintain
+    );
+
+    if (!hasWritePermission) {
+      return {
+        ok: false,
+        skipped: false,
+        detail: `${TARGET.repository} 저장소는 보이지만 push 권한이 확인되지 않았습니다.`,
+      };
+    }
+
     return {
       ok: true,
       skipped: false,
-      detail: `${TARGET.repository} / ${TARGET.branch} / ${TARGET.postsPath} 접근 확인`,
+      detail: `${TARGET.repository} / ${TARGET.branch} / ${TARGET.postsPath} 접근과 push 권한 확인`,
     };
   } catch (error) {
     return {

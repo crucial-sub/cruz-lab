@@ -150,7 +150,7 @@ findings: none
   - `MilkdownEditor`, `SlashMenu`, `LinkDialog`, 전용 플러그인 파일들은 저장소에서 제거했다.
   - 즉 지금 남은 비교 대상은 “저장소에 과거 실험 흔적이 남아 있다” 수준보다 “패키지 의존성과 lockfile 정리까지 갈지” 쪽으로 더 좁혀졌다.
 - 운영 검증 진입 비용도 낮췄다.
-  - `npm run publish:preflight`가 `.env`, 공개 사이트 기준 URL, `content/posts`, GitHub 대상 브랜치/경로, 공개 사이트 `/blog` 응답까지 한 번에 점검한다.
+  - `npm run publish:preflight`가 `.env`, 공개 사이트 기준 URL, `content/posts`, GitHub 대상 브랜치/경로, push 권한, 공개 사이트 `/blog` 응답까지 한 번에 점검한다.
   - 즉 브라우저 관리자 로그인 전에 “지금 출간 흐름이 운영 기준으로 준비됐는가”를 CLI에서도 다시 확인할 수 있다.
 - 현재 저장소 수준의 기술 선택 흔적도 더 정리됐다.
   - `Milkdown`, `Tiptap`, `Prism` 계열 패키지는 제거했고, lockfile도 현재 `CodeMirror` 운영 경로 기준으로 줄였다.

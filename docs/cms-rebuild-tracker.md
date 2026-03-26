@@ -160,7 +160,7 @@
 - 썸네일 업로드와 카드 미리보기는 메타 패널로 올라왔지만, 최종 출간 전 점검 흐름과 본문 작성 흐름이 충분히 자연스러운지는 실제 사용 기준으로 한 번 더 봐야 한다.
 - 사용하지 않는 실험 흔적은 소스와 패키지 기준으로 대부분 걷어냈다. 남은 판단은 추가 최적화가 필요한지 여부에 가깝다.
 - 운영 확인 절차는 이제 UI와 CLI 양쪽에 있지만, “실제 새 글 1건 출간” 기준의 로그/시간 기록은 아직 없다.
-- 2026-03-26 기준 네트워크 허용 preflight에서 `GITHUB_TOKEN`, GitHub 대상 저장소 probe, 공개 사이트 `/blog` 응답까지 모두 통과했다.
+- 2026-03-26 기준 네트워크 허용 preflight에서 `GITHUB_TOKEN`, GitHub push 권한, 대상 저장소 probe, 공개 사이트 `/blog` 응답까지 모두 통과했다.
 - 2026-03-26 기준 남은 운영 검증 핵심은 브라우저 관리자 세션에서 실제 `publish -> GitHub -> 공개 페이지`를 한 번 끝까지 확인하는 일이다.
 - 2026-03-26 기준 lint는 다시 통과한다. 설정/패키지 문제와 당시 남아 있던 앱 코드 이슈 25개도 함께 정리했다.
 
@@ -234,5 +234,6 @@
 - 2026-03-26: 현재 운영 경로에 물리지 않는 Milkdown 레거시 에디터 소스와 전용 플러그인 파일을 저장소에서 제거했다.
 - 2026-03-26: `npm run publish:preflight` 스크립트와 `PUBLISHING.md` runbook을 추가해, 브라우저 로그인 전에도 운영 기준 점검과 출간 확인 순서를 볼 수 있게 했다.
 - 2026-03-26: `.env.example`에 `PUBLIC_SITE_URL`, `GITHUB_TOKEN`을 추가했고, 네트워크 허용 preflight에서 현재 로컬 환경 기준 GitHub 대상 저장소 probe와 공개 사이트 `/blog` 응답이 모두 통과함을 확인했다.
+- 2026-03-26: 운영 진단을 더 보강해 `publish-status`와 `publish:preflight`가 대상 저장소의 push 권한과 공개 사이트 `/blog` live probe까지 함께 확인하도록 맞췄다.
 - 2026-03-26: `Milkdown`, `Tiptap`, `Prism` 계열 패키지를 `package.json`과 `pnpm-lock.yaml`에서 제거했고, `globals`를 추가한 뒤 `.vercel`을 lint ignore에 포함해 lint를 다시 통과할 수 있게 정리했다.
 - 2026-03-26: `astro.config.mjs`의 오래된 Milkdown optimizeDeps include를 제거했고, Hero, 시리즈 에디터, editor overlay, 블로그/시리즈 islands, 태그 페이지, Tailwind 설정까지 손봐서 lint를 다시 통과시켰다.

@@ -15,7 +15,7 @@ npm run publish:preflight
 - `.env`에 `PUBLIC_FIREBASE_API_KEY`, `PUBLIC_ADMIN_EMAIL`, `GITHUB_TOKEN`이 있는지
 - `astro.config.mjs`의 공개 사이트 기준 URL
 - `content/posts` 경로가 실제로 존재하는지
-- 가능하면 GitHub API로 대상 저장소의 `main` 브랜치와 `content/posts` 경로에 접근 가능한지
+- 가능하면 GitHub API로 대상 저장소의 `main` 브랜치와 `content/posts` 경로에 접근 가능하고 push 권한이 있는지
 - 가능하면 공개 사이트 `/blog` 응답이 오는지
 
 ## 실제 출간 순서
@@ -26,6 +26,8 @@ npm run publish:preflight
 4. 모달 안에서 아래를 본다.
    - 실시간 진단 상태
    - 대상 저장소 / 브랜치 / 포스트 경로
+   - GitHub push 가능 여부
+   - 공개 사이트 `/blog` live probe 결과
    - 공개 사이트 기준 URL
    - 현재 접속 origin이 공개 사이트와 다른지
 5. 출간을 실행한다.
@@ -53,5 +55,6 @@ npm run publish:preflight
 
 - 로컬 `.env` 기준으로 `PUBLIC_FIREBASE_API_KEY`, `PUBLIC_ADMIN_EMAIL`, `GITHUB_TOKEN`이 모두 설정돼 있었다.
 - 네트워크 허용 preflight에서 `crucial-sub/cruz-lab / main / content/posts` GitHub 대상 저장소 probe가 통과했다.
+- 같은 preflight에서 현재 `GITHUB_TOKEN`으로 저장소 push 권한도 확인됐다.
 - 같은 기준으로 `https://cruzlab.dev/blog` 공개 사이트 응답도 `200 OK`로 확인됐다.
 - 아직 브라우저 관리자 세션을 통한 실제 `publish -> GitHub 커밋 -> 공개 페이지 반영` 1건 실출간 검증은 남아 있다.
