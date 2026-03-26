@@ -1,9 +1,10 @@
 // 출간 설정 모달
 // 최종 확인, 로컬 백업, 출간 액션
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getClientAuth } from '@/lib/firebase-auth-client';
 import { generateMarkdownContent } from '@/lib/markdown-publish';
 import { saveLastPublishFeedback, type PublishFeedback } from '@/lib/publish-feedback';
+import type { PublishStatusPayload } from '@/lib/publish-status';
 
 interface Props {
   title: string;
@@ -35,6 +36,9 @@ export default function PublishModal({
   onPublished,
 }: Props) {
   const [isPublishing, setIsPublishing] = useState(false);
+  const [publishStatus, setPublishStatus] = useState<PublishStatusPayload | null>(null);
+  const [statusLoading, setStatusLoading] = useState(true);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   const buildPayload = () => {
     const autoDescription =
@@ -96,6 +100,51 @@ export default function PublishModal({
   ];
 
   const publishWarnings = readinessItems.filter((item) => !item.ready);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadPublishStatus = async () => {
+      try {
+        setStatusLoading(true);
+        setStatusError(null);
+
+        const idToken = await getClientAuth().currentUser?.getIdToken();
+        if (!idToken) {
+          throw new Error('관리자 인증 정보를 확인할 수 없습니다.');
+        }
+
+        const response = await fetch('/api/admin/publish-status', {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        });
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.message || '출간 상태를 불러오지 못했습니다.');
+        }
+
+        if (!active) return;
+        setPublishStatus(result);
+      } catch (error) {
+        if (!active) return;
+        setStatusError(error instanceof Error ? error.message : '출간 상태를 불러오지 못했습니다.');
+      } finally {
+        if (active) {
+          setStatusLoading(false);
+        }
+      }
+    };
+
+    loadPublishStatus();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const isPublishBlocked = Boolean(statusError) || (publishStatus ? !publishStatus.ready : statusLoading);
 
   const handleDownloadMarkdown = () => {
     if (!title || !slug) {
@@ -264,6 +313,54 @@ export default function PublishModal({
 
           <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/70">
             <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+              출간 시스템 상태
+            </h4>
+            {statusLoading ? (
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                서버 준비 상태를 확인하는 중입니다...
+              </p>
+            ) : statusError ? (
+              <p className="mt-2 text-sm text-red-500">{statusError}</p>
+            ) : publishStatus ? (
+              <div className="mt-3 space-y-3">
+                <div
+                  className={`rounded-xl px-3 py-3 text-sm font-medium ${
+                    publishStatus.ready ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                  }`}
+                >
+                  {publishStatus.ready
+                    ? '현재 서버 설정으로 출간을 진행할 수 있습니다.'
+                    : '서버 설정이 완전하지 않아 출간을 막습니다. 아래 항목을 먼저 확인해주세요.'}
+                </div>
+                <div className="space-y-2">
+                  {publishStatus.checks.map((check) => (
+                    <div key={check.id} className="rounded-xl bg-white/80 px-3 py-3 dark:bg-[#242424]">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">
+                          {check.label}
+                        </span>
+                        <span className={`text-xs font-medium ${check.ready ? 'text-emerald-600' : 'text-amber-600'}`}>
+                          {check.ready ? '정상' : '확인 필요'}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-gray-700 dark:text-gray-200">
+                        {check.detail}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <div className="rounded-xl border border-dashed border-gray-200 px-3 py-3 text-xs leading-6 text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                  <p>대상 저장소 · {publishStatus.target.repository}</p>
+                  <p>브랜치 · {publishStatus.target.branch}</p>
+                  <p>포스트 경로 · {publishStatus.target.postsPath}</p>
+                  <p>공개 사이트 · {publishStatus.target.siteUrl}</p>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/70">
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
               출간 정보
             </h4>
             <div className="mt-3 space-y-2 text-sm text-gray-600 dark:text-gray-300">
@@ -302,19 +399,19 @@ export default function PublishModal({
           {/* 버튼 */}
           <div className="flex flex-col gap-3 pt-4">
             <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="flex-1 rounded-xl border border-gray-200 px-4 py-3 font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
-            >
-              취소
-            </button>
-            <button
-              onClick={handlePublish}
-              disabled={isPublishing}
-              className="flex-1 rounded-xl bg-brand px-4 py-3 font-medium text-white hover:brightness-110 disabled:opacity-50"
-            >
-              {isPublishing ? '출간 중...' : '출간하기'}
-            </button>
+              <button
+                onClick={onClose}
+                className="flex-1 rounded-xl border border-gray-200 px-4 py-3 font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+              >
+                취소
+              </button>
+              <button
+                onClick={handlePublish}
+                disabled={isPublishing || isPublishBlocked}
+                className="flex-1 rounded-xl bg-brand px-4 py-3 font-medium text-white hover:brightness-110 disabled:opacity-50"
+              >
+                {isPublishing ? '출간 중...' : isPublishBlocked ? '출간 준비 확인 필요' : '출간하기'}
+              </button>
             </div>
           </div>
         </div>

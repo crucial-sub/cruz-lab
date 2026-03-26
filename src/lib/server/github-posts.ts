@@ -3,6 +3,16 @@ const GITHUB_REPO = 'cruz-lab';
 const GITHUB_BRANCH = 'main';
 const POSTS_PATH = 'content/posts';
 
+export function getGitHubPublishTarget() {
+  return {
+    owner: GITHUB_OWNER,
+    repo: GITHUB_REPO,
+    branch: GITHUB_BRANCH,
+    postsPath: POSTS_PATH,
+    repository: `${GITHUB_OWNER}/${GITHUB_REPO}`,
+  };
+}
+
 interface GitHubFileResponse {
   sha: string;
 }
