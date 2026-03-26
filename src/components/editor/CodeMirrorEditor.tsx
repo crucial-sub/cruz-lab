@@ -9,7 +9,7 @@ import { indentUnit } from '@codemirror/language';
 import { drawSelection, highlightActiveLine, highlightSpecialChars } from '@codemirror/view';
 import { syntaxHighlighting, defaultHighlightStyle, indentOnInput, bracketMatching } from '@codemirror/language';
 
-import { uploadImageToFirebase, type UploadStatus } from './plugins/imageUpload';
+import type { UploadStatus } from './upload-types';
 import { UploadProgress } from './UploadProgress';
 import './CodeMirrorEditor.css';
 
@@ -418,6 +418,7 @@ export default function CodeMirrorEditor({
       if (!viewRef.current || !enableImageUpload) return;
 
       try {
+        const { uploadImageToFirebase } = await import('./media-upload-client');
         const url = await uploadImageToFirebase(file, {
           onProgress: (progress, status, fileName) => {
             setUploadProgress(progress);

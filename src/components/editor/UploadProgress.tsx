@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import type { UploadStatus } from './plugins/imageUpload';
+import type { UploadStatus } from './upload-types';
 
 interface UploadProgressProps {
   /** 업로드 진행률 (0-100) */

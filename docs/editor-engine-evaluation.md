@@ -96,9 +96,14 @@ findings:
   - 기존 `firebase` shared chunk 약 `345 kB`는 더 이상 한 덩어리로 남지 않는다.
   - `firebase-storage-client`는 약 `45.3 kB`다.
   - `PublishModal`은 약 `8.9 kB`로 유지되고, 썸네일 업로드를 눌렀을 때만 storage/compression 의존을 읽는다.
-  - `SeriesEditor`와 `SeriesList`는 Firestore를 직접 읽지 않고 `/api/admin/series`를 통해 서버 API로 동작한다.
-  - `FullScreenEditor`의 레거시 `?id=` Firestore 편집 fallback도 제거했다.
+- `SeriesEditor`와 `SeriesList`는 Firestore를 직접 읽지 않고 `/api/admin/series`를 통해 서버 API로 동작한다.
+- `FullScreenEditor`의 레거시 `?id=` Firestore 편집 fallback도 제거했다.
 - 그 결과, 이번 빌드 기준으로 클라이언트 쪽 큰 Firestore 런타임 chunk는 더 이상 보이지 않는다.
+- `CodeMirrorEditor`가 업로드 유틸을 `Milkdown` 플러그인 파일에서 직접 가져오지 않도록 경로를 분리했다.
+  - 업로드 타입과 순수 업로드 로직을 별도 파일로 뺐다.
+  - `CodeMirrorEditor`는 이미지 업로드 시점에만 `media-upload-client`를 동적 import 한다.
+  - 그 결과 `CodeMirrorEditor` chunk는 약 `622.48 kB -> 620.26 kB`로 소폭 줄었고, 업로드 전용 chunk `media-upload-client` 약 `2.83 kB`가 새로 생겼다.
+  - 중요한 점은 크기 자체보다, `CodeMirror`가 `Milkdown` 업로드 플러그인 경로를 더 이상 정적으로 끌고 오지 않는 구조가 됐다는 점이다.
 
 즉, 지금 프로토타입은 완성형은 아니지만 아래 두 가지는 입증했다.
 
@@ -190,4 +195,4 @@ findings:
 - frontmatter도 가능한 한 표준 YAML 파서를 써서 읽는다.
 - import, draft, publish가 모두 같은 markdown 문서를 기준으로 움직이게 한다.
 - 에디터 교체 후에도 현재 publish 경로와 로컬 draft 경험은 최대한 유지한다.
-- 다음 단계에서는 CodeMirror 자체 번들과 남아 있는 `proxy` chunk를 더 줄일 수 있는지 검토한다.
+- 다음 단계에서는 CodeMirror 자체 번들과 남아 있는 `proxy` chunk, 그리고 도움말/빠른 삽입 UI를 더 분리할 수 있는지 검토한다.
