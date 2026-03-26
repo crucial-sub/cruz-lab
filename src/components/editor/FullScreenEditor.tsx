@@ -98,8 +98,10 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
   // 에디터 마운트 키 (defaultValue 변경 시 에디터 재생성용)
   const [editorKey, setEditorKey] = useState(0);
   const autosaveTimerRef = useRef<number | null>(null);
+  const manualSaveNoticeTimerRef = useRef<number | null>(null);
   const lastPersistedDraftKeyRef = useRef<string | null>(null);
   const activeCreateDraftKeyRef = useRef<string | null>(null);
+  const [manualSaveNotice, setManualSaveNotice] = useState<'saved' | 'error' | null>(null);
 
   const markDirty = useCallback(() => {
     setHasUserChanges(true);
@@ -359,6 +361,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
       setLastSavedAt(savedAt);
       setAutosaveState('saved');
       setHasUserChanges(false);
+      setManualSaveNotice(source === 'manual' ? 'saved' : null);
 
       if (source === 'manual') {
         setIsSaving(false);
@@ -376,13 +379,28 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
     setIsSaving(true);
     try {
       persistDraft('manual');
+      if (manualSaveNoticeTimerRef.current) {
+        window.clearTimeout(manualSaveNoticeTimerRef.current);
+      }
+      manualSaveNoticeTimerRef.current = window.setTimeout(() => {
+        setManualSaveNotice(null);
+      }, 2200);
     } catch (err) {
       console.error('저장 오류:', err);
       setAutosaveState('error');
+      setManualSaveNotice('error');
       alert('저장에 실패했습니다.');
       setIsSaving(false);
     }
   }, [isSaving, persistDraft]);
+
+  useEffect(() => {
+    return () => {
+      if (manualSaveNoticeTimerRef.current) {
+        window.clearTimeout(manualSaveNoticeTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (isLoading) return;
@@ -676,6 +694,17 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
             {autosaveState === 'saved' && lastSavedAt && `자동 저장됨 · ${formatSavedAt(lastSavedAt)}`}
             {autosaveState === 'error' && '자동 저장 실패'}
           </span>
+          {manualSaveNotice && (
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                manualSaveNotice === 'saved'
+                  ? 'bg-emerald-50 text-emerald-700'
+                  : 'bg-red-50 text-red-600'
+              }`}
+            >
+              {manualSaveNotice === 'saved' ? '임시저장 완료' : '임시저장 실패'}
+            </span>
+          )}
           <button
             type="button"
             onClick={handleDownloadMarkdown}
@@ -701,7 +730,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
           <button
             onClick={handleSaveDraft}
             disabled={isSaving}
-            className="px-4 py-2 text-brand hover:underline"
+            className="rounded-lg border border-brand/20 px-4 py-2 text-brand transition hover:bg-brand/5"
           >
             {isSaving ? '저장 중...' : '임시저장'}
           </button>

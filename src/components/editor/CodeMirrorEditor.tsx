@@ -5,9 +5,10 @@ import { EditorSelection } from '@codemirror/state';
 import { EditorView, keymap, placeholder as placeholderExtension } from '@codemirror/view';
 import type { ViewUpdate } from '@codemirror/view';
 import type { Extension } from '@codemirror/state';
-import { indentUnit } from '@codemirror/language';
+import { HighlightStyle, indentUnit } from '@codemirror/language';
 import { drawSelection, highlightActiveLine, highlightSpecialChars } from '@codemirror/view';
-import { syntaxHighlighting, defaultHighlightStyle, indentOnInput, bracketMatching } from '@codemirror/language';
+import { syntaxHighlighting, indentOnInput, bracketMatching } from '@codemirror/language';
+import { tags } from '@lezer/highlight';
 
 import type { UploadStatus } from './upload-types';
 import { UploadProgress } from './UploadProgress';
@@ -33,6 +34,18 @@ interface CodeMirrorEditorProps {
   onSave?: () => void;
   showImportButton?: boolean;
 }
+
+const markdownHighlightStyle = HighlightStyle.define([
+  { tag: tags.heading, color: '#f8fafc', fontWeight: '800' },
+  { tag: [tags.meta, tags.processingInstruction], color: '#7dd3fc' },
+  { tag: [tags.link, tags.url], color: '#5eead4', textDecoration: 'underline' },
+  { tag: tags.quote, color: '#c4b5fd', fontStyle: 'italic' },
+  { tag: tags.strong, color: '#f9fafb', fontWeight: '800' },
+  { tag: tags.emphasis, color: '#fde68a', fontStyle: 'italic' },
+  { tag: tags.monospace, color: '#fca5a5', backgroundColor: 'rgba(248, 113, 113, 0.12)' },
+  { tag: [tags.list, tags.contentSeparator], color: '#34d399', fontWeight: '700' },
+  { tag: tags.literal, color: '#93c5fd' },
+]);
 
 type QuickInsertItem = {
   id: string;
@@ -459,7 +472,7 @@ export default function CodeMirrorEditor({
       bracketMatching(),
       indentUnit.of('  '),
       markdown({ addKeymap: true }),
-      syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+      syntaxHighlighting(markdownHighlightStyle, { fallback: true }),
       EditorView.lineWrapping,
       placeholderExtension(placeholder),
       EditorView.editable.of(!readOnly),

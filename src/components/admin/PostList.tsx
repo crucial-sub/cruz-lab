@@ -218,17 +218,17 @@ export default function PostList({ initialPosts }: Props) {
       <AdminLayout currentPath="/admin/posts">
         <div className="space-y-6">
           {lastPublishFeedback && (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="overflow-hidden rounded-[28px] border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/70 p-6 shadow-[0_20px_60px_rgba(16,185,129,0.12)]">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
                     Publish Complete
                   </p>
-                  <h2 className="mt-2 text-xl font-semibold text-emerald-950">
+                  <h2 className="mt-2 text-2xl font-semibold text-emerald-950">
                     {lastPublishFeedback.title} 출간이 끝났습니다.
                   </h2>
-                  <p className="mt-2 text-sm leading-6 text-emerald-900/80">
-                    GitHub markdown 파일은 갱신됐습니다. 공개 페이지 반영은 배포 타이밍에 따라 조금 늦을 수 있으니 아래 링크로 순서대로 확인하면 됩니다.
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-900/80">
+                    GitHub markdown 파일 반영은 끝났습니다. 이제 공개 페이지가 같은 내용을 보여주는지만 확인하면 됩니다.
                   </p>
                 </div>
                 <button
@@ -237,24 +237,24 @@ export default function PostList({ initialPosts }: Props) {
                     clearLastPublishFeedback(window.sessionStorage);
                     setLastPublishFeedback(null);
                   }}
-                  className="rounded-xl border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
+                  className="rounded-xl border border-emerald-300 bg-white/70 px-4 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
                 >
                   닫기
                 </button>
               </div>
 
-              <div className="mt-4 grid gap-4 lg:grid-cols-[1.2fr,0.8fr]">
-                <div className="space-y-3 rounded-2xl border border-emerald-200 bg-white/80 p-4">
+              <div className="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
+                <div className="space-y-4 rounded-3xl border border-emerald-200 bg-white/85 p-5">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
-                      확인 링크
+                      Quick Checks
                     </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="mt-4 flex flex-wrap gap-2">
                       <a
                         href={lastPublishFeedback.publicUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:brightness-110"
+                        className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:brightness-110"
                       >
                         공개 페이지 보기
                       </a>
@@ -287,8 +287,8 @@ export default function PostList({ initialPosts }: Props) {
                     </div>
                   </div>
 
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3">
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
                       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
                         파일 경로
                       </p>
@@ -296,7 +296,7 @@ export default function PostList({ initialPosts }: Props) {
                         {lastPublishFeedback.filePath}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3">
+                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
                       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
                         커밋 SHA
                       </p>
@@ -307,11 +307,11 @@ export default function PostList({ initialPosts }: Props) {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-emerald-200 bg-white/80 p-4">
+                <div className="rounded-3xl border border-emerald-200 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.14),_transparent_50%),white] p-5">
                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
-                    운영 확인 순서
+                    Next Steps
                   </p>
-                  <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-6 text-emerald-950">
+                  <ol className="mt-4 list-decimal space-y-3 pl-5 text-sm leading-6 text-emerald-950">
                     <li>GitHub 파일 링크에서 markdown 내용이 맞는지 먼저 본다.</li>
                     <li>커밋 링크가 있으면 main 브랜치에 반영됐는지 확인한다.</li>
                     <li>공개 페이지 링크로 들어가 실제 렌더링이 맞는지 본다.</li>
@@ -321,7 +321,7 @@ export default function PostList({ initialPosts }: Props) {
               </div>
 
               {(publishVerification || verificationError) && (
-                <div className="mt-4 rounded-2xl border border-emerald-200 bg-white/80 p-4">
+                <div className="mt-4 rounded-3xl border border-emerald-200 bg-white/85 p-5">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
@@ -345,7 +345,7 @@ export default function PostList({ initialPosts }: Props) {
                   {publishVerification && (
                     <div className="mt-3 grid gap-3 md:grid-cols-2">
                       {publishVerification.checks.map((check) => (
-                        <div key={check.id} className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3">
+                        <div key={check.id} className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
                           <div className="flex items-center justify-between gap-3">
                             <p className="text-sm font-semibold text-emerald-950">{check.label}</p>
                             <span

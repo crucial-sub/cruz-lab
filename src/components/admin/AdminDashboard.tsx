@@ -198,29 +198,41 @@ export default function AdminDashboard({ publishedPosts }: Props) {
                 서버 준비 상태를 확인하는 중입니다...
               </p>
             ) : (
-              <div className="mt-4 grid gap-4 lg:grid-cols-[1.2fr,0.8fr]">
-                <div className="space-y-3">
+              <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_340px]">
+                <div className="space-y-4">
                   <div
-                    className={`rounded-xl px-4 py-3 text-sm font-medium ${
+                    className={`rounded-2xl border px-4 py-4 text-sm font-medium ${
                       publishStatus.ready
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : 'bg-amber-50 text-amber-700'
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                        : 'border-amber-200 bg-amber-50 text-amber-800'
                     }`}
                   >
                     {publishStatus.ready
                       ? '현재 서버 설정으로 출간을 진행할 수 있습니다.'
                       : '출간 전 확인이 필요한 서버 설정이 있습니다.'}
                   </div>
-                  <div className="grid gap-3 md:grid-cols-3">
+                  <div className="grid gap-3 md:grid-cols-2">
                     {publishStatus.checks.map((check) => (
-                      <div key={check.id} className="rounded-xl border border-border bg-bg p-4">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-semibold text-text-primary">{check.label}</p>
+                      <div
+                        key={check.id}
+                        className={`rounded-2xl border p-4 ${
+                          check.ready
+                            ? 'border-emerald-500/20 bg-emerald-500/5'
+                            : 'border-amber-500/20 bg-amber-500/5'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">
+                              상태 체크
+                            </p>
+                            <p className="mt-2 text-base font-semibold text-text-primary">{check.label}</p>
+                          </div>
                           <span
-                            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
                               check.ready
-                                ? 'bg-emerald-500/10 text-emerald-600'
-                                : 'bg-amber-500/10 text-amber-600'
+                                ? 'bg-emerald-500/15 text-emerald-500'
+                                : 'bg-amber-500/15 text-amber-500'
                             }`}
                           >
                             {check.kind === 'active'
@@ -232,25 +244,57 @@ export default function AdminDashboard({ publishedPosts }: Props) {
                                 : '확인 필요'}
                           </span>
                         </div>
-                        <p className="mt-2 text-sm leading-6 text-text-secondary">{check.detail}</p>
+                        <p className="mt-3 text-sm leading-6 text-text-secondary">{check.detail}</p>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                  <div className="rounded-xl border border-border bg-bg p-4">
-                    <p className="text-sm font-semibold text-text-primary">출간 대상</p>
-                    <div className="mt-3 space-y-2 text-sm text-text-secondary">
-                      <p>저장소 · {publishStatus.target.repository}</p>
-                      <p>브랜치 · {publishStatus.target.branch}</p>
-                      <p>포스트 경로 · {publishStatus.target.postsPath}</p>
-                      <p>공개 사이트 · {publishStatus.target.siteUrl}</p>
-                      {publishStatus.target.currentOrigin !== publishStatus.target.siteUrl && (
-                        <p>현재 접속 origin · {publishStatus.target.currentOrigin}</p>
-                      )}
-                      <p>마지막 확인 · {new Date(publishStatus.verifiedAt).toLocaleString('ko-KR')}</p>
+                <div className="rounded-3xl border border-border bg-gradient-to-b from-bg to-bg-surface p-5 shadow-sm">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">
+                        Publish Target
+                      </p>
+                      <h3 className="mt-2 text-lg font-semibold text-text-primary">출간 대상</h3>
+                      <p className="mt-1 text-sm leading-6 text-text-secondary">
+                        현재 관리자 화면이 실제로 어디를 갱신하는지 한 번에 보여줍니다.
+                      </p>
+                    </div>
+                    <div className="rounded-full border border-brand/20 bg-brand/10 px-3 py-1 text-xs font-semibold text-brand">
+                      {publishStatus.ready ? 'Ready' : 'Check'}
                     </div>
                   </div>
+
+                  <dl className="mt-5 space-y-3">
+                    <div className="rounded-2xl border border-border bg-bg p-4">
+                      <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-text-secondary">저장소</dt>
+                      <dd className="mt-2 break-all text-sm font-medium text-text-primary">{publishStatus.target.repository}</dd>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                      <div className="rounded-2xl border border-border bg-bg p-4">
+                        <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-text-secondary">브랜치</dt>
+                        <dd className="mt-2 text-sm font-medium text-text-primary">{publishStatus.target.branch}</dd>
+                      </div>
+                      <div className="rounded-2xl border border-border bg-bg p-4">
+                        <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-text-secondary">포스트 경로</dt>
+                        <dd className="mt-2 break-all text-sm font-medium text-text-primary">{publishStatus.target.postsPath}</dd>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-border bg-bg p-4">
+                      <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-text-secondary">공개 사이트</dt>
+                      <dd className="mt-2 break-all text-sm font-medium text-text-primary">{publishStatus.target.siteUrl}</dd>
+                      {publishStatus.target.currentOrigin !== publishStatus.target.siteUrl && (
+                        <p className="mt-3 text-xs leading-5 text-text-secondary">
+                          현재 접속 origin · {publishStatus.target.currentOrigin}
+                        </p>
+                      )}
+                    </div>
+                    <div className="rounded-2xl border border-dashed border-border bg-bg p-4 text-xs leading-6 text-text-secondary">
+                      마지막 확인 · {new Date(publishStatus.verifiedAt).toLocaleString('ko-KR')}
+                    </div>
+                  </dl>
+                </div>
               </div>
             )}
           </div>
