@@ -17,6 +17,7 @@ interface MiniSeriesCardProps {
 }
 
 export default function MiniSeriesCard({
+  id,
   name,
   slug,
   description,

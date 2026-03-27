@@ -23,6 +23,7 @@ interface SeriesCardProps {
 }
 
 export default function SeriesCard({
+  id,
   name,
   slug,
   description,
