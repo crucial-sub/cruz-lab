@@ -1,13 +1,12 @@
 /**
  * 풀스크린 에디터 컴포넌트
  *
- * Milkdown 기반 WYSIWYG 에디터로 Live Preview 모드를 지원합니다.
- * - 기존 Velog 스타일 좌우 분할 → 단일 WYSIWYG 에디터로 변경
+ * CodeMirror 6 기반 마크다운 에디터입니다.
  * - Markdown 기반 출간 경로 사용
  * - 임시저장은 localStorage에 저장
- * - Firebase Storage 이미지 업로드 통합
+ * - GitHub 자산 업로드 통합
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { Suspense, lazy, useState, useEffect, useCallback, useRef } from 'react';
 import {
   createLocalDraftKey,
   hasDraftContent,
@@ -16,14 +15,46 @@ import {
   saveEditorDraft,
   type EditorDraftPayload,
 } from '@/lib/editor-drafts';
-import { initializeFirebase } from '@/lib/firebase';
-import { parseMarkdownDocument } from '@/lib/markdown-publish';
-import MilkdownEditor from './MilkdownEditor';
-import PublishModal from './PublishModal';
+import {
+  generateMarkdownContent,
+  generateMarkdownFileName,
+  parseMarkdownDocument,
+} from '@/lib/markdown-publish';
+import type { PublishFeedback } from '@/lib/publish-feedback';
+import { EditorMetaPanel } from './EditorMetaPanel';
+
+const CodeMirrorEditor = lazy(() => import('./CodeMirrorEditor'));
+const PublishModal = lazy(() => import('./PublishModal'));
 
 interface Props {
   mode: 'create' | 'edit';
   postId?: string;
+}
+
+function EditorSurfaceFallback() {
+  return (
+    <div className="flex min-h-[420px] items-center justify-center rounded-2xl border border-gray-100 bg-gray-50">
+      <div className="flex flex-col items-center gap-3 text-gray-400">
+        <div className="h-7 w-7 animate-spin rounded-full border-4 border-brand border-t-transparent" />
+        <p className="text-sm">에디터 준비 중...</p>
+      </div>
+    </div>
+  );
+}
+
+function PublishModalFallback() {
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4">
+      <div className="flex min-h-full items-center justify-center">
+        <div className="flex w-full max-w-xl items-center justify-center rounded-2xl bg-white p-10">
+          <div className="flex flex-col items-center gap-3 text-gray-500">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand border-t-transparent" />
+            <p className="text-sm">출간 설정 불러오는 중...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function FullScreenEditor({ mode, postId: initialPostId }: Props) {
@@ -53,6 +84,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [autosaveState, setAutosaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [hasUserChanges, setHasUserChanges] = useState(false);
+  const [activeDraftKey, setActiveDraftKey] = useState<string | null>(null);
 
   // 출간 설정 상태 (편집 시 기존 값 유지)
   const [heroImage, setHeroImage] = useState('');
@@ -66,34 +98,60 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
   // 에디터 마운트 키 (defaultValue 변경 시 에디터 재생성용)
   const [editorKey, setEditorKey] = useState(0);
   const autosaveTimerRef = useRef<number | null>(null);
+  const manualSaveNoticeTimerRef = useRef<number | null>(null);
   const lastPersistedDraftKeyRef = useRef<string | null>(null);
   const activeCreateDraftKeyRef = useRef<string | null>(null);
+  const [manualSaveNotice, setManualSaveNotice] = useState<'saved' | 'error' | null>(null);
 
   const markDirty = useCallback(() => {
     setHasUserChanges(true);
   }, []);
 
+  const resetEditorState = useCallback(() => {
+    setTitle('');
+    setContent('');
+    setTags([]);
+    setTagInput('');
+    setHeroImage('');
+    setDescription('');
+    setSlug('');
+    setIsPublic(true);
+    setOriginalSlug('');
+    setOriginalPubDate('');
+    setLastSavedAt(null);
+    setAutosaveState('idle');
+    setHasUserChanges(false);
+    setEditorKey((prev) => prev + 1);
+  }, []);
+
+  const deriveSlug = useCallback((value: string) => {
+    return value
+      .toLowerCase()
+      .replace(/[^a-z0-9가-힣\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .trim()
+      .substring(0, 50);
+  }, []);
+
   // Firebase 초기화 및 데이터 로드
   useEffect(() => {
-    initializeFirebase();
-
     if (mode === 'edit') {
       const urlParams = new URLSearchParams(window.location.search);
       const targetSlug = urlParams.get('slug');
-      const legacyPostId = urlParams.get('id') || initialPostId;
 
       if (targetSlug) {
         loadMarkdownPost(targetSlug);
         return;
       }
 
-      if (!legacyPostId) {
+      if (!initialPostId) {
         setLoadError('포스트 slug가 없습니다.');
         setIsLoading(false);
         return;
       }
 
-      loadLegacyPost(legacyPostId);
+      loadMarkdownPost(initialPostId);
       return;
     }
 
@@ -102,17 +160,20 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
 
     if (explicitDraftKey?.startsWith('cruz-lab-editor-draft:')) {
       activeCreateDraftKeyRef.current = explicitDraftKey;
+      setActiveDraftKey(explicitDraftKey);
       tryLoadDraft(undefined, explicitDraftKey);
       return;
     }
 
     if (window.localStorage.getItem(LEGACY_NEW_DRAFT_KEY)) {
       activeCreateDraftKeyRef.current = LEGACY_NEW_DRAFT_KEY;
+      setActiveDraftKey(LEGACY_NEW_DRAFT_KEY);
       tryLoadDraft(undefined, LEGACY_NEW_DRAFT_KEY);
       return;
     }
 
     activeCreateDraftKeyRef.current = createEphemeralDraftKey();
+    setActiveDraftKey(null);
     setHasUserChanges(false);
   }, [createEphemeralDraftKey, initialPostId, mode]);
 
@@ -126,6 +187,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
     try {
       const draft = JSON.parse(raw);
       lastPersistedDraftKeyRef.current = draftKey;
+      setActiveDraftKey(draftKey);
       setTitle(draft.title || '');
       setContent(draft.content || '');
       setTags(draft.tags || []);
@@ -144,6 +206,8 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
 
   const loadMarkdownPost = async (targetSlug: string) => {
     try {
+      setActiveDraftKey(null);
+      lastPersistedDraftKeyRef.current = null;
       const response = await fetch(`/api/posts/by-slug?slug=${encodeURIComponent(targetSlug)}`);
       if (!response.ok) {
         setLoadError('포스트를 찾을 수 없습니다.');
@@ -172,39 +236,6 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
   };
 
   // 레거시 Firestore 문서 로드
-  const loadLegacyPost = async (id: string) => {
-    try {
-      const { db } = await import('@/lib/firebase');
-      const { doc, getDoc } = await import('firebase/firestore');
-      const docRef = doc(db, 'posts', id);
-      const docSnap = await getDoc(docRef);
-
-      if (!docSnap.exists()) {
-        setLoadError('포스트를 찾을 수 없습니다.');
-        return;
-      }
-
-      const data = docSnap.data();
-      setTitle(data.title || '');
-      setContent(data.content || '');
-      setTags(data.tags || []);
-      setHeroImage(data.heroImage || '');
-      setDescription(data.description || '');
-      setSlug(data.slug || '');
-      setIsPublic(data.isPublic ?? true);
-      setOriginalSlug(data.slug || '');
-      setOriginalPubDate(data.pubDate?.toDate?.()?.toISOString?.() || new Date().toISOString());
-      setHasUserChanges(false);
-      setEditorKey((prev) => prev + 1);
-      tryLoadDraft(data.slug || undefined, getDraftKey(data.slug || undefined));
-    } catch (err) {
-      console.error('포스트 로딩 오류:', err);
-      setLoadError('포스트를 불러오는데 실패했습니다.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // 마크다운 변경 핸들러
   const handleContentChange = useCallback((markdown: string) => {
     setHasUserChanges(true);
@@ -291,7 +322,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
   };
 
   const buildDraftData = useCallback((): EditorDraftPayload => ({
-    title: title || '제목 없음',
+    title,
     description,
     content,
     tags,
@@ -325,10 +356,12 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
         activeCreateDraftKeyRef.current = nextDraftKey;
       }
       lastPersistedDraftKeyRef.current = nextDraftKey;
+      setActiveDraftKey(nextDraftKey);
       const savedAt = new Date(draftData.updatedDate || new Date().toISOString());
       setLastSavedAt(savedAt);
       setAutosaveState('saved');
       setHasUserChanges(false);
+      setManualSaveNotice(source === 'manual' ? 'saved' : null);
 
       if (source === 'manual') {
         setIsSaving(false);
@@ -337,6 +370,8 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
     [buildDraftData, createEphemeralDraftKey, getDraftKey, mode, originalSlug, slug]
   );
 
+  const hasMeaningfulChanges = hasUserChanges && hasDraftContent(buildDraftData());
+
   // 임시저장
   const handleSaveDraft = useCallback(() => {
     if (isSaving) return;
@@ -344,17 +379,32 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
     setIsSaving(true);
     try {
       persistDraft('manual');
+      if (manualSaveNoticeTimerRef.current) {
+        window.clearTimeout(manualSaveNoticeTimerRef.current);
+      }
+      manualSaveNoticeTimerRef.current = window.setTimeout(() => {
+        setManualSaveNotice(null);
+      }, 2200);
     } catch (err) {
       console.error('저장 오류:', err);
       setAutosaveState('error');
+      setManualSaveNotice('error');
       alert('저장에 실패했습니다.');
       setIsSaving(false);
     }
   }, [isSaving, persistDraft]);
 
   useEffect(() => {
+    return () => {
+      if (manualSaveNoticeTimerRef.current) {
+        window.clearTimeout(manualSaveNoticeTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (isLoading) return;
-    if (!hasUserChanges) return;
+    if (!hasMeaningfulChanges) return;
 
     const draftData = buildDraftData();
     if (!hasDraftContent(draftData)) return;
@@ -379,13 +429,13 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
         window.clearTimeout(autosaveTimerRef.current);
       }
     };
-  }, [buildDraftData, hasUserChanges, isLoading, persistDraft]);
+  }, [buildDraftData, hasMeaningfulChanges, isLoading, persistDraft]);
 
   useEffect(() => {
     if (isLoading) return;
 
     const handlePageHide = () => {
-      if (!hasUserChanges) return;
+      if (!hasMeaningfulChanges) return;
 
       try {
         persistDraft('auto');
@@ -396,7 +446,19 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
 
     window.addEventListener('pagehide', handlePageHide);
     return () => window.removeEventListener('pagehide', handlePageHide);
-  }, [hasUserChanges, isLoading, persistDraft]);
+  }, [hasMeaningfulChanges, isLoading, persistDraft]);
+
+  useEffect(() => {
+    if (isLoading || !hasMeaningfulChanges) return;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasMeaningfulChanges, isLoading]);
 
   const formatSavedAt = (date: Date | null) => {
     if (!date) return '';
@@ -409,10 +471,76 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
 
   // 나가기
   const handleExit = () => {
-    if (confirm('작성 중인 내용이 있습니다. 나가시겠습니까?')) {
+    if (!hasMeaningfulChanges || confirm('저장되지 않은 변경이 있습니다. 나가시겠습니까?')) {
       window.location.href = '/admin';
     }
   };
+
+  const handleDownloadMarkdown = useCallback(() => {
+    const resolvedSlug = slug || deriveSlug(title) || 'untitled-post';
+    const markdown = generateMarkdownContent({
+      title: title || '제목 없음',
+      description,
+      content,
+      heroImage,
+      tags,
+      slug: resolvedSlug,
+      readingTime: calculateReadingTime(content),
+      isPublic,
+      pubDate: originalPubDate || new Date().toISOString(),
+      updatedDate: new Date().toISOString(),
+    });
+
+    const fileName = generateMarkdownFileName({
+      slug: resolvedSlug,
+      pubDate: originalPubDate || new Date().toISOString(),
+    });
+
+    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [calculateReadingTime, content, deriveSlug, description, heroImage, isPublic, originalPubDate, slug, tags, title]);
+
+  const handleDiscardDraft = useCallback(async () => {
+    const draftKeyToRemove = lastPersistedDraftKeyRef.current || activeDraftKey;
+    const hasCurrentSnapshot = Boolean(draftKeyToRemove || hasMeaningfulChanges);
+
+    if (!hasCurrentSnapshot) {
+      return;
+    }
+
+    const message =
+      mode === 'edit'
+        ? '로컬 초안을 버리고 발행된 원본으로 되돌릴까요?'
+        : '현재 로컬 초안을 버리고 새 글 상태로 되돌릴까요?';
+
+    if (!window.confirm(message)) {
+      return;
+    }
+
+    if (typeof window !== 'undefined' && draftKeyToRemove) {
+      removeEditorDraft(window.localStorage, draftKeyToRemove);
+    }
+
+    lastPersistedDraftKeyRef.current = null;
+    setActiveDraftKey(null);
+    setAutosaveState('idle');
+    setLastSavedAt(null);
+    setHasUserChanges(false);
+
+    if (mode === 'edit') {
+      setIsLoading(true);
+      await loadMarkdownPost(originalSlug || slug || initialPostId || '');
+      return;
+    }
+
+    activeCreateDraftKeyRef.current = createEphemeralDraftKey();
+    resetEditorState();
+  }, [activeDraftKey, createEphemeralDraftKey, hasMeaningfulChanges, initialPostId, mode, originalSlug, resetEditorState, slug]);
 
   // 로딩 상태
   if (isLoading) {
@@ -446,9 +574,8 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
       />
 
       {/* 에디터 컨텐츠 영역 - 배경은 전체 너비, 콘텐츠는 992px 중앙 정렬 */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* 콘텐츠 컨테이너 - Readable Line Length (992px, Obsidian 스타일) */}
-        <div className="mx-auto w-full max-w-[992px] px-8 pt-8">
+      <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-[992px] px-4 pb-6 pt-6 sm:px-6 lg:px-8">
           {/* 제목 */}
           <input
             type="text"
@@ -493,24 +620,48 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
               className="bg-transparent text-gray-500 placeholder:text-gray-400 focus:outline-none"
             />
           </div>
-        </div>
 
-        {/* Milkdown WYSIWYG 에디터 - 992px 중앙 정렬 */}
-        <div className="flex-1 overflow-auto px-8 py-2">
-          <div className="mx-auto w-full max-w-[992px]">
-            <MilkdownEditor
-              key={editorKey}
-              defaultValue={content}
-              onChange={handleContentChange}
-              placeholder="당신의 이야기를 적어보세요..."
-              enableSlash={true}
-              showShortcutsHelp={true}
-              enableImageUpload={true}
-              onUploadError={handleUploadError}
-              onSave={handleSaveDraft}
-              showImportButton={false}
-              className="h-full w-full"
-            />
+          <EditorMetaPanel
+            title={title}
+            content={content}
+            slug={slug}
+            setSlug={(value) => {
+              markDirty();
+              setSlug(value);
+            }}
+            description={description}
+            setDescription={(value) => {
+              markDirty();
+              setDescription(value);
+            }}
+            isPublic={isPublic}
+            setIsPublic={(value) => {
+              markDirty();
+              setIsPublic(value);
+            }}
+            tagCount={tags.length}
+            heroImage={heroImage}
+            setHeroImage={(value) => {
+              markDirty();
+              setHeroImage(value);
+            }}
+            readingTime={calculateReadingTime(content)}
+          />
+
+          <div className="mt-6 min-h-[55vh]">
+            <Suspense fallback={<EditorSurfaceFallback />}>
+              <CodeMirrorEditor
+                key={editorKey}
+                defaultValue={content}
+                onChange={handleContentChange}
+                placeholder="당신의 이야기를 적어보세요..."
+                showShortcutsHelp={true}
+                enableImageUpload={true}
+                onUploadError={handleUploadError}
+                onSave={handleSaveDraft}
+                className="h-full min-h-[55vh] w-full"
+              />
+            </Suspense>
           </div>
         </div>
       </div>
@@ -543,6 +694,24 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
             {autosaveState === 'saved' && lastSavedAt && `자동 저장됨 · ${formatSavedAt(lastSavedAt)}`}
             {autosaveState === 'error' && '자동 저장 실패'}
           </span>
+          {manualSaveNotice && (
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                manualSaveNotice === 'saved'
+                  ? 'bg-emerald-50 text-emerald-700'
+                  : 'bg-red-50 text-red-600'
+              }`}
+            >
+              {manualSaveNotice === 'saved' ? '임시저장 완료' : '임시저장 실패'}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={handleDownloadMarkdown}
+            className="px-4 py-2 text-gray-500 hover:text-gray-700"
+          >
+            마크다운 내보내기
+          </button>
           <button
             type="button"
             onClick={() => importInputRef.current?.click()}
@@ -551,9 +720,17 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
             마크다운 불러오기
           </button>
           <button
+            type="button"
+            onClick={() => void handleDiscardDraft()}
+            disabled={!activeDraftKey && !hasMeaningfulChanges}
+            className="px-4 py-2 text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:text-gray-300"
+          >
+            초안 폐기
+          </button>
+          <button
             onClick={handleSaveDraft}
             disabled={isSaving}
-            className="px-4 py-2 text-brand hover:underline"
+            className="rounded-lg border border-brand/20 px-4 py-2 text-brand transition hover:bg-brand/5"
           >
             {isSaving ? '저장 중...' : '임시저장'}
           </button>
@@ -568,49 +745,36 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
 
       {/* 출간 모달 */}
       {showPublishModal && (
-        <PublishModal
-          title={title}
-          content={content}
-          tags={tags}
-          onClose={() => setShowPublishModal(false)}
-          calculateReadingTime={calculateReadingTime}
-          description={description}
-          setDescription={(value) => {
-            markDirty();
-            setDescription(value);
-          }}
-          heroImage={heroImage}
-          setHeroImage={(value) => {
-            markDirty();
-            setHeroImage(value);
-          }}
-          slug={slug}
-          setSlug={(value) => {
-            markDirty();
-            setSlug(value);
-          }}
-          isPublic={isPublic}
-          setIsPublic={(value) => {
-            markDirty();
-            setIsPublic(value);
-          }}
-          pubDate={originalPubDate}
-          originalSlug={originalSlug}
-          onPublished={(publishedSlug) => {
-            const nextDraftKey =
-              mode === 'create'
-                ? activeCreateDraftKeyRef.current
-                : getDraftKey(originalSlug || publishedSlug);
-            if (lastPersistedDraftKeyRef.current) {
-              removeEditorDraft(window.localStorage, lastPersistedDraftKeyRef.current);
-            }
-            if (nextDraftKey && nextDraftKey !== lastPersistedDraftKeyRef.current) {
-              removeEditorDraft(window.localStorage, nextDraftKey);
-            }
-            lastPersistedDraftKeyRef.current = null;
-            activeCreateDraftKeyRef.current = null;
-          }}
-        />
+        <Suspense fallback={<PublishModalFallback />}>
+          <PublishModal
+            title={title}
+            content={content}
+            tags={tags}
+            onClose={() => setShowPublishModal(false)}
+            calculateReadingTime={calculateReadingTime}
+            description={description}
+            heroImage={heroImage}
+            slug={slug}
+            isPublic={isPublic}
+            pubDate={originalPubDate}
+            originalSlug={originalSlug}
+            onPublished={(result: PublishFeedback) => {
+              const nextDraftKey =
+                mode === 'create'
+                  ? activeCreateDraftKeyRef.current
+                  : getDraftKey(originalSlug || result.slug);
+              if (lastPersistedDraftKeyRef.current) {
+                removeEditorDraft(window.localStorage, lastPersistedDraftKeyRef.current);
+              }
+              if (nextDraftKey && nextDraftKey !== lastPersistedDraftKeyRef.current) {
+                removeEditorDraft(window.localStorage, nextDraftKey);
+              }
+              lastPersistedDraftKeyRef.current = null;
+              activeCreateDraftKeyRef.current = null;
+              setActiveDraftKey(null);
+            }}
+          />
+        </Suspense>
       )}
     </div>
   );

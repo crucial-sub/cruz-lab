@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getStoredEditorDrafts, isCreateModeDraftKey } from '@/lib/editor-drafts';
-import { auth } from '@/lib/firebase';
+import { getClientAdminIdToken } from '@/lib/firebase-auth-client';
+import {
+  clearLastPublishFeedback,
+  readLastPublishFeedback,
+  type PublishFeedback,
+} from '@/lib/publish-feedback';
+import type { PublishVerificationPayload } from '@/lib/publish-verification';
 import AdminGuard from './AdminGuard';
 import AdminLayout from './AdminLayout';
 
@@ -25,6 +31,23 @@ interface Props {
   initialPosts: Post[];
 }
 
+function readLocalDraftPosts(storage: Storage): Post[] {
+  return getStoredEditorDrafts(storage).map((draft) => ({
+    id: draft.id,
+    draftKey: draft.draftKey,
+    title: draft.title,
+    description: draft.description,
+    status: 'draft' as const,
+    source: 'local-draft' as const,
+    tags: draft.tags,
+    slug: draft.slug,
+    createdAt: draft.updatedDate,
+    updatedDate: draft.updatedDate,
+    readingTime: draft.readingTime,
+    pubDate: draft.updatedDate,
+  }));
+}
+
 export default function PostList({ initialPosts }: Props) {
   const [publishedPosts, setPublishedPosts] = useState(
     initialPosts.map((post) => ({
@@ -40,27 +63,84 @@ export default function PostList({ initialPosts }: Props) {
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [deleteConfirm, setDeleteConfirm] = useState<Post | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [lastPublishFeedback, setLastPublishFeedback] = useState<PublishFeedback | null>(null);
+  const [publishVerification, setPublishVerification] = useState<PublishVerificationPayload | null>(null);
+  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const storedDrafts = getStoredEditorDrafts(window.localStorage).map((draft) => ({
-      id: draft.id,
-      draftKey: draft.draftKey,
-      title: draft.title,
-      description: draft.description,
-      status: 'draft' as const,
-      source: 'local-draft' as const,
-      tags: draft.tags,
-      slug: draft.slug,
-      createdAt: draft.updatedDate,
-      updatedDate: draft.updatedDate,
-      readingTime: draft.readingTime,
-      pubDate: draft.updatedDate,
-    }));
+    const syncDraftPosts = () => {
+      setDraftPosts(readLocalDraftPosts(window.localStorage));
+    };
 
-    setDraftPosts(storedDrafts);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        syncDraftPosts();
+      }
+    };
+
+    syncDraftPosts();
+    window.addEventListener('storage', syncDraftPosts);
+    window.addEventListener('focus', syncDraftPosts);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('storage', syncDraftPosts);
+      window.removeEventListener('focus', syncDraftPosts);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const feedback = readLastPublishFeedback(window.sessionStorage);
+    if (!feedback) return;
+    setLastPublishFeedback(feedback);
+  }, []);
+
+  const verifyLastPublish = async (feedback: PublishFeedback) => {
+    try {
+      setVerificationLoading(true);
+      setVerificationError(null);
+
+      const token = await getClientAdminIdToken();
+
+      const response = await fetch('/api/admin/publish-verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          slug: feedback.slug,
+          filePath: feedback.filePath,
+          publicUrl: feedback.publicUrl,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || '출간 반영 검증에 실패했습니다.');
+      }
+
+      setPublishVerification(result);
+    } catch (error) {
+      setVerificationError(
+        error instanceof Error ? error.message : '출간 반영 검증에 실패했습니다.'
+      );
+    } finally {
+      setVerificationLoading(false);
+    }
+  };
+
+  const draftSlugSet = useMemo(
+    () => new Set(draftPosts.map((post) => post.slug).filter(Boolean)),
+    [draftPosts]
+  );
 
   const posts = useMemo(
     () =>
@@ -103,10 +183,7 @@ export default function PostList({ initialPosts }: Props) {
         return;
       }
 
-      const token = await auth.currentUser?.getIdToken();
-      if (!token) {
-        throw new Error('로그인 정보를 확인할 수 없습니다.');
-      }
+      const token = await getClientAdminIdToken();
 
       const response = await fetch('/api/admin/delete-post', {
         method: 'POST',
@@ -140,6 +217,157 @@ export default function PostList({ initialPosts }: Props) {
     <AdminGuard>
       <AdminLayout currentPath="/admin/posts">
         <div className="space-y-6">
+          {lastPublishFeedback && (
+            <div className="overflow-hidden rounded-[28px] border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/70 p-6 shadow-[0_20px_60px_rgba(16,185,129,0.12)]">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                    Publish Complete
+                  </p>
+                  <h2 className="mt-2 text-2xl font-semibold text-emerald-950">
+                    {lastPublishFeedback.title} 출간이 끝났습니다.
+                  </h2>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-900/80">
+                    GitHub markdown 파일 반영은 끝났습니다. 이제 공개 페이지가 같은 내용을 보여주는지만 확인하면 됩니다.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearLastPublishFeedback(window.sessionStorage);
+                    setLastPublishFeedback(null);
+                  }}
+                  className="inline-flex min-w-[88px] shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-emerald-300 bg-white/70 px-4 py-2 text-sm font-medium text-emerald-800 [word-break:keep-all] hover:bg-emerald-100"
+                >
+                  닫기
+                </button>
+              </div>
+
+              <div className="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
+                <div className="space-y-4 rounded-3xl border border-emerald-200 bg-white/85 p-5">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                      Quick Checks
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <a
+                        href={lastPublishFeedback.publicUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:brightness-110"
+                      >
+                        공개 페이지 보기
+                      </a>
+                      <a
+                        href={lastPublishFeedback.githubFileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-xl border border-emerald-200 px-4 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-50"
+                      >
+                        GitHub 파일 보기
+                      </a>
+                      {lastPublishFeedback.githubCommitUrl && (
+                        <a
+                          href={lastPublishFeedback.githubCommitUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="rounded-xl border border-emerald-200 px-4 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-50"
+                        >
+                          최신 커밋 보기
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => verifyLastPublish(lastPublishFeedback)}
+                        disabled={verificationLoading}
+                        className="rounded-xl border border-emerald-200 px-4 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-50 disabled:opacity-60"
+                      >
+                        {verificationLoading ? '반영 확인 중...' : '반영 다시 확인'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                        파일 경로
+                      </p>
+                      <p className="mt-2 break-all text-sm text-emerald-950">
+                        {lastPublishFeedback.filePath}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                        커밋 SHA
+                      </p>
+                      <p className="mt-2 break-all text-sm text-emerald-950">
+                        {lastPublishFeedback.githubCommitSha || '응답 없음'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-emerald-200 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.14),_transparent_50%),white] p-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                    Next Steps
+                  </p>
+                  <ol className="mt-4 list-decimal space-y-3 pl-5 text-sm leading-6 text-emerald-950">
+                    <li>GitHub 파일 링크에서 markdown 내용이 맞는지 먼저 본다.</li>
+                    <li>커밋 링크가 있으면 main 브랜치에 반영됐는지 확인한다.</li>
+                    <li>공개 페이지 링크로 들어가 실제 렌더링이 맞는지 본다.</li>
+                    <li>반영이 늦으면 잠시 뒤 새로고침해서 배포 지연 여부만 한 번 더 본다.</li>
+                  </ol>
+                </div>
+              </div>
+
+              {(publishVerification || verificationError) && (
+                <div className="mt-4 rounded-3xl border border-emerald-200 bg-white/85 p-5">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                        출간 반영 재검증
+                      </p>
+                      <p className="mt-1 text-sm text-emerald-950">
+                        {verificationError
+                          ? verificationError
+                          : publishVerification?.ready
+                            ? 'GitHub 파일과 공개 페이지 응답이 모두 확인됐습니다.'
+                            : '일부 반영 상태를 다시 확인해야 합니다.'}
+                      </p>
+                    </div>
+                    {publishVerification && (
+                      <p className="text-xs text-emerald-800/70">
+                        마지막 확인 · {new Date(publishVerification.verifiedAt).toLocaleString('ko-KR')}
+                      </p>
+                    )}
+                  </div>
+
+                  {publishVerification && (
+                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                      {publishVerification.checks.map((check) => (
+                        <div key={check.id} className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-semibold text-emerald-950">{check.label}</p>
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                                check.ready
+                                  ? 'bg-emerald-500/10 text-emerald-700'
+                                  : 'bg-amber-500/10 text-amber-700'
+                              }`}
+                            >
+                              {check.ready ? '정상' : '확인 필요'}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-sm leading-6 text-emerald-900/80">{check.detail}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-text-primary">포스트 관리</h1>
@@ -241,6 +469,11 @@ export default function PostList({ initialPosts }: Props) {
                         >
                           {post.source === 'local-draft' ? '로컬 초안' : '발행됨'}
                         </span>
+                        {post.source === 'published' && draftSlugSet.has(post.slug) && (
+                          <span className="rounded-md bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand">
+                            로컬 초안 있음
+                          </span>
+                        )}
                       </div>
                       {post.description && (
                         <p className="mt-1 line-clamp-1 text-sm text-text-secondary">{post.description}</p>

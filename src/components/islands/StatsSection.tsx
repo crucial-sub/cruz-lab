@@ -39,7 +39,7 @@ export default function StatsSection() {
             }
           }}
         >
-          {stats.map((stat, index) => (
+          {stats.map((stat) => (
             <motion.div
               key={stat.label}
               className="text-center"

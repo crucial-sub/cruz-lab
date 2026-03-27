@@ -13,7 +13,7 @@
  */
 import type { ContentPost } from '@/lib/content-posts';
 import { AnimatePresence, LayoutGroup, motion, useMotionValue, useSpring } from 'framer-motion';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import BlogCard from '../islands/BlogCard';
 
 // 정렬 타입

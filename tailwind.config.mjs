@@ -1,3 +1,5 @@
+import typography from '@tailwindcss/typography';
+
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: 'class', // 기본 다크(변수도 다크 기준). .light로 라이트 전환
@@ -77,7 +79,7 @@ export default {
         popover: 'var(--shadow-popover)', // 0 10px 30px rgba(0,0,0,0.45)
       },
       // Typography 커스터마이징
-      typography: ({ theme }) => ({
+      typography: () => ({
         DEFAULT: {
           css: {
             '--tw-prose-body': 'var(--text-primary)',
@@ -124,7 +126,5 @@ export default {
       }),
     },
   },
-  plugins: [
-    require('@tailwindcss/typography'),
-  ],
+  plugins: [typography],
 };

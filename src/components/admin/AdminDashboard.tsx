@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { DRAFT_KEY_PREFIX, getStoredEditorDrafts } from '@/lib/editor-drafts';
+import { getClientAdminIdToken } from '@/lib/firebase-auth-client';
+import type { PublishStatusPayload } from '@/lib/publish-status';
 import AdminGuard from './AdminGuard';
 import AdminLayout from './AdminLayout';
 
@@ -14,8 +16,18 @@ interface Props {
   publishedPosts: PublishedPost[];
 }
 
+function getPublishCheckBadge(check: PublishStatusPayload['checks'][number]) {
+  if (check.kind === 'active') {
+    return check.ready ? '실시간 확인' : '실시간 실패';
+  }
+
+  return check.ready ? '정상' : '확인 필요';
+}
+
 export default function AdminDashboard({ publishedPosts }: Props) {
   const [draftCount, setDraftCount] = useState(0);
+  const [publishStatus, setPublishStatus] = useState<PublishStatusPayload | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -27,6 +39,40 @@ export default function AdminDashboard({ publishedPosts }: Props) {
     }
 
     setDraftCount(getStoredEditorDrafts(window.localStorage).length);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadPublishStatus = async () => {
+      try {
+        setStatusError(null);
+        const idToken = await getClientAdminIdToken();
+
+        const response = await fetch('/api/admin/publish-status', {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        });
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.message || '출간 상태를 불러오지 못했습니다.');
+        }
+
+        if (!active) return;
+        setPublishStatus(result);
+      } catch (error) {
+        if (!active) return;
+        setStatusError(error instanceof Error ? error.message : '출간 상태를 불러오지 못했습니다.');
+      }
+    };
+
+    loadPublishStatus();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const recentPosts = useMemo(
@@ -117,7 +163,7 @@ export default function AdminDashboard({ publishedPosts }: Props) {
             </div>
           </div>
 
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4">
             <a
               href="/admin/posts/new"
               className="inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-3 font-semibold text-white transition-all hover:scale-[1.02] hover:brightness-110"
@@ -133,6 +179,142 @@ export default function AdminDashboard({ publishedPosts }: Props) {
             >
               포스트 관리
             </a>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-bg-surface p-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-text-primary">출간 시스템 상태</h2>
+                <p className="mt-1 text-sm text-text-secondary">
+                  GitHub 반영에 필요한 서버 설정과 대상 저장소 정보를 여기서 먼저 확인합니다.
+                </p>
+              </div>
+              <a
+                href="/admin/posts/new"
+                className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:border-brand hover:text-brand"
+              >
+                새 포스트로 이동
+              </a>
+            </div>
+
+            {statusError ? (
+              <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+                {statusError}
+              </p>
+            ) : !publishStatus ? (
+              <p className="mt-4 rounded-xl bg-bg px-4 py-3 text-sm text-text-secondary">
+                서버 준비 상태를 확인하는 중입니다...
+              </p>
+            ) : (
+              <div className="mt-5 space-y-4">
+                <div
+                  className={`rounded-2xl border px-4 py-4 text-sm font-medium ${
+                    publishStatus.ready
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                      : 'border-amber-200 bg-amber-50 text-amber-800'
+                  }`}
+                >
+                  {publishStatus.ready
+                    ? '현재 서버 설정으로 출간을 진행할 수 있습니다.'
+                    : '출간 전에 확인이 필요한 항목이 있습니다.'}
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.9fr)]">
+                  <div className="rounded-3xl border border-border bg-bg p-4 sm:p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">
+                          Status Checks
+                        </p>
+                        <h3 className="mt-2 text-lg font-semibold text-text-primary">상태 체크</h3>
+                      </div>
+                      <span className="rounded-full border border-border bg-bg-surface px-3 py-1 text-xs font-semibold text-text-secondary">
+                        {publishStatus.checks.length}개 항목
+                      </span>
+                    </div>
+
+                    <ul className="mt-5 space-y-3">
+                      {publishStatus.checks.map((check) => (
+                        <li
+                          key={check.id}
+                          className={`rounded-2xl border px-4 py-4 ${
+                            check.ready
+                              ? 'border-emerald-500/20 bg-emerald-500/5'
+                              : 'border-amber-500/20 bg-amber-500/5'
+                          }`}
+                        >
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-text-primary">{check.label}</p>
+                              <p className="mt-2 text-sm leading-6 text-text-secondary">{check.detail}</p>
+                            </div>
+                            <span
+                              className={`shrink-0 self-start whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                check.ready
+                                  ? 'bg-emerald-500/15 text-emerald-600'
+                                  : 'bg-amber-500/15 text-amber-600'
+                              }`}
+                            >
+                              {getPublishCheckBadge(check)}
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="rounded-3xl border border-border bg-gradient-to-b from-bg to-bg-surface p-5 shadow-sm">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">
+                          Publish Target
+                        </p>
+                        <h3 className="mt-2 text-lg font-semibold text-text-primary">출간 대상</h3>
+                        <p className="mt-1 text-sm leading-6 text-text-secondary">
+                          현재 관리자 화면이 실제로 갱신하는 위치를 한 번에 보여줍니다.
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-brand/20 bg-brand/10 px-3 py-1 text-xs font-semibold text-brand">
+                        {publishStatus.ready ? 'Ready' : 'Check'}
+                      </span>
+                    </div>
+
+                    <dl className="mt-5 space-y-3">
+                      <div className="rounded-2xl border border-border bg-bg p-4">
+                        <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-text-secondary">저장소</dt>
+                        <dd className="mt-2 break-all text-sm font-medium text-text-primary">
+                          {publishStatus.target.repository}
+                        </dd>
+                      </div>
+                      <div className="rounded-2xl border border-border bg-bg p-4">
+                        <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-text-secondary">브랜치</dt>
+                        <dd className="mt-2 text-sm font-medium text-text-primary">{publishStatus.target.branch}</dd>
+                      </div>
+                      <div className="rounded-2xl border border-border bg-bg p-4">
+                        <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-text-secondary">포스트 경로</dt>
+                        <dd className="mt-2 break-all text-sm font-medium text-text-primary">
+                          {publishStatus.target.postsPath}
+                        </dd>
+                      </div>
+                      <div className="rounded-2xl border border-border bg-bg p-4">
+                        <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-text-secondary">공개 사이트</dt>
+                        <dd className="mt-2 break-all text-sm font-medium text-text-primary">
+                          {publishStatus.target.siteUrl}
+                        </dd>
+                        {publishStatus.target.currentOrigin !== publishStatus.target.siteUrl && (
+                          <p className="mt-3 text-xs leading-5 text-text-secondary">
+                            현재 접속 origin · {publishStatus.target.currentOrigin}
+                          </p>
+                        )}
+                      </div>
+                      <div className="rounded-2xl border border-dashed border-border bg-bg p-4 text-xs leading-6 text-text-secondary">
+                        마지막 확인 · {new Date(publishStatus.verifiedAt).toLocaleString('ko-KR')}
+                      </div>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="rounded-2xl border border-border bg-bg-surface">

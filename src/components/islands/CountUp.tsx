@@ -30,9 +30,10 @@ export default function CountUp({
   const isInView = useInView(ref, { once: true, margin: '-50px' });
 
   const motionValue = useMotionValue(from);
+  const normalizedDuration = Math.max(duration, 0.2);
   const springValue = useSpring(motionValue, {
-    damping: 50,
-    stiffness: 100
+    damping: Math.max(18, Math.round(48 / normalizedDuration)),
+    stiffness: Math.max(60, Math.round(180 / normalizedDuration))
   });
 
   useEffect(() => {

@@ -4,7 +4,6 @@ import { useRef } from 'react';
 interface Props {
   text: string;
   className?: string;
-  as?: 'h1' | 'h2' | 'h3' | 'h4' | 'p' | 'span';
   delay?: number;
   duration?: number;
   staggerChildren?: number;
@@ -18,7 +17,6 @@ interface Props {
 export default function TextReveal({
   text,
   className = '',
-  as: Component = 'p',
   delay = 0,
   duration = 0.5,
   staggerChildren = 0.03,

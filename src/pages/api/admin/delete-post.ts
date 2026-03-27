@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { deleteLocalPostFile } from '@/lib/server/content-post-files';
 import { verifyAdminIdToken } from '@/lib/server/admin-auth';
 import { deletePostFile } from '@/lib/server/github-posts';
 import { generateMarkdownFileName } from '@/lib/markdown-publish';
@@ -33,6 +34,7 @@ export const POST: APIRoute = async ({ request }) => {
       fileName,
       message: `🗑️ 포스트 삭제: ${body.title || body.slug}`,
     });
+    await deleteLocalPostFile(fileName);
 
     return new Response(JSON.stringify({ ok: true, deleted: result.deleted }), {
       status: 200,
