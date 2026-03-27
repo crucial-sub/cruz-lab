@@ -1,7 +1,6 @@
 import type { APIRoute } from 'astro';
-import { mkdir, writeFile } from 'node:fs/promises';
-import path from 'node:path';
 import { verifyAdminIdToken } from '@/lib/server/admin-auth';
+import { upsertRepositoryAssetFile } from '@/lib/server/github-posts';
 import { getPublishSiteInfo } from '@/lib/server/site-url';
 
 export const prerender = false;
@@ -77,14 +76,20 @@ export const POST: APIRoute = async ({ request }) => {
 
     const filePath = buildAssetFilePath(scope, file.name);
     const buffer = Buffer.from(await file.arrayBuffer());
-    const localFilePath = path.join(process.cwd(), filePath);
-    await mkdir(path.dirname(localFilePath), { recursive: true });
-    await writeFile(localFilePath, buffer);
 
     const { publicSiteUrl, currentOrigin } = getPublishSiteInfo(request);
     const publicPath = `/${filePath.replace(/^public\//, '')}`;
     const publicUrl = new URL(publicPath, publicSiteUrl).toString();
-    const previewUrl = new URL(publicPath, currentOrigin).toString();
+    const previewUrl = new URL(
+      `/api/admin/asset-preview?path=${encodeURIComponent(publicPath)}`,
+      currentOrigin
+    ).toString();
+
+    const uploadResult = await upsertRepositoryAssetFile({
+      filePath,
+      contentBase64: buffer.toString('base64'),
+      message: `🖼️ CMS 자산 업로드: ${file.name}`,
+    });
 
     return new Response(
       JSON.stringify({
@@ -93,6 +98,9 @@ export const POST: APIRoute = async ({ request }) => {
         publicPath,
         publicUrl,
         previewUrl,
+        githubFileUrl: uploadResult.fileUrl,
+        githubCommitUrl: uploadResult.commitUrl,
+        githubCommitSha: uploadResult.commitSha,
       }),
       {
         status: 200,

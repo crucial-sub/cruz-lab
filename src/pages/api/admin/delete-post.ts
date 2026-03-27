@@ -34,7 +34,11 @@ export const POST: APIRoute = async ({ request }) => {
       fileName,
       message: `🗑️ 포스트 삭제: ${body.title || body.slug}`,
     });
-    await deleteLocalPostFile(fileName);
+    try {
+      await deleteLocalPostFile(fileName);
+    } catch (error) {
+      console.warn('로컬 포스트 파일 삭제를 건너뜁니다.', error);
+    }
 
     return new Response(JSON.stringify({ ok: true, deleted: result.deleted }), {
       status: 200,

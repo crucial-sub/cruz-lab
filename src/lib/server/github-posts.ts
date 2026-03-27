@@ -13,6 +13,10 @@ export function getGitHubPublishTarget() {
   };
 }
 
+export function getGitHubRawFileUrl(filePath: string) {
+  return `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${filePath}`;
+}
+
 interface GitHubFileResponse {
   sha: string;
 }

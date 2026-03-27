@@ -1,6 +1,5 @@
 import type { APIRoute } from 'astro';
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
+import { getGitHubRawFileUrl } from '@/lib/server/github-posts';
 
 export const prerender = false;
 
@@ -35,14 +34,22 @@ export const GET: APIRoute = async ({ request }) => {
     return new Response('잘못된 자산 경로입니다.', { status: 400 });
   }
 
-  const diskPath = path.join(process.cwd(), 'public', assetPath.replace(/^\/+/, ''));
+  const repositoryPath = `public${assetPath}`;
+  const rawUrl = getGitHubRawFileUrl(repositoryPath);
 
   try {
-    const buffer = await readFile(diskPath);
-    const extension = path.extname(diskPath).toLowerCase();
-    const contentType = MIME_BY_EXTENSION[extension] || 'application/octet-stream';
+    const upstream = await fetch(rawUrl, { redirect: 'follow' });
+    if (!upstream.ok) {
+      return new Response('자산을 찾을 수 없습니다.', { status: upstream.status });
+    }
 
-    return new Response(buffer, {
+    const extension = assetPath.slice(assetPath.lastIndexOf('.')).toLowerCase();
+    const contentType =
+      upstream.headers.get('content-type') ||
+      MIME_BY_EXTENSION[extension] ||
+      'application/octet-stream';
+
+    return new Response(upstream.body, {
       status: 200,
       headers: {
         'Content-Type': contentType,
@@ -53,4 +60,3 @@ export const GET: APIRoute = async ({ request }) => {
     return new Response('자산을 찾을 수 없습니다.', { status: 404 });
   }
 };
-
