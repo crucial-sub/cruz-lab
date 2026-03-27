@@ -1,7 +1,8 @@
 // 시리즈 에디터 컴포넌트
 import { useState, useEffect, useMemo } from 'react';
+import { resolveAdminAssetPreviewUrl } from '@/lib/admin-asset-preview';
 import { getClientAdminIdToken } from '@/lib/firebase-auth-client';
-import { getClientStorage } from '@/lib/firebase-storage-client';
+import { uploadCmsAsset } from '@/components/editor/media-upload-client';
 import AdminGuard from '../AdminGuard';
 import AdminLayout from '../AdminLayout';
 import { Reorder } from 'framer-motion';
@@ -63,6 +64,7 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const coverPreviewUrl = resolveAdminAssetPreviewUrl(coverImage);
 
   // 초기 데이터 로딩
   useEffect(() => {
@@ -157,26 +159,13 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
 
     try {
       await getClientAdminIdToken({ forceRefresh: true });
-      const { default: imageCompression } = await import('browser-image-compression');
-      const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
-      const options = {
-        maxSizeMB: 1,
-        maxWidthOrHeight: 1920,
-        useWebWorker: true,
-        fileType: 'image/webp',
-      };
-      const compressedFile = await imageCompression(file, options);
-      const timestamp = Date.now();
-      const fileName = `series-covers/${timestamp}-${file.name.replace(/\.[^/.]+$/, '')}.webp`;
-      const storage = getClientStorage();
-      const storageRef = ref(storage, fileName);
-      
-      await uploadBytes(storageRef, compressedFile);
-      const url = await getDownloadURL(storageRef);
+      const url = await uploadCmsAsset(file, {
+        storagePath: 'images/series-covers',
+      });
       setCoverImage(url);
     } catch (err) {
         console.error('이미지 업로드 실패', err);
-        alert('이미지 업로드 실패');
+        alert(err instanceof Error ? err.message : '이미지 업로드 실패');
     }
   };
 
@@ -547,7 +536,7 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
                         <div className="p-6 space-y-4">
                             <div className="group relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-bg border border-border">
                                 {coverImage ? (
-                                    <img src={coverImage} alt="Cover" className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                                    <img src={coverPreviewUrl} alt="Cover" className="h-full w-full object-cover transition-transform group-hover:scale-105" />
                                 ) : (
                                     <div className="flex h-full flex-col items-center justify-center text-text-secondary gap-2">
                                         <ImageIcon size={40} className="opacity-20" />

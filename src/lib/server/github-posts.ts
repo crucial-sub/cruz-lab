@@ -167,42 +167,40 @@ export async function upsertPostFile({
   message: string;
 }) {
   const filePath = `${POSTS_PATH}/${fileName}`;
-  const getResponse = await githubRequest(filePath);
-
-  let existingSha: string | undefined;
-  if (getResponse.ok) {
-    const existingFile = (await getResponse.json()) as GitHubFileResponse;
-    existingSha = existingFile.sha;
-  }
-
-  const body: Record<string, string> = {
+  const putResult = await upsertGitHubFile({
+    filePath,
+    contentBase64: Buffer.from(content).toString('base64'),
     message,
-    content: Buffer.from(content).toString('base64'),
-    branch: GITHUB_BRANCH,
-  };
-
-  if (existingSha) {
-    body.sha = existingSha;
-  }
-
-  const putResponse = await githubRequest(filePath, {
-    method: 'PUT',
-    body: JSON.stringify(body),
   });
-
-  if (!putResponse.ok) {
-    throw new Error(await putResponse.text());
-  }
-
-  const putResult = (await putResponse.json()) as GitHubCommitResponse;
 
   return {
     filePath,
-    commitSha: putResult.commit?.sha,
-    commitUrl: putResult.commit?.html_url,
-    fileUrl:
-      putResult.content?.html_url ||
-      `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/blob/${GITHUB_BRANCH}/${filePath}`,
+    commitSha: putResult.commitSha,
+    commitUrl: putResult.commitUrl,
+    fileUrl: putResult.fileUrl,
+  };
+}
+
+export async function upsertRepositoryAssetFile({
+  filePath,
+  contentBase64,
+  message,
+}: {
+  filePath: string;
+  contentBase64: string;
+  message: string;
+}) {
+  const result = await upsertGitHubFile({
+    filePath,
+    contentBase64,
+    message,
+  });
+
+  return {
+    filePath,
+    commitSha: result.commitSha,
+    commitUrl: result.commitUrl,
+    fileUrl: result.fileUrl,
   };
 }
 
@@ -236,4 +234,51 @@ export async function deletePostFile({
   }
 
   return { filePath, deleted: true };
+}
+
+async function upsertGitHubFile({
+  filePath,
+  contentBase64,
+  message,
+}: {
+  filePath: string;
+  contentBase64: string;
+  message: string;
+}) {
+  const getResponse = await githubRequest(filePath);
+
+  let existingSha: string | undefined;
+  if (getResponse.ok) {
+    const existingFile = (await getResponse.json()) as GitHubFileResponse;
+    existingSha = existingFile.sha;
+  }
+
+  const body: Record<string, string> = {
+    message,
+    content: contentBase64,
+    branch: GITHUB_BRANCH,
+  };
+
+  if (existingSha) {
+    body.sha = existingSha;
+  }
+
+  const putResponse = await githubRequest(filePath, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+
+  if (!putResponse.ok) {
+    throw new Error(await putResponse.text());
+  }
+
+  const putResult = (await putResponse.json()) as GitHubCommitResponse;
+
+  return {
+    commitSha: putResult.commit?.sha,
+    commitUrl: putResult.commit?.html_url,
+    fileUrl:
+      putResult.content?.html_url ||
+      `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/blob/${GITHUB_BRANCH}/${filePath}`,
+  };
 }

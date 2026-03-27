@@ -48,7 +48,6 @@ export function hasDraftContent(draft: EditorDraftPayload): boolean {
       draft.content?.trim() ||
       draft.slug?.trim() ||
       draft.heroImage?.trim() ||
-      typeof draft.isPublic === 'boolean' ||
       draft.tags?.length
   );
 }
@@ -62,6 +61,11 @@ export function getStoredEditorDrafts(storage: Storage): StoredEditorDraft[] {
 
       try {
         const draft = JSON.parse(raw) as EditorDraftPayload;
+        if (!hasDraftContent(draft)) {
+          storage.removeItem(draftKey);
+          return null;
+        }
+
         const fallbackSlug = draftKey.replace(DRAFT_KEY_PREFIX, '');
         const slug = draft.slug || (fallbackSlug === 'new' ? '' : fallbackSlug);
         const updatedDate = draft.updatedDate ? new Date(draft.updatedDate) : new Date();

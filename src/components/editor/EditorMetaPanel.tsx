@@ -1,4 +1,6 @@
 import { useRef, useState } from 'react';
+import { resolveAdminAssetPreviewUrl } from '@/lib/admin-asset-preview';
+import { uploadCmsAsset } from './media-upload-client';
 import { UploadProgress } from './UploadProgress';
 import type { UploadStatus } from './upload-types';
 
@@ -99,6 +101,7 @@ export function EditorMetaPanel({
     .replace(MARKDOWN_STRIP_PATTERN, '')
     .replace(/\n+/g, ' ')
     .trim();
+  const heroPreviewUrl = resolveAdminAssetPreviewUrl(heroImage);
 
   const handleUploadHide = () => {
     setUploadStatus('idle');
@@ -111,8 +114,7 @@ export function EditorMetaPanel({
     if (!file) return;
 
     try {
-      const { uploadImageToFirebase } = await import('./media-upload-client');
-      const url = await uploadImageToFirebase(file, {
+      const url = await uploadCmsAsset(file, {
         storagePath: 'images/heroes',
         onProgress: (progress, status, fileName) => {
           setUploadProgress(progress);
@@ -261,7 +263,7 @@ export function EditorMetaPanel({
               {heroImage ? (
                 isVideoUrl(heroImage) ? (
                   <video
-                    src={heroImage}
+                    src={heroPreviewUrl}
                     className="h-full w-full object-cover"
                     muted
                     autoPlay
@@ -269,7 +271,7 @@ export function EditorMetaPanel({
                     playsInline
                   />
                 ) : (
-                  <img src={heroImage} alt="썸네일 미리보기" className="h-full w-full object-cover" />
+                  <img src={heroPreviewUrl} alt="썸네일 미리보기" className="h-full w-full object-cover" />
                 )
               ) : (
                 <div className="flex h-full items-center justify-center text-sm text-gray-400">

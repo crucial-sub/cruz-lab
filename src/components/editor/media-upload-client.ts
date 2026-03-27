@@ -1,7 +1,5 @@
-import type { UploadTaskSnapshot } from 'firebase/storage';
-import { waitForClientAuthUser } from '@/lib/firebase-auth-client';
-import { getClientStorage, getClientStorageBucketCandidates } from '@/lib/firebase-storage-client';
-import type { ImageUploadConfig } from './upload-types';
+import { getClientAdminIdToken } from '@/lib/firebase-auth-client';
+import type { CmsAssetScope, ImageUploadConfig } from './upload-types';
 
 const VIDEO_MIME_TYPES = ['video/webm', 'video/mp4', 'video/quicktime', 'video/x-m4v'];
 
@@ -13,21 +11,6 @@ const defaultConfig: Required<Omit<ImageUploadConfig, 'onProgress' | 'onError'>>
   maxHeight: 1080,
   quality: 0.85,
 };
-
-interface BucketUploadFailure {
-  bucketName: string;
-  error: unknown;
-}
-
-function generateUniqueFileName(originalName: string): string {
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2, 8);
-  const extension = originalName.split('.').pop() || 'jpg';
-  const baseName = originalName.replace(/\.[^/.]+$/, '').substring(0, 20);
-  const sanitizedName = baseName.replace(/[^a-zA-Z0-9가-힣]/g, '_');
-
-  return `${sanitizedName}_${timestamp}_${random}.${extension}`;
-}
 
 export async function generateLQIP(file: File, size: number = 20): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -104,7 +87,73 @@ async function resizeImage(
   });
 }
 
-export async function uploadImageToFirebase(
+function mapStoragePathToScope(storagePath: string): CmsAssetScope {
+  if (storagePath.includes('heroes')) return 'heroes';
+  if (storagePath.includes('series')) return 'series-covers';
+  return 'blog';
+}
+
+function uploadViaCmsApi({
+  file,
+  scope,
+  idToken,
+  onProgress,
+}: {
+  file: Blob | File;
+  scope: CmsAssetScope;
+  idToken: string;
+  onProgress?: ImageUploadConfig['onProgress'];
+}) {
+  return new Promise<string>((resolve, reject) => {
+    const formData = new FormData();
+    formData.append(
+      'file',
+      file instanceof File ? file : new File([file], `upload-${Date.now()}.jpg`, { type: file.type || 'image/jpeg' })
+    );
+    formData.append('scope', scope);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/admin/upload-asset');
+    xhr.timeout = 60000;
+    xhr.setRequestHeader('Authorization', `Bearer ${idToken}`);
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable) return;
+      const progress = (event.loaded / event.total) * 100;
+      onProgress?.(progress, 'uploading', file instanceof File ? file.name : undefined);
+    };
+
+    xhr.upload.onload = () => {
+      onProgress?.(100, 'processing', file instanceof File ? file.name : undefined);
+    };
+
+    xhr.onerror = () => {
+      reject(new Error('관리자 업로드 요청이 브라우저에서 실패했습니다.'));
+    };
+
+    xhr.ontimeout = () => {
+      reject(new Error('자산 업로드 요청이 시간 안에 끝나지 않았습니다.'));
+    };
+
+    xhr.onload = () => {
+      try {
+        const result = JSON.parse(xhr.responseText || '{}');
+        if (xhr.status < 200 || xhr.status >= 300) {
+          throw new Error(result.message || 'GitHub 자산 업로드에 실패했습니다.');
+        }
+
+        onProgress?.(100, 'success', file instanceof File ? file.name : undefined);
+        resolve(result.publicPath || result.previewUrl || result.publicUrl);
+      } catch (error) {
+        reject(error instanceof Error ? error : new Error('자산 업로드 응답 처리에 실패했습니다.'));
+      }
+    };
+
+    xhr.send(formData);
+  });
+}
+
+export async function uploadCmsAsset(
   file: File,
   config: ImageUploadConfig = {}
 ): Promise<string> {
@@ -126,116 +175,25 @@ export async function uploadImageToFirebase(
   }
 
   try {
-    const currentUser = await waitForClientAuthUser({ requireAdmin: true });
-    await currentUser.getIdToken(true);
-
-    onProgress?.(0, 'uploading', file.name);
+    onProgress?.(0, 'authenticating', file.name);
+    const idToken = await getClientAdminIdToken({ forceRefresh: true });
 
     const isVideo = VIDEO_MIME_TYPES.includes(file.type);
+    onProgress?.(0, isVideo ? 'uploading' : 'processing', file.name);
     const uploadBlob = isVideo ? file : await resizeImage(file, maxWidth, maxHeight, quality);
-    const fileName = generateUniqueFileName(file.name);
-    const filePath = `${storagePath}/${fileName}`;
 
-    const { ref, uploadBytesResumable, getDownloadURL } = await import('firebase/storage');
-    const storageBucketCandidates = getClientStorageBucketCandidates();
-    if (storageBucketCandidates.length === 0) {
-      throw new Error('Firebase Storage bucket 설정이 없습니다. PUBLIC_FIREBASE_STORAGE_BUCKET 값을 확인해주세요.');
-    }
-    let lastFailure: BucketUploadFailure | null = null;
-
-    for (let index = 0; index < storageBucketCandidates.length; index += 1) {
-      const candidate = storageBucketCandidates[index];
-
-      try {
-        const storage = getClientStorage(candidate);
-        const storageRef = ref(storage, filePath);
-
-        const uploadTask = uploadBytesResumable(storageRef, uploadBlob, {
-          contentType: uploadBlob.type || file.type,
-          customMetadata: {
-            originalName: file.name,
-            uploadedAt: new Date().toISOString(),
-          },
-        });
-
-        return await new Promise((resolve, reject) => {
-          uploadTask.on(
-            'state_changed',
-            (snapshot: UploadTaskSnapshot) => {
-              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-              onProgress?.(progress, 'uploading', file.name);
-            },
-            (error) => {
-              reject({ bucketName: candidate, error });
-            },
-            async () => {
-              try {
-                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                onProgress?.(100, 'success', file.name);
-                resolve(downloadURL);
-              } catch (error) {
-                reject({ bucketName: candidate, error });
-              }
-            }
-          );
-        });
-      } catch (error) {
-        const failure = isBucketUploadFailure(error)
-          ? error
-          : { bucketName: candidate, error };
-        lastFailure = failure;
-        const shouldRetry =
-          index < storageBucketCandidates.length - 1 && isRetriableBucketError(failure.error);
-
-        if (!shouldRetry) {
-          break;
-        }
-      }
-    }
-
-    if (lastFailure) {
-      throw normalizeUploadError(lastFailure.error, lastFailure.bucketName);
-    }
-
-    throw new Error('Firebase Storage 업로드에 실패했습니다.');
+    return await uploadViaCmsApi({
+      file: uploadBlob instanceof File ? uploadBlob : new File([uploadBlob], file.name, { type: uploadBlob.type || file.type }),
+      scope: mapStoragePathToScope(storagePath),
+      idToken,
+      onProgress: (progress, status) => onProgress?.(progress, status, file.name),
+    });
   } catch (error) {
-    const normalizedError = normalizeUploadError(error);
+    const normalizedError = error instanceof Error ? error : new Error('자산 업로드 중 오류가 발생했습니다.');
     onProgress?.(0, 'error', file.name);
     onError?.(normalizedError);
     throw normalizedError;
   }
 }
 
-function isBucketUploadFailure(error: unknown): error is BucketUploadFailure {
-  return Boolean(
-    error &&
-      typeof error === 'object' &&
-      'bucketName' in error &&
-      'error' in error
-  );
-}
-
-function isRetriableBucketError(error: unknown) {
-  const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
-  return code === 'storage/unknown' || code === 'storage/object-not-found';
-}
-
-function normalizeUploadError(error: unknown, bucketName?: string) {
-  const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
-  const message = error instanceof Error ? error.message : '업로드 중 알 수 없는 오류가 발생했습니다.';
-
-  switch (code) {
-    case 'storage/unauthorized':
-      return new Error('현재 로그인으로는 파일 업로드 권한이 없습니다. 관리자 로그인 상태를 다시 확인해주세요.');
-    case 'storage/canceled':
-      return new Error('파일 업로드가 취소됐습니다.');
-    case 'storage/retry-limit-exceeded':
-      return new Error('업로드 시간이 초과됐습니다. 잠시 후 다시 시도해주세요.');
-    case 'storage/unknown':
-      return new Error(
-        `Firebase Storage 업로드에 실패했습니다.${bucketName ? ` 사용 중인 bucket: ${bucketName}.` : ''} 로그인 상태와 Storage bucket 설정을 먼저 확인해주세요.`
-      );
-    default:
-      return error instanceof Error ? error : new Error(message);
-  }
-}
+export const uploadImageToFirebase = uploadCmsAsset;

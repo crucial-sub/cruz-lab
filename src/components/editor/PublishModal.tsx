@@ -1,6 +1,7 @@
 // 출간 설정 모달
 // 최종 확인, 로컬 백업, 출간 액션
 import { useEffect, useState } from 'react';
+import { resolveAdminAssetPreviewUrl } from '@/lib/admin-asset-preview';
 import { getClientAdminIdToken } from '@/lib/firebase-auth-client';
 import { generateMarkdownContent } from '@/lib/markdown-publish';
 import { saveLastPublishFeedback, type PublishFeedback } from '@/lib/publish-feedback';
@@ -41,6 +42,7 @@ export default function PublishModal({
   const [publishStatus, setPublishStatus] = useState<PublishStatusPayload | null>(null);
   const [statusLoading, setStatusLoading] = useState(true);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const heroPreviewUrl = resolveAdminAssetPreviewUrl(heroImage);
 
   const buildPayload = () => {
     const autoDescription =
@@ -256,9 +258,9 @@ export default function PublishModal({
             <div className="aspect-video bg-gray-100 dark:bg-gray-800">
               {heroImage ? (
                 /\.(mp4|webm|mov)/.test(heroImage) ? (
-                  <video src={heroImage} className="h-full w-full object-cover" muted autoPlay loop playsInline />
+                  <video src={heroPreviewUrl} className="h-full w-full object-cover" muted autoPlay loop playsInline />
                 ) : (
-                  <img src={heroImage} alt="썸네일" className="h-full w-full object-cover" />
+                  <img src={heroPreviewUrl} alt="썸네일" className="h-full w-full object-cover" />
                 )
               ) : (
                 <div className="flex h-full flex-col items-center justify-center gap-2 text-gray-400">

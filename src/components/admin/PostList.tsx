@@ -237,7 +237,7 @@ export default function PostList({ initialPosts }: Props) {
                     clearLastPublishFeedback(window.sessionStorage);
                     setLastPublishFeedback(null);
                   }}
-                  className="shrink-0 whitespace-nowrap rounded-xl border border-emerald-300 bg-white/70 px-4 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
+                  className="inline-flex min-w-[88px] shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-emerald-300 bg-white/70 px-4 py-2 text-sm font-medium text-emerald-800 [word-break:keep-all] hover:bg-emerald-100"
                 >
                   닫기
                 </button>

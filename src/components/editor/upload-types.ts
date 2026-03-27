@@ -1,4 +1,10 @@
-export type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
+export type UploadStatus =
+  | 'idle'
+  | 'authenticating'
+  | 'processing'
+  | 'uploading'
+  | 'success'
+  | 'error';
 
 export type UploadProgressCallback = (
   progress: number,
@@ -16,3 +22,5 @@ export interface ImageUploadConfig {
   onProgress?: UploadProgressCallback;
   onError?: (error: Error) => void;
 }
+
+export type CmsAssetScope = 'blog' | 'heroes' | 'series-covers';

@@ -262,3 +262,4 @@ findings: none
 - import, draft, publish가 모두 같은 markdown 문서를 기준으로 움직이게 한다.
 - 에디터 교체 후에도 현재 publish 경로와 로컬 draft 경험은 최대한 유지한다.
 - 다음 단계에서는 실제 운영 환경에서 publish 후 GitHub 반영과 사이트 배포 반영까지 직접 검증하고, 지금 붙인 진단 UI와 운영 확인 배너가 실사용에서도 충분한지 보완하는 쪽이 우선이다.
+- Firebase Storage 제한이 확인됐기 때문에, 이미지 업로드도 markdown 출간과 같은 축으로 맞춰 로컬 자산 저장 후 출간 시점에만 GitHub 저장소 자산 경로를 동기화하는 방식으로 옮기는 것이 현재 방향이다.

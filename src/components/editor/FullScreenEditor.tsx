@@ -4,7 +4,7 @@
  * CodeMirror 6 기반 마크다운 에디터입니다.
  * - Markdown 기반 출간 경로 사용
  * - 임시저장은 localStorage에 저장
- * - Firebase Storage 이미지 업로드 통합
+ * - GitHub 자산 업로드 통합
  */
 import { Suspense, lazy, useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -322,7 +322,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
   };
 
   const buildDraftData = useCallback((): EditorDraftPayload => ({
-    title: title || '제목 없음',
+    title,
     description,
     content,
     tags,

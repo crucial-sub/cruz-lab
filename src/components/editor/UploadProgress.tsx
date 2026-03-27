@@ -26,8 +26,12 @@ interface UploadProgressProps {
  */
 function getStatusIcon(status: UploadStatus): string {
   switch (status) {
+    case 'authenticating':
+      return '🔐';
+    case 'processing':
+      return '🧰';
     case 'uploading':
-      return '⏳';
+      return '⇡';
     case 'success':
       return '✓';
     case 'error':
@@ -42,12 +46,16 @@ function getStatusIcon(status: UploadStatus): string {
  */
 function getStatusMessage(status: UploadStatus, progress: number): string {
   switch (status) {
+    case 'authenticating':
+      return '관리자 인증과 업로드 권한을 확인하는 중입니다';
+    case 'processing':
+      return '이미지를 업로드용으로 준비하는 중입니다';
     case 'uploading':
-      return `업로드 중... ${Math.round(progress)}%`;
+      return `저장소로 파일을 전송하는 중입니다 · ${Math.round(progress)}%`;
     case 'success':
-      return '업로드 완료!';
+      return '자산 업로드가 끝났습니다';
     case 'error':
-      return '업로드 실패';
+      return '자산 업로드에 실패했습니다';
     default:
       return '';
   }
@@ -66,7 +74,7 @@ export function UploadProgress({
 
   // 상태 변경 시 표시
   useEffect(() => {
-    if (status === 'uploading') {
+    if (status === 'authenticating' || status === 'processing' || status === 'uploading') {
       setVisible(true);
     }
   }, [status]);
@@ -89,8 +97,8 @@ export function UploadProgress({
   return (
     <div
       className={`upload-progress ${status} ${visible ? 'visible' : 'hidden'}`}
-      role="progressbar"
-      aria-valuenow={progress}
+      role={status === 'uploading' ? 'progressbar' : 'status'}
+      aria-valuenow={status === 'uploading' ? progress : undefined}
       aria-valuemin={0}
       aria-valuemax={100}
       aria-label="이미지 업로드 진행률"
@@ -111,12 +119,13 @@ export function UploadProgress({
           </span>
         </div>
 
-        {/* 프로그레스 바 */}
-        {status === 'uploading' && (
+        {(status === 'authenticating' || status === 'processing' || status === 'uploading') && (
           <div className="upload-progress-bar-container">
             <div
-              className="upload-progress-bar"
-              style={{ width: `${progress}%` }}
+              className={`upload-progress-bar ${
+                status === 'uploading' ? 'is-determinate' : 'is-indeterminate'
+              }`}
+              style={status === 'uploading' ? { width: `${Math.max(progress, 4)}%` } : undefined}
             />
           </div>
         )}

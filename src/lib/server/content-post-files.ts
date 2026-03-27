@@ -1,4 +1,4 @@
-import { readdir, readFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parseMarkdownDocument, type ParsedMarkdownDocument } from '@/lib/markdown-publish';
 
@@ -37,4 +37,23 @@ export async function getEditablePostBySlug(slug: string): Promise<ParsedMarkdow
 
   const raw = await readFile(matchedFile, 'utf8');
   return parseMarkdownDocument(raw, path.basename(matchedFile));
+}
+
+export async function writeLocalPostFile(fileName: string, content: string) {
+  const filePath = path.join(POSTS_DIR, fileName);
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, content, 'utf8');
+
+  return filePath;
+}
+
+export async function deleteLocalPostFile(fileName: string) {
+  const filePath = path.join(POSTS_DIR, fileName);
+
+  try {
+    await rm(filePath);
+    return { filePath, deleted: true };
+  } catch {
+    return { filePath, deleted: false };
+  }
 }

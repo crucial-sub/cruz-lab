@@ -10,6 +10,7 @@ import { drawSelection, highlightActiveLine, highlightSpecialChars } from '@code
 import { syntaxHighlighting, indentOnInput, bracketMatching } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
 
+import { uploadCmsAsset } from './media-upload-client';
 import type { UploadStatus } from './upload-types';
 import { UploadProgress } from './UploadProgress';
 import './CodeMirrorEditor.css';
@@ -394,8 +395,7 @@ export default function CodeMirrorEditor({
       if (!viewRef.current || !enableImageUpload) return;
 
       try {
-        const { uploadImageToFirebase } = await import('./media-upload-client');
-        const url = await uploadImageToFirebase(file, {
+        const url = await uploadCmsAsset(file, {
           onProgress: (progress, status, fileName) => {
             setUploadProgress(progress);
             setUploadStatus(status);
