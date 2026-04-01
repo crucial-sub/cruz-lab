@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { getEditablePostBySlug } from '@/lib/server/content-post-files';
+import { getFirestorePostBySlug } from '@/lib/server/firestore-posts';
 
 export const prerender = false;
 
@@ -13,7 +13,7 @@ export const GET: APIRoute = async ({ url }) => {
     });
   }
 
-  const post = await getEditablePostBySlug(slug);
+  const post = await getFirestorePostBySlug(slug);
 
   if (!post) {
     return new Response(JSON.stringify({ message: '포스트를 찾을 수 없습니다.' }), {
@@ -22,7 +22,19 @@ export const GET: APIRoute = async ({ url }) => {
     });
   }
 
-  return new Response(JSON.stringify(post), {
+  return new Response(JSON.stringify({
+    title: post.title,
+    description: post.description,
+    content: post.content,
+    heroImage: post.heroImage,
+    heroVideo: post.heroVideo,
+    tags: post.tags,
+    slug: post.slug,
+    pubDate: post.pubDate.toISOString(),
+    updatedDate: post.updatedDate.toISOString(),
+    readingTime: post.readingTime,
+    isPublic: post.isPublic,
+  }), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },
   });

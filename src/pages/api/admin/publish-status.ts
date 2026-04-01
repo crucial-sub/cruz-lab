@@ -27,6 +27,16 @@ export const GET: APIRoute = async ({ request }) => {
     const siteInfo = getPublishSiteInfo(request);
     const gitHubTargetCheck = await probeGitHubPublishTarget();
     const publicSiteCheck = await probePublicSiteUrl(siteInfo.publicSiteUrl);
+    const hasFirebasePublicConfig = Boolean(
+      import.meta.env.PUBLIC_FIREBASE_PROJECT_ID &&
+      import.meta.env.PUBLIC_FIREBASE_STORAGE_BUCKET &&
+      import.meta.env.PUBLIC_FIREBASE_API_KEY
+    );
+    const hasFirebaseAdminConfig = Boolean(
+      (import.meta.env.FIREBASE_ADMIN_PROJECT_ID || import.meta.env.PUBLIC_FIREBASE_PROJECT_ID) &&
+      import.meta.env.FIREBASE_ADMIN_CLIENT_EMAIL &&
+      import.meta.env.FIREBASE_ADMIN_PRIVATE_KEY
+    );
     const checks = [
       {
         id: 'admin-session',
@@ -36,8 +46,26 @@ export const GET: APIRoute = async ({ request }) => {
         detail: `현재 세션은 ${adminUser.email} 계정 기준으로 관리자 인증을 통과했습니다.`,
       },
       {
+        id: 'firebase-project',
+        label: 'Firebase 공개 설정',
+        kind: 'config' as const,
+        ready: hasFirebasePublicConfig,
+        detail: hasFirebasePublicConfig
+          ? `Storage 업로드와 클라이언트 인증에 필요한 Firebase 공개 설정을 확인했습니다. (${import.meta.env.PUBLIC_FIREBASE_PROJECT_ID})`
+          : 'Firebase 프로젝트/Storage 설정이 비어 있어 direct publish를 진행할 수 없습니다.',
+      },
+      {
+        id: 'firebase-admin',
+        label: 'Firebase 관리자 서버',
+        kind: 'config' as const,
+        ready: hasFirebaseAdminConfig,
+        detail: hasFirebaseAdminConfig
+          ? 'Firestore direct publish에 필요한 Firebase Admin SDK 설정을 확인했습니다.'
+          : 'FIREBASE_ADMIN_CLIENT_EMAIL 또는 FIREBASE_ADMIN_PRIVATE_KEY가 없어 서버에서 Firestore direct publish를 수행할 수 없습니다.',
+      },
+      {
         id: 'github-target',
-        label: 'GitHub 반영 대상',
+        label: 'Markdown 백업 대상',
         kind: 'active' as const,
         ready: gitHubTargetCheck.ready,
         detail: gitHubTargetCheck.detail,
@@ -67,9 +95,10 @@ export const GET: APIRoute = async ({ request }) => {
         verifiedAt: new Date().toISOString(),
         checks,
         target: {
+          publishMode: 'firestore-direct' as const,
           repository: target.repository,
           branch: target.branch,
-          postsPath: target.postsPath,
+          backupPath: target.postsPath,
           siteUrl: siteInfo.publicSiteUrl,
           currentOrigin: siteInfo.currentOrigin,
         },

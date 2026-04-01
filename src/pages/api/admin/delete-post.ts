@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
-import { deleteLocalPostFile } from '@/lib/server/content-post-files';
 import { verifyAdminIdToken } from '@/lib/server/admin-auth';
 import { deletePostFile } from '@/lib/server/github-posts';
+import { deleteFirestorePostBySlug } from '@/lib/server/firestore-posts';
 import { generateMarkdownFileName } from '@/lib/markdown-publish';
 
 export const prerender = false;
@@ -30,17 +30,17 @@ export const POST: APIRoute = async ({ request }) => {
       pubDate: body.pubDate,
     });
 
-    const result = await deletePostFile({
+    const firestoreResult = await deleteFirestorePostBySlug(body.slug);
+    const fileDeleteResult = await deletePostFile({
       fileName,
-      message: `🗑️ 포스트 삭제: ${body.title || body.slug}`,
-    });
-    try {
-      await deleteLocalPostFile(fileName);
-    } catch (error) {
-      console.warn('로컬 포스트 파일 삭제를 건너뜁니다.', error);
-    }
+      message: `포스트 백업 삭제: ${body.title || body.slug}`,
+    }).catch(() => ({ filePath: `data/post-archive/${fileName}`, deleted: false }));
 
-    return new Response(JSON.stringify({ ok: true, deleted: result.deleted }), {
+    return new Response(JSON.stringify({
+      ok: true,
+      deleted: firestoreResult.deleted,
+      backupDeleted: fileDeleteResult.deleted,
+    }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });

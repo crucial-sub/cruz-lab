@@ -11,9 +11,10 @@ export interface PublishStatusPayload {
   verifiedAt: string;
   checks: PublishStatusCheck[];
   target: {
+    publishMode: 'firestore-direct';
     repository: string;
     branch: string;
-    postsPath: string;
+    backupPath: string;
     siteUrl: string;
     currentOrigin: string;
   };

@@ -42,13 +42,13 @@ export const POST: APIRoute = async ({ request }) => {
     const checks = [
       {
         id: 'github-file',
-        label: 'GitHub 파일 반영',
+        label: 'Markdown 백업 파일',
         ready: githubFileCheck.ready,
         detail: githubFileCheck.detail,
       },
       {
         id: 'public-page',
-        label: '공개 페이지 응답',
+        label: '공개 페이지 즉시 반영',
         ready: publicPageCheck.ready,
         detail: publicPageCheck.detail,
       },

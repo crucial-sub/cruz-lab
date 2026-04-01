@@ -200,7 +200,8 @@ export default function PublishModal({
 
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.message || '출간에 실패했습니다.');
+        const errorMessage = [result.message, result.detail].filter(Boolean).join('\n');
+        throw new Error(errorMessage || '출간에 실패했습니다.');
       }
 
       const publishFeedback: PublishFeedback = {
@@ -208,6 +209,7 @@ export default function PublishModal({
         title,
         filePath: result.filePath,
         publicUrl: result.publicUrl,
+        publishMode: result.publishMode || 'firestore-direct',
         githubFileUrl: result.githubFileUrl,
         githubCommitUrl: result.githubCommitUrl,
         githubCommitSha: result.githubCommitSha,
@@ -381,9 +383,10 @@ export default function PublishModal({
                       ))}
                     </div>
                     <div className="rounded-xl border border-dashed border-gray-200 px-3 py-3 text-xs leading-6 text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                      <p>출간 방식 · {publishStatus.target.publishMode === 'firestore-direct' ? 'Firestore direct publish' : publishStatus.target.publishMode}</p>
                       <p>대상 저장소 · {publishStatus.target.repository}</p>
                       <p>브랜치 · {publishStatus.target.branch}</p>
-                      <p>포스트 경로 · {publishStatus.target.postsPath}</p>
+                      <p>백업 경로 · {publishStatus.target.backupPath}</p>
                       <p>공개 사이트 · {publishStatus.target.siteUrl}</p>
                       {publishStatus.target.currentOrigin !== publishStatus.target.siteUrl && (
                         <p>현재 접속 origin · {publishStatus.target.currentOrigin}</p>
@@ -420,9 +423,9 @@ export default function PublishModal({
                 <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
                   로컬 백업
                 </h4>
-                <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                  최종 출간 전에 현재 상태를 markdown 파일로 내려받아 둘 수 있습니다.
-                </p>
+                  <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                  Firestore 발행과 별개로 현재 상태를 markdown 파일로 내려받아 둘 수 있습니다.
+                  </p>
                 <button
                   onClick={handleDownloadMarkdown}
                   className="mt-3 w-full rounded-xl border border-gray-200 px-4 py-3 font-medium text-gray-600 hover:bg-white dark:border-gray-700 dark:text-gray-300 dark:hover:bg-[#1d1d1d]"

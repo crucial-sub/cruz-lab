@@ -228,7 +228,7 @@ export default function PostList({ initialPosts }: Props) {
                     {lastPublishFeedback.title} 출간이 끝났습니다.
                   </h2>
                   <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-900/80">
-                    GitHub markdown 파일 반영은 끝났습니다. 이제 공개 페이지가 같은 내용을 보여주는지만 확인하면 됩니다.
+                    Firestore에는 바로 반영됐습니다. 이제 공개 페이지 응답과 markdown 백업 파일만 확인하면 됩니다.
                   </p>
                 </div>
                 <button

@@ -1,15 +1,4 @@
-import {
-  Timestamp,
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  orderBy,
-  query,
-  updateDoc,
-} from 'firebase/firestore';
+import { Timestamp } from 'firebase-admin/firestore';
 import type { Series } from '@/lib/series';
 import { getServerDb } from './firebase-server';
 
@@ -48,13 +37,13 @@ function buildSeries(id: string, data: Record<string, unknown>): Series {
 
 export async function listAdminSeries() {
   const db = getServerDb();
-  const snapshot = await getDocs(query(collection(db, 'series'), orderBy('order', 'asc')));
+  const snapshot = await db.collection('series').orderBy('order', 'asc').get();
   return snapshot.docs.map((docSnap) => buildSeries(docSnap.id, docSnap.data()));
 }
 
 export async function getAdminSeriesById(id: string) {
   const db = getServerDb();
-  const seriesSnap = await getDoc(doc(db, 'series', id));
+  const seriesSnap = await db.collection('series').doc(id).get();
   if (!seriesSnap.exists()) return null;
   return buildSeries(seriesSnap.id, seriesSnap.data());
 }
@@ -74,11 +63,11 @@ export async function saveAdminSeries(payload: SeriesPayload) {
   };
 
   if (payload.id) {
-    await updateDoc(doc(db, 'series', payload.id), baseData);
+    await db.collection('series').doc(payload.id).update(baseData);
     return payload.id;
   }
 
-  const created = await addDoc(collection(db, 'series'), {
+  const created = await db.collection('series').add({
     ...baseData,
     createdAt: Timestamp.now(),
   });
@@ -88,5 +77,5 @@ export async function saveAdminSeries(payload: SeriesPayload) {
 
 export async function deleteAdminSeries(id: string) {
   const db = getServerDb();
-  await deleteDoc(doc(db, 'series', id));
+  await db.collection('series').doc(id).delete();
 }

@@ -27,6 +27,11 @@ function matchesSlug(filePath: string, slug: string): boolean {
   return fileName === slug || fileName.endsWith(`-${slug}`);
 }
 
+export interface EditableMarkdownPost extends ParsedMarkdownDocument {
+  fileName: string;
+  rawMarkdown: string;
+}
+
 export async function getEditablePostBySlug(slug: string): Promise<ParsedMarkdownDocument | null> {
   const files = await walkMarkdownFiles(POSTS_DIR);
   const matchedFile = files.find((filePath) => matchesSlug(filePath, slug));
@@ -37,6 +42,24 @@ export async function getEditablePostBySlug(slug: string): Promise<ParsedMarkdow
 
   const raw = await readFile(matchedFile, 'utf8');
   return parseMarkdownDocument(raw, path.basename(matchedFile));
+}
+
+export async function listEditableMarkdownPosts(): Promise<EditableMarkdownPost[]> {
+  const files = await walkMarkdownFiles(POSTS_DIR);
+  const posts = await Promise.all(
+    files.map(async (filePath) => {
+      const rawMarkdown = await readFile(filePath, 'utf8');
+      const parsed = parseMarkdownDocument(rawMarkdown, path.basename(filePath));
+
+      return {
+        ...parsed,
+        fileName: path.basename(filePath),
+        rawMarkdown,
+      };
+    })
+  );
+
+  return posts;
 }
 
 export async function writeLocalPostFile(fileName: string, content: string) {

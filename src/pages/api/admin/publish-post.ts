@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
-import { writeLocalPostFile, deleteLocalPostFile } from '@/lib/server/content-post-files';
 import { verifyAdminIdToken } from '@/lib/server/admin-auth';
+import { upsertFirestorePost } from '@/lib/server/firestore-posts';
 import { deletePostFile, upsertPostFile } from '@/lib/server/github-posts';
 import { getPublicPostUrl } from '@/lib/server/site-url';
 import { generateMarkdownContent, generateMarkdownFileName } from '@/lib/markdown-publish';
@@ -14,6 +14,7 @@ function getIdToken(request: Request): string | null {
 }
 
 export const POST: APIRoute = async ({ request }) => {
+  let currentStep = '관리자 인증';
   try {
     const idToken = getIdToken(request);
     const adminUser = idToken ? await verifyAdminIdToken(idToken) : null;
@@ -27,13 +28,40 @@ export const POST: APIRoute = async ({ request }) => {
 
     const body = await request.json();
 
+    currentStep = 'markdown 백업 생성';
     const markdown = generateMarkdownContent(body);
     const nextFileName = generateMarkdownFileName({
       slug: body.slug,
       pubDate: body.pubDate,
     });
 
+    currentStep = 'GitHub markdown 백업';
+    const result = await upsertPostFile({
+      fileName: nextFileName,
+      content: markdown,
+      message: body.isUpdate
+        ? `포스트 백업 갱신: ${body.title}`
+        : `새 포스트 백업: ${body.title}`,
+    });
+
+    try {
+      currentStep = 'Firestore direct publish';
+      await upsertFirestorePost({
+        ...body,
+        originalSlug: body.originalSlug,
+      });
+    } catch (firestoreError) {
+      currentStep = 'Firestore 롤백 중';
+      await deletePostFile({
+        fileName: nextFileName,
+        message: `Firestore 반영 실패로 백업 롤백: ${body.title}`,
+      }).catch(() => null);
+
+      throw firestoreError;
+    }
+
     if (body.originalSlug && body.originalSlug !== body.slug) {
+      currentStep = '이전 markdown 백업 정리';
       const previousFileName = generateMarkdownFileName({
         slug: body.originalSlug,
         pubDate: body.pubDate,
@@ -41,28 +69,11 @@ export const POST: APIRoute = async ({ request }) => {
 
       await deletePostFile({
         fileName: previousFileName,
-        message: `🔄 URL 변경으로 이전 파일 삭제: ${body.originalSlug}`,
-      });
-      try {
-        await deleteLocalPostFile(previousFileName);
-      } catch (error) {
-        console.warn('로컬 이전 포스트 파일 삭제를 건너뜁니다.', error);
-      }
+        message: `URL 변경으로 이전 백업 삭제: ${body.originalSlug}`,
+      }).catch(() => null);
     }
 
-    const result = await upsertPostFile({
-      fileName: nextFileName,
-      content: markdown,
-      message: body.isUpdate
-        ? `📝 포스트 수정: ${body.title}`
-        : `✨ 새 포스트 발행: ${body.title}`,
-    });
-    try {
-      await writeLocalPostFile(nextFileName, markdown);
-    } catch (error) {
-      console.warn('로컬 포스트 파일 동기화를 건너뜁니다.', error);
-    }
-
+    currentStep = '공개 URL 생성';
     const publicUrl = getPublicPostUrl(request, body.slug);
 
     return new Response(
@@ -72,6 +83,7 @@ export const POST: APIRoute = async ({ request }) => {
         slug: body.slug,
         title: body.title,
         publicUrl,
+        publishMode: 'firestore-direct',
         githubFileUrl: result.fileUrl,
         githubCommitUrl: result.commitUrl,
         githubCommitSha: result.commitSha,
@@ -82,9 +94,18 @@ export const POST: APIRoute = async ({ request }) => {
       }
     );
   } catch (error) {
+    console.error('[publish-post] failed at step:', currentStep, error);
+    const detail =
+      error instanceof Error
+        ? error.message
+        : typeof error === 'string'
+          ? error
+          : JSON.stringify(error);
+
     return new Response(
       JSON.stringify({
-        message: error instanceof Error ? error.message : '출간 중 오류가 발생했습니다.',
+        message: `${currentStep} 단계에서 실패했습니다.`,
+        detail,
       }),
       {
         status: 500,

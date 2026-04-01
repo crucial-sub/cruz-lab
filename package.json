@@ -35,6 +35,7 @@
     "astro": "^5.13.8",
     "browser-image-compression": "^2.0.2",
     "firebase": "^12.6.0",
+    "firebase-admin": "^13.7.0",
     "framer-motion": "^12.23.25",
     "idb": "^8.0.3",
     "lucide-react": "^0.544.0",

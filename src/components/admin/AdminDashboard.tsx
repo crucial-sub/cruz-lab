@@ -28,6 +28,8 @@ export default function AdminDashboard({ publishedPosts }: Props) {
   const [draftCount, setDraftCount] = useState(0);
   const [publishStatus, setPublishStatus] = useState<PublishStatusPayload | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -40,6 +42,35 @@ export default function AdminDashboard({ publishedPosts }: Props) {
 
     setDraftCount(getStoredEditorDrafts(window.localStorage).length);
   }, []);
+
+  const handleImportArchivePosts = async () => {
+    const confirmed = window.confirm('기존 markdown 백업 파일들을 Firestore posts 컬렉션으로 이관할까요?');
+    if (!confirmed) return;
+
+    try {
+      setIsImporting(true);
+      setImportMessage(null);
+      const idToken = await getClientAdminIdToken();
+      const response = await fetch('/api/admin/import-content-posts', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || '기존 markdown 포스트 이관에 실패했습니다.');
+      }
+
+      setImportMessage(`기존 markdown 백업 ${result.importedCount}/${result.totalCount}개를 Firestore로 이관했습니다.`);
+      window.location.reload();
+    } catch (error) {
+      setImportMessage(error instanceof Error ? error.message : '기존 markdown 포스트 이관에 실패했습니다.');
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -100,7 +131,7 @@ export default function AdminDashboard({ publishedPosts }: Props) {
           <div>
             <h1 className="text-3xl font-bold text-text-primary">대시보드</h1>
             <p className="mt-1 text-text-secondary">
-              발행된 markdown 포스트와 로컬 임시저장 상태를 한눈에 확인합니다.
+              Firestore 발행 포스트와 로컬 임시저장 상태를 한눈에 확인합니다.
             </p>
           </div>
 
@@ -179,14 +210,28 @@ export default function AdminDashboard({ publishedPosts }: Props) {
             >
               포스트 관리
             </a>
+            <button
+              type="button"
+              onClick={handleImportArchivePosts}
+              disabled={isImporting}
+              className="inline-flex items-center gap-2 rounded-xl border border-border px-6 py-3 font-semibold text-text-primary transition-colors hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isImporting ? '이관 중...' : '기존 markdown 글 이관'}
+            </button>
           </div>
+
+          {importMessage && (
+            <p className="rounded-2xl border border-border bg-bg px-4 py-3 text-sm text-text-secondary">
+              {importMessage}
+            </p>
+          )}
 
           <div className="rounded-2xl border border-border bg-bg-surface p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-text-primary">출간 시스템 상태</h2>
                 <p className="mt-1 text-sm text-text-secondary">
-                  GitHub 반영에 필요한 서버 설정과 대상 저장소 정보를 여기서 먼저 확인합니다.
+                  direct publish와 markdown 백업에 필요한 서버 설정을 여기서 먼저 확인합니다.
                 </p>
               </div>
               <a
@@ -271,7 +316,7 @@ export default function AdminDashboard({ publishedPosts }: Props) {
                         </p>
                         <h3 className="mt-2 text-lg font-semibold text-text-primary">출간 대상</h3>
                         <p className="mt-1 text-sm leading-6 text-text-secondary">
-                          현재 관리자 화면이 실제로 갱신하는 위치를 한 번에 보여줍니다.
+                          즉시 반영 대상과 markdown 백업 위치를 한 번에 보여줍니다.
                         </p>
                       </div>
                       <span className="rounded-full border border-brand/20 bg-brand/10 px-3 py-1 text-xs font-semibold text-brand">
@@ -280,6 +325,12 @@ export default function AdminDashboard({ publishedPosts }: Props) {
                     </div>
 
                     <dl className="mt-5 space-y-3">
+                      <div className="rounded-2xl border border-border bg-bg p-4">
+                        <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-text-secondary">출간 방식</dt>
+                        <dd className="mt-2 text-sm font-medium text-text-primary">
+                          {publishStatus.target.publishMode === 'firestore-direct' ? 'Firestore direct publish' : publishStatus.target.publishMode}
+                        </dd>
+                      </div>
                       <div className="rounded-2xl border border-border bg-bg p-4">
                         <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-text-secondary">저장소</dt>
                         <dd className="mt-2 break-all text-sm font-medium text-text-primary">
@@ -291,9 +342,9 @@ export default function AdminDashboard({ publishedPosts }: Props) {
                         <dd className="mt-2 text-sm font-medium text-text-primary">{publishStatus.target.branch}</dd>
                       </div>
                       <div className="rounded-2xl border border-border bg-bg p-4">
-                        <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-text-secondary">포스트 경로</dt>
+                        <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-text-secondary">백업 경로</dt>
                         <dd className="mt-2 break-all text-sm font-medium text-text-primary">
-                          {publishStatus.target.postsPath}
+                          {publishStatus.target.backupPath}
                         </dd>
                       </div>
                       <div className="rounded-2xl border border-border bg-bg p-4">

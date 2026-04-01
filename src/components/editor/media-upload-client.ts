@@ -1,5 +1,5 @@
 import { getClientAdminIdToken } from '@/lib/firebase-auth-client';
-import type { CmsAssetScope, ImageUploadConfig } from './upload-types';
+import type { ImageUploadConfig } from './upload-types';
 
 const VIDEO_MIME_TYPES = ['video/webm', 'video/mp4', 'video/quicktime', 'video/x-m4v'];
 
@@ -87,69 +87,66 @@ async function resizeImage(
   });
 }
 
-function mapStoragePathToScope(storagePath: string): CmsAssetScope {
-  if (storagePath.includes('heroes')) return 'heroes';
-  if (storagePath.includes('series')) return 'series-covers';
-  return 'blog';
+function sanitizeFileName(fileName: string) {
+  return fileName
+    .normalize('NFKD')
+    .replace(/[^\w.-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase();
 }
 
-function uploadViaCmsApi({
+async function uploadViaFirebaseStorage({
   file,
-  scope,
-  idToken,
+  storagePath,
   onProgress,
 }: {
-  file: Blob | File;
-  scope: CmsAssetScope;
-  idToken: string;
+  file: File;
+  storagePath: string;
   onProgress?: ImageUploadConfig['onProgress'];
 }) {
+  const [{ ref, uploadBytesResumable, getDownloadURL }, { storage }] = await Promise.all([
+    import('firebase/storage'),
+    import('@/lib/firebase'),
+  ]);
+
+  const now = new Date();
+  const year = String(now.getFullYear());
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const extension = file.name.split('.').pop()?.toLowerCase() || 'bin';
+  const safeName = sanitizeFileName(file.name.replace(/\.[^/.]+$/, '')).slice(0, 40) || 'asset';
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).slice(2, 8);
+  const fullPath = `${storagePath}/${year}/${month}/${safeName}-${timestamp}-${random}.${extension}`;
+  const storageRef = ref(storage, fullPath);
+
   return new Promise<string>((resolve, reject) => {
-    const formData = new FormData();
-    formData.append(
-      'file',
-      file instanceof File ? file : new File([file], `upload-${Date.now()}.jpg`, { type: file.type || 'image/jpeg' })
-    );
-    formData.append('scope', scope);
+    const task = uploadBytesResumable(storageRef, file, {
+      contentType: file.type,
+      cacheControl: 'public,max-age=31536000,immutable',
+    });
 
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/api/admin/upload-asset');
-    xhr.timeout = 60000;
-    xhr.setRequestHeader('Authorization', `Bearer ${idToken}`);
-
-    xhr.upload.onprogress = (event) => {
-      if (!event.lengthComputable) return;
-      const progress = (event.loaded / event.total) * 100;
-      onProgress?.(progress, 'uploading', file instanceof File ? file.name : undefined);
-    };
-
-    xhr.upload.onload = () => {
-      onProgress?.(100, 'processing', file instanceof File ? file.name : undefined);
-    };
-
-    xhr.onerror = () => {
-      reject(new Error('관리자 업로드 요청이 브라우저에서 실패했습니다.'));
-    };
-
-    xhr.ontimeout = () => {
-      reject(new Error('자산 업로드 요청이 시간 안에 끝나지 않았습니다.'));
-    };
-
-    xhr.onload = () => {
-      try {
-        const result = JSON.parse(xhr.responseText || '{}');
-        if (xhr.status < 200 || xhr.status >= 300) {
-          throw new Error(result.message || 'GitHub 자산 업로드에 실패했습니다.');
+    task.on(
+      'state_changed',
+      (snapshot) => {
+        const progress = snapshot.totalBytes
+          ? (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+          : 0;
+        onProgress?.(progress, 'uploading', file.name);
+      },
+      (error) => {
+        reject(error instanceof Error ? error : new Error('Firebase Storage 업로드에 실패했습니다.'));
+      },
+      async () => {
+        try {
+          const url = await getDownloadURL(task.snapshot.ref);
+          onProgress?.(100, 'success', file.name);
+          resolve(url);
+        } catch (error) {
+          reject(error instanceof Error ? error : new Error('업로드한 자산 URL을 가져오지 못했습니다.'));
         }
-
-        onProgress?.(100, 'success', file instanceof File ? file.name : undefined);
-        resolve(result.publicPath || result.previewUrl || result.publicUrl);
-      } catch (error) {
-        reject(error instanceof Error ? error : new Error('자산 업로드 응답 처리에 실패했습니다.'));
       }
-    };
-
-    xhr.send(formData);
+    );
   });
 }
 
@@ -176,16 +173,17 @@ export async function uploadCmsAsset(
 
   try {
     onProgress?.(0, 'authenticating', file.name);
-    const idToken = await getClientAdminIdToken({ forceRefresh: true });
+    await getClientAdminIdToken({ forceRefresh: true });
 
     const isVideo = VIDEO_MIME_TYPES.includes(file.type);
     onProgress?.(0, isVideo ? 'uploading' : 'processing', file.name);
     const uploadBlob = isVideo ? file : await resizeImage(file, maxWidth, maxHeight, quality);
+    const uploadFile =
+      uploadBlob instanceof File ? uploadBlob : new File([uploadBlob], file.name, { type: uploadBlob.type || file.type });
 
-    return await uploadViaCmsApi({
-      file: uploadBlob instanceof File ? uploadBlob : new File([uploadBlob], file.name, { type: uploadBlob.type || file.type }),
-      scope: mapStoragePathToScope(storagePath),
-      idToken,
+    return await uploadViaFirebaseStorage({
+      file: uploadFile,
+      storagePath,
       onProgress: (progress, status) => onProgress?.(progress, status, file.name),
     });
   } catch (error) {

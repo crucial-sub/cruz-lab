@@ -1,7 +1,7 @@
 const GITHUB_OWNER = 'crucial-sub';
 const GITHUB_REPO = 'cruz-lab';
 const GITHUB_BRANCH = 'main';
-const POSTS_PATH = 'content/posts';
+const POSTS_PATH = 'data/post-archive';
 
 export function getGitHubPublishTarget() {
   return {
@@ -126,10 +126,17 @@ export async function probeGitHubPublishTarget() {
   }
 
   const postsPathResponse = await githubApiRequest(`/contents/${POSTS_PATH}?ref=${GITHUB_BRANCH}`);
-  if (!postsPathResponse.ok) {
+  if (!postsPathResponse.ok && postsPathResponse.status !== 404) {
     return {
       ready: false,
       detail: `GitHub API가 ${target.postsPath} 경로를 확인하지 못했습니다. (${await readGitHubError(postsPathResponse)})`,
+    };
+  }
+
+  if (postsPathResponse.status === 404) {
+    return {
+      ready: true,
+      detail: `GitHub 저장소 쓰기 권한과 ${target.branch} 브랜치 접근을 확인했습니다. ${target.postsPath} 경로는 아직 비어 있어 첫 백업 시 자동으로 생성됩니다.`,
     };
   }
 

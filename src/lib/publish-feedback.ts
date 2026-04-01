@@ -3,6 +3,7 @@ export interface PublishFeedback {
   title: string;
   filePath: string;
   publicUrl: string;
+  publishMode?: 'firestore-direct';
   githubFileUrl: string;
   githubCommitUrl?: string;
   githubCommitSha?: string;
