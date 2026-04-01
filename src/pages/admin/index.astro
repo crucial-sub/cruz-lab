@@ -1,11 +1,11 @@
 ---
-export const prerender = true;
+export const prerender = false;
 
 // 관리자 대시보드 페이지
 // 로그인한 관리자에게만 표시되는 메인 대시보드
-import BaseLayout from '@/layouts/BaseLayout.astro';
-import AdminDashboard from '@/components/admin/AdminDashboard';
 import { getPublishedContentPosts } from '@/lib/content-posts';
+import AdminDashboard from '@/components/admin/AdminDashboard';
+import BaseLayout from '@/layouts/BaseLayout.astro';
 
 const publishedPosts = (await getPublishedContentPosts()).map((post) => ({
   id: post.slug,

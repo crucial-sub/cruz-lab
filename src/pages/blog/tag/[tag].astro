@@ -1,34 +1,15 @@
 ---
-export const prerender = true;
-
-import { getCollection, type CollectionEntry } from 'astro:content';
 import BlogCard from '@/components/islands/BlogCard';
 import FadeInSection from '@/components/islands/FadeInSection';
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getAllContentTags, getPublishedContentPosts } from '@/lib/content-posts';
 
-export async function getStaticPaths() {
-  const allPosts = await getCollection('blog');
+export const prerender = false;
 
-  // 모든 태그 추출
-  const allTags = [...new Set(allPosts.flatMap((post) => post.data.tags))];
-
-  return allTags.map((tag) => ({
-    params: { tag },
-    props: {
-      tag,
-      posts: allPosts
-        .filter((post) => post.data.tags.includes(tag))
-        .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()),
-      allTags,
-    },
-  }));
-}
-
-const { tag, posts, allTags } = Astro.props as {
-  tag: string;
-  posts: CollectionEntry<'blog'>[];
-  allTags: string[];
-};
+const tag = Astro.params.tag || '';
+const allPosts = await getPublishedContentPosts();
+const allTags = await getAllContentTags();
+const posts = allPosts.filter((post) => post.tags.includes(tag));
 
 const title = `${tag} 태그 포스트`;
 const description = `${tag} 태그가 포함된 블로그 포스트 목록`;
@@ -97,13 +78,13 @@ const description = `${tag} 태그가 포함된 블로그 포스트 목록`;
           posts.map((post, index: number) => (
             <BlogCard
               client:visible
-              title={post.data.title}
-              description={post.data.description}
-              pubDate={post.data.pubDate}
-              heroImage={post.data.heroImage}
-              heroVideo={post.data.heroVideo}
-              tags={post.data.tags}
-              slug={post.data.slug || post.id}
+              title={post.title}
+              description={post.description}
+              pubDate={post.pubDate}
+              heroImage={post.heroImage}
+              heroVideo={post.heroVideo}
+              tags={post.tags}
+              slug={post.slug || post.id}
               index={index}
             />
           ))
