@@ -13,7 +13,7 @@ export interface Series {
   slug: string;            // URL용 슬러그 (예: "pintos-os")
   description: string;     // 시리즈 소개글
   coverImage?: string;     // 시리즈 대표 이미지 (선택사항)
-  postIds: string[];       // 순서대로 정렬된 포스트 slug 배열
+  postIds: string[];       // 순서대로 정렬된 포스트 문서 ID 또는 slug 배열
   postCount: number;       // 전체 글 수 (캐시)
   createdAt: Date;         // 생성일
   updatedAt: Date;         // 최종 수정일
@@ -95,7 +95,8 @@ export async function getSeriesBySlug(slug: string): Promise<Series | null> {
 
 /**
  * 시리즈 ID로 시리즈에 속한 포스트 목록 가져오기
- * Firestore 시리즈 문서의 postIds(slug) 순서를 그대로 따른다.
+ * Firestore 시리즈 문서의 postIds 순서를 그대로 따른다.
+ * 과거 데이터는 문서 ID, 최근 데이터는 slug를 들고 있을 수 있어서 둘 다 지원한다.
  */
 export async function getPostsBySeries(seriesId: string): Promise<SeriesPost[]> {
   const seriesRef = doc(db, 'series', seriesId);
@@ -108,18 +109,17 @@ export async function getPostsBySeries(seriesId: string): Promise<SeriesPost[]> 
   if (series.postIds.length === 0) return [];
 
   const contentPosts = await getPublishedContentPosts();
-  const postMap = new Map(
-    contentPosts.map((post) => [post.slug, post] as const)
-  );
+  const postMapById = new Map(contentPosts.map((post) => [post.id, post] as const));
+  const postMapBySlug = new Map(contentPosts.map((post) => [post.slug, post] as const));
 
   return series.postIds
-    .map((postSlug, index) => {
-      const post = postMap.get(postSlug);
+    .map((postRef, index) => {
+      const post = postMapById.get(postRef) || postMapBySlug.get(postRef);
 
       if (!post) return null;
 
       return {
-        id: post.slug,
+        id: post.id,
         title: post.title,
         description: post.description,
         slug: post.slug,
@@ -132,21 +132,18 @@ export async function getPostsBySeries(seriesId: string): Promise<SeriesPost[]> 
 }
 
 /**
- * 포스트 slug가 속한 시리즈 정보 가져오기
+ * 포스트 문서 ID 또는 slug가 속한 시리즈 정보 가져오기
  * 포스트 상세 페이지에서 시리즈 위젯 표시용
  */
 export async function getSeriesByPostId(postId: string): Promise<Series | null> {
-  const seriesRef = collection(db, 'series');
-  const q = query(
-    seriesRef,
-    where('isPublic', '==', true),
-    where('postIds', 'array-contains', postId)
-  );
+  const [seriesList, contentPosts] = await Promise.all([
+    getPublishedSeries(),
+    getPublishedContentPosts(),
+  ]);
+  const matchedPost = contentPosts.find((post) => post.id === postId || post.slug === postId);
+  const candidateRefs = new Set([postId, matchedPost?.id, matchedPost?.slug].filter(Boolean));
 
-  const snapshot = await getDocs(q);
-  if (snapshot.empty) return null;
-
-  return mapSeriesDoc(snapshot.docs[0]);
+  return seriesList.find((series) => series.postIds.some((ref) => candidateRefs.has(ref))) || null;
 }
 
 /**
@@ -158,7 +155,7 @@ export async function getAdjacentPostsInSeries(
   seriesId: string
 ): Promise<{ prev: SeriesPost | null; next: SeriesPost | null }> {
   const posts = await getPostsBySeries(seriesId);
-  const currentIndex = posts.findIndex(p => p.id === postId);
+  const currentIndex = posts.findIndex((p) => p.id === postId || p.slug === postId);
 
   if (currentIndex === -1) {
     return { prev: null, next: null };
