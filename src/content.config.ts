@@ -27,6 +27,9 @@ const projects = defineCollection({
       title: z.string(),
       description: z.string(),
       longDescription: z.string().optional(),
+      overviewLabel: z.string().optional(),
+      overviewTitle: z.string().optional(),
+      overviewDescription: z.string().optional(),
       image: image(),
       tags: z.array(z.string()).default([]),
       tech: z.array(z.string()).default([]),
@@ -39,4 +42,17 @@ const projects = defineCollection({
     }),
 });
 
-export const collections = { blog, projects };
+const projectPosts = defineCollection({
+  loader: glob({ base: './src/content/project-posts', pattern: '**/*.{md,mdx}' }),
+  schema: () =>
+    z.object({
+      title: z.string(),
+      description: z.string(),
+      project: z.string(),
+      order: z.number().default(1),
+      chapterLabel: z.string().optional(),
+      status: z.enum(['draft', 'published']).default('published'),
+    }),
+});
+
+export const collections = { blog, projects, projectPosts };
