@@ -1,32 +1,11 @@
 ---
-title: "Cruz Lab"
-description: "Astro 5 + React 19 기반의 블로그 겸 포트폴리오 사이트"
-longDescription: "기존 정적 블로그 운영 방식이 불편해서, 브라우저에서 직접 글을 쓰고 이미지까지 올린 뒤 바로 반영할 수 있는 CMS를 붙인 포트폴리오 사이트다."
-overviewLabel: "Part 1"
-overviewTitle: "운영 가능한 블로그로 바꾼 과정"
-overviewDescription: "브라우저 기반 CMS, 이미지 업로드, Firestore direct publish 흐름을 다룬 첫 번째 글"
-image: "../../assets/img/projects/cruz-lab/cruz-lab.png"
-tags:
-  - "Portfolio"
-  - "Astro"
-  - "React"
-  - "CMS"
-  - "Firebase"
-tech:
-  - "Astro 5"
-  - "React"
-  - "TypeScript"
-  - "Firebase"
-  - "CodeMirror"
-  - "Tailwind CSS"
-github: "https://github.com/crucial-sub/cruz-lab"
-featured: true
-order: 2
-startDate: 2025-12
-endDate: 2025-12
+title: "내 블로그를 운영 가능한 제품으로 바꾼 과정"
+description: "브라우저 기반 CMS, 이미지 업로드, Firestore direct publish 흐름을 다듬은 이야기"
+project: "cruz-lab"
+order: 1
+chapterLabel: "Part 1"
+status: "published"
 ---
-
-# Cruz Lab: 내 블로그를 운영 가능한 제품으로 바꾼 과정
 
 > Cruz Lab은 포트폴리오 사이트이기도 하지만, 내 글을 실제로 운영하는 블로그이기도 하다.  
 > 처음 출발점은 거창하지 않았다. 정적 블로그를 계속 쓰다 보니 글 하나 올리는 일 자체가 귀찮아졌고, 그 병목을 직접 줄여보고 싶었다.
@@ -34,7 +13,7 @@ endDate: 2025-12
 기존 블로그는 글을 쓰려면 VS Code를 열고, 마크다운 파일을 만들고, 이미지를 옮기고, 커밋하고, 반영까지 기다려야 했다.
 
 작업 하나하나는 어렵지 않았다.  
-문제는 이 흐름이 기록 자체를 자꾸 미루게 만든다는 점이었다.
+문제는 이 흐름이 글 쓰는 일 자체를 자꾸 미루게 만든다는 점이었다.
 
 그래서 이번에는 공개 페이지보다 먼저 **운영 흐름**부터 다시 보게 됐다.
 

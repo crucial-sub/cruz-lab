@@ -14,27 +14,20 @@ export async function getStaticPaths() {
 }
 
 const { project } = Astro.props;
-const { Content } = await render(project);
 const projectPosts = (await getCollection('projectPosts'))
   .filter((entry) => entry.data.project === project.id && entry.data.status === 'published')
   .sort((a, b) => a.data.order - b.data.order);
-const renderedProjectPosts = await Promise.all(
-  projectPosts.map(async (entry) => {
-    const { Content: PostContent } = await render(entry);
-    return {
-      ...entry,
-      PostContent,
-    };
-  })
-);
+
+if (projectPosts.length > 0) {
+  return Astro.redirect(`/projects/${project.id}/notes/${projectPosts[0].id}`);
+}
+
+const { Content } = await render(project);
 
 const {
   title,
   description,
   longDescription,
-  overviewLabel,
-  overviewTitle,
-  overviewDescription,
   image,
   tags,
   tech,
@@ -44,7 +37,6 @@ const {
   endDate,
 } = project.data;
 
-// 날짜 포맷팅
 const formatDate = (date: Date | undefined) => {
   if (!date) return null;
   return new Intl.DateTimeFormat('ko-KR', {
@@ -59,24 +51,6 @@ const dateRange =
   formattedStartDate && formattedEndDate
     ? `${formattedStartDate} - ${formattedEndDate}`
     : formattedStartDate || formattedEndDate || null;
-const hasProjectNotes = renderedProjectPosts.length > 0;
-const overviewAnchor = 'chapter-overview';
-const chapterLinks = hasProjectNotes
-  ? [
-      {
-        id: overviewAnchor,
-        label: overviewLabel || 'Part 1',
-        title: overviewTitle || '프로젝트 개요',
-        description: overviewDescription || longDescription || description,
-      },
-      ...renderedProjectPosts.map((entry) => ({
-        id: `chapter-${entry.slug}`,
-        label: entry.data.chapterLabel || `Part ${entry.data.order}`,
-        title: entry.data.title,
-        description: entry.data.description,
-      })),
-    ]
-  : [];
 ---
 
 <BaseLayout
@@ -86,7 +60,6 @@ const chapterLinks = hasProjectNotes
   tags={tags}
 >
   <article class="py-8">
-    <!-- 뒤로가기 링크 -->
     <FadeInSection client:visible>
       <a
         href="/projects"
@@ -99,10 +72,8 @@ const chapterLinks = hasProjectNotes
       </a>
     </FadeInSection>
 
-    <!-- 헤더 영역 -->
     <FadeInSection client:visible delay={0.1}>
       <header class="mb-12">
-        <!-- 태그 -->
         <div class="mb-4 flex flex-wrap gap-2">
           {
             tags.map((tag: string) => (
@@ -113,15 +84,12 @@ const chapterLinks = hasProjectNotes
           }
         </div>
 
-        <!-- 제목 -->
         <h1 class="mb-4 text-4xl font-extrabold md:text-5xl">{title}</h1>
 
-        <!-- 설명 -->
-        <p class="mb-6 text-xl text-text-secondary leading-relaxed">
+        <p class="mb-6 text-xl leading-relaxed text-text-secondary">
           {longDescription || description}
         </p>
 
-        <!-- 메타 정보 -->
         <div class="flex flex-wrap items-center gap-6 text-text-secondary">
           {
             dateRange && (
@@ -179,7 +147,6 @@ const chapterLinks = hasProjectNotes
       </header>
     </FadeInSection>
 
-    <!-- 대표 이미지 -->
     <FadeInSection client:visible delay={0.2}>
       <div class="mb-12 overflow-hidden rounded-2xl bg-bg-surface">
         <img
@@ -191,7 +158,6 @@ const chapterLinks = hasProjectNotes
       </div>
     </FadeInSection>
 
-    <!-- 기술 스택 -->
     <FadeInSection client:visible delay={0.3}>
       <section class="mb-12">
         <h2 class="mb-4 text-xl font-bold">기술 스택</h2>
@@ -207,110 +173,12 @@ const chapterLinks = hasProjectNotes
       </section>
     </FadeInSection>
 
-    {
-      hasProjectNotes ? (
-        <FadeInSection client:visible delay={0.4}>
-          <section class="mb-12">
-            <div class="mb-6 flex items-center justify-between gap-4">
-              <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.22em] text-brand/80">Project Notes</p>
-                <h2 class="mt-2 text-2xl font-bold">한 프로젝트 안의 기록들</h2>
-              </div>
-              <div class="rounded-full border border-brand/30 bg-brand/10 px-4 py-2 text-sm font-medium text-brand">
-                {chapterLinks.length} chapters
-              </div>
-            </div>
+    <FadeInSection client:visible delay={0.4}>
+      <section class="prose prose-lg max-w-none">
+        <Content />
+      </section>
+    </FadeInSection>
 
-            <div class="mb-8 overflow-hidden rounded-[28px] border border-border bg-bg-surface/80 shadow-[0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur">
-              <div class="border-b border-border px-5 py-4">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">
-                  Chapters
-                </p>
-              </div>
-              <nav class="flex gap-3 overflow-x-auto px-4 py-4">
-                {chapterLinks.map((chapter) => (
-                  <a
-                    href={`#${chapter.id}`}
-                    class="group min-w-[220px] flex-1 rounded-[24px] border border-transparent bg-bg-app/40 px-4 py-4 transition-all duration-300 hover:border-brand/30 hover:bg-brand/5"
-                  >
-                    <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand/80">
-                      {chapter.label}
-                    </p>
-                    <p class="mt-1 text-sm font-semibold text-text-primary transition-colors group-hover:text-brand">
-                      {chapter.title}
-                    </p>
-                    <p class="mt-2 line-clamp-2 text-xs leading-5 text-text-secondary">
-                      {chapter.description}
-                    </p>
-                  </a>
-                ))}
-              </nav>
-            </div>
-
-            <div class="space-y-8">
-              <section
-                id={overviewAnchor}
-                class="overflow-hidden rounded-[32px] border border-border bg-gradient-to-br from-bg-surface via-bg-surface to-bg-card shadow-[0_20px_60px_rgba(0,0,0,0.22)]"
-              >
-                <div class="border-b border-border px-6 py-5 sm:px-8">
-                  <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand/80">
-                    {overviewLabel || 'Part 1'}
-                  </p>
-                  <h2 class="mt-2 text-2xl font-bold text-text-primary">
-                    {overviewTitle || '프로젝트 개요'}
-                  </h2>
-                  <p class="mt-3 max-w-4xl text-sm leading-6 text-text-secondary">
-                    {overviewDescription || longDescription || description}
-                  </p>
-                </div>
-                <div class="px-6 py-8 sm:px-8 lg:px-10">
-                  <div class="prose prose-lg max-w-none">
-                    <Content />
-                  </div>
-                </div>
-              </section>
-
-              {renderedProjectPosts.map((entry, index) => (
-                <section
-                  id={`chapter-${entry.slug}`}
-                  class="overflow-hidden rounded-[32px] border border-border bg-bg-surface shadow-[0_20px_60px_rgba(0,0,0,0.18)]"
-                >
-                  <div class="border-b border-border px-6 py-5 sm:px-8">
-                    <div class="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand/80">
-                          {entry.data.chapterLabel || `Part ${index + 2}`}
-                        </p>
-                        <h2 class="mt-2 text-2xl font-bold text-text-primary">{entry.data.title}</h2>
-                      </div>
-                      <div class="rounded-full border border-border bg-bg-app/50 px-3 py-1 text-xs font-medium text-text-secondary">
-                        {entry.data.project}
-                      </div>
-                    </div>
-                    <p class="mt-3 max-w-4xl text-sm leading-6 text-text-secondary">
-                      {entry.data.description}
-                    </p>
-                  </div>
-                  <div class="px-6 py-8 sm:px-8 lg:px-10">
-                    <div class="prose prose-lg max-w-none">
-                      <entry.PostContent />
-                    </div>
-                  </div>
-                </section>
-              ))}
-            </div>
-          </section>
-        </FadeInSection>
-      ) : (
-        <FadeInSection client:visible delay={0.4}>
-          <div class="prose prose-lg max-w-none">
-            <Content />
-          </div>
-        </FadeInSection>
-      )
-    }
-
-    <!-- 하단 CTA -->
     <FadeInSection client:visible delay={0.5}>
       <div class="mt-16 flex flex-wrap justify-center gap-4 border-t border-border pt-12">
         {
