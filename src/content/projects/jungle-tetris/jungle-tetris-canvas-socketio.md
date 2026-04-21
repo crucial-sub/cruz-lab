@@ -1,4 +1,5 @@
 ---
+entryType: "post"
 title: "Canvas와 점수 동기화로 멀티 테트리스를 만든 과정"
 description: "DOM 대신 Canvas를 택하고, 전체 화면 공유 대신 점수 동기화에 집중해 해커톤 MVP를 완성한 이야기"
 project: "jungle-tetris"
@@ -58,7 +59,7 @@ function animate(now = 0) {
 }
 ```
 
-![erase_line](../../assets/img/projects/jungle-tetris/erase_line.webp)
+![erase_line](../../../assets/img/projects/jungle-tetris/erase_line.webp)
 
 이 전환만으로도 화면이 훨씬 매끄러워졌다.  
 해커톤에서 가장 먼저 맞닥뜨린 병목은 기능 부족보다 렌더링 방식 자체에 있었다.
@@ -98,7 +99,7 @@ socket.on('game:score_update', (data) => {
 
 상대방의 전체 화면은 보이지 않더라도, 옆에서 점수가 즉시 갱신되는 것만으로도 경쟁감은 충분히 생겼다.
 
-![opponent_score](../../assets/img/projects/jungle-tetris/opponent_score.webp)
+![opponent_score](../../../assets/img/projects/jungle-tetris/opponent_score.webp)
 
 짧은 해커톤에서는 무엇을 구현할지보다, 무엇을 버릴지가 더 중요했다.  
 이 프로젝트에선 그 판단이 꽤 잘 맞았다.

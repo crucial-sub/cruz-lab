@@ -1,4 +1,5 @@
 ---
+entryType: "post"
 title: "기다림을 실시간 경험으로 바꾼 과정"
 description: "WebSocket과 SSE를 적용해 백테스트 대기 시간과 AI 챗봇 응답을 더 자연스럽게 만든 이야기"
 project: "stock-lab"
@@ -49,7 +50,7 @@ useQuery({
 
 `가격 데이터 로딩` → `재무 데이터 로딩` → `팩터 계산` → `시뮬레이션 준비`
 
-![simulation_prepare](../../assets/img/projects/stock-lab/simulation_prepare.png)
+![simulation_prepare](../../../assets/img/projects/stock-lab/simulation_prepare.png)
 
 ```typescript
 export interface PreparationMessage {
@@ -90,7 +91,7 @@ ws.onmessage = (event) => {
 };
 ```
 
-![chart-rendering](../../assets/img/projects/stock-lab/chart-rendering.png)
+![chart-rendering](../../../assets/img/projects/stock-lab/chart-rendering.png)
 
 결과적으로 불필요한 중복 전송이 줄었고, 화면도 더 자주 자연스럽게 갱신됐다.
 

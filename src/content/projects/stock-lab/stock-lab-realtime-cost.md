@@ -1,4 +1,5 @@
 ---
+entryType: "post"
 title: "실시간이라는 말 뒤에 숨어 있던 비용"
 description: "Fetch 기반 SSE, 지수 백오프, Delta 프로토콜, Web Worker로 실시간 UX를 다시 다듬은 이야기"
 project: "stock-lab"

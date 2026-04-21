@@ -1,0 +1,25 @@
+---
+export const prerender = true;
+
+import { getProjectEntryPost, getProjectMetas, getProjectPostSlug, getProjectSlug } from '@/lib/project-posts';
+import { getCollection } from 'astro:content';
+
+export async function getStaticPaths() {
+  const projectEntries = getProjectMetas(await getCollection('projects'));
+
+  return projectEntries.map((project) => ({
+    params: { project: getProjectSlug(project) },
+    props: { project },
+  }));
+}
+
+const { project } = Astro.props;
+const projectSlug = getProjectSlug(project);
+const entryPost = getProjectEntryPost(await getCollection('projects'), projectSlug);
+
+if (!entryPost) {
+  return Astro.redirect('/projects');
+}
+
+return Astro.redirect(`/projects/${projectSlug}/${getProjectPostSlug(entryPost)}`);
+---

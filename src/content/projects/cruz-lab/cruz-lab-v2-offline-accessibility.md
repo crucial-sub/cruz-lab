@@ -1,4 +1,5 @@
 ---
+entryType: "post"
 title: "운영해보니 읽는 흐름이 더 중요했다"
 description: "접근성 보완과 View Transitions 적용으로 블로그의 읽는 경험을 다듬은 이야기"
 project: "cruz-lab"

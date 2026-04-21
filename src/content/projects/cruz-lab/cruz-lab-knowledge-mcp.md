@@ -1,10 +1,11 @@
 ---
+entryType: "post"
 title: 'Cruz Lab 문서를 에이전트가 읽게 만들기'
 description: 'Cruz Lab 문서와 초안을 작은 read-only MCP 서버로 감싸고 Codex, MCP Inspector에서 직접 확인한 이야기'
 project: 'cruz-lab'
 order: 3
 chapterLabel: 'Part 3'
-status: 'draft'
+status: 'published'
 ---
 
 MCP에 대해 다룬 [MCP를 문서로만 보면 놓치는 것들](/blog/why-everyone-talks-about-mcp) 포스트에서는 Stock Lab에서 Figma MCP를 써봤던 경험과 작은 read-only 서버 실험을 바탕으로, MCP의 tool, resource, prompt 경계를 정리했다.
@@ -57,16 +58,14 @@ tools/cruz-lab-knowledge-mcp/
 읽기 대상은 네 군데로 제한했다.
 
 ```text
-src/content/project-posts
 src/content/projects
 data/final-posts
 data/resume
 ```
 
-이 네 경로면 지금 필요한 문맥은 대체로 들어온다.
+이 세 경로면 지금 필요한 문맥은 대체로 들어온다.
 
-- 공개 프로젝트 설명
-- 프로젝트별 후속 글
+- 프로젝트 메타와 프로젝트별 포스트
 - 아직 출간 전인 기술 글 초안
 - 이력서 문서
 
@@ -98,10 +97,10 @@ get_project_context
 `search_docs`는 허용된 문서 안에서 키워드를 찾는다.
 `read_doc`은 특정 문서를 읽는다.
 `get_resume`은 이력서 문서를 가져온다.
-`get_project_context`는 프로젝트 문서와 관련 project-post를 한 번에 묶어준다.
+`get_project_context`는 프로젝트 메타 문서와 관련 project post를 한 번에 묶어준다.
 
 특히 `get_project_context`는 생각보다 유용했다.
-예를 들어 `cruz-lab`을 넣으면 프로젝트 설명과 `cruz-lab-operating-cms`, `cruz-lab-v2-offline-accessibility` 글이 같이 묶인다.
+예를 들어 `cruz-lab`을 넣으면 `src/content/projects/cruz-lab/project.md`와 `cruz-lab-operating-cms`, `cruz-lab-v2-offline-accessibility` 같은 포스트가 같이 묶인다.
 후속 글을 쓰거나 면접 답변 맥락을 잡을 때, 에이전트가 여기저기 파일을 따로 찾지 않아도 된다.
 
 resources는 URI로 바로 읽을 수 있는 문맥으로 뒀다.
@@ -163,16 +162,16 @@ Document path is outside the allowed read roots: ../package.json
 
 그다음 MCP Inspector를 띄웠다.
 
-![mcp-inspector-tools](../../assets/img/projects/cruz-lab/mcp-inspector-tools.png)
+![mcp-inspector-tools](../../../assets/img/projects/cruz-lab/mcp-inspector-tools.png)
 
 Inspector Tools 탭에서 `list_projects`, `search_docs`, `read_doc`, `get_resume`, `get_project_context`가 보였다.
 문서에서 보던 tool 목록이 실제 화면에 뜨니, 내가 만든 서버가 클라이언트에 어떤 이름으로 노출되는지 바로 확인할 수 있었다.
 
 `get_project_context`도 직접 실행해봤다.
 
-![mcp-project-context-result](../../assets/img/projects/cruz-lab/mcp-project-context-result.png)
+![mcp-project-context-result](../../../assets/img/projects/cruz-lab/mcp-project-context-result.png)
 
-`cruz-lab`을 넣었을 때 프로젝트 본문과 관련 project-post가 같이 반환됐다.
+`cruz-lab`을 넣었을 때 프로젝트 메타 문서와 관련 project post가 같이 반환됐다.
 내가 원했던 흐름도 딱 이거였다.
 
 에이전트에게 "Cruz Lab 맥락을 보고 후속 글 방향 잡아줘"라고 했을 때, 프로젝트 설명과 이전 글을 같이 읽을 수 있어야 했다.
@@ -220,5 +219,3 @@ Cruz Lab은 이미 CMS와 읽기 경험 개선을 다룬 프로젝트였고, 여
 
 그래도 Cruz Lab이라는 프로젝트에는 맞는 크기였다.
 새 시스템을 크게 얹는 대신, 이미 있는 문서를 에이전트가 읽을 수 있는 작은 입구로 묶었다.
-
-지금은 거기까지면 충분하다.

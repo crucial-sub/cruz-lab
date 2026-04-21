@@ -1,4 +1,5 @@
 ---
+entryType: "post"
 title: '해커톤 MVP 이후 멀티플레이 구조를 다시 손본 이야기'
 description: '고정 타임스텝, 리플레이 재현성, 입력 보정, WebRTC 폴백까지 다시 보며 멀티플레이 구조를 손본 이야기'
 project: 'jungle-tetris'

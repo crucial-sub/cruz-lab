@@ -4,15 +4,14 @@ export const prerender = true;
 import FadeInSection from '@/components/islands/FadeInSection';
 import ProjectCard from '@/components/islands/ProjectCard';
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { getProjectHref } from '@/lib/project-notes';
+import { getProjectHref, getProjectMetas, getProjectSlug } from '@/lib/project-posts';
 import { getCollection } from 'astro:content';
 
 const title = 'Projects';
 const description = 'Cruz의 프로젝트 포트폴리오 - 프론트엔드, 시스템 프로그래밍, 협업 도구 등';
 
-// 프로젝트 컬렉션에서 모든 프로젝트 가져오기
-const allProjects = await getCollection('projects');
-const allProjectPosts = await getCollection('projectPosts');
+const allProjectEntries = await getCollection('projects');
+const allProjects = getProjectMetas(allProjectEntries);
 
 // order 필드로 정렬 (낮은 순서가 먼저)
 const sortedProjects = allProjects.sort((a, b) => a.data.order - b.data.order);
@@ -58,8 +57,8 @@ const otherProjects = sortedProjects.filter((p) => !p.data.featured);
                   tech={project.data.tech}
                   github={project.data.github}
                   demo={project.data.demo}
-                  slug={project.id}
-                  href={getProjectHref(allProjectPosts, project.id)}
+                  slug={getProjectSlug(project)}
+                  href={getProjectHref(allProjectEntries, getProjectSlug(project))}
                   featured={project.data.featured}
                   index={index}
                 />
@@ -92,8 +91,8 @@ const otherProjects = sortedProjects.filter((p) => !p.data.featured);
                   tech={project.data.tech}
                   github={project.data.github}
                   demo={project.data.demo}
-                  slug={project.id}
-                  href={getProjectHref(allProjectPosts, project.id)}
+                  slug={getProjectSlug(project)}
+                  href={getProjectHref(allProjectEntries, getProjectSlug(project))}
                   featured={project.data.featured}
                   index={index}
                 />

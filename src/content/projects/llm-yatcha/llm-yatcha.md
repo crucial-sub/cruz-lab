@@ -1,4 +1,5 @@
 ---
+entryType: "post"
 title: "LLM Yatcha"
 description: "llm-council을 fork한 뒤 멀티 프로바이더 연동과 합의 가시화, Context 압축, UX를 보강한 과정"
 project: "llm-yatcha"

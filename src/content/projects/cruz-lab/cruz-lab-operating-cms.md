@@ -1,4 +1,5 @@
 ---
+entryType: "post"
 title: "내 블로그를 운영 가능한 제품으로 바꾼 과정"
 description: "브라우저 기반 CMS, 이미지 업로드, Firestore direct publish 흐름을 다듬은 이야기"
 project: "cruz-lab"
@@ -21,12 +22,12 @@ status: "published"
 
 가장 먼저 손본 건 관리자 페이지였다.
 
-![admin_page](../../assets/img/projects/cruz-lab/admin_page.png)
+![admin_page](../../../assets/img/projects/cruz-lab/admin_page.png)
 
 이번엔 단순한 `textarea` 대신, 마크다운을 그대로 쓰면서도 브라우저 안에서 바로 다룰 수 있는 편집기가 필요했다.  
 그래서 에디터는 **CodeMirror 기반**으로 다시 구성했다.
 
-![markdown_editor](../../assets/img/projects/cruz-lab/markdown_editor.png)
+![markdown_editor](../../../assets/img/projects/cruz-lab/markdown_editor.png)
 
 여기서 중요했던 건 "예쁘게 보이는 에디터"보다 **실제로 계속 쓸 수 있는 흐름**이었다.
 
@@ -44,12 +45,12 @@ status: "published"
 그래서 이미지 업로드는 **Firebase Storage**에 바로 붙였다.  
 에디터에 이미지를 드래그 앤 드롭하면 업로드 후 본문에 마크다운 링크가 바로 들어가도록 만들었다.
 
-![dragndrop](../../assets/img/projects/cruz-lab/image_dradndrop.webp)
+![dragndrop](../../../assets/img/projects/cruz-lab/image_dradndrop.webp)
 
 출간은 **Firestore direct publish** 기준으로 정리했다.  
 지금은 출간 버튼을 누르면 Firestore에 바로 반영되고, 공개 블로그도 그 데이터를 기준으로 바로 읽는다.
 
-![deploy](../../assets/img/projects/cruz-lab/deploy.png)
+![deploy](../../../assets/img/projects/cruz-lab/deploy.png)
 
 대신 markdown 원문은 버리지 않았다.  
 GitHub에는 백업 형태로 같이 남겨서, 브라우저 중심 CMS를 유지하면서도 원문 파일을 따로 보관할 수 있게 했다.

@@ -12,7 +12,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '../..');
 
 const ALLOWED_DOC_ROOTS = [
-  'src/content/project-posts',
   'src/content/projects',
   'data/final-posts',
   'data/resume',
@@ -89,14 +88,24 @@ function relativeFromRoot(filePath) {
   return normalizeSlashes(path.relative(REPO_ROOT, filePath));
 }
 
-function slugFromPath(filePath) {
+function projectSlugFromPath(filePath) {
+  const relative = relativeFromRoot(filePath);
+  if (!relative.startsWith('src/content/projects/')) return '';
+
+  return relative.replace(/^src\/content\/projects\//u, '').split('/')[0] || '';
+}
+
+function slugFromPath(filePath, metadata = {}) {
+  if (metadata.entryType === 'project') {
+    return projectSlugFromPath(filePath);
+  }
+
   return path.basename(filePath).replace(/\.(mdx?|txt)$/u, '');
 }
 
 function scopeFromPath(filePath) {
   const relative = relativeFromRoot(filePath);
   if (relative.startsWith('src/content/projects/')) return 'projects';
-  if (relative.startsWith('src/content/project-posts/')) return 'project-posts';
   if (relative.startsWith('data/final-posts/')) return 'final-posts';
   if (relative.startsWith('data/resume/')) return 'resume';
   return 'unknown';
@@ -215,12 +224,13 @@ async function readDocFile(filePath) {
   const raw = await fs.readFile(filePath, 'utf8');
   const { metadata, body } = parseFrontmatter(raw);
   const relativePath = relativeFromRoot(filePath);
-  const slug = slugFromPath(filePath);
+  const slug = slugFromPath(filePath, metadata);
 
   return {
     path: relativePath,
     slug,
     scope: scopeFromPath(filePath),
+    entryType: metadata.entryType || '',
     title: metadata.title || slug,
     description: metadata.description || '',
     project: metadata.project || '',
@@ -246,15 +256,16 @@ async function getAllDocs(scope = 'all') {
 }
 
 async function getProjectDocs() {
-  const projectRoot = path.resolve(REPO_ROOT, 'src/content/projects');
-  const files = await walkDocs(projectRoot);
-  const docs = await Promise.all(files.sort().map((file) => readDocFile(file)));
-  return docs.filter((doc) => doc.scope === 'projects');
+  return (await getAllDocs('projects')).filter((doc) => doc.entryType === 'project');
+}
+
+async function getProjectPostDocs() {
+  return (await getAllDocs('projects')).filter((doc) => doc.entryType === 'post');
 }
 
 async function listProjects() {
   const projects = await getProjectDocs();
-  const projectPosts = await getAllDocs('project-posts');
+  const projectPosts = await getProjectPostDocs();
 
   return projects
     .map((project) => ({
@@ -359,7 +370,7 @@ async function getProjectContext(slug) {
     throw new Error(`No project found for slug "${slug}".`);
   }
 
-  const projectPosts = (await getAllDocs('project-posts'))
+  const projectPosts = (await getProjectPostDocs())
     .filter((doc) => doc.project === slug)
     .sort((a, b) => {
       const orderA = typeof a.order === 'number' ? a.order : Number.MAX_SAFE_INTEGER;
@@ -394,7 +405,7 @@ server.registerTool(
   {
     title: 'List Cruz Lab projects',
     description:
-      'List project documents from src/content/projects with related project-post counts.',
+      'List project metadata documents from src/content/projects with related project post counts.',
     inputSchema: {},
     annotations: readOnlyAnnotations,
   },
@@ -409,7 +420,7 @@ server.registerTool(
     inputSchema: {
       query: z.string().min(1).describe('Keyword to search for.'),
       scope: z
-        .enum(['all', 'projects', 'project-posts', 'final-posts', 'resume'])
+        .enum(['all', 'projects', 'final-posts', 'resume'])
         .optional()
         .default('all')
         .describe('Optional document scope.'),
@@ -428,7 +439,7 @@ server.registerTool(
     inputSchema: {
       pathOrSlug: z.string().min(1).describe('Repo-relative path or unambiguous document slug.'),
       scope: z
-        .enum(['all', 'projects', 'project-posts', 'final-posts', 'resume'])
+        .enum(['all', 'projects', 'final-posts', 'resume'])
         .optional()
         .default('all')
         .describe('Optional scope for slug lookup.'),
@@ -469,7 +480,7 @@ server.registerTool(
   'get_project_context',
   {
     title: 'Get Cruz Lab project context',
-    description: 'Return a project document and its related src/content/project-posts entries.',
+    description: 'Return a project metadata document and its related project post entries.',
     inputSchema: {
       slug: z.string().min(1).describe('Project slug, for example cruz-lab.'),
     },
@@ -483,7 +494,7 @@ server.registerResource(
   'cruzlab://projects',
   {
     title: 'Cruz Lab Projects',
-    description: 'Project list from src/content/projects.',
+    description: 'Project list from src/content/projects/*/project.md.',
     mimeType: 'application/json',
   },
   async (uri) => toResourceResult(uri.href, await listProjects()),
@@ -526,7 +537,7 @@ server.registerResource(
   }),
   {
     title: 'Cruz Lab Project Context',
-    description: 'Project document and related project-posts for a project slug.',
+    description: 'Project metadata document and related project posts for a project slug.',
     mimeType: 'application/json',
   },
   async (uri, variables) => toResourceResult(uri.href, await getProjectContext(variables.slug)),
@@ -576,7 +587,7 @@ server.registerPrompt(
           type: 'text',
           text: [
             `Prepare a concise writing brief for a follow-up post about "${slug}".`,
-            'Use the project document and related project-posts as source context.',
+            'Use the project metadata document and related project posts as source context.',
             'Keep the angle narrow and practical. Avoid overstating the portfolio value.',
             'For cruz-lab-knowledge-mcp, frame it as a small local MCP server that helped check tool/resource/prompt boundaries.',
             `Start by calling get_project_context with slug "${slug}" if the context is not already loaded.`,

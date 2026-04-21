@@ -4,12 +4,11 @@ import { getCollection } from 'astro:content';
 import ProjectCard from './islands/ProjectCard';
 import MagneticButton from './islands/MagneticButton';
 import TextReveal from './islands/TextReveal';
-import { getProjectHref } from '@/lib/project-notes';
+import { getProjectHref, getProjectMetas, getProjectSlug } from '@/lib/project-posts';
 
 // Featured 프로젝트만 가져오기 (최대 3개)
-const allProjects = await getCollection('projects');
-const allProjectPosts = await getCollection('projectPosts');
-const featuredProjects = allProjects
+const allProjectEntries = await getCollection('projects');
+const featuredProjects = getProjectMetas(allProjectEntries)
   .filter((p) => p.data.featured)
   .sort((a, b) => a.data.order - b.data.order)
   .slice(0, 3);
@@ -51,8 +50,8 @@ const featuredProjects = allProjects
         image={project.data.image.src}
         tags={project.data.tags || []}
         tech={project.data.tech || []}
-        slug={project.id}
-        href={getProjectHref(allProjectPosts, project.id)}
+        slug={getProjectSlug(project)}
+        href={getProjectHref(allProjectEntries, getProjectSlug(project))}
         github={project.data.github}
         demo={project.data.demo}
         index={index}

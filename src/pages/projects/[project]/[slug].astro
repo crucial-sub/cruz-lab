@@ -3,17 +3,23 @@ export const prerender = true;
 
 import FadeInSection from '@/components/islands/FadeInSection';
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { getProjectPosts, getPublishedProjectPosts } from '@/lib/project-notes';
+import {
+  getProjectMeta,
+  getProjectMetas,
+  getProjectPostSlug,
+  getProjectPosts,
+  getProjectSlug,
+  getPublishedProjectPosts,
+} from '@/lib/project-posts';
 import { getCollection, render } from 'astro:content';
 
 export async function getStaticPaths() {
-  const projects = await getCollection('projects');
-  const projectMap = new Map(projects.map((project) => [project.id, project]));
-  const projectPosts = await getCollection('projectPosts');
+  const entries = await getCollection('projects');
+  const projectMap = new Map(getProjectMetas(entries).map((project) => [getProjectSlug(project), project]));
 
-  return getPublishedProjectPosts(projectPosts)
-    .map((entry) => {
-      const project = projectMap.get(entry.data.project);
+  return getPublishedProjectPosts(entries)
+    .map((post) => {
+      const project = projectMap.get(post.data.project);
 
       if (!project) {
         return null;
@@ -21,41 +27,39 @@ export async function getStaticPaths() {
 
       return {
         params: {
-          project: project.id,
-          slug: entry.id,
+          project: post.data.project,
+          slug: getProjectPostSlug(post),
         },
         props: {
           project,
-          note: entry,
+          post,
         },
       };
     })
     .filter(Boolean);
 }
 
-const { project, note } = Astro.props;
-const { Content } = await render(note);
+const { project, post } = Astro.props;
+const { Content } = await render(post);
+const projectSlug = getProjectSlug(project);
+const entries = await getCollection('projects');
+const currentProject = getProjectMeta(entries, projectSlug) ?? project;
+const projectPosts = getProjectPosts(entries, projectSlug);
 
-const projectPosts = getProjectPosts(await getCollection('projectPosts'), project.id);
+const currentIndex = projectPosts.findIndex((entry) => entry.id === post.id);
+const previousPost = currentIndex > 0 ? projectPosts[currentIndex - 1] : null;
+const nextPost =
+  currentIndex >= 0 && currentIndex < projectPosts.length - 1 ? projectPosts[currentIndex + 1] : null;
 
-const currentIndex = projectPosts.findIndex((entry) => entry.id === note.id);
-const previousNote = currentIndex > 0 ? projectPosts[currentIndex - 1] : null;
-const nextNote = currentIndex >= 0 && currentIndex < projectPosts.length - 1 ? projectPosts[currentIndex + 1] : null;
+const { title: projectTitle, description: projectDescription, image, tags } = currentProject.data;
 
-const {
-  title: projectTitle,
-  description: projectDescription,
-  image,
-  tags,
-} = project.data;
-
-const chapterTitle = note.data.chapterLabel || `Part ${note.data.order}`;
+const chapterTitle = post.data.chapterLabel || `Part ${post.data.order}`;
 const showPartNav = projectPosts.length > 1;
 ---
 
 <BaseLayout
-  title={`${note.data.title} | ${projectTitle}`}
-  description={note.data.description}
+  title={`${post.data.title} | ${projectTitle}`}
+  description={post.data.description}
   image={image?.src}
   tags={tags}
 >
@@ -88,9 +92,9 @@ const showPartNav = projectPosts.length > 1;
         </div>
 
         <div class="max-w-4xl">
-          <h1 class="text-4xl font-extrabold md:text-5xl">{note.data.title}</h1>
+          <h1 class="text-4xl font-extrabold md:text-5xl">{post.data.title}</h1>
           <p class="mt-4 text-lg leading-8 text-text-secondary">
-            {note.data.description}
+            {post.data.description}
           </p>
         </div>
 
@@ -98,10 +102,10 @@ const showPartNav = projectPosts.length > 1;
           showPartNav && (
             <nav class="mt-6 flex flex-wrap gap-2">
               {projectPosts.map((entry) => {
-                const isActive = entry.id === note.id;
+                const isActive = entry.id === post.id;
                 return (
                   <a
-                    href={`/projects/${project.id}/notes/${entry.id}`}
+                    href={`/projects/${projectSlug}/${getProjectPostSlug(entry)}`}
                     class:list={[
                       'inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-300',
                       isActive
@@ -131,20 +135,20 @@ const showPartNav = projectPosts.length > 1;
     <FadeInSection client:visible delay={0.3}>
       <section class="mt-14 grid gap-4 border-t border-border pt-10 md:grid-cols-2">
         {
-          previousNote ? (
+          previousPost ? (
             <a
-              href={`/projects/${project.id}/notes/${previousNote.id}`}
+              href={`/projects/${projectSlug}/${getProjectPostSlug(previousPost)}`}
               class="group rounded-[24px] border border-border bg-bg-surface px-5 py-5 transition-all duration-300 hover:border-brand/30 hover:bg-brand/5"
             >
               <p class="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">이전 기록</p>
               <p class="mt-3 text-sm font-semibold text-brand">
-                {previousNote.data.chapterLabel || `Part ${previousNote.data.order}`}
+                {previousPost.data.chapterLabel || `Part ${previousPost.data.order}`}
               </p>
               <h2 class="mt-2 text-lg font-semibold text-text-primary transition-colors group-hover:text-brand">
-                {previousNote.data.title}
+                {previousPost.data.title}
               </h2>
               <p class="mt-2 text-sm leading-6 text-text-secondary">
-                {previousNote.data.description}
+                {previousPost.data.description}
               </p>
             </a>
           ) : (
@@ -165,20 +169,20 @@ const showPartNav = projectPosts.length > 1;
         }
 
         {
-          nextNote ? (
+          nextPost ? (
             <a
-              href={`/projects/${project.id}/notes/${nextNote.id}`}
+              href={`/projects/${projectSlug}/${getProjectPostSlug(nextPost)}`}
               class="group rounded-[24px] border border-border bg-bg-surface px-5 py-5 transition-all duration-300 hover:border-brand/30 hover:bg-brand/5"
             >
               <p class="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">다음 기록</p>
               <p class="mt-3 text-sm font-semibold text-brand">
-                {nextNote.data.chapterLabel || `Part ${nextNote.data.order}`}
+                {nextPost.data.chapterLabel || `Part ${nextPost.data.order}`}
               </p>
               <h2 class="mt-2 text-lg font-semibold text-text-primary transition-colors group-hover:text-brand">
-                {nextNote.data.title}
+                {nextPost.data.title}
               </h2>
               <p class="mt-2 text-sm leading-6 text-text-secondary">
-                {nextNote.data.description}
+                {nextPost.data.description}
               </p>
             </a>
           ) : (
