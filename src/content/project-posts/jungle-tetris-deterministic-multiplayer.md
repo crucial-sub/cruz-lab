@@ -1,15 +1,15 @@
 ---
-title: "해커톤 MVP 이후 멀티플레이 구조를 다시 손본 이야기"
-description: "고정 타임스텝, 리플레이 재현성, 입력 보정, WebRTC 폴백까지 다시 보며 멀티플레이 구조를 손본 이야기"
-project: "jungle-tetris"
+title: '해커톤 MVP 이후 멀티플레이 구조를 다시 손본 이야기'
+description: '고정 타임스텝, 리플레이 재현성, 입력 보정, WebRTC 폴백까지 다시 보며 멀티플레이 구조를 손본 이야기'
+project: 'jungle-tetris'
 order: 2
-chapterLabel: "Part 2"
-status: "published"
+chapterLabel: 'Part 2'
+status: 'published'
 ---
 
 > 해커톤 버전은 일단 돌아갔다.  
 > 다만 다시 코드를 보면 시간 처리, 상태 동기화, 리플레이 기준이 꽤 느슨했다.  
-> 그래서 여기서는 "그다음에 뭘 더 손봐야 하는가"를 중심으로, 실제로 다시 만져 본 구조를 적어보려 한다.
+> 다시 보니 "그다음에 뭘 더 손봐야 하는가"가 더 또렷해졌다.
 
 ## `requestAnimationFrame`만으로는 충분하지 않았다
 
@@ -87,12 +87,12 @@ function sendInput(action) {
 서버에서 입력이 거절되거나 상태가 어긋났다고 판단되면 전체 상태를 다시 받아 조정한다.
 
 ```js
-socket.on('game:full_state', function(data) {
+socket.on('game:full_state', function (data) {
   game.grid = data.grid;
   score = data.score;
   game.over = data.game_over;
 
-  pendingInputs.forEach(input => {
+  pendingInputs.forEach((input) => {
     executeInputLocally(input.action);
   });
 });
@@ -121,8 +121,10 @@ this.peerConnection = new RTCPeerConnection(this.iceServers);
 연결이 되면 직접 주고받고, 실패하면 Socket.IO로 돌아가는 구조로 잡았다.
 
 ```js
-if (this.peerConnection.connectionState === 'failed' ||
-    this.peerConnection.connectionState === 'disconnected') {
+if (
+  this.peerConnection.connectionState === 'failed' ||
+  this.peerConnection.connectionState === 'disconnected'
+) {
   this.connected = false;
   console.log('P2P connection lost, falling back to Socket.IO');
 }
@@ -145,4 +147,5 @@ P2P만 믿으면 환경에 따라 바로 불안정해진다.
 해커톤 때 목표는 "일단 멀티가 된다"에 가까웠다.  
 그 뒤 다시 손보면서는, 어떤 기능을 더 붙일지보다 시간, 상태, 입력을 어디까지 엄격하게 다뤄야 하는지가 더 먼저 보였다.
 
-이 글은 그걸 완전히 끝낸 회고라기보다, 해커톤 버전 위에서 무엇을 다시 손봤고 어떤 기준이 남았는지 정리한 쪽에 가깝다.
+완전히 끝낸 회고라고 보긴 어렵다.
+해커톤 버전 위에서 무엇을 다시 손봤고, 어떤 기준이 아직 남아 있는지에 더 가깝다.
