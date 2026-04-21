@@ -19,7 +19,8 @@ const blog = defineCollection({
     }),
 });
 
-// 프로젝트 컬렉션
+// 프로젝트 메타데이터 컬렉션: 카드, 대표 이미지, 기술 스택만 담당한다.
+// 실제 프로젝트 글 본문은 projectPosts 컬렉션을 단일 출처로 사용한다.
 const projects = defineCollection({
   loader: glob({ base: './src/content/projects', pattern: '**/*.{md,mdx}' }),
   schema: ({ image }) =>

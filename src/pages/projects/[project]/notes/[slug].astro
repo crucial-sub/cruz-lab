@@ -3,6 +3,7 @@ export const prerender = true;
 
 import FadeInSection from '@/components/islands/FadeInSection';
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getProjectPosts, getPublishedProjectPosts } from '@/lib/project-notes';
 import { getCollection, render } from 'astro:content';
 
 export async function getStaticPaths() {
@@ -10,8 +11,7 @@ export async function getStaticPaths() {
   const projectMap = new Map(projects.map((project) => [project.id, project]));
   const projectPosts = await getCollection('projectPosts');
 
-  return projectPosts
-    .filter((entry) => entry.data.status === 'published')
+  return getPublishedProjectPosts(projectPosts)
     .map((entry) => {
       const project = projectMap.get(entry.data.project);
 
@@ -36,9 +36,7 @@ export async function getStaticPaths() {
 const { project, note } = Astro.props;
 const { Content } = await render(note);
 
-const projectPosts = (await getCollection('projectPosts'))
-  .filter((entry) => entry.data.project === project.id && entry.data.status === 'published')
-  .sort((a, b) => a.data.order - b.data.order);
+const projectPosts = getProjectPosts(await getCollection('projectPosts'), project.id);
 
 const currentIndex = projectPosts.findIndex((entry) => entry.id === note.id);
 const previousNote = currentIndex > 0 ? projectPosts[currentIndex - 1] : null;

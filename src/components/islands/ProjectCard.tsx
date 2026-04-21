@@ -13,6 +13,7 @@ interface Props {
   github?: string;
   demo?: string;
   slug: string;
+  href?: string;
   featured?: boolean;
   index?: number;
 }
@@ -26,9 +27,12 @@ export default function ProjectCard({
   github,
   demo,
   slug,
+  href,
   featured = false,
   index = 0,
 }: Props) {
+  const projectHref = href ?? `/projects/${slug}`;
+
   // 카드 클릭 시 상세 페이지로 이동 (링크 버튼 클릭 제외)
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -36,7 +40,7 @@ export default function ProjectCard({
     if (target.closest('[data-external-link]')) {
       return;
     }
-    window.location.href = `/projects/${slug}`;
+    window.location.href = projectHref;
   };
 
   return (
@@ -56,7 +60,7 @@ export default function ProjectCard({
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                window.location.href = `/projects/${slug}`;
+                window.location.href = projectHref;
               }
             }}
           >
