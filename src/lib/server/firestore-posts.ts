@@ -104,6 +104,12 @@ export async function upsertFirestorePost(input: UpsertFirestorePostInput) {
   const targetSlug = input.originalSlug || input.slug;
   const existingSnapshot = await findPostSnapshotBySlug(targetSlug);
   const now = Timestamp.now();
+  const existingData = existingSnapshot?.data() as FirestorePostData | undefined;
+  const resolvedPubDate = input.pubDate
+    ? toDate(input.pubDate)
+    : existingData?.pubDate
+      ? toDate(existingData.pubDate)
+      : new Date();
   const baseData = {
     slug: input.slug,
     title: input.title,
@@ -115,7 +121,7 @@ export async function upsertFirestorePost(input: UpsertFirestorePostInput) {
     status: (input.isPublic ? 'published' : 'draft') as FirestorePostStatus,
     isPublic: input.isPublic === true,
     readingTime: input.readingTime,
-    pubDate: Timestamp.fromDate(toDate(input.pubDate)),
+    pubDate: Timestamp.fromDate(resolvedPubDate),
     updatedDate: Timestamp.fromDate(toDate(input.updatedDate)),
     updatedAt: now,
   };

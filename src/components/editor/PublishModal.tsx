@@ -62,7 +62,7 @@ export default function PublishModal({
       slug,
       readingTime: calculateReadingTime(content),
       isPublic,
-      pubDate: pubDate || new Date().toISOString(),
+      pubDate: pubDate || undefined,
       updatedDate: new Date().toISOString(),
       originalSlug,
       isUpdate: Boolean(originalSlug),

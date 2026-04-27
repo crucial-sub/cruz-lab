@@ -269,7 +269,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
       setHeroImage(parsed.heroImage || '');
       setSlug(parsed.slug || '');
       setIsPublic(parsed.isPublic ?? true);
-      setOriginalPubDate(parsed.pubDate || '');
+      setOriginalPubDate(parsed.pubDate || (mode === 'edit' ? originalPubDate : ''));
 
       if (mode === 'edit') {
         setOriginalSlug(parsed.slug || originalSlug);
@@ -285,7 +285,7 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
     } finally {
       event.target.value = '';
     }
-  }, [content, description, mode, originalSlug, tags.length, title]);
+  }, [content, description, mode, originalPubDate, originalSlug, tags.length, title]);
 
   // 태그 추가 (한글 IME 이슈 수정)
   const handleAddTag = () => {

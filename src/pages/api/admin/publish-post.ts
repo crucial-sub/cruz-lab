@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { verifyAdminIdToken } from '@/lib/server/admin-auth';
-import { upsertFirestorePost } from '@/lib/server/firestore-posts';
+import { getFirestorePostBySlug, upsertFirestorePost } from '@/lib/server/firestore-posts';
 import { deletePostFile, upsertPostFile } from '@/lib/server/github-posts';
 import { getPublicPostUrl } from '@/lib/server/site-url';
 import { generateMarkdownContent, generateMarkdownFileName } from '@/lib/markdown-publish';
@@ -27,61 +27,71 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     const body = await request.json();
+    const targetSlug = body.originalSlug || body.slug;
+
+    currentStep = '기존 포스트 확인';
+    const existingPost = targetSlug ? await getFirestorePostBySlug(targetSlug) : null;
+    const resolvedPubDate = body.pubDate || existingPost?.pubDate?.toISOString() || new Date().toISOString();
+    const publishPayload = {
+      ...body,
+      pubDate: resolvedPubDate,
+      updatedDate: body.updatedDate || new Date().toISOString(),
+    };
 
     currentStep = 'markdown 백업 생성';
-    const markdown = generateMarkdownContent(body);
+    const markdown = generateMarkdownContent(publishPayload);
     const nextFileName = generateMarkdownFileName({
-      slug: body.slug,
-      pubDate: body.pubDate,
+      slug: publishPayload.slug,
+      pubDate: resolvedPubDate,
     });
 
     currentStep = 'GitHub markdown 백업';
     const result = await upsertPostFile({
       fileName: nextFileName,
       content: markdown,
-      message: body.isUpdate
-        ? `포스트 백업 갱신: ${body.title}`
-        : `새 포스트 백업: ${body.title}`,
+      message: publishPayload.isUpdate
+        ? `포스트 백업 갱신: ${publishPayload.title}`
+        : `새 포스트 백업: ${publishPayload.title}`,
     });
 
     try {
       currentStep = 'Firestore direct publish';
       await upsertFirestorePost({
-        ...body,
-        originalSlug: body.originalSlug,
+        ...publishPayload,
+        originalSlug: publishPayload.originalSlug,
       });
     } catch (firestoreError) {
       currentStep = 'Firestore 롤백 중';
       await deletePostFile({
         fileName: nextFileName,
-        message: `Firestore 반영 실패로 백업 롤백: ${body.title}`,
+        message: `Firestore 반영 실패로 백업 롤백: ${publishPayload.title}`,
       }).catch(() => null);
 
       throw firestoreError;
     }
 
-    if (body.originalSlug && body.originalSlug !== body.slug) {
+    if (publishPayload.originalSlug && publishPayload.originalSlug !== publishPayload.slug) {
       currentStep = '이전 markdown 백업 정리';
       const previousFileName = generateMarkdownFileName({
-        slug: body.originalSlug,
-        pubDate: body.pubDate,
+        slug: publishPayload.originalSlug,
+        pubDate: resolvedPubDate,
       });
 
       await deletePostFile({
         fileName: previousFileName,
-        message: `URL 변경으로 이전 백업 삭제: ${body.originalSlug}`,
+        message: `URL 변경으로 이전 백업 삭제: ${publishPayload.originalSlug}`,
       }).catch(() => null);
     }
 
     currentStep = '공개 URL 생성';
-    const publicUrl = getPublicPostUrl(request, body.slug);
+    const publicUrl = getPublicPostUrl(request, publishPayload.slug);
 
     return new Response(
       JSON.stringify({
         ok: true,
         filePath: result.filePath,
-        slug: body.slug,
-        title: body.title,
+        slug: publishPayload.slug,
+        title: publishPayload.title,
         publicUrl,
         publishMode: 'firestore-direct',
         githubFileUrl: result.fileUrl,
