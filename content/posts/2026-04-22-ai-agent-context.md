@@ -2,11 +2,11 @@
 title: "[AI] Agent를 쓸 때 Context가 왜 더 중요해질까?"
 description: "AI Agent를 오래 쓸수록 컨텍스트가 왜 병목이 되는지, 싱글 에이전트와 멀티 에이전트의 차이까지 작업 흐름 기준으로 정리한 글"
 pubDate: "2026-04-22T11:10:28.136Z"
-updatedDate: "2026-04-22T11:10:28.136Z"
+updatedDate: "2026-05-04T04:58:19.390Z"
 heroImage: "https://firebasestorage.googleapis.com/v0/b/cruz-lab.firebasestorage.app/o/images%2Fheroes%2F2026%2F04%2Faiagent-1776856206272-jaufzq.jpg?alt=media&token=d006ff2e-01ce-4faa-b483-ff347bee70ad"
 tags: ["AI", "Agent", "Context Window", "Multi-Agent", "LLM"]
 slug: "ai-agent-context"
-readingTime: 4
+readingTime: 5
 isPublic: true
 ---
 
@@ -15,6 +15,8 @@ isPublic: true
 
 막상 Agent를 써보면 빨리 부딪히는 문제도 여기다.  
 작업이 길어질수록 모델 성능보다 컨텍스트 정리가 더 자주 발목을 잡는다.
+
+![ChatGPT Image 2026년 4월 28일 오후 09_33_29](https://firebasestorage.googleapis.com/v0/b/cruz-lab.firebasestorage.app/o/images%2Fblog%2F2026%2F05%2Fchatgpt-image-2026-4-28-09_33_29-1777870503622-lkxflj.png?alt=media&token=95a781be-5cd9-4b4b-a5cf-cd4e8d411eb7)
 
 ## Agent는 "대답하는 모델"보다 한 단계 더 많은 걸 한다
 
@@ -49,6 +51,8 @@ Agent는 거기서 한 발 더 나간다.
 
 작업대가 넓으면 많은 걸 펼쳐놓을 수 있다.  
 대신 정리가 안 되면 오히려 중요한 걸 놓치기 쉬워진다.
+
+![ChatGPT Image 2026년 4월 28일 오후 09_44_50](https://firebasestorage.googleapis.com/v0/b/cruz-lab.firebasestorage.app/o/images%2Fblog%2F2026%2F05%2Fchatgpt-image-2026-4-28-09_44_50-1777870551189-38807t.png?alt=media&token=c46d1f21-183b-4564-acc0-59c8c285226d)
 
 Context Window가 작으면?
 
@@ -86,6 +90,8 @@ Agent를 오래 돌리다 보면 한 번쯤 이런 느낌이 온다.
 그래서 Agent에서 중요한 건 최대 길이보다  
 **현재 단계에 필요한 정보만 남기는 능력**이다.
 
+![ChatGPT Image 2026년 5월 1일 오전 08_36_06](https://firebasestorage.googleapis.com/v0/b/cruz-lab.firebasestorage.app/o/images%2Fblog%2F2026%2F05%2Fchatgpt-image-2026-5-1-08_36_06-1777870584655-uhgdie.png?alt=media&token=43035d53-8a99-4c7e-9e8d-6ee975f2ff4d)
+
 ## 싱글 에이전트는 단순하고 강력하다. 대신 작업대가 금방 더러워진다
 
 싱글 에이전트 방식은 구조가 단순하다.
@@ -113,6 +119,8 @@ Agent를 오래 돌리다 보면 한 번쯤 이런 느낌이 온다.
 
 짧은 작업에는 좋다.  
 하지만 작업이 길어지고, 조사와 작성과 검증이 한꺼번에 섞이기 시작하면 점점 불리해진다.
+
+![ChatGPT Image 2026년 5월 4일 오후 12_47_55](https://firebasestorage.googleapis.com/v0/b/cruz-lab.firebasestorage.app/o/images%2Fblog%2F2026%2F05%2Fchatgpt-image-2026-5-4-12_47_55-1777870619373-8t1a4e.png?alt=media&token=d71138ea-1934-4285-b295-b0bba3063a99)
 
 ## 멀티 에이전트는 컨텍스트를 분리하는 방식이다
 
@@ -146,6 +154,8 @@ Agent를 오래 돌리다 보면 한 번쯤 이런 느낌이 온다.
 ## 토큰 메모리 효율을 높이려면 결국 정리를 잘해야 한다
 
 Agent를 오래 굴릴수록 중요한 건 더 많이 넣는 게 아니라 덜 어지럽히는 것이다.
+
+![ChatGPT Image 2026년 5월 4일 오후 12_52_35](https://firebasestorage.googleapis.com/v0/b/cruz-lab.firebasestorage.app/o/images%2Fblog%2F2026%2F05%2Fchatgpt-image-2026-5-4-12_52_35-1777870657991-ve2055.png?alt=media&token=00df62e8-6acd-49d4-83ab-732fab688091)
 
 내가 중요하다고 보는 방법은 이런 것들이다.
 
