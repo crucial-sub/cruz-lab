@@ -10,6 +10,8 @@ const post = await getContentPostBySlug(slug);
 
 if (!post) {
   Astro.response.status = 404;
+  // 404 응답은 기본적으로 404.astro로 대체되므로, 아래의 글 전용 안내 화면이 그대로 나가도록 재라우팅을 끈다
+  Astro.response.headers.set('X-Astro-Reroute', 'no');
 }
 
 const title = post?.title || '포스트를 찾을 수 없습니다';

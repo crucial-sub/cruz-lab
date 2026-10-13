@@ -1,6 +1,8 @@
 // 연락처 섹션 컴포넌트
 // 소셜 링크와 이메일 연락 CTA
 import { motion } from 'framer-motion';
+// 이력서 PDF는 빌드 시 /_astro/ 아래로 복사되고, 그 공개 주소를 받아 온다
+import resumeUrl from '@/assets/resume.pdf?url';
 import MagneticButton from './MagneticButton';
 import TextReveal from './TextReveal';
 
@@ -27,7 +29,7 @@ const socialLinks = [
   },
   {
     name: 'Resume',
-    url: '/src/assets/resume.pdf',
+    url: resumeUrl,
     icon: (
       <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path

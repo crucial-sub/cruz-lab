@@ -31,7 +31,8 @@ const { title, description, image, type, publishedTime, tags } = Astro.props;
     <Header />
 
     <!-- 본문: 최소 높이로 푸터 밀어내기 -->
-    <main id="main-content" tabindex="-1" class="min-h-[calc(100vh-160px)] py-8">
+    <!-- overflow-x-clip: 화면 밖으로 나가는 장식 요소가 가로 스크롤을 만들지 않도록 함 -->
+    <main id="main-content" tabindex="-1" class="min-h-[calc(100vh-160px)] overflow-x-clip py-8">
       <div class="container">
         <slot />
       </div>

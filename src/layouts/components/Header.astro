@@ -24,10 +24,13 @@ const isActive = (href: string) => pathname === href || (href !== '/' && pathnam
         </a>
       </h2>
       <div class="flex items-center gap-1">
-        <a class="p-3 dark:hidden" href="https://github.com/crucial-sub" target="_blank"
-          ><Image src={GithubBlack} width={24} height={24} alt="Github logo" /></a
+        <!-- 좁은 화면에서는 가운데 메뉴와 겹치므로 sm 이상에서만 GitHub 아이콘 표시 -->
+        <a
+          class="hidden p-3 sm:block sm:dark:hidden"
+          href="https://github.com/crucial-sub"
+          target="_blank"><Image src={GithubBlack} width={24} height={24} alt="Github logo" /></a
         >
-        <a class="hidden p-3 dark:block" href="https://github.com/crucial-sub" target="_blank"
+        <a class="hidden p-3 sm:dark:block" href="https://github.com/crucial-sub" target="_blank"
           ><Image src={GithubWhite} width={24} height={24} alt="Github logo" /></a
         >
         <ThemeToggle client:load />
@@ -41,7 +44,7 @@ const isActive = (href: string) => pathname === href || (href !== '/' && pathnam
   >
     {
       menu.map((item) => (
-        <div class="px-2.5 text-sm">
+        <div class="px-1.5 text-sm sm:px-2.5">
           <a
             href={item.link}
             aria-current={isActive(item.link) ? 'page' : undefined}
