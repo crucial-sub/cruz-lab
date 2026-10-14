@@ -4,7 +4,7 @@ import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
 const ROOT_DIR = process.cwd();
-const DEFAULT_PUBLIC_SITE_URL = 'https://cruzlab.dev/';
+const DEFAULT_PUBLIC_SITE_URL = 'https://www.cruzlab.dev/';
 const TARGET = {
   repository: 'crucial-sub/cruz-lab',
   branch: 'main',

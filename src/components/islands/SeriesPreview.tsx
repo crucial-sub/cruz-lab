@@ -88,8 +88,8 @@ export default function SeriesPreview({ series: initialSeries = [] }: Props) {
         </div>
       )}
 
-      {/* 시리즈가 없을 경우 */}
-      {series.length === 0 && (
+      {/* 시리즈가 없을 경우 (로딩이 끝난 뒤에만 표시) */}
+      {!isLoading && series.length === 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

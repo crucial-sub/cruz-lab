@@ -1,0 +1,33 @@
+---
+// 404 페이지
+// - 존재하지 않는 경로로 들어왔을 때 표시
+// - 정적 파일로 미리 만들어 두어 서버 함수를 거치지 않고 응답한다
+export const prerender = true;
+
+import BaseLayout from '@/layouts/BaseLayout.astro';
+
+const title = '페이지를 찾을 수 없습니다';
+const description = '요청한 페이지를 찾을 수 없습니다.';
+---
+
+<BaseLayout title={title} description={description}>
+  <div class="py-20 text-center">
+    <p class="text-6xl font-extrabold text-brand md:text-7xl">404</p>
+    <h1 class="mt-6 text-3xl font-bold text-text-primary">페이지를 찾을 수 없습니다.</h1>
+    <p class="mt-4 text-text-secondary">주소가 바뀌었거나 삭제된 페이지일 수 있습니다.</p>
+    <div class="mt-8 flex flex-wrap justify-center gap-4">
+      <a
+        href="/"
+        class="rounded-xl bg-brand px-6 py-3 font-semibold text-white transition-colors hover:bg-brand-hover"
+      >
+        홈으로 가기
+      </a>
+      <a
+        href="/blog"
+        class="bg-bg-surface/50 rounded-xl border border-border px-6 py-3 font-semibold transition-colors hover:border-brand hover:text-brand"
+      >
+        블로그 보기
+      </a>
+    </div>
+  </div>
+</BaseLayout>

@@ -1,4 +1,4 @@
-const DEFAULT_PUBLIC_SITE_URL = 'https://cruzlab.dev/';
+const DEFAULT_PUBLIC_SITE_URL = 'https://www.cruzlab.dev/';
 
 function normalizeSiteUrl(value: string) {
   const normalized = value.endsWith('/') ? value : `${value}/`;

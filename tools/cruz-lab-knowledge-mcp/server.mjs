@@ -11,18 +11,52 @@ import * as z from 'zod/v4';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '../..');
 
-const ALLOWED_DOC_ROOTS = [
-  'src/content/projects',
-  'data/final-posts',
-  'data/resume',
+// career 폴더의 위치를 정한다
+// - 환경 변수 CRUZ_LAB_CAREER_ROOT가 있으면 그 절대 경로를 쓴다
+// - 없으면 저장소 옆의 career 폴더를 쓴다
+function resolveCareerRoot() {
+  const value = process.env.CRUZ_LAB_CAREER_ROOT;
+  if (!value) return path.resolve(REPO_ROOT, '../career');
+
+  if (!path.isAbsolute(value)) {
+    throw new Error(`CRUZ_LAB_CAREER_ROOT must be an absolute path. Received: ${value}`);
+  }
+
+  return path.resolve(value);
+}
+
+const CAREER_ROOT = resolveCareerRoot();
+
+// 읽기 루트 목록
+// - scope: 검색 범위 이름
+// - prefix: 결과에 표기하는 문서 경로의 앞부분
+// - dir: 실제 폴더의 절대 경로
+// - ignoredDirs: 이 루트 안에서 읽지 않는 폴더 이름
+const DOC_ROOTS = [
+  {
+    scope: 'projects',
+    prefix: 'src/content/projects',
+    dir: path.resolve(REPO_ROOT, 'src/content/projects'),
+    ignoredDirs: [],
+  },
+  {
+    scope: 'final-posts',
+    prefix: 'career/writing/final-posts',
+    dir: path.resolve(CAREER_ROOT, 'writing/final-posts'),
+    ignoredDirs: [],
+  },
+  {
+    scope: 'resume',
+    prefix: 'career/resume',
+    dir: path.resolve(CAREER_ROOT, 'resume'),
+    ignoredDirs: ['archive'],
+  },
 ];
 
 const ALLOWED_EXTENSIONS = new Set(['.md', '.mdx', '.txt']);
 const IGNORED_DIRS = new Set(['node_modules', 'dist', '.astro', '.vercel', '.git']);
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 25;
-
-const absoluteDocRoots = ALLOWED_DOC_ROOTS.map((root) => path.resolve(REPO_ROOT, root));
 
 const server = new McpServer({
   name: 'cruz-lab-knowledge-mcp',
@@ -66,8 +100,13 @@ function isInside(parent, candidate) {
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
 
+// 파일이 속한 읽기 루트를 찾는다. 어느 루트에도 속하지 않으면 undefined를 돌려준다
+function rootForPath(filePath) {
+  return DOC_ROOTS.find((root) => isInside(root.dir, filePath));
+}
+
 function isAllowedPath(candidate) {
-  return absoluteDocRoots.some((root) => isInside(root, candidate));
+  return Boolean(rootForPath(candidate));
 }
 
 function isIgnoredFile(filePath) {
@@ -79,17 +118,43 @@ function isIgnoredFile(filePath) {
   if (extension === '.pdf') return true;
   if (!ALLOWED_EXTENSIONS.has(extension)) return true;
 
-  return normalizeSlashes(path.relative(REPO_ROOT, filePath))
+  const root = rootForPath(filePath);
+  const baseDir = root ? root.dir : REPO_ROOT;
+  const rootIgnoredDirs = root ? root.ignoredDirs : [];
+
+  // 폴더 이름은 소문자로 바꿔서 비교한다. macOS의 파일 시스템은 대소문자를 구분하지 않는다
+  return normalizeSlashes(path.relative(baseDir, filePath))
     .split('/')
-    .some((part) => IGNORED_DIRS.has(part));
+    .map((part) => part.toLowerCase())
+    .some((part) => IGNORED_DIRS.has(part) || rootIgnoredDirs.includes(part));
 }
 
-function relativeFromRoot(filePath) {
-  return normalizeSlashes(path.relative(REPO_ROOT, filePath));
+// 결과에 표기하는 문서 경로를 만든다
+// - 읽기 루트 안의 파일은 "prefix/루트 기준 상대 경로"로 표기한다
+// - 그 밖의 파일은 저장소 기준 상대 경로로 표기한다
+function displayPath(filePath) {
+  const root = rootForPath(filePath);
+  if (!root) return normalizeSlashes(path.relative(REPO_ROOT, filePath));
+
+  const rest = normalizeSlashes(path.relative(root.dir, filePath));
+  return rest ? `${root.prefix}/${rest}` : root.prefix;
+}
+
+// 문서 경로 표기를 실제 파일 경로로 바꾼다
+// - 읽기 루트의 prefix로 시작하면 그 루트의 폴더 기준으로 푼다
+// - 그 밖의 경로는 저장소 기준으로 푼다. 허용 여부는 readDocFile이 검사한다
+function resolveDocPath(value) {
+  const docPath = path.posix.normalize(normalizeSlashes(value));
+  const root = DOC_ROOTS.find(
+    (item) => docPath === item.prefix || docPath.startsWith(`${item.prefix}/`),
+  );
+  if (!root) return path.resolve(REPO_ROOT, docPath);
+
+  return path.resolve(root.dir, docPath.slice(root.prefix.length + 1));
 }
 
 function projectSlugFromPath(filePath) {
-  const relative = relativeFromRoot(filePath);
+  const relative = displayPath(filePath);
   if (!relative.startsWith('src/content/projects/')) return '';
 
   return relative.replace(/^src\/content\/projects\//u, '').split('/')[0] || '';
@@ -104,11 +169,7 @@ function slugFromPath(filePath, metadata = {}) {
 }
 
 function scopeFromPath(filePath) {
-  const relative = relativeFromRoot(filePath);
-  if (relative.startsWith('src/content/projects/')) return 'projects';
-  if (relative.startsWith('data/final-posts/')) return 'final-posts';
-  if (relative.startsWith('data/resume/')) return 'resume';
-  return 'unknown';
+  return rootForPath(filePath)?.scope ?? 'unknown';
 }
 
 function stripQuotes(value) {
@@ -216,14 +277,12 @@ async function walkDocs(dir) {
 
 async function readDocFile(filePath) {
   if (!isAllowedPath(filePath) || isIgnoredFile(filePath)) {
-    throw new Error(
-      `Document path is outside the allowed read roots: ${relativeFromRoot(filePath)}`,
-    );
+    throw new Error(`Document path is outside the allowed read roots: ${displayPath(filePath)}`);
   }
 
   const raw = await fs.readFile(filePath, 'utf8');
   const { metadata, body } = parseFrontmatter(raw);
-  const relativePath = relativeFromRoot(filePath);
+  const relativePath = displayPath(filePath);
   const slug = slugFromPath(filePath, metadata);
 
   return {
@@ -244,15 +303,41 @@ async function readDocFile(filePath) {
   };
 }
 
+async function rootExists(root) {
+  try {
+    await fs.access(root.dir);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// 읽기 루트의 폴더가 없을 때 쓰는 오류를 만든다
+function missingRootError(root) {
+  return new Error(
+    `Document root for scope "${root.scope}" was not found: ${root.prefix}. ` +
+      'If this is a career path, set CRUZ_LAB_CAREER_ROOT to the absolute path of the career folder.',
+  );
+}
+
+// 문서를 읽는다
+// - scope가 all이면 있는 루트만 읽는다
+// - scope를 지정했는데 그 루트가 없으면 오류를 낸다
 async function getAllDocs(scope = 'all') {
+  const roots = scope === 'all' ? DOC_ROOTS : DOC_ROOTS.filter((root) => root.scope === scope);
   const files = [];
 
-  for (const root of absoluteDocRoots) {
-    files.push(...(await walkDocs(root)));
+  for (const root of roots) {
+    if (!(await rootExists(root))) {
+      if (scope === 'all') continue;
+      throw missingRootError(root);
+    }
+
+    files.push(...(await walkDocs(root.dir)));
   }
 
-  const docs = await Promise.all(files.sort().map((file) => readDocFile(file)));
-  return scope === 'all' ? docs : docs.filter((doc) => doc.scope === scope);
+  const docs = await Promise.all(files.map((file) => readDocFile(file)));
+  return docs.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 }
 
 async function getProjectDocs() {
@@ -335,11 +420,10 @@ async function resolveDocByPathOrSlug(pathOrSlug, scope = 'all') {
 
   if (looksLikePath) {
     if (path.isAbsolute(value)) {
-      throw new Error('Absolute paths are not allowed. Use a repo-relative document path.');
+      throw new Error('Absolute paths are not allowed. Use a document path from search results.');
     }
 
-    const candidate = path.resolve(REPO_ROOT, normalizeSlashes(value));
-    return readDocFile(candidate);
+    return readDocFile(resolveDocPath(value));
   }
 
   const docs = await getAllDocs(scope);
@@ -358,8 +442,10 @@ async function resolveDocByPathOrSlug(pathOrSlug, scope = 'all') {
 }
 
 async function getResumeDoc() {
-  const resumePath = path.resolve(REPO_ROOT, 'data/resume/jungsub_resume.md');
-  return readDocFile(resumePath);
+  const resumeRoot = DOC_ROOTS.find((root) => root.scope === 'resume');
+  if (!(await rootExists(resumeRoot))) throw missingRootError(resumeRoot);
+
+  return readDocFile(path.join(resumeRoot.dir, 'jungsub_resume.md'));
 }
 
 async function getProjectContext(slug) {
@@ -435,9 +521,12 @@ server.registerTool(
   'read_doc',
   {
     title: 'Read Cruz Lab document',
-    description: 'Read a single allowed document by repo-relative path or unambiguous slug.',
+    description: 'Read a single allowed document by document path or unambiguous slug.',
     inputSchema: {
-      pathOrSlug: z.string().min(1).describe('Repo-relative path or unambiguous document slug.'),
+      pathOrSlug: z
+        .string()
+        .min(1)
+        .describe('Document path from search results, or an unambiguous document slug.'),
       scope: z
         .enum(['all', 'projects', 'final-posts', 'resume'])
         .optional()
@@ -462,7 +551,7 @@ server.registerTool(
   'get_resume',
   {
     title: 'Get Jungsub resume',
-    description: 'Read data/resume/jungsub_resume.md. PDF files are intentionally excluded.',
+    description: 'Read career/resume/jungsub_resume.md. PDF files are intentionally excluded.',
     inputSchema: {},
     annotations: readOnlyAnnotations,
   },
@@ -505,7 +594,7 @@ server.registerResource(
   'cruzlab://resume',
   {
     title: 'Jungsub Resume',
-    description: 'Markdown resume from data/resume/jungsub_resume.md.',
+    description: 'Markdown resume from career/resume/jungsub_resume.md.',
     mimeType: 'text/markdown',
   },
   async (uri) => {
@@ -602,6 +691,12 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('Cruz Lab Knowledge MCP Server running on stdio');
+
+  for (const root of DOC_ROOTS) {
+    if (!(await rootExists(root))) {
+      console.error(`Warning: document root not found for scope "${root.scope}": ${root.dir}`);
+    }
+  }
 }
 
 main().catch((error) => {
