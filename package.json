@@ -39,7 +39,6 @@
     "firebase": "^12.6.0",
     "firebase-admin": "^13.7.0",
     "framer-motion": "^12.23.25",
-    "idb": "^8.0.3",
     "lucide-react": "^0.544.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
@@ -49,11 +48,6 @@
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
     "sharp": "^0.34.3",
-    "vite-plugin-pwa": "^1.2.0",
-    "workbox-expiration": "^7.4.0",
-    "workbox-precaching": "^7.4.0",
-    "workbox-routing": "^7.4.0",
-    "workbox-strategies": "^7.4.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

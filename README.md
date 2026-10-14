@@ -82,7 +82,6 @@ Firestore 반영이 실패하면 방금 만든 GitHub 백업을 삭제해 중간
 | Content              | Markdown/MDX, Astro Content Collections, Firestore             |
 | Auth / Data / Assets | Firebase Auth, Firestore, Firebase Storage, Firebase Admin SDK |
 | Deploy               | Vercel adapter                                                 |
-| PWA                  | vite-plugin-pwa, Workbox                                       |
 | MCP                  | `@modelcontextprotocol/sdk`, Node.js stdio server              |
 
 ## 디렉터리 구조
@@ -160,4 +159,4 @@ FIREBASE_ADMIN_PRIVATE_KEY=
 - 권한 모델은 `PUBLIC_ADMIN_EMAIL`로 지정한 단일 관리자 기준입니다.
 - Firestore와 GitHub 사이에 완전한 분산 트랜잭션을 만들지는 않았습니다. 대신 실패 시 GitHub 백업을 정리하는 보상 흐름을 둡니다.
 - MCP 서버는 read-only 로컬 stdio 서버입니다. 벡터 검색, 임베딩, 원격 배포, 인증은 넣지 않았습니다.
-- 오프라인 기능은 runtime caching과 네트워크 상태 피드백 중심입니다. 모든 콘텐츠를 완전한 오프라인 앱처럼 다루는 단계는 아닙니다.
+- PWA와 오프라인 캐시는 두지 않았습니다. 서비스워커의 페이지 이동 규칙이 SSR 구조와 맞지 않아 걷어냈습니다.
