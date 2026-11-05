@@ -2,6 +2,10 @@ import { Timestamp } from 'firebase-admin/firestore';
 import type { ContentPost } from '@/lib/content-posts';
 import type { PublishPostInput } from '@/lib/markdown-publish';
 import { getServerDb } from './firebase-server';
+import { invalidateMemo, memoize } from './memo-cache';
+
+// 글 데이터 메모리 캐시 키 접두사 (글 저장·삭제 시 이 접두사로 비운다)
+const POSTS_MEMO_PREFIX = 'posts:';
 
 type FirestorePostStatus = 'draft' | 'published';
 
@@ -70,16 +74,20 @@ async function findPostSnapshotBySlug(slug: string) {
   return snapshot.docs[0] ?? null;
 }
 
+// 공개 글 목록
+// - 홈, 블로그, 시리즈 페이지가 한 요청 안에서 여러 번 부르므로 메모리 캐시로 한 번만 조회한다.
 export async function listPublishedFirestorePosts(): Promise<ContentPost[]> {
-  const db = getServerDb();
-  const snapshot = await db.collection('posts').orderBy('pubDate', 'desc').get();
+  return memoize(`${POSTS_MEMO_PREFIX}list`, async () => {
+    const db = getServerDb();
+    const snapshot = await db.collection('posts').orderBy('pubDate', 'desc').get();
 
-  return snapshot.docs
-    .filter((docSnap) => {
-      const data = docSnap.data() as FirestorePostData;
-      return data.status === 'published' && data.isPublic !== false;
-    })
-    .map((docSnap) => buildContentPost(docSnap.id, docSnap.data() as FirestorePostData));
+    return snapshot.docs
+      .filter((docSnap) => {
+        const data = docSnap.data() as FirestorePostData;
+        return data.status === 'published' && data.isPublic !== false;
+      })
+      .map((docSnap) => buildContentPost(docSnap.id, docSnap.data() as FirestorePostData));
+  });
 }
 
 export async function getFirestorePostBySlug(slug: string): Promise<ContentPost | null> {
@@ -89,14 +97,18 @@ export async function getFirestorePostBySlug(slug: string): Promise<ContentPost 
   return buildContentPost(snapshot.id, snapshot.data() as FirestorePostData);
 }
 
+// 공개 글 하나 (글 상세 페이지용)
+// - 예전에는 같은 slug를 두 번 조회했다. 이제 한 번 조회한 문서에서 상태까지 확인한다.
 export async function getPublishedFirestorePostBySlug(slug: string): Promise<ContentPost | null> {
-  const post = await getFirestorePostBySlug(slug);
-  if (!post) return null;
-  if (!post.isPublic) return null;
+  return memoize(`${POSTS_MEMO_PREFIX}slug:${slug}`, async () => {
+    const snapshot = await findPostSnapshotBySlug(slug);
+    if (!snapshot) return null;
 
-  const snapshot = await findPostSnapshotBySlug(slug);
-  const status = (snapshot?.data() as FirestorePostData | undefined)?.status;
-  return status === 'published' ? post : null;
+    const data = snapshot.data() as FirestorePostData;
+    const post = buildContentPost(snapshot.id, data);
+    if (!post.isPublic || data.status !== 'published') return null;
+    return post;
+  });
 }
 
 export async function upsertFirestorePost(input: UpsertFirestorePostInput) {
@@ -128,6 +140,8 @@ export async function upsertFirestorePost(input: UpsertFirestorePostInput) {
 
   if (existingSnapshot) {
     await existingSnapshot.ref.update(baseData);
+    // 저장 후 이 서버 인스턴스의 글 캐시를 비워 바로 새 내용을 보이게 한다
+    invalidateMemo(POSTS_MEMO_PREFIX);
 
     return {
       id: existingSnapshot.id,
@@ -140,6 +154,7 @@ export async function upsertFirestorePost(input: UpsertFirestorePostInput) {
     ...baseData,
     createdAt: now,
   });
+  invalidateMemo(POSTS_MEMO_PREFIX);
 
   return {
     id: created.id,
@@ -155,5 +170,6 @@ export async function deleteFirestorePostBySlug(slug: string) {
   }
 
   await snapshot.ref.delete();
+  invalidateMemo(POSTS_MEMO_PREFIX);
   return { deleted: true };
 }

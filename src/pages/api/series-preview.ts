@@ -1,21 +1,17 @@
 import type { APIRoute } from 'astro';
-import { getPublishedSeries, getSeriesReadingTime } from '@/lib/series';
+import { getPublishedSeriesWithReadingTime } from '@/lib/series';
+import { PUBLIC_PAGE_CACHE_CONTROL } from '@/lib/server/cache-headers';
 
 export const prerender = false;
 
 export const GET: APIRoute = async () => {
   try {
-    const seriesList = await getPublishedSeries();
-    const items = await Promise.all(
-      seriesList.map(async (series) => ({
-        ...series,
-        totalReadingTime: await getSeriesReadingTime(series.id),
-      }))
-    );
+    // 시리즈 목록과 글 목록을 한 번씩만 조회해서 읽기 시간을 계산한다
+    const items = await getPublishedSeriesWithReadingTime();
 
     return new Response(JSON.stringify({ items }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': PUBLIC_PAGE_CACHE_CONTROL },
     });
   } catch (error) {
     return new Response(

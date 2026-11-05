@@ -1,7 +1,11 @@
 // 시리즈 기능 - Firestore 시리즈 + Markdown 포스트 연동
 import { collection, getDocs, getDoc, doc, query, where, orderBy } from 'firebase/firestore';
 import { db } from './firebase';
-import { getPublishedContentPosts } from './content-posts';
+import { getPublishedContentPosts, type ContentPost } from './content-posts';
+import { memoize } from './server/memo-cache';
+
+// 시리즈 데이터 메모리 캐시 키 접두사 (관리자 시리즈 저장·삭제 시 비운다)
+export const SERIES_MEMO_PREFIX = 'series:';
 
 /**
  * 시리즈 인터페이스
@@ -62,17 +66,72 @@ function mapSeriesDoc(docSnap: Awaited<ReturnType<typeof getDocs>>['docs'][numbe
  * 시리즈 목록 페이지(/series)에서 사용
  */
 export async function getPublishedSeries(): Promise<Series[]> {
-  const seriesRef = collection(db, 'series');
-  const q = query(
-    seriesRef,
-    where('isPublic', '==', true),
-    orderBy('order', 'asc'),
-    orderBy('createdAt', 'desc')
-  );
+  return memoize(`${SERIES_MEMO_PREFIX}published`, async () => {
+    const seriesRef = collection(db, 'series');
+    const q = query(
+      seriesRef,
+      where('isPublic', '==', true),
+      orderBy('order', 'asc'),
+      orderBy('createdAt', 'desc')
+    );
 
-  const snapshot = await getDocs(q);
+    const snapshot = await getDocs(q);
 
-  return snapshot.docs.map(mapSeriesDoc);
+    return snapshot.docs.map(mapSeriesDoc);
+  });
+}
+
+/**
+ * 시리즈의 postIds를 실제 공개 글 목록으로 바꾼다.
+ * - 이미 받아 둔 글 목록을 쓰므로 Firestore를 다시 조회하지 않는다.
+ * - 과거 데이터는 문서 ID, 최근 데이터는 slug를 들고 있어서 둘 다 찾는다.
+ */
+function resolveSeriesPosts(series: Series, contentPosts: ContentPost[]): SeriesPost[] {
+  if (series.postIds.length === 0) return [];
+
+  const postMapById = new Map(contentPosts.map((post) => [post.id, post] as const));
+  const postMapBySlug = new Map(contentPosts.map((post) => [post.slug, post] as const));
+
+  return series.postIds
+    .map((postRef, index) => {
+      const post = postMapById.get(postRef) || postMapBySlug.get(postRef);
+
+      if (!post) return null;
+
+      return {
+        id: post.id,
+        title: post.title,
+        description: post.description,
+        slug: post.slug,
+        pubDate: post.pubDate,
+        readingTime: post.readingTime,
+        order: index + 1,
+      };
+    })
+    .filter((post): post is SeriesPost => post !== null);
+}
+
+/**
+ * 공개 시리즈 목록 + 시리즈별 총 읽기 시간
+ * 홈의 Featured Series, /series 목록, /api/series-preview에서 사용
+ * - 예전: 시리즈마다 시리즈 문서 1번 + 전체 글 목록 1번을 조회했다 (시리즈 N개면 2N번).
+ * - 지금: 시리즈 목록과 글 목록을 동시에 한 번씩만 조회하고 메모리에서 계산한다.
+ */
+export async function getPublishedSeriesWithReadingTime(): Promise<
+  Array<Series & { totalReadingTime: number }>
+> {
+  const [seriesList, contentPosts] = await Promise.all([
+    getPublishedSeries(),
+    getPublishedContentPosts(),
+  ]);
+
+  return seriesList.map((series) => ({
+    ...series,
+    totalReadingTime: resolveSeriesPosts(series, contentPosts).reduce(
+      (total, post) => total + post.readingTime,
+      0
+    ),
+  }));
 }
 
 /**
@@ -109,26 +168,7 @@ export async function getPostsBySeries(seriesId: string): Promise<SeriesPost[]> 
   if (series.postIds.length === 0) return [];
 
   const contentPosts = await getPublishedContentPosts();
-  const postMapById = new Map(contentPosts.map((post) => [post.id, post] as const));
-  const postMapBySlug = new Map(contentPosts.map((post) => [post.slug, post] as const));
-
-  return series.postIds
-    .map((postRef, index) => {
-      const post = postMapById.get(postRef) || postMapBySlug.get(postRef);
-
-      if (!post) return null;
-
-      return {
-        id: post.id,
-        title: post.title,
-        description: post.description,
-        slug: post.slug,
-        pubDate: post.pubDate,
-        readingTime: post.readingTime,
-        order: index + 1,
-      };
-    })
-    .filter((post): post is SeriesPost => post !== null);
+  return resolveSeriesPosts(series, contentPosts);
 }
 
 /**

@@ -238,15 +238,6 @@
   animation-duration: 0.3s;
 }
 
-@keyframes gradient-shift {
-  0%, 100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-}
-
 @keyframes float {
   0%, 100% {
     transform: translateY(0) rotate(3deg);
@@ -303,16 +294,130 @@
   animation: shimmer 1.5s infinite;
 }
 
+/* 히어로 배경 그라디언트
+   - 예전: background-position을 15초 동안 계속 바꿨다. 이 속성은 매 프레임 Paint를 다시 한다.
+   - 지금: 두 그라디언트 층을 겹치고 위층의 opacity만 바꾼다. opacity는 GPU 합성 단계에서 처리되어
+     메인 스레드가 Paint를 다시 하지 않는다. */
 .animated-gradient {
   background: linear-gradient(
     -45deg,
     var(--brand-tint),
-    var(--bg-app),
-    rgba(16, 185, 129, 0.05),
+    var(--bg-app) 45%,
     var(--bg-surface)
   );
-  background-size: 400% 400%;
-  animation: gradient-shift 15s ease infinite;
+}
+.animated-gradient::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    -45deg,
+    var(--bg-surface),
+    rgba(16, 185, 129, 0.05) 55%,
+    var(--brand-tint)
+  );
+  opacity: 0;
+  will-change: opacity;
+  animation: gradient-crossfade 15s ease-in-out infinite;
+}
+@keyframes gradient-crossfade {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* 히어로 진입 애니메이션
+   - 예전: framer-motion이 JS 하이드레이션 뒤에 시작했다. 그 전까지 글자가 opacity 0이라 LCP가 늦었고,
+     하이드레이션과 애니메이션 시작이 같은 프레임에 몰려 프레임이 끊겼다.
+   - 지금: HTML이 그려지는 순간 CSS 애니메이션이 시작된다. opacity/transform만 쓴다. */
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes hero-slide {
+  from {
+    opacity: 0;
+    transform: translate3d(-30px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes hero-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.85) rotate(-5deg);
+  }
+  70% {
+    transform: scale(1.02) rotate(0.5deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.hero-rise {
+  animation: hero-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--hero-delay, 0s);
+}
+.hero-slide {
+  animation: hero-slide 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.hero-pop {
+  animation: hero-pop 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
+}
+
+/* 손 흔들기: 1.5초 흔들고 3초 쉰다 (총 4.5초 주기) */
+@keyframes hero-wave {
+  0%,
+  33.3%,
+  100% {
+    transform: rotate(0deg);
+  }
+  6.6% {
+    transform: rotate(20deg);
+  }
+  13.3% {
+    transform: rotate(-10deg);
+  }
+  20% {
+    transform: rotate(20deg);
+  }
+}
+.hero-wave {
+  display: inline-block;
+  transform-origin: 70% 80%;
+  animation: hero-wave 4.5s ease-in-out 1s infinite;
+}
+
+/* 프로필 뒤 장식 판: 천천히 흔들린다 (translateZ는 3D 틸트 깊이용) */
+@keyframes hero-sway {
+  0%,
+  100% {
+    transform: translateZ(-30px) rotate(3deg);
+  }
+  50% {
+    transform: translateZ(-30px) rotate(5deg);
+  }
+}
+.hero-sway {
+  animation: hero-sway 6s ease-in-out infinite;
+}
+
+/* 타이핑 커서 깜빡임 (opacity만 바꿔 GPU 합성으로 처리) */
+.caret-blink {
+  animation: blink 1s step-end infinite;
 }
 
 .float-animation {

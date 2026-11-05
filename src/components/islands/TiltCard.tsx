@@ -35,16 +35,12 @@ export default function TiltCard({
     [`-${tiltAmount}deg`, `${tiltAmount}deg`]
   );
 
+  // 기울지 않는 바깥 래퍼의 사각형으로 포인터 위치를 잰다
+  // - 예전에는 기울어진 요소 자신을 쟀다. 기울수록 사각형이 바뀌어 값이 흔들렸다.
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-
-    // -0.5 ~ 0.5 범위로 정규화
-    x.set(mouseX / width - 0.5);
-    y.set(mouseY / height - 0.5);
+    x.set((e.clientX - rect.left) / rect.width - 0.5);
+    y.set((e.clientY - rect.top) / rect.height - 0.5);
   };
 
   const handleMouseLeave = () => {
@@ -53,19 +49,25 @@ export default function TiltCard({
     y.set(0);
   };
 
+  // perspective는 기우는 요소의 부모에 있어야 원근이 생긴다
+  // - 예전에는 기우는 요소 자신에 있어 원근 없이 납작하게 기울었다 (대각선 방향이 반대로 보이는 원인).
   return (
-    <motion.div
+    <div
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      style={{
-        rotateX,
-        rotateY,
-        transformStyle: 'preserve-3d',
-        perspective: `${perspective}px`,
-      }}
+      style={{ perspective: `${perspective}px` }}
       className={className}
     >
-      {children}
-    </motion.div>
+      <motion.div
+        style={{
+          rotateX,
+          rotateY,
+          transformStyle: 'preserve-3d',
+        }}
+        className="h-full"
+      >
+        {children}
+      </motion.div>
+    </div>
   );
 }

@@ -1,6 +1,10 @@
 import { Timestamp } from 'firebase-admin/firestore';
 import type { Series } from '@/lib/series';
 import { getServerDb } from './firebase-server';
+import { invalidateMemo } from './memo-cache';
+
+// 공개 시리즈 메모리 캐시 키 접두사 (src/lib/series.ts의 SERIES_MEMO_PREFIX와 같은 값)
+const SERIES_MEMO_PREFIX = 'series:';
 
 type SeriesPayload = {
   id?: string;
@@ -64,6 +68,7 @@ export async function saveAdminSeries(payload: SeriesPayload) {
 
   if (payload.id) {
     await db.collection('series').doc(payload.id).update(baseData);
+    invalidateMemo(SERIES_MEMO_PREFIX);
     return payload.id;
   }
 
@@ -71,6 +76,7 @@ export async function saveAdminSeries(payload: SeriesPayload) {
     ...baseData,
     createdAt: Timestamp.now(),
   });
+  invalidateMemo(SERIES_MEMO_PREFIX);
 
   return created.id;
 }
@@ -78,4 +84,5 @@ export async function saveAdminSeries(payload: SeriesPayload) {
 export async function deleteAdminSeries(id: string) {
   const db = getServerDb();
   await db.collection('series').doc(id).delete();
+  invalidateMemo(SERIES_MEMO_PREFIX);
 }

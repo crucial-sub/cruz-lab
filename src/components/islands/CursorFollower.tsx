@@ -8,16 +8,27 @@ interface Props {
   trailColor?: string;
 }
 
+// 호버 효과를 줄 요소 선택자
+const HOVERABLE_SELECTOR = 'a, button, [role="button"], label, summary, .cursor-pointer';
+
 /**
  * CursorFollower - 커스텀 커서와 트레일 효과
  * 마우스를 따라다니는 원형 커서와 지연되는 트레일
+ *
+ * 성능 관련 변경
+ * - mouseover마다 getComputedStyle()을 부르지 않는다. 스타일 재계산을 강제하기 때문이다.
+ *   대신 closest()로 링크/버튼만 확인한다.
+ * - mix-blend-mode: difference를 쓰지 않는다. 화면 전체와 섞는 합성을 매 프레임 하게 만든다.
+ * - 크기는 width/height가 아니라 scale로 바꾼다. width/height는 Layout을 다시 하게 만든다.
+ * - 상태(state)는 값이 바뀔 때만 바꾼다.
  */
 export default function CursorFollower({
   size = 12,
   color = 'var(--color-brand)',
   trailSize = 32,
-  trailColor = 'rgba(139, 92, 246, 0.3)'
+  trailColor = 'rgba(139, 92, 246, 0.25)',
 }: Props) {
+  const [enabled, setEnabled] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
 
@@ -31,92 +42,84 @@ export default function CursorFollower({
   const trailY = useSpring(cursorY, springConfig);
 
   useEffect(() => {
-    // 모바일 기기에서는 표시하지 않음
-    if (window.matchMedia('(pointer: coarse)').matches) {
-      return;
-    }
+    // 마우스가 없는 기기(터치)에서는 켜지 않는다
+    if (!window.matchMedia('(pointer: fine)').matches) return;
+    setEnabled(true);
+
+    let visible = false;
+    let hovering = false;
 
     const handleMouseMove = (e: MouseEvent) => {
       cursorX.set(e.clientX);
       cursorY.set(e.clientY);
-      setIsVisible(true);
+      if (!visible) {
+        visible = true;
+        setIsVisible(true);
+      }
     };
 
     const handleMouseLeave = () => {
+      visible = false;
       setIsVisible(false);
     };
 
-    const handleMouseEnter = () => {
-      setIsVisible(true);
-    };
-
-    // 호버 가능한 요소 감지
+    // 호버 가능한 요소 감지 (값이 바뀔 때만 렌더링)
     const handleElementHover = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      const isHoverable =
-        target.tagName === 'A' ||
-        target.tagName === 'BUTTON' ||
-        target.closest('a') ||
-        target.closest('button') ||
-        target.closest('[role="button"]') ||
-        window.getComputedStyle(target).cursor === 'pointer';
-
-      setIsHovering(isHoverable);
+      const target = e.target as Element | null;
+      const next = Boolean(target?.closest?.(HOVERABLE_SELECTOR));
+      if (next !== hovering) {
+        hovering = next;
+        setIsHovering(next);
+      }
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseleave', handleMouseLeave);
-    document.addEventListener('mouseenter', handleMouseEnter);
-    document.addEventListener('mouseover', handleElementHover);
+    document.addEventListener('mousemove', handleMouseMove, { passive: true });
+    document.documentElement.addEventListener('mouseleave', handleMouseLeave);
+    document.addEventListener('mouseover', handleElementHover, { passive: true });
 
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseleave', handleMouseLeave);
-      document.removeEventListener('mouseenter', handleMouseEnter);
+      document.documentElement.removeEventListener('mouseleave', handleMouseLeave);
       document.removeEventListener('mouseover', handleElementHover);
     };
   }, [cursorX, cursorY]);
 
-  // 모바일에서는 렌더링하지 않음
-  if (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches) {
-    return null;
-  }
+  if (!enabled) return null;
 
   return (
     <>
       {/* 트레일 (큰 원) */}
       <motion.div
-        className="pointer-events-none fixed left-0 top-0 z-[9999] rounded-full mix-blend-difference"
+        aria-hidden="true"
+        className="pointer-events-none fixed left-0 top-0 z-[9999] rounded-full"
         style={{
           x: trailX,
           y: trailY,
-          width: isHovering ? trailSize * 1.5 : trailSize,
-          height: isHovering ? trailSize * 1.5 : trailSize,
+          width: trailSize,
+          height: trailSize,
+          marginLeft: -trailSize / 2,
+          marginTop: -trailSize / 2,
           backgroundColor: trailColor,
-          translateX: '-50%',
-          translateY: '-50%',
-          opacity: isVisible ? 1 : 0
         }}
-        animate={{
-          scale: isHovering ? 1.2 : 1
-        }}
+        animate={{ scale: isHovering ? 1.8 : 1, opacity: isVisible ? 1 : 0 }}
         transition={{ duration: 0.2 }}
       />
 
       {/* 메인 커서 (작은 점) */}
       <motion.div
+        aria-hidden="true"
         className="pointer-events-none fixed left-0 top-0 z-[10000] rounded-full"
         style={{
           x: cursorX,
           y: cursorY,
-          width: isHovering ? size * 0.5 : size,
-          height: isHovering ? size * 0.5 : size,
+          width: size,
+          height: size,
+          marginLeft: -size / 2,
+          marginTop: -size / 2,
           backgroundColor: color,
-          translateX: '-50%',
-          translateY: '-50%',
-          opacity: isVisible ? 1 : 0
         }}
-        transition={{ duration: 0.1 }}
+        animate={{ scale: isHovering ? 0.5 : 1, opacity: isVisible ? 1 : 0 }}
+        transition={{ duration: 0.15 }}
       />
     </>
   );
