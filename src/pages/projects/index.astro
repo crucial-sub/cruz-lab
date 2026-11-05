@@ -1,7 +1,7 @@
 ---
 export const prerender = true;
 
-import FadeInSection from '@/components/islands/FadeInSection';
+import Reveal from '@/components/Reveal.astro';
 import ProjectCard from '@/components/islands/ProjectCard';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { getProjectHref, getProjectMetas, getProjectSlug } from '@/lib/project-posts';
@@ -24,7 +24,7 @@ const otherProjects = sortedProjects.filter((p) => !p.data.featured);
 <BaseLayout title={title} description={description}>
   <div class="py-8">
     <!-- 페이지 헤더 -->
-    <FadeInSection client:visible>
+    <Reveal>
       <div class="mb-12 text-center">
         <h1 class="mb-4 text-4xl font-extrabold md:text-5xl">
           <span class="text-brand">Projects</span>
@@ -33,12 +33,12 @@ const otherProjects = sortedProjects.filter((p) => !p.data.featured);
           Cruz Lab의 프로젝트 경험을 소개합니다.
         </p>
       </div>
-    </FadeInSection>
+    </Reveal>
 
     <!-- Featured 프로젝트 섹션 -->
     {
       featuredProjects.length > 0 && (
-        <FadeInSection client:visible delay={0.1}>
+        <Reveal delay={0.1}>
           <section class="mb-16">
             <h2 class="mb-6 flex items-center gap-2 text-2xl font-bold">
               <span class="text-brand">Featured</span>
@@ -65,14 +65,14 @@ const otherProjects = sortedProjects.filter((p) => !p.data.featured);
               ))}
             </div>
           </section>
-        </FadeInSection>
+        </Reveal>
       )
     }
 
     <!-- 다른 프로젝트 섹션 -->
     {
       otherProjects.length > 0 && (
-        <FadeInSection client:visible delay={0.2}>
+        <Reveal delay={0.2}>
           <section>
             <h2 class="mb-6 flex items-center gap-2 text-2xl font-bold">
               <span>Other Projects</span>
@@ -99,7 +99,7 @@ const otherProjects = sortedProjects.filter((p) => !p.data.featured);
               ))}
             </div>
           </section>
-        </FadeInSection>
+        </Reveal>
       )
     }
 

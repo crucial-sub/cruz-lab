@@ -1,9 +1,10 @@
 ---
 import { getAllContentTags, getPublishedContentPosts } from '@/lib/content-posts';
-import FadeInSection from '@/components/islands/FadeInSection';
+import Reveal from '@/components/Reveal.astro';
 import TextReveal from '@/components/islands/TextReveal';
 import BlogPostList from '@/components/blog/BlogPostList';
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import { setPublicPageCache } from '@/lib/server/cache-headers';
 
 const title = 'Blog';
 const description = 'Cruz의 개발 블로그 - 프론트엔드, 시스템 프로그래밍, 학습 기록';
@@ -21,12 +22,15 @@ const posts = (await getPublishedContentPosts()).map((post) => ({
   isPublic: post.isPublic,
 }));
 const tags = await getAllContentTags();
+
+// CDN이 60초 동안 이 응답을 저장하게 한다
+setPublicPageCache(Astro.response.headers);
 ---
 
 <BaseLayout title={title} description={description}>
   <div class="py-8">
     <!-- 페이지 헤더 -->
-    <FadeInSection client:visible>
+    <Reveal>
       <div class="mb-12 text-center">
         <h1 class="mb-4 text-4xl font-extrabold md:text-5xl">
           <TextReveal client:visible text="Blog" type="chars" staggerChildren={0.08} />
@@ -35,11 +39,11 @@ const tags = await getAllContentTags();
           개발하면서 배운 것들, 경험한 것들을 기록합니다.
         </p>
       </div>
-    </FadeInSection>
+    </Reveal>
 
     <!-- 포스트 목록 -->
-    <FadeInSection client:visible delay={0.2}>
+    <Reveal delay={0.2}>
       <BlogPostList client:load initialPosts={posts} initialTags={tags} />
-    </FadeInSection>
+    </Reveal>
   </div>
 </BaseLayout>

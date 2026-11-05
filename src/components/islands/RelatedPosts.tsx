@@ -46,7 +46,6 @@ export default function RelatedPosts({ posts }: Props) {
               title={post.title}
               description={post.description}
               pubDate={post.pubDate}
-              heroImage={post.heroImage}
               tags={post.tags}
               readingTime={post.readingTime}
             />

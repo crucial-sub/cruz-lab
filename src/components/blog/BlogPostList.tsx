@@ -531,7 +531,9 @@ export default function BlogPostList({ initialPosts, initialTags }: Props) {
                     opacity: { duration: 0.4, ease: 'easeOut' },
                     scale: { duration: 0.4, ease: 'easeOut' },
                     y: { duration: 0.4, ease: 'easeOut' },
-                    delay: index * 0.08,
+                    // 지연은 앞쪽 8개까지만 늘린다
+                    // - 예전: index * 0.08초라 55번째 카드는 4.4초 뒤에 나타났다.
+                    delay: Math.min(index, 8) * 0.05,
                   }}
                   className="h-full"
                 >
@@ -539,8 +541,6 @@ export default function BlogPostList({ initialPosts, initialTags }: Props) {
                     title={post.title}
                     description={post.description || ''}
                     pubDate={post.pubDate}
-                    heroImage={post.heroImage || `https://picsum.photos/seed/${post.id}/600/400`}
-                    heroVideo={post.heroVideo}
                     tags={post.tags}
                     slug={post.slug}
                     index={0} // 이미 stagger가 motion.div에서 적용되므로 0으로 설정

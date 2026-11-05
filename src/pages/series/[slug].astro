@@ -2,8 +2,9 @@
 export const prerender = false;
 
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import FadeInSection from '@/components/islands/FadeInSection';
+import Reveal from '@/components/Reveal.astro';
 import { getSeriesBySlug, getPostsBySeries } from '@/lib/series';
+import { setPublicPageCache } from '@/lib/server/cache-headers';
 
 const { slug } = Astro.params;
 
@@ -21,6 +22,9 @@ if (!series) {
 // 시리즈 내 포스트 목록 가져오기
 const posts = await getPostsBySeries(series.id);
 
+// 시리즈를 찾은 경우에만 CDN 캐시를 건다
+setPublicPageCache(Astro.response.headers);
+
 const title = `${series.name} - Series`;
 const description = series.description;
 
@@ -31,7 +35,7 @@ const totalReadingTime = posts.reduce((sum, post) => sum + post.readingTime, 0);
 <BaseLayout title={title} description={description}>
   <div class="py-8">
     <!-- 뒤로가기 -->
-    <FadeInSection client:visible>
+    <Reveal>
       <a
         href="/series"
         class="group mb-6 inline-flex items-center gap-2 text-text-secondary transition-colors hover:text-brand"
@@ -51,10 +55,10 @@ const totalReadingTime = posts.reduce((sum, post) => sum + post.readingTime, 0);
         </svg>
         시리즈 목록으로
       </a>
-    </FadeInSection>
+    </Reveal>
 
     <!-- 시리즈 헤더 -->
-    <FadeInSection client:visible delay={0.1}>
+    <Reveal delay={0.1}>
       <div class="mb-8 rounded-2xl border border-border bg-gradient-to-br from-bg-card to-bg-surface p-8">
         {/* 시리즈 커버 이미지 */}
         {
@@ -106,10 +110,10 @@ const totalReadingTime = posts.reduce((sum, post) => sum + post.readingTime, 0);
           </div>
         </div>
       </div>
-    </FadeInSection>
+    </Reveal>
 
     <!-- 포스트 목록 (체크리스트 형태) -->
-    <FadeInSection client:visible delay={0.2}>
+    <Reveal delay={0.2}>
       <div class="space-y-3">
         <h2 class="mb-4 text-xl font-bold text-text-primary">시리즈 목차</h2>
 
@@ -193,12 +197,12 @@ const totalReadingTime = posts.reduce((sum, post) => sum + post.readingTime, 0);
           ))
         }
       </div>
-    </FadeInSection>
+    </Reveal>
 
     <!-- 시작하기 버튼 (첫 번째 포스트로) -->
     {
       posts.length > 0 && (
-        <FadeInSection client:visible delay={0.3}>
+        <Reveal delay={0.3}>
           <div class="mt-8 text-center">
             <a
               href={`/blog/${posts[0].slug}`}
@@ -221,7 +225,7 @@ const totalReadingTime = posts.reduce((sum, post) => sum + post.readingTime, 0);
               시리즈 시작하기
             </a>
           </div>
-        </FadeInSection>
+        </Reveal>
       )
     }
   </div>

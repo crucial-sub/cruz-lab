@@ -11,15 +11,17 @@ interface SeriesWithTime extends Series {
 }
 
 interface Props {
+  // 서버에서 받은 시리즈 목록. 값이 있으면(빈 배열 포함) API를 부르지 않는다.
   series?: SeriesWithTime[];
 }
 
-export default function SeriesPreview({ series: initialSeries = [] }: Props) {
-  const [series, setSeries] = useState<SeriesWithTime[]>(initialSeries);
-  const [isLoading, setIsLoading] = useState(initialSeries.length === 0);
+export default function SeriesPreview({ series: initialSeries }: Props) {
+  const [series, setSeries] = useState<SeriesWithTime[]>(initialSeries ?? []);
+  const [isLoading, setIsLoading] = useState(initialSeries === undefined);
 
   useEffect(() => {
-    if (initialSeries.length > 0) return;
+    // 서버가 이미 데이터를 넣어 줬으면 다시 조회하지 않는다
+    if (initialSeries !== undefined) return;
 
     async function fetchSeries() {
       try {

@@ -2,30 +2,26 @@
 export const prerender = false;
 
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import FadeInSection from '@/components/islands/FadeInSection';
+import Reveal from '@/components/Reveal.astro';
 import TextReveal from '@/components/islands/TextReveal';
 import SeriesCard from '@/components/islands/SeriesCard';
-import { getPublishedSeries, getSeriesReadingTime } from '@/lib/series';
+import { getPublishedSeriesWithReadingTime } from '@/lib/series';
+import { setPublicPageCache } from '@/lib/server/cache-headers';
 
 const title = 'Series';
 const description = '시리즈로 정리된 심도있는 학습 기록';
 
-// 시리즈 목록 가져오기
-const seriesList = await getPublishedSeries();
+// 시리즈 목록 + 총 읽기 시간 (Firestore 조회 2번으로 끝낸다)
+const seriesWithReadingTime = await getPublishedSeriesWithReadingTime();
 
-// 각 시리즈의 총 읽기 시간 계산
-const seriesWithReadingTime = await Promise.all(
-  seriesList.map(async (series) => ({
-    ...series,
-    totalReadingTime: await getSeriesReadingTime(series.id),
-  }))
-);
+// CDN이 60초 동안 이 응답을 저장하게 한다
+setPublicPageCache(Astro.response.headers);
 ---
 
 <BaseLayout title={title} description={description}>
   <div class="py-8">
     <!-- 페이지 헤더 -->
-    <FadeInSection client:visible>
+    <Reveal>
       <div class="mb-12 text-center">
         <h1 class="mb-4 text-4xl font-extrabold md:text-5xl">
           <TextReveal client:visible text="Series" type="chars" staggerChildren={0.08} />
@@ -34,12 +30,12 @@ const seriesWithReadingTime = await Promise.all(
           연관된 포스트들을 시리즈로 묶어 체계적으로 학습하세요.
         </p>
       </div>
-    </FadeInSection>
+    </Reveal>
 
     <!-- 시리즈가 없을 때 -->
     {
       seriesWithReadingTime.length === 0 && (
-        <FadeInSection client:visible delay={0.2}>
+        <Reveal delay={0.2}>
           <div class="flex flex-col items-center justify-center py-20 text-center">
             <div class="mb-6 rounded-full bg-bg-card p-8">
               <svg
@@ -77,14 +73,14 @@ const seriesWithReadingTime = await Promise.all(
               블로그 글 보기
             </a>
           </div>
-        </FadeInSection>
+        </Reveal>
       )
     }
 
     <!-- 시리즈 그리드 -->
     {
       seriesWithReadingTime.length > 0 && (
-        <FadeInSection client:visible delay={0.2}>
+        <Reveal delay={0.2}>
           <div class="mb-6 text-sm text-text-secondary">
             총 {seriesWithReadingTime.length}개의 시리즈
           </div>
@@ -104,7 +100,7 @@ const seriesWithReadingTime = await Promise.all(
               />
             ))}
           </div>
-        </FadeInSection>
+        </Reveal>
       )
     }
   </div>

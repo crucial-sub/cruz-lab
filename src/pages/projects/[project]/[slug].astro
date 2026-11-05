@@ -1,7 +1,7 @@
 ---
 export const prerender = true;
 
-import FadeInSection from '@/components/islands/FadeInSection';
+import Reveal from '@/components/Reveal.astro';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import {
   getProjectMeta,
@@ -64,7 +64,7 @@ const showPartNav = projectPosts.length > 1;
   tags={tags}
 >
   <article class="py-8">
-    <FadeInSection client:visible>
+    <Reveal>
       <div class="mb-8 flex flex-wrap items-center gap-3 text-sm text-text-secondary">
         <a
           href="/projects"
@@ -78,9 +78,9 @@ const showPartNav = projectPosts.length > 1;
         <span class="text-text-muted">/</span>
         <span class="text-text-primary">{projectTitle}</span>
       </div>
-    </FadeInSection>
+    </Reveal>
 
-    <FadeInSection client:visible delay={0.1}>
+    <Reveal delay={0.1}>
       <section class="mb-10 border-b border-border pb-8">
         <div class="mb-4 flex flex-wrap items-center gap-3">
           <span class="rounded-full border border-brand/25 bg-brand/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">
@@ -124,15 +124,15 @@ const showPartNav = projectPosts.length > 1;
           )
         }
       </section>
-    </FadeInSection>
+    </Reveal>
 
-    <FadeInSection client:visible delay={0.2}>
+    <Reveal delay={0.2}>
       <section class="prose prose-lg max-w-none">
         <Content />
       </section>
-    </FadeInSection>
+    </Reveal>
 
-    <FadeInSection client:visible delay={0.3}>
+    <Reveal delay={0.3}>
       <section class="mt-14 grid gap-4 border-t border-border pt-10 md:grid-cols-2">
         {
           previousPost ? (
@@ -202,6 +202,6 @@ const showPartNav = projectPosts.length > 1;
           )
         }
       </section>
-    </FadeInSection>
+    </Reveal>
   </article>
 </BaseLayout>

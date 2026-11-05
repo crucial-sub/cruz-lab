@@ -3,11 +3,14 @@
 import BlogCard from './islands/BlogCard';
 import MagneticButton from './islands/MagneticButton';
 import TextReveal from './islands/TextReveal';
-import { getPublishedContentPosts } from '@/lib/content-posts';
+import { getPublishedContentPosts, type ContentPost } from '@/lib/content-posts';
 
-// 최신 포스트 3개 가져오기
-const allPosts = await getPublishedContentPosts();
-const recentPosts = allPosts.slice(0, 3);
+interface Props {
+  posts?: ContentPost[]; // 홈에서 미리 조회한 글 (없으면 직접 조회)
+}
+
+// 최신 포스트 3개
+const recentPosts = (Astro.props.posts ?? (await getPublishedContentPosts())).slice(0, 3);
 ---
 
 <section class="py-16">
@@ -44,8 +47,6 @@ const recentPosts = allPosts.slice(0, 3);
         title={post.title}
         description={post.description}
         pubDate={post.pubDate.toISOString()}
-        heroImage={post.heroImage}
-        heroVideo={post.heroVideo}
         tags={post.tags}
         slug={post.slug || post.id}
         index={index}

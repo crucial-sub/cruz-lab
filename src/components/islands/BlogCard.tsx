@@ -1,7 +1,7 @@
 // 블로그 포스트 카드 컴포넌트
 // TiltCard + GlowCard 효과를 결합한 인터랙티브 블로그 카드
 import { motion } from 'framer-motion';
-import { generateSrcSet, getDefaultSizes, getBlurStyle } from '@/lib/image-utils';
+import PostCover from '@/components/blog/PostCover';
 import GlowCard from './GlowCard';
 import TiltCard from './TiltCard';
 
@@ -9,30 +9,24 @@ interface Props {
   title: string;
   description: string;
   pubDate: Date | string;
-  heroImage?: string;
-  heroVideo?: string; // 자동재생 무한반복 동영상 (webm, mp4)
   tags: string[];
   slug: string;
   index?: number;
   featured?: boolean;
   readingTime?: number; // 서버에서 계산된 읽기 시간 (분)
   seriesId?: string; // 시리즈 ID (있으면 시리즈 배지 표시)
-  blurDataURL?: string; // LQIP base64 placeholder
 }
 
 export default function BlogCard({
   title,
   description,
   pubDate,
-  heroImage,
-  heroVideo,
   tags,
   slug,
   index = 0,
   featured = false,
   readingTime: propReadingTime,
   seriesId,
-  blurDataURL,
 }: Props) {
   // 날짜 객체로 변환 (문자열 또는 Date 모두 처리)
   const dateObj = typeof pubDate === 'string' ? new Date(pubDate) : pubDate;
@@ -63,48 +57,16 @@ export default function BlogCard({
             featured ? 'flex-row h-[220px]' : 'flex-col min-h-[420px]'
           }`}
         >
-          {/* 미디어 영역 (동영상 우선, 없으면 이미지) */}
-          {(heroVideo || heroImage) && (
-            <div
-              className={`relative overflow-hidden ${
-                featured ? 'w-2/5 h-full flex-shrink-0' : 'aspect-video'
-              }`}
-            >
-              {heroVideo ? (
-                // 자동재생 무한반복 동영상
-                <video
-                  src={heroVideo}
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  style={{ viewTransitionName: `post-hero-${slug}` }}
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
-              ) : (
-                <picture>
-                  <source
-                    srcSet={generateSrcSet(heroImage || '', [400, 800, 1200])}
-                    sizes={getDefaultSizes()}
-                    type="image/webp"
-                  />
-                  <img
-                    src={heroImage}
-                    alt={title}
-                    style={{
-                      viewTransitionName: `post-hero-${slug}`,
-                      ...getBlurStyle(blurDataURL),
-                    }}
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </picture>
-              )}
-              {/* 호버 오버레이 */}
-              <div className="absolute inset-0 bg-gradient-to-t from-bg-surface/80 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-            </div>
-          )}
+          {/* 커버 영역
+              - 예전: 업로드한 단색 배경 + 텍스트 이미지를 그대로 보여 줬다.
+              - 지금: 카테고리별 색으로 코드가 그린 커버를 보여 준다 (PostCover). */}
+          <div
+            className={`relative overflow-hidden ${
+              featured ? 'h-full w-2/5 flex-shrink-0' : 'aspect-video'
+            }`}
+          >
+            <PostCover title={title} tags={tags} slug={slug} date={dateObj} compact={featured} />
+          </div>
 
           {/* 콘텐츠 영역 */}
           <div className={`flex flex-1 flex-col ${featured ? 'w-3/5 p-4' : 'p-5'}`}>
