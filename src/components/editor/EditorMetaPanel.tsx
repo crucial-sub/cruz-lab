@@ -1,5 +1,4 @@
 import { useRef, useState } from 'react';
-import { resolveAdminAssetPreviewUrl } from '@/lib/admin-asset-preview';
 import { uploadCmsAsset } from './media-upload-client';
 import { UploadProgress } from './UploadProgress';
 import type { UploadStatus } from './upload-types';
@@ -101,7 +100,6 @@ export function EditorMetaPanel({
     .replace(MARKDOWN_STRIP_PATTERN, '')
     .replace(/\n+/g, ' ')
     .trim();
-  const heroPreviewUrl = resolveAdminAssetPreviewUrl(heroImage);
 
   const handleUploadHide = () => {
     setUploadStatus('idle');
@@ -263,7 +261,7 @@ export function EditorMetaPanel({
               {heroImage ? (
                 isVideoUrl(heroImage) ? (
                   <video
-                    src={heroPreviewUrl}
+                    src={heroImage}
                     className="h-full w-full object-cover"
                     muted
                     autoPlay
@@ -271,7 +269,7 @@ export function EditorMetaPanel({
                     playsInline
                   />
                 ) : (
-                  <img src={heroPreviewUrl} alt="썸네일 미리보기" className="h-full w-full object-cover" />
+                  <img src={heroImage} alt="썸네일 미리보기" className="h-full w-full object-cover" />
                 )
               ) : (
                 <div className="flex h-full items-center justify-center text-sm text-gray-400">

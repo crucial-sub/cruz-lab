@@ -1,13 +1,29 @@
 rules_version = '2';
 
+// Storage 접근 규칙
+// - 읽기는 공개한다(글의 이미지·영상).
+// - 쓰기는 관리자 계정만 한다. 클라이언트 업로드는
+//   src/components/editor/media-upload-client.ts의 uploadBytesResumable 하나다.
+// - 클라이언트 삭제는 쓰지 않으므로 허용하지 않는다.
 service firebase.storage {
   match /b/{bucket}/o {
-    // 모든 이미지 파일에 대해
+    // 관리자 계정인지 확인한다(PUBLIC_ADMIN_EMAIL과 같은 값)
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email == 'jssub940@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    // 업로드 파일이 이미지 또는 영상이고 50 MB 이하인지 확인한다
+    function isAllowedMedia() {
+      return request.resource.contentType.matches('image/.*|video/.*')
+        && request.resource.size <= 50 * 1024 * 1024;
+    }
+
     match /{allPaths=**} {
-      // 읽기는 누구나 가능
       allow read: if true;
-      // 쓰기는 인증된 사용자만 가능
-      allow write: if request.auth != null;
+      allow create, update: if isAdmin() && isAllowedMedia();
+      allow delete: if false;
     }
   }
 }

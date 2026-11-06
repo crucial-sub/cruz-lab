@@ -26,16 +26,14 @@ pnpm-debug.log*
 # vercel
 .vercel/
 
-# Firebase Functions
-functions/lib/
-functions/node_modules/
-
 # etc
 .playwright-mcp/
 .claude/
 docs/*
 !docs/cms-rebuild-tracker.md
 !docs/editor-engine-evaluation.md
+# 블로그 재건 문서와 시각 문서는 추적한다 (docs/blog-rebuilding/…/visual-plans 포함)
+!docs/blog-rebuilding/
 .serena/
 
 # 서비스 계정 키

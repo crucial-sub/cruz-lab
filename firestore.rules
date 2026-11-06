@@ -1,27 +1,28 @@
 rules_version = '2';
 
+// 클라이언트 SDK 접근 규칙
+// - 모든 쓰기는 서버(Admin SDK)가 한다. Admin SDK는 이 규칙을 적용받지 않는다.
+// - 따라서 클라이언트 쓰기는 전부 막고, 읽기는 공개 문서만 허용한다.
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 시리즈 컬렉션 - 모든 사용자가 읽기 가능
+    // 시리즈: 공개 시리즈만 읽기 허용
+    // - src/lib/series.ts가 isPublic == true 조건으로 쿼리한다.
     match /series/{seriesId} {
-      allow read: if true;
-      allow write: if request.auth != null; // 인증된 사용자만 쓰기 가능
+      allow read: if resource.data.isPublic == true;
+      allow write: if false;
     }
 
-    // 포스트 컬렉션 - 공개된 포스트만 읽기 가능
+    // 포스트: 공개되고 발행된 글만 읽기 허용
+    // - 쿼리도 이 조건을 만족해야 한다(조건 없는 list는 거부된다).
     match /posts/{postId} {
-      // 단일 문서 읽기: 공개되고 발행된 포스트만 허용
-      allow get: if resource.data.isPublic == true && resource.data.status == 'published';
-      // 쿼리(리스트): 클라이언트가 isPublic==true && status=='published' 조건으로 쿼리할 수 있도록 허용
-      allow list: if true;
-      allow write: if request.auth != null; // 인증된 사용자만 쓰기 가능
+      allow read: if resource.data.isPublic == true
+        && resource.data.status == 'published';
+      allow write: if false;
     }
 
-    // 댓글 컬렉션 (향후 확장 가능)
+    // 댓글: 사용하지 않는다. 전부 거부
     match /comments/{commentId} {
-      allow read: if true;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.authorId;
+      allow read, write: if false;
     }
   }
 }

@@ -1,6 +1,5 @@
 // 시리즈 에디터 컴포넌트
 import { useState, useEffect, useMemo } from 'react';
-import { resolveAdminAssetPreviewUrl } from '@/lib/admin-asset-preview';
 import { getClientAdminIdToken } from '@/lib/firebase-auth-client';
 import { uploadCmsAsset } from '@/components/editor/media-upload-client';
 import AdminGuard from '../AdminGuard';
@@ -64,7 +63,6 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const coverPreviewUrl = resolveAdminAssetPreviewUrl(coverImage);
 
   // 초기 데이터 로딩
   useEffect(() => {
@@ -536,7 +534,7 @@ export default function SeriesEditor({ seriesId, mode }: Props) {
                         <div className="p-6 space-y-4">
                             <div className="group relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-bg border border-border">
                                 {coverImage ? (
-                                    <img src={coverPreviewUrl} alt="Cover" className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                                    <img src={coverImage} alt="Cover" className="h-full w-full object-cover transition-transform group-hover:scale-105" />
                                 ) : (
                                     <div className="flex h-full flex-col items-center justify-center text-text-secondary gap-2">
                                         <ImageIcon size={40} className="opacity-20" />

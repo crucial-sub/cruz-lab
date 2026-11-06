@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cruz Lab 구조 전수조사 (2) 문제와 개선안</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%230b0d0c'/%3E%3Cpath d='M18 44L32 18l14 26' stroke='%23f2a93b' stroke-width='5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* Instrument register (audit) */
+  :root {
+    color-scheme: dark light;
+    --bg: #0b0d0c; --surface: #121614; --border: #1f2522; --border-bright: #5e6662;
+    --text: #e6ebe8; --text-dim: #919d97; --accent: #f2a93b; --accent-dim: rgba(242,169,59,.14);
+    --ok: #6fcf97; --warn: #e8c547; --risk: #ef6f5c; --info: #6cb6e0;
+    --node-top: color-mix(in srgb, var(--text) 7%, var(--surface)); --lift: rgb(0 0 0 / .45); --halo: 32%;
+    --font-body: 'Geist', 'IBM Plex Sans KR', 'Pretendard', sans-serif;
+    --font-mono: 'Geist Mono', ui-monospace, monospace;
+    --t-label: .75rem; --t-small: .875rem; --t-body: 1rem; --t-lead: 1.25rem; --t-h2: 1.625rem; --t-h1: clamp(2.25rem, 5.5vw, 3.5rem);
+    --s-1: .25rem; --s-2: .5rem; --s-3: .75rem; --s-4: 1rem; --s-5: 1.5rem; --s-6: 2rem; --s-7: 3rem; --s-8: 4.5rem;
+    --r-1: 4px; --r-2: 10px;
+    --ease: cubic-bezier(.16,1,.3,1); --fast: 150ms; --med: 300ms; --slow: 500ms;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f4f5f3; --surface: #ffffff; --border: #dfe3e0; --border-bright: #888e8b; --text: #121614; --text-dim: #545e59; --accent: #955700; --accent-dim: rgba(149,87,0,.12); --ok: #1c7443; --warn: #7a5e00; --risk: #b0341e; --info: #1a6890; --node-top: var(--surface); --lift: rgb(18 22 20 / .12); --halo: 22%; }
+  }
+  html { font-size: 17px; }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 400 var(--t-body)/1.65 var(--font-body); text-wrap: pretty; font-kerning: normal; font-synthesis: none; -webkit-font-smoothing: antialiased; word-break: keep-all; }
+  ::selection { background: var(--accent-dim); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .layout { display: grid; grid-template-columns: minmax(0,1fr); }
+  @media (min-width: 1000px) { .layout { grid-template-columns: 15rem minmax(0,1fr); } }
+  nav.toc { position: sticky; top: 0; align-self: start; padding: var(--s-5); border-bottom: 1px solid var(--border); background: var(--bg); z-index: 5; }
+  @media (min-width: 1000px) { nav.toc { height: 100vh; border-right: 1px solid var(--border); border-bottom: 0; overflow-y: auto; } }
+  nav.toc ol { list-style: none; padding: 0; display: flex; gap: var(--s-3); overflow-x: auto; scrollbar-width: none; mask-image: linear-gradient(90deg, #000 85%, transparent); }
+  nav.toc ol::-webkit-scrollbar { display: none; }
+  @media (min-width: 1000px) { nav.toc ol { flex-direction: column; overflow: visible; mask-image: none; } }
+  nav.toc a { color: var(--text-dim); text-decoration: none; font: 500 var(--t-small) var(--font-mono); white-space: nowrap; display: block; padding: var(--s-1) 0; border-left: 2px solid transparent; padding-left: var(--s-3); }
+  nav.toc a.active, nav.toc a:hover { color: var(--text); border-color: var(--accent); }
+  nav.toc .ttl { font: 600 var(--t-label) var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: var(--s-3); }
+  main { max-width: 64rem; margin: 0 auto; padding: var(--s-8) var(--s-5); display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-8); width: 100%; }
+  section, figure, header { min-width: 0; scroll-margin-top: 4rem; }
+  header { display: grid; gap: var(--s-4); }
+  h1 { font-size: var(--t-h1); line-height: 1.1; font-weight: 600; letter-spacing: -.03em; text-wrap: balance; max-width: 22ch; }
+  h1 .num { color: var(--accent); }
+  h2 { font-size: var(--t-h2); line-height: 1.25; font-weight: 600; letter-spacing: -.015em; text-wrap: balance; }
+  .sec-head { display: grid; gap: var(--s-3) var(--s-5); align-items: baseline; border-top: 1px solid var(--border); padding-top: var(--s-5); margin-bottom: var(--s-6); }
+  @media (min-width: 52rem) { .sec-head { grid-template-columns: 3fr 9fr; } }
+  h3 { font-size: var(--t-body); line-height: 1.3; font-weight: 600; }
+  .eyebrow { display: flex; align-items: center; gap: var(--s-2); font: 600 var(--t-label) var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  .eyebrow::before { content: ''; width: 1.25rem; height: 2px; background: currentColor; }
+  .ve-label { font: 500 var(--t-label) var(--font-mono); color: var(--text-dim); }
+  .caps { text-transform: uppercase; letter-spacing: .08em; font-weight: 600; color: var(--text); }
+  .lead { font-size: var(--t-lead); line-height: 1.5; color: var(--text-dim); max-width: 46ch; }
+  .lead b { color: var(--text); font-weight: 600; }
+  .meta { font: 500 var(--t-label) var(--font-mono); color: var(--text-dim); }
+  p.note { max-width: 65ch; color: var(--text-dim); }
+  p.note b { color: var(--text); font-weight: 600; }
+  code { font: .875em var(--font-mono); font-variant-ligatures: none; }
+  .frame { background: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--text) 13%, transparent) 1px, transparent 1.5px) 0 0 / 20px 20px, var(--bg); border: 1px solid var(--border); border-radius: var(--r-2); padding: var(--s-5); overflow-x: auto; }
+  figcaption { font-size: var(--t-body); color: var(--text-dim); margin-top: var(--s-3); max-width: 65ch; }
+  .fig-n { font: 600 var(--t-label) var(--font-mono); color: var(--text); margin-right: var(--s-2); }
+  .ve-svg { width: 100%; min-width: 720px; height: auto; display: block; font: 500 16px var(--font-body); }
+  .ve-n .sh { fill: url(#ve-node); stroke: var(--border-bright); stroke-width: 1.5; filter: drop-shadow(0 6px 14px var(--lift)); }
+  .ve-n .lid { fill: var(--node-top); }
+  .ve-n.is-key .sh { fill: color-mix(in srgb, var(--accent) 11%, var(--surface)); stroke: var(--accent); stroke-width: 2; filter: drop-shadow(0 0 16px color-mix(in srgb, var(--accent) var(--halo), transparent)); }
+  .ve-n.is-new .sh { stroke: var(--ok); stroke-width: 2; }
+  .ve-n.is-gone .sh { stroke: var(--risk); stroke-dasharray: 5 4; fill: var(--surface); filter: none; }
+  .ve-n.is-gone text { fill: var(--text-dim); text-decoration: line-through; }
+  .ve-n text { fill: var(--text); text-anchor: middle; dominant-baseline: central; font-weight: 600; }
+  .ve-n .sub { fill: var(--text-dim); font: 500 13px var(--font-mono); text-decoration: none; }
+  .ve-e { fill: none; stroke: var(--text-dim); stroke-width: 1.75; marker-end: url(#ve-ah); }
+  .ve-e.is-hot { stroke: var(--accent); stroke-width: 2.75; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 55%, transparent)); }
+  .ve-e.is-async { stroke-dasharray: 6 5; }
+  .ve-e.is-risk { stroke: var(--risk); } .ve-e.is-ok { stroke: var(--ok); } .ve-e.is-gone { stroke: var(--risk); stroke-dasharray: 5 4; opacity: .7; }
+  .ve-el { fill: var(--text-dim); font: 500 13px var(--font-mono); text-anchor: middle; paint-order: stroke; stroke: var(--bg); stroke-width: 5px; stroke-linejoin: round; }
+  .ve-el.l { text-anchor: end; } .ve-el.r { text-anchor: start; } .ve-el.k { fill: var(--text); } .ve-el.bad { fill: var(--risk); } .ve-el.good { fill: var(--ok); }
+  .bound { fill: none; stroke: var(--border-bright); stroke-dasharray: 6 5; stroke-width: 1; }
+  .bound-l { fill: var(--text-dim); font: 600 12px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+  .kpis { display: flex; flex-wrap: wrap; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: var(--r-2); overflow: hidden; }
+  .kpi { flex: 1 1 13rem; background: var(--surface); padding: var(--s-5); display: grid; grid-template-rows: auto auto 1fr; gap: var(--s-3); min-width: 0; }
+  .kpi .val { font: 600 2.5rem/1 var(--font-body); font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
+  .kpi .val .unit { font-size: .45em; font-weight: 500; color: var(--text-dim); letter-spacing: 0; margin-left: .1em; }
+  .kpi .val.risk { color: var(--risk); } .kpi .val.ok { color: var(--ok); }
+  .ve-bars { align-self: end; width: 100%; max-width: 18rem; height: auto; font: 500 12px var(--font-mono); overflow: visible; }
+  .ve-bars text { fill: var(--text-dim); dominant-baseline: central; }
+  .ve-bars rect { fill: var(--border-bright); } .ve-bars .hot { fill: var(--accent); } .ve-bars .hot + text { fill: var(--text); } .ve-bars .bad { fill: var(--risk); } .ve-bars .good { fill: var(--ok); }
+  .cases { display: grid; grid-template-columns: repeat(auto-fit, minmax(14.5rem, 1fr)); gap: var(--s-4); }
+  .case { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-2); padding: var(--s-4); display: grid; gap: var(--s-3); align-content: start; }
+  .case p { color: var(--text-dim); font-size: var(--t-small); }
+  .case p b { color: var(--text); }
+  .chip { display: inline-flex; align-items: center; gap: var(--s-2); font: 600 var(--t-label) var(--font-mono); padding: 2px var(--s-2); border: 1px solid currentColor; border-radius: var(--r-1); white-space: nowrap; justify-self: start; }
+  .chip::before { content: ''; width: .5rem; height: .5rem; background: currentColor; }
+  .chip.ok { color: var(--ok); } .chip.ok::before { border-radius: 50%; }
+  .chip.warn { color: var(--warn); } .chip.warn::before { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+  .chip.risk { color: var(--risk); }
+  .chip.info { color: var(--info); } .chip.info::before { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+  .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-2); }
+  table { border-collapse: collapse; width: 100%; font-size: var(--t-small); }
+  th { background: var(--surface); text-align: left; font: 500 var(--t-label) var(--font-mono); color: var(--text-dim); padding: var(--s-3) var(--s-4); white-space: nowrap; }
+  td { padding: var(--s-3) var(--s-4); border-top: 1px solid var(--border); vertical-align: top; }
+  td .chip { font-size: .7rem; }
+  .verdict { display: grid; gap: var(--s-3); counter-reset: v; max-width: 65ch; padding: 0; list-style: none; }
+  .verdict li { position: relative; padding-left: 2.25rem; }
+  .verdict li::before { counter-increment: v; content: counter(v); position: absolute; left: 0; top: .15rem; font: 600 var(--t-label) var(--font-mono); color: var(--accent); border: 1px solid var(--accent); border-radius: 50%; width: 1.5rem; height: 1.5rem; display: grid; place-items: center; }
+  .verdict b { color: var(--text); }
+  /* wireframe mock panels */
+  .mocks { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: var(--s-4); }
+  .mock { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-2); padding: var(--s-3); display: grid; gap: var(--s-2); align-content: start; }
+  .mock, .mock > *, .wf > *, .wf .row > *, .wf .row > * > * { min-width: 0; }
+  .mock .lbl { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--s-2); }
+  .wf { background: var(--bg); border: 1px solid var(--border-bright); border-radius: var(--r-1); padding: 10px; display: grid; gap: 6px; font: 500 11px var(--font-mono); color: var(--text-dim); min-height: 15rem; }
+  .wf .b { border: 1px solid var(--border-bright); border-radius: 3px; padding: 4px 6px; background: var(--surface); min-height: 1.4em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .wf .b.x { border-color: var(--risk); color: var(--risk); border-style: dashed; }
+  .wf .b.k { border-color: var(--accent); color: var(--text); }
+  .wf .b.t { background: transparent; border: 0; padding: 0; color: var(--text); font-size: 14px; font-weight: 600; font-family: var(--font-body); white-space: normal; }
+  .wf .row { display: grid; gap: 6px; }
+  .wf .c3 { grid-template-columns: repeat(3, minmax(0,1fr)); } .wf .c2 { grid-template-columns: 2fr 1fr; } .wf .c21 { grid-template-columns: 1fr 2fr; } .wf .c4 { grid-template-columns: repeat(4,minmax(0,1fr)); }
+  .wf .tall { min-height: 3.2em; } .wf .cover { min-height: 2.6em; background: linear-gradient(135deg, var(--border) , var(--surface)); }
+  .wf .line { height: 1px; background: var(--border); }
+  .timeline { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: var(--s-2); }
+  @media (max-width: 52rem) { .timeline { grid-template-columns: 1fr; } }
+  .ph { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-2); padding: var(--s-4); display: grid; gap: var(--s-2); align-content: start; }
+  .ph .n { font: 600 1.75rem/1 var(--font-body); color: var(--accent); letter-spacing: -.03em; }
+  .ph ul { padding-left: 1.1em; color: var(--text-dim); font-size: var(--t-small); display: grid; gap: var(--s-1); }
+  .ph .dep { font: 500 var(--t-label) var(--font-mono); color: var(--text-dim); }
+  .shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: var(--s-4); }
+  .shot { display: grid; gap: var(--s-2); align-content: start; }
+  .shot img { width: 100%; height: auto; border: 1px solid var(--border-bright); border-radius: var(--r-1); display: block; background: #0e0f12; }
+  .shot .ve-label { display: block; }
+  .tallbox { max-height: 26rem; overflow-y: auto; border: 1px solid var(--border-bright); border-radius: var(--r-1); } .tallbox img { width: 100%; height: auto; display: block; }
+  .js-motion main > * { transition: opacity var(--slow) var(--ease), transform var(--slow) var(--ease); }
+  .js-motion main > :not(.in) { opacity: 0; transform: translateY(1rem); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  @media print { :root { --bg:#fff; --surface:#fff; --border:#dfe3e0; --border-bright:#888e8b; --text:#121614; --text-dim:#545e59; --accent:#955700; } nav.toc { display:none; } .frame { overflow: visible; } .ve-svg { min-width: 0; } .frame, .case, .kpi, .mock, .ph { break-inside: avoid; } svg * { filter: none !important; } .js-motion main > * { opacity:1 !important; transform:none !important; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <marker id="ve-ah" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker>
+  <linearGradient id="ve-node" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--node-top)"/><stop offset="1" style="stop-color:var(--surface)"/></linearGradient>
+</defs></svg>
+<div class="layout">
+<nav class="toc" aria-label="목차">
+  <p class="ttl">문제와 개선안</p>
+  <ol>
+    <li><a href="#s0">0 결론</a></li>
+    <li><a href="#s1">1 CMS 방식</a></li>
+    <li><a href="#s2">2 편집기</a></li>
+    <li><a href="#s3">3 플랫폼 대비</a></li>
+    <li><a href="#s4">4 Astro · React</a></li>
+    <li><a href="#s5">5 관리자</a></li>
+    <li><a href="#s6">6 UX / UI</a></li>
+    <li><a href="#s8">8 개선안</a></li>
+    <li><a href="#s9">9 검증</a></li>
+    <li><a href="#s10">10 시리즈 · 방향 · docs</a></li>
+  </ol>
+</nav>
+<main>
+
+<header id="s0">
+  <p class="eyebrow">Cruz Lab · 구조 전수조사 2/2</p>
+  <h1>글을 못 쓰게 만드는 건 편집기보다 <span class="num">초안이 브라우저에만 있는 구조</span>다</h1>
+  <p class="lead">2026-05-05 이후 새 글이 없다. 원인은 <b>쓰기 마찰</b>이다. 초안은 기기에 묶이고, 비공개 글은 사라지고, 출간은 외부 서비스 4곳을 직렬로 지난다. 그 위에 보안 구멍 2개와 소스 모드 편집기가 있다. 비용이 들어도 구조를 고친다.</p>
+  <p class="meta">전제: 1편(현재 상태) · 기준일 2026-11-06 · 타협안 없음 · 2차 개정: 10절(시리즈 평가 · 사이트 방향 · docs 관리) 추가</p>
+</header>
+
+<figure>
+  <div class="kpis">
+    <div class="kpi"><span class="ve-label">마지막 새 글 이후</span><span class="val risk">6<span class="unit">개월</span></span>
+      <svg class="ve-bars" viewBox="0 0 260 52" role="img" aria-label="2026-05-05 이후 새 글 0편"><text y="12">2025-12</text><rect class="hot" x="64" y="5" width="170" height="14" rx="2"/><text x="240" y="12">54</text><text y="40">2026</text><rect x="64" y="33" width="6" height="14" rx="2"/><text x="76" y="40">2 · 05-05 이후 0</text></svg></div>
+    <div class="kpi"><span class="ve-label">보안 구멍</span><span class="val risk">2</span>
+      <svg class="ve-bars" viewBox="0 0 260 52" role="img" aria-label="규칙 auth != null 쓰기 허용, by-slug 비인증 비공개 글 노출"><text y="12">① 규칙: 아무 Google 계정이나 쓰기</text><text y="40">② by-slug: 비공개 글 본문 노출</text></svg></div>
+    <div class="kpi"><span class="ve-label">저장소</span><span class="val">5<span class="unit">→ 2</span></span>
+      <svg class="ve-bars" viewBox="0 0 260 52" role="img" aria-label="원본 Firestore와 자동 백업 1곳으로"><text y="12">죽은 사본 57 · 기기 초안 · 동기 백업</text><text y="40">→ 원본 1 + 비동기 백업 1</text></svg></div>
+    <div class="kpi"><span class="ve-label">동작하지 않는 기능</span><span class="val">4</span>
+      <svg class="ve-bars" viewBox="0 0 260 52" role="img" aria-label="시리즈 수정, 시리즈 진행률, 비공개 글 관리, 이미지 정리"><text y="12">시리즈 수정 · 진행률 0%</text><text y="40">비공개 글 접근 · 이미지 고아</text></svg></div>
+  </div>
+  <figcaption><span class="fig-n">Fig. 1</span>숫자로 본 판정. 각 항목의 근거는 아래 절에 있다.</figcaption>
+</figure>
+
+<section>
+  <div class="sec-head"><p class="ve-label caps">결론</p><h2>일곱 가지 판단</h2></div>
+  <ol class="verdict">
+    <li><b>최우선 과제는 쓰기 마찰이다.</b> 초안 서버화, 비공개 글 관리, 출간 경로 단순화가 편집기 교체보다 먼저다.</li>
+    <li><b>보안 구멍 2개는 즉시 막는다.</b> 규칙에서 클라이언트 쓰기를 전면 금지하고, 비공개 글 API에 인증을 붙인다.</li>
+    <li><b>저장소를 원본 1곳 + 비동기 백업 1곳으로 줄인다.</b> <code>content/posts</code> 57개와 빈 Cloud Function, 쓰지 않는 업로드 API를 지운다.</li>
+    <li><b>편집기는 수정이 아니라 교체다.</b> 소스 모드 CodeMirror에는 명령·단축키·플러그인을 등록할 구조가 없다. Tiptap으로 간다.</li>
+    <li><b>Astro + React 구조는 맞다. 배치가 틀렸다.</b> 공개 페이지에서 React 장식을 빼고, 관리자·에디터에 React를 집중한다.</li>
+    <li><b>UI는 2021~2023년 포트폴리오 문법이다.</b> 사이트의 방향은 "블로그가 본체, 포트폴리오는 <code>/about</code> + <code>/projects</code> + PDF"로 정한다(10.2). 글 상세에 목차·연재·이전다음·코드 복사를 넣는다.</li>
+    <li><b>시리즈는 독립 기능으로는 과투자다.</b> 시리즈 2개 = 태그 2개와 같은 집합, 코드 2,514줄(16%). 글의 필드 <code>series:{key,order}</code>로 축소하고, 분류의 주축은 <code>category</code>(접두사 승격) + <code>tags</code>로(10.1).</li>
+    <li><b>동작하지 않는 기능 4개를 고친다.</b> 시리즈 수정, 시리즈 진행률, 비공개 글, 이미지 정리.</li>
+  </ol>
+</section>
+
+<section id="s1">
+  <div class="sec-head"><p class="ve-label caps">1 · CMS 방식</p><h2>출간 경로에 GitHub가 직렬로 끼어 있고, 초안은 서버에 없다</h2></div>
+  <figure>
+    <div class="frame">
+      <svg class="ve-svg" viewBox="0 0 960 300" role="img" aria-label="지금: 브라우저 localStorage 초안, 출간 시 Identity Toolkit, GitHub, Firestore를 직렬로 호출. 목표: 서버 drafts에 자동저장, 발행은 Firestore 한 곳에 쓰고 CDN 퍼지, 백업은 GitHub Action이 비동기로.">
+        <text class="bound-l" x="20" y="30">지금</text>
+        <path class="ve-e" d="M150 80H200"/><text class="ve-el" x="175" y="71">1.5 s</text>
+        <path class="ve-e is-hot" d="M150 100H330"/><text class="ve-el k" x="240" y="121">출간</text>
+        <path class="ve-e" d="M450 90H520"/><text class="ve-el" x="485" y="81">lookup</text>
+        <path class="ve-e is-risk" d="M450 100H640"/><text class="ve-el bad" x="590" y="121">GET+PUT 동기</text>
+        <path class="ve-e is-hot" d="M450 110H780"/><text class="ve-el k" x="720" y="101">upsert</text>
+        <g class="ve-n" transform="translate(30 60)"><rect class="sh" width="120" height="60" rx="6"/><text x="60" y="22">에디터</text><text class="sub" x="60" y="44">브라우저</text></g>
+        <g class="ve-n" transform="translate(200 50)"><rect class="sh" width="110" height="46" rx="6"/><text x="55" y="16">localStorage</text><text class="sub" x="55" y="34">기기별</text></g>
+        <g class="ve-n is-key" transform="translate(330 60)"><rect class="sh" width="120" height="60" rx="6"/><text x="60" y="22">publish-post</text><text class="sub" x="60" y="44">6체크 통과 후</text></g>
+        <g class="ve-n" transform="translate(520 60)"><rect class="sh" width="110" height="46" rx="6"/><text x="55" y="16">Identity</text><text class="sub" x="55" y="34">REST</text></g>
+        <g class="ve-n" transform="translate(640 90)"><rect class="sh" width="120" height="46" rx="6"/><text x="60" y="16">GitHub</text><text class="sub" x="60" y="34">main에 커밋</text></g>
+        <g class="ve-n is-key" transform="translate(780 60)"><path class="sh" d="M0 8V52A75 8 0 0 0 150 52V8"/><ellipse class="sh lid" cx="75" cy="8" rx="75" ry="8"/><text x="75" y="30">Firestore</text></g>
+        <path class="ve-e is-gone" d="M940 150H20"/>
+        <text class="bound-l" x="20" y="180">목표</text>
+        <path class="ve-e is-ok" d="M150 230H330"/><text class="ve-el good" x="240" y="221">2 s 자동저장 (세션 쿠키)</text>
+        <path class="ve-e is-hot" d="M450 230H780"/><text class="ve-el k" x="615" y="221">drafts → published + revision</text>
+        <path class="ve-e is-async" d="M450 250H520V280H640"/><text class="ve-el" x="580" y="271">퍼지</text>
+        <path class="ve-e is-async is-ok" d="M855 250V280H790"/><text class="ve-el good" x="700" y="296">Action: 매일 + 발행 후 → content 브랜치</text>
+        <g class="ve-n" transform="translate(30 210)"><rect class="sh" width="120" height="46" rx="6"/><text x="60" y="16">에디터</text><text class="sub" x="60" y="34">폰 · 데스크톱</text></g>
+        <g class="ve-n is-new" transform="translate(330 210)"><rect class="sh" width="120" height="46" rx="6"/><text x="60" y="16">/api/admin</text><text class="sub" x="60" y="34">verifyIdToken</text></g>
+        <g class="ve-n" transform="translate(640 260)"><rect class="sh" width="80" height="34" rx="6"/><text x="40" y="17">CDN</text></g>
+        <g class="ve-n is-key" transform="translate(780 210)"><path class="sh" d="M0 8V38A75 8 0 0 0 150 38V8"/><ellipse class="sh lid" cx="75" cy="8" rx="75" ry="8"/><text x="75" y="24">Firestore</text></g>
+        <g class="ve-n is-new" transform="translate(690 270)"><rect class="sh" width="100" height="26" rx="6"/><text x="50" y="13">GitHub</text></g>
+      </svg>
+    </div>
+    <figcaption><span class="fig-n">Fig. 2</span>목표 경로에서 출간은 Firestore 한 번 쓰기다. GitHub는 출간 요청 밖(Action)으로 나가고, 초안은 서버에 산다.</figcaption>
+  </figure>
+  <figure style="margin-top:var(--s-6)">
+    <div class="cases">
+      <div class="case"><span class="chip risk">구조</span><h3>초안이 기기에 묶임</h3><p>폰에서 메모 → 데스크톱 이어쓰기 <b>불가</b>. 브라우저 데이터 삭제 = 유실. "전체 포스트" 수가 기기마다 다름.</p></div>
+      <div class="case"><span class="chip risk">구조</span><h3>비공개 글이 사라짐</h3><p><code>isPublic:false</code> 출간 → <code>status:'draft'</code> → 관리자 목록은 published만. <b>현재 1건 고아.</b> "올려두고 다듬기" 불가.</p></div>
+      <div class="case"><span class="chip risk">구조</span><h3>결과를 못 보고 출간</h3><p>소스 모드 + 모달에 카드 미리보기만. 본문 렌더를 보려면 출간해야 함. 비공개 미리보기 URL 없음.</p></div>
+      <div class="case"><span class="chip warn">경로</span><h3>GitHub 장애 = 출간 불가</h3><p>모달의 6체크(GitHub 3회 포함)가 모두 ready여야 버튼 활성. 백업이 출간을 막는다.</p></div>
+      <div class="case"><span class="chip warn">경로</span><h3>출간마다 main에 커밋</h3><p>Vercel Git 연동이 재배포를 돌린다(Ignored Build Step 미확인). 글 출간과 코드 배포가 섞임.</p></div>
+      <div class="case"><span class="chip warn">데이터</span><h3>수정 시 초안이 원본을 덮음</h3><p><code>by-slug</code>로 원본 로드 → 같은 slug 로컬 초안이 있으면 <b>묻지 않고</b> 덮어씀. 최신 비교 없음.</p></div>
+      <div class="case"><span class="chip warn">이미지</span><h3>Canvas 리사이즈, 고아 이미지</h3><p>EXIF 회전 손실, PNG 무압축, 변형 없음. 글 삭제해도 Storage 이미지 잔존. 어떤 글이 쓰는지 기록 없음.</p></div>
+      <div class="case"><span class="chip info">중복</span><h3>읽기 시간 공식 2개</h3><p>에디터: 공백 단어 수 ÷ 200(한글 불리). 유틸: 한글 글자 ÷ 2 보정. 같은 글의 분이 경로마다 다름.</p></div>
+    </div>
+    <figcaption><span class="fig-n">Fig. 3</span>필자 관점의 마찰 8가지. 빨간 ■는 구조를 바꿔야 풀리고, 노란 ▲는 경로만 고치면 된다.</figcaption>
+  </figure>
+  <div class="table-scroll" style="margin-top:var(--s-6)">
+    <table>
+      <thead><tr><th>저장소</th><th>지금 역할</th><th>판단</th></tr></thead>
+      <tbody>
+        <tr><td>Firestore <code>posts</code> · <code>series</code></td><td>원본</td><td><span class="chip ok">유지</span> 초안·리비전·요약 구조 추가, 글 → 시리즈 역방향 추가</td></tr>
+        <tr><td>Firebase Storage</td><td>이미지</td><td><span class="chip ok">유지</span> <code>assets</code> 메타 컬렉션, 서버 업로드 + sharp 변형</td></tr>
+        <tr><td>GitHub <code>data/post-archive</code></td><td>출간 시 동기 백업</td><td><span class="chip warn">위치 변경</span> GitHub Action이 비동기로 <code>content</code> 브랜치에</td></tr>
+        <tr><td>GitHub <code>content/posts</code> 57개</td><td>읽는 코드 없음</td><td><span class="chip risk">삭제</span> 최신 글과 내용 불일치, 빌드 때 파싱만</td></tr>
+        <tr><td><code>public/uploads</code> + <code>upload-asset</code> API, <code>functions/</code></td><td>쓰지 않음</td><td><span class="chip risk">삭제</span></td></tr>
+        <tr><td><code>localStorage</code> 초안</td><td>유일한 초안</td><td><span class="chip warn">보조로 격하</span> 오프라인 큐(IndexedDB)로만</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="s2">
+  <div class="sec-head"><p class="ve-label caps">2 · 편집기</p><h2>소스 모드에 명령 체계가 없다. 수정이 아니라 교체다</h2></div>
+  <figure>
+    <div class="cases">
+      <div class="case"><span class="chip risk">표시</span><h3>기호가 그대로 보인다</h3><p><code>#</code>, <code>**</code>, <code>![]()</code>가 문서 전체에. 옵시디언의 체감은 "쓰는 줄만 기호, 나머지는 렌더"에서 온다. 미리보기조차 없음.</p></div>
+      <div class="case"><span class="chip risk">구조</span><h3>명령 레지스트리가 없다</h3><p>키맵 12 · 빠른 삽입 9 · 버튼 2가 <b>각각</b> 같은 함수를 부른다. 새 동작 하나에 세 곳 수정. 사용자 설정 불가.</p></div>
+      <div class="case"><span class="chip warn">키</span><h3><kbd>⌘⌥숫자</kbd> 조합</h3><p>macOS에서 Option+키는 특수문자 입력. 브라우저·IME 상태에 따라 안 먹음. 노션·옵시디언은 입력 규칙(<code>## </code>)을 쓴다.</p></div>
+      <div class="case"><span class="chip warn">상태</span><h3>키 입력마다 상위 전체 리렌더</h3><p><code>onChange → setContent</code> → <code>FullScreenEditor</code>(781줄) + 메타 패널(준비도·카드·읽기시간) 리렌더.</p></div>
+      <div class="case"><span class="chip warn">모바일</span><h3>터치 편집 미고려</h3><p>키보드 위 툴바 없음, <kbd>⌘</kbd> 단축키는 모바일에 없음, 992px 레이아웃 축소.</p></div>
+      <div class="case"><span class="chip info">이력</span><h3>계획과 코드가 갈라짐</h3><p><code>docs/</code>엔 라이브 프리뷰 이전 계획·엔진 평가가 있고, 코드는 소스 모드로 끝났다. 2025-12 WYSIWYG 캡처는 지금 코드에 없다.</p></div>
+    </div>
+    <figcaption><span class="fig-n">Fig. 4</span>"저열하다"고 느끼는 이유 6가지. 위 두 개는 엔진을 바꿔야 풀린다.</figcaption>
+  </figure>
+  <div class="table-scroll" style="margin-top:var(--s-6)">
+    <table>
+      <thead><tr><th>후보</th><th>쓰는 동안 렌더</th><th>명령·단축키·플러그인</th><th>마크다운 왕복</th><th>모바일</th><th>판단</th></tr></thead>
+      <tbody>
+        <tr><td>지금 CodeMirror 6 소스 모드</td><td>없음</td><td>가능하나 미구현</td><td>완벽</td><td>약함</td><td><span class="chip risk">탈락</span></td></tr>
+        <tr><td>CodeMirror 6 + 라이브 프리뷰 자체 구현</td><td>줄 단위 부분(옵시디언 방식)</td><td>가능</td><td>완벽</td><td>약함</td><td><span class="chip warn">보류</span> 표·이미지·코드를 위젯으로 직접. 수 주 작업, 유지 부담</td></tr>
+        <tr><td><b>Tiptap (ProseMirror)</b></td><td>완전 렌더</td><td>Extension = 플러그인. <code>addKeyboardShortcuts</code> · <code>addInputRules</code> · <code>addCommands</code> · Suggestion(슬래시)</td><td>serializer 필요. GFM 표·코드·이미지 OK. 공백·주석 보존은 불완전</td><td>좋음</td><td><span class="chip ok">선택</span></td></tr>
+        <tr><td>Milkdown (ProseMirror + remark)</td><td>완전 렌더</td><td>플러그인, 슬래시·툴팁 제공</td><td>remark AST라 충실도 높음</td><td>보통</td><td><span class="chip info">차선</span> 생태계 작음, 커스텀 노드 난도</td></tr>
+        <tr><td>Lexical</td><td>완전 렌더</td><td>플러그인</td><td>GFM 표 등 직접</td><td>좋음</td><td><span class="chip warn">탈락</span> 한글 IME 이력, 마크다운 약함</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <figure style="margin-top:var(--s-6)">
+    <div class="frame">
+      <svg class="ve-svg" viewBox="0 0 960 250" role="img" aria-label="새 편집기 구조: 명령 레지스트리 하나에서 단축키, 슬래시 메뉴, 툴바, 명령 팔레트가 나온다. 사용자 키맵은 Firestore settings에 저장. 저장은 마크다운 원본 + ProseMirror JSON 캐시. 공개 페이지는 마크다운만 읽는다.">
+        <path class="ve-e" d="M230 70H300V40H380"/><text class="ve-el" x="340" y="31">단축키</text>
+        <path class="ve-e" d="M230 80H300V80H380"/><text class="ve-el" x="340" y="71">슬래시 / </text>
+        <path class="ve-e" d="M230 90H300V120H380"/><text class="ve-el" x="340" y="111">툴바 (모바일)</text>
+        <path class="ve-e" d="M230 100H300V160H380"/><text class="ve-el" x="340" y="151">팔레트 ⌘K</text>
+        <path class="ve-e is-async" d="M130 130V190H380"/><text class="ve-el" x="255" y="181">settings/editor 키맵</text>
+        <path class="ve-e is-hot" d="M560 100H640"/><text class="ve-el k" x="600" y="91">저장</text>
+        <path class="ve-e" d="M860 100H900V200H560"/><text class="ve-el" x="730" y="191">공개 페이지는 markdown만</text>
+        <g class="ve-n is-key" transform="translate(30 50)"><rect class="sh" width="200" height="70" rx="6"/><text x="100" y="24">명령 레지스트리</text><text class="sub" x="100" y="50">{ id, run, keys, icon, group }</text></g>
+        <g class="ve-n" transform="translate(380 20)"><rect class="sh" width="180" height="160" rx="6"/><text x="90" y="24">Tiptap 에디터</text><text class="sub" x="90" y="50">Extension = 내 플러그인</text><text class="sub" x="90" y="72">입력 규칙 ## &gt; ``` - [ ]</text><text class="sub" x="90" y="94">이미지 다중 드롭</text><text class="sub" x="90" y="116">편집 / 소스 / 미리보기</text><text class="sub" x="90" y="138">개요 · 찾기 · 글자수</text></g>
+        <g class="ve-n is-new" transform="translate(640 60)"><rect class="sh" width="220" height="80" rx="6"/><text x="110" y="24">posts/{id}.draft</text><text class="sub" x="110" y="48">markdown (원본)</text><text class="sub" x="110" y="66">editorJson (캐시)</text></g>
+      </svg>
+    </div>
+    <figcaption><span class="fig-n">Fig. 5</span>단축키·슬래시·툴바·팔레트가 레지스트리 하나에서 나온다. "내 플러그인 등록"은 <code>extensions</code> 배열에 항목을 더하는 일이 된다.</figcaption>
+  </figure>
+</section>
+
+<section id="s3">
+  <div class="sec-head"><p class="ve-label caps">3 · 플랫폼 대비</p><h2>자체 블로그의 메리트는 "내 습관에 맞춘 쓰기"인데, 지금은 velog보다 쓰기가 어렵다</h2></div>
+  <figure>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>항목</th><th>velog · tistory · GitHub Pages</th><th>Cruz Lab 지금</th><th>Cruz Lab 목표</th></tr></thead>
+        <tbody>
+          <tr><td>서버 초안 · 기기 간 이어쓰기</td><td>있음</td><td><span class="chip risk">없음</span></td><td><span class="chip ok">있음</span> + 오프라인 큐</td></tr>
+          <tr><td>쓰면서 결과 보기</td><td>분할 미리보기</td><td><span class="chip risk">없음</span></td><td><span class="chip ok">렌더 편집 + 3모드</span></td></tr>
+          <tr><td>모바일 작성</td><td>가능</td><td><span class="chip risk">사실상 불가</span></td><td><span class="chip ok">툴바 · 노트 타입</span></td></tr>
+          <tr><td>짧은 기록(TIL)과 긴 글 분리</td><td>없음</td><td>없음</td><td><span class="chip ok">notes → post 승격</span> (플랫폼에 없는 기능)</td></tr>
+          <tr><td>디자인 · 구조 · 도메인</td><td>제한</td><td><span class="chip ok">자유</span></td><td>자유</td></tr>
+          <tr><td>데이터 소유 · 마크다운 백업</td><td>내보내기만</td><td><span class="chip warn">3경로로 갈라짐</span></td><td><span class="chip ok">원본 1 + 자동 백업</span></td></tr>
+          <tr><td>유입 (피드 · 트렌딩)</td><td>있음</td><td>RSS · 검색만</td><td>RSS · OG · 크로스포스팅(canonical) · GitHub README</td></tr>
+          <tr><td>댓글 · 반응</td><td>있음</td><td>없음</td><td>giscus (서버 없음)</td></tr>
+          <tr><td>면접 소재</td><td>없음</td><td><span class="chip warn">있으나 보여주기 어려움</span></td><td><span class="chip ok">설계 문서 · 측정값을 사이트 안에</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <figcaption><span class="fig-n">Fig. 6</span>위 세 줄이 "꾸준함"을 결정한다. 플랫폼은 여기서 "충분히 좋음"이고, 자체 블로그는 "내 습관에 맞춤"까지 갈 수 있다.</figcaption>
+  </figure>
+  <p class="note" style="margin-top:var(--s-5)"><b>극대화 방향.</b> ① 폰 메모 → 데스크톱 다듬기 → 발행을 한 흐름으로. ② 조사 메모를 같은 문서의 사이드 노트로 두고 발행 시 제외(쓰다가 조사하고 다시 쓰는 습관을 구조로 지원). ③ <code>notes</code> 타입으로 "시시콜콜한 기록"을 받고 주 1회 글로 승격. ④ 설계 문서와 측정값(LCP 2,704 → 528 ms 같은)을 <code>/lab</code>에 공개. ⑤ 프로젝트 글도 같은 데이터 경로로.</p>
+</section>
+
+<section id="s4">
+  <div class="sec-head"><p class="ve-label caps">4 · Astro · React</p><h2>구조는 맞다. React가 장식에 가 있고 앱에는 약하다</h2></div>
+  <figure>
+    <div class="frame">
+      <svg class="ve-svg" viewBox="0 0 960 300" role="img" aria-label="지금: 공개 페이지에 React 장식 아일랜드 19개, 관리자는 3가지 마운트 방식, 서버는 두 SDK 혼용. 목표: 공개 페이지는 Astro만, 관리자는 React 단일 앱, 서버는 Admin SDK만.">
+        <text class="bound-l" x="20" y="30">지금</text>
+        <g class="ve-n is-gone" transform="translate(20 50)"><rect class="sh" width="280" height="60" rx="6"/><text x="140" y="22">공개 페이지 · React 장식 19</text><text class="sub" x="140" y="44">카드 opacity 0 → JS 전까지 빈 화면</text></g>
+        <g class="ve-n is-gone" transform="translate(340 50)"><rect class="sh" width="280" height="60" rx="6"/><text x="140" y="22">관리자 · 마운트 3방식</text><text class="sub" x="140" y="44">client:load · only · createRoot</text></g>
+        <g class="ve-n is-gone" transform="translate(660 50)"><rect class="sh" width="280" height="60" rx="6"/><text x="140" y="22">서버 · SDK 2종 혼용</text><text class="sub" x="140" y="44">글 Admin · 시리즈 클라이언트</text></g>
+        <path class="ve-e is-gone" d="M940 140H20"/>
+        <text class="bound-l" x="20" y="170">목표</text>
+        <g class="ve-n is-new" transform="translate(20 190)"><rect class="sh" width="280" height="80" rx="6"/><text x="140" y="24">공개 페이지 · Astro만</text><text class="sub" x="140" y="48">CSS + 작은 script (테마·목차·복사)</text><text class="sub" x="140" y="66">React 0~2 (검색 팔레트)</text></g>
+        <g class="ve-n is-key" transform="translate(340 190)"><rect class="sh" width="280" height="80" rx="6"/><text x="140" y="24">관리자 · React 단일 앱</text><text class="sub" x="140" y="48">/admin/* 하나가 client:only</text><text class="sub" x="140" y="66">Router · 세션 쿠키 가드 · Tiptap</text></g>
+        <g class="ve-n is-new" transform="translate(660 190)"><rect class="sh" width="280" height="80" rx="6"/><text x="140" y="24">서버 · Admin SDK만</text><text class="sub" x="140" y="48">verifyIdToken · select() 조회</text><text class="sub" x="140" y="66">클라이언트 SDK는 브라우저 전용</text></g>
+      </svg>
+    </div>
+    <figcaption><span class="fig-n">Fig. 7</span>React는 "앱을 만든 증거"로 남고, 공개 페이지는 JS 없이도 완전해진다. Next.js 전환은 불필요하다.</figcaption>
+  </figure>
+  <div class="shots" style="margin-top:var(--s-5)">
+    <div class="shot"><img src="cruz-lab-audit-assets/projects-desktop.jpg" width="1200" height="750" alt="프로젝트 목록 캡처: Featured 4 아래 카드가 비어 있음" loading="lazy"><span class="ve-label">증거: JS가 돌기 전 프로젝트 카드는 <code>opacity:0</code>. 검색엔진·느린 기기·JS 실패 시 콘텐츠가 없다</span></div>
+    <div class="shot">
+      <svg class="ve-bars" style="max-width:100%" viewBox="0 0 320 92" role="img" aria-label="미사용 파일 15개: 아일랜드 8, 템플릿 잔재 3, 훅 유틸 이미지 3, 컬렉션 정의 1"><text y="12">미사용 아일랜드</text><rect class="bad" x="120" y="5" width="160" height="12" rx="2"/><text x="286" y="12">8</text><text y="34">템플릿 잔재 .astro</text><rect class="bad" x="120" y="27" width="60" height="12" rx="2"/><text x="186" y="34">3</text><text y="56">훅·유틸·이미지</text><rect class="bad" x="120" y="49" width="60" height="12" rx="2"/><text x="186" y="56">3</text><text y="78">컬렉션 정의</text><rect class="bad" x="120" y="71" width="20" height="12" rx="2"/><text x="146" y="78">1 (+ 두 벌의 Header/Footer)</text></svg>
+      <span class="ve-label">어디서도 import하지 않는 파일 15개. 면접관이 저장소를 열면 먼저 보이는 것들이다</span>
+    </div>
+  </div>
+</section>
+
+<section id="s5">
+  <div class="sec-head"><p class="ve-label caps">5 · 관리자</p><h2>하자 12개, 부족한 기능 10개</h2></div>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>#</th><th>하자</th><th>근거</th><th>심각도</th></tr></thead>
+      <tbody>
+        <tr><td>A1</td><td>아무 Google 계정이나 <code>posts</code>·<code>series</code>·Storage에 쓰기 가능</td><td><code>firestore.rules</code>·<code>storage.rules</code>의 <code>request.auth != null</code>. Google 로그인은 누구나. 클라이언트 <code>signOut</code> 전에 SDK 호출 가능, 다른 클라이언트에서 직접 호출 가능</td><td><span class="chip risk">즉시</span></td></tr>
+        <tr><td>A2</td><td>비공개 글 본문이 인증 없이 노출</td><td><code>GET /api/posts/by-slug</code>가 <code>status</code> 무관</td><td><span class="chip risk">즉시</span></td></tr>
+        <tr><td>A3</td><td>비공개 글이 관리자 목록에 없음</td><td><code>getPublishedContentPosts()</code>만 사용. draft 1건 존재</td><td><span class="chip risk">구조</span></td></tr>
+        <tr><td>A4</td><td>시리즈 수정 화면이 열리지 않음</td><td><code>getAdminSeriesById</code>의 <code>exists()</code> (Admin SDK는 속성)</td><td><span class="chip risk">버그</span></td></tr>
+        <tr><td>A5</td><td>시리즈 진행률 항상 0%</td><td><code>series-&lt;slug&gt;-read</code>를 쓰는 코드 없음</td><td><span class="chip warn">버그</span></td></tr>
+        <tr><td>A6</td><td>글 삭제 후 이미지 잔존</td><td><code>delete-post</code>가 Storage를 건드리지 않음</td><td><span class="chip warn">누수</span></td></tr>
+        <tr><td>A7</td><td>수정 시 로컬 초안이 원본을 무조건 덮음</td><td><code>loadMarkdownPost → tryLoadDraft</code></td><td><span class="chip warn">데이터</span></td></tr>
+        <tr><td>A8</td><td>"전체 포스트" 수가 기기마다 다름</td><td>발행 + 로컬 초안</td><td><span class="chip info">표시</span></td></tr>
+        <tr><td>A9</td><td>GitHub API 장애 시 출간 불가</td><td><code>publish-status</code> all-ready 조건</td><td><span class="chip warn">경로</span></td></tr>
+        <tr><td>A10</td><td>관리자 SSR이 인증 없이 데이터를 HTML에</td><td><code>/admin</code>, <code>/admin/posts</code> frontmatter (공개 글뿐이라 유출은 없음)</td><td><span class="chip info">구조</span></td></tr>
+        <tr><td>A11</td><td><code>preflight</code> 대상 경로가 옛 경로</td><td><code>scripts/publish-preflight.mjs</code>의 <code>content/posts</code></td><td><span class="chip info">문서</span></td></tr>
+        <tr><td>A12</td><td><code>&lt;a&gt;</code> 안에 <code>&lt;a&gt;</code> 중첩</td><td><code>Header.astro</code> 195~197행</td><td><span class="chip info">HTML</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <figure style="margin-top:var(--s-6)">
+    <div class="cases">
+      <div class="case"><span class="chip info">없음</span><h3>글 상태 모델</h3><p>초안 / 발행 / 비공개 / 예약. 지금은 <code>isPublic</code> 하나.</p></div>
+      <div class="case"><span class="chip info">없음</span><h3>리비전 · 되돌리기</h3><p>발행본 이전 버전 보기.</p></div>
+      <div class="case"><span class="chip info">없음</span><h3>비공개 미리보기 링크</h3><p>서명 토큰 URL로 발행 전 실제 페이지 확인.</p></div>
+      <div class="case"><span class="chip info">없음</span><h3>글 안에서 시리즈 지정</h3><p>지금은 시리즈 편집기에서만. 글 → 시리즈 역방향 필요.</p></div>
+      <div class="case"><span class="chip info">없음</span><h3>태그 관리</h3><p>이름 바꾸기·합치기(<code>크래프톤 정글</code>/<code>크래프톤정글</code>)·글 수.</p></div>
+      <div class="case"><span class="chip info">없음</span><h3>이미지 라이브러리</h3><p>업로드 목록, 사용처, 미사용 삭제.</p></div>
+      <div class="case"><span class="chip info">없음</span><h3>프로젝트 글 편집</h3><p>지금은 저장소 파일을 직접 고친다.</p></div>
+      <div class="case"><span class="chip info">없음</span><h3>출간 기록 · 통계</h3><p>서버 publishLog, 조회수(Vercel Analytics).</p></div>
+      <div class="case"><span class="chip info">없음</span><h3>관리자 진입점</h3><p>로그인 상태면 헤더에 "쓰기" 버튼. 전역 단축키.</p></div>
+      <div class="case"><span class="chip info">없음</span><h3>모바일 관리</h3><p>목록 확인, 초안 이어쓰기, 발행 토글.</p></div>
+    </div>
+    <figcaption><span class="fig-n">Fig. 8</span>"제대로 관리하겠다"에 필요한 기능 10개. 전부 8절의 데이터 모델 위에서 만든다.</figcaption>
+  </figure>
+</section>
+
+<section id="s6">
+  <div class="sec-head"><p class="ve-label caps">6 · UX / UI</p><h2>포트폴리오 랜딩에서 "글이 주인인 사이트"로</h2></div>
+  <figure>
+    <div class="mocks">
+      <div class="mock"><div class="lbl"><span class="chip risk">지금 · 홈</span><span class="ve-label">7 섹션 · 21 아일랜드</span></div>
+        <div class="wf">
+          <div class="row c3"><div class="b">Cruz</div><div class="b x">고정 알약 메뉴</div><div class="b">테마</div></div>
+          <div class="row c2"><div><div class="b t">Hi There 👋, I'm Cruz</div><div class="b x">타이핑 롤 텍스트|</div><div class="b x">"따옴표 태그라인"</div><div class="b tall">소개 3문단</div><div class="row c2"><div class="b x">마그네틱+리플</div><div class="b x">버튼</div></div></div><div class="b cover tall x" style="min-height:7em">3D 틸트 일러스트</div></div>
+          <div class="b x">Experience 아코디언 ×2</div>
+          <div class="row c3"><div class="b x">프로젝트 틸트</div><div class="b x">프로젝트 틸트</div><div class="b x">프로젝트 틸트</div></div>
+          <div class="b x">Tech Stack 로고 11</div>
+          <div class="row c2"><div class="b x">시리즈 틸트</div><div class="b x">시리즈 틸트</div></div>
+          <div class="row c3"><div class="b">글 카드</div><div class="b">글 카드</div><div class="b">글 카드</div></div>
+          <div class="b x">Let's Connect 글자등장</div>
+        </div></div>
+      <div class="mock"><div class="lbl"><span class="chip ok">목표 · 홈</span><span class="ve-label">글 우선 · 아일랜드 0</span></div>
+        <div class="wf">
+          <div class="row c3"><div class="b">Cruz Lab</div><div class="b">Blog · Series · Projects · About</div><div class="b">⌘K · 테마</div></div>
+          <div class="b t" style="font-size:16px">박중섭. 프론트엔드 개발자. CS와 UX 사이를 기록합니다.</div>
+          <div class="b">한 줄 소개 · GitHub · 이력서</div>
+          <div class="line"></div>
+          <div class="b k">최신 글 — 날짜 · 제목 · 태그</div>
+          <div class="b k">2026-04-27 · [AI] RAG는 검색 기능이 아니라 흐름이다</div>
+          <div class="b k">2026-04-22 · [AI] Agent를 쓸 때 Context가 왜 더 중요해질까?</div>
+          <div class="b k">2025-12-23 · [Pintos] UserProgram - 시스템 콜 동작 흐름</div>
+          <div class="b">모든 글 →</div>
+          <div class="line"></div>
+          <div class="row c2"><div class="b">시리즈 2 — 목록형</div><div class="b">노트(TIL) 최근 5</div></div>
+          <div class="b">프로젝트 4 — 한 줄씩</div>
+          <div class="b">푸터: RSS · GitHub · 이메일 · 사이트맵</div>
+        </div></div>
+      <div class="mock"><div class="lbl"><span class="chip risk">지금 · /blog</span><span class="ve-label">353 KB · 컨트롤 7</span></div>
+        <div class="wf">
+          <div class="b t">Blog (글자별 회전 등장)</div>
+          <div class="row c4"><div class="b">검색</div><div class="b x">그리드/리스트</div><div class="b x">정렬 4</div><div class="b x">필터 토글</div></div>
+          <div class="b x tall">태그 패널 기본 열림 · 25개 · (개수) · 마그네틱</div>
+          <div class="b">총 55개의 포스트</div>
+          <div class="row c3"><div class="b cover tall">AI</div><div class="b cover tall">AI</div><div class="b cover tall">Pintos</div></div>
+          <div class="row c3"><div class="b">제목 2줄 잘림</div><div class="b">제목 2줄 잘림</div><div class="b">제목 2줄 잘림</div></div>
+          <div class="row c3"><div class="b cover tall">카드</div><div class="b cover tall">카드</div><div class="b cover tall">카드</div></div>
+          <div class="b">… 55개 전부, 페이지네이션 없음</div>
+        </div></div>
+      <div class="mock"><div class="lbl"><span class="chip ok">목표 · /blog</span><span class="ve-label">리스트형 · 검색 1</span></div>
+        <div class="wf">
+          <div class="b t">글</div>
+          <div class="row c21"><div class="b">검색 /</div><div class="b">AI · 운영체제 · 자료구조 · 알고리즘 · javascript · 더보기 ▾</div></div>
+          <div class="b k">2026</div>
+          <div class="row c21"><div class="b">04-27</div><div class="b k">[AI] RAG는 검색 기능이 아니라 흐름이다 · 5분</div></div>
+          <div class="row c21"><div class="b">04-22</div><div class="b k">[AI] Agent를 쓸 때 Context가 왜 더 중요해질까? · 6분</div></div>
+          <div class="b k">2025</div>
+          <div class="row c21"><div class="b">12-23</div><div class="b k">[Pintos] UserProgram - 시스템 콜 동작 흐름 · 시리즈 3/22</div></div>
+          <div class="row c21"><div class="b">12-23</div><div class="b k">[Pintos] UserProgram - Argument Passing</div></div>
+          <div class="row c21"><div class="b">12-23</div><div class="b k">[운영체제] 가상화</div></div>
+          <div class="b">… 연도별 · 커버는 특집 글에만 · HTML 100 KB 이하</div>
+        </div></div>
+      <div class="mock"><div class="lbl"><span class="chip risk">지금 · 글 상세</span><span class="ve-label">본문 회색 · 896px · 보조 0</span></div>
+        <div class="wf">
+          <div class="b">← 블로그로 돌아가기</div>
+          <div class="b">태그 · 태그 · 태그</div>
+          <div class="b t">제목 (text-5xl)</div>
+          <div class="b">날짜 · 약 6분</div>
+          <div class="b cover" style="min-height:4em">썸네일 사진 (16:9)</div>
+          <div class="b x tall" style="min-height:6em">본문 — 단락 색 text-secondary(회색), 폭 896px, 코드 테마 cdnjs, 제목 앵커 없음</div>
+          <div class="b x">(목차 없음 · 시리즈 없음 · 이전/다음 없음 · 복사 없음 · 공유 없음)</div>
+          <div class="b">© 2026 Cruz</div>
+        </div></div>
+      <div class="mock"><div class="lbl"><span class="chip ok">목표 · 글 상세</span><span class="ve-label">본문 1차 색 · 700px · 목차</span></div>
+        <div class="wf">
+          <div class="b">글 › 시리즈: Pintos (3/22)</div>
+          <div class="b t">제목</div>
+          <div class="b">2025-12-23 · 수정 2026-05-05 · 6분 · AI · Agent</div>
+          <div class="row c2"><div><div class="b k tall" style="min-height:7em">본문 — 1차 색, 68ch, Shiki 코드 + 복사 + 파일명, 이미지 캡션, 콜아웃, 제목 앵커</div></div><div><div class="b k">목차 (스크롤 스파이)</div><div class="b">1. …</div><div class="b">2. …</div><div class="b">진행 바</div></div></div>
+          <div class="row c2"><div class="b k">← 이전: 시리즈 2편</div><div class="b k">다음: 시리즈 4편 →</div></div>
+          <div class="b">관련 글 3 · 공유 · giscus 댓글</div>
+          <div class="b">푸터</div>
+        </div></div>
+    </div>
+    <figcaption><span class="fig-n">Fig. 9</span>같은 축척의 와이어프레임. 빨간 점선은 없애거나 바꿀 요소, 주황 테두리는 새로 들어가는 핵심 요소다.</figcaption>
+  </figure>
+  <div class="table-scroll" style="margin-top:var(--s-6)">
+    <table>
+      <thead><tr><th>#</th><th>요소</th><th>지금</th><th>기준과의 거리</th><th>개선</th></tr></thead>
+      <tbody>
+        <tr><td>U1</td><td>커스텀 커서 + 트레일</td><td><code>CursorFollower</code>, 보라 트레일</td><td>2020~21 에이전시 유행. 읽기 방해</td><td>제거</td></tr>
+        <tr><td>U2</td><td>타이핑 롤 텍스트</td><td>역할 5개 순환</td><td>2017~19 포트폴리오 문법</td><td>제거, 한 문장 고정</td></tr>
+        <tr><td>U3</td><td>히어로 카피</td><td>따옴표 명언 + 3문단</td><td>2025 기준: 한 줄 + 최신 글</td><td>이름 · 한 줄 · 최신 글 3</td></tr>
+        <tr><td>U4</td><td>글자별 회전 등장</td><td>섹션 제목마다</td><td>과한 모션</td><td>제거</td></tr>
+        <tr><td>U5</td><td>틸트 · 글로우 · 마그네틱 · 리플</td><td>카드·버튼 전부</td><td>효과가 콘텐츠보다 눈에 띔</td><td>호버는 1단계 변화만</td></tr>
+        <tr><td>U6</td><td>스킬 로고 그리드</td><td>11개</td><td>정보량 0</td><td>제거 또는 텍스트 한 줄</td></tr>
+        <tr><td>U7</td><td>Experience 아코디언</td><td>홈에</td><td>이력서 내용</td><td><code>/about</code>으로</td></tr>
+        <tr><td>U8</td><td>고정 알약 메뉴 + 좌측 로고</td><td>3영역, 모바일서 겹침, 중첩 <code>&lt;a&gt;</code></td><td></td><td>한 줄 헤더</td></tr>
+        <tr><td>U9</td><td>목록 컨트롤</td><td>7개 + 태그 25</td><td>55편에 과함</td><td>검색 1 + 칩 1줄</td></tr>
+        <tr><td>U10</td><td>카드 3열</td><td>제목 2줄 잘림</td><td></td><td>연도별 리스트</td></tr>
+        <tr><td>U11</td><td>본문 타이포</td><td>회색 단락, 896px</td><td>본문은 1차 색, 65~75자</td><td>1차 색, 680~720px</td></tr>
+        <tr><td>U12</td><td>글 보조 기능</td><td>없음</td><td>기술 블로그 기본</td><td>목차 · 이전다음 · 시리즈 · 복사 · 앵커 · 공유</td></tr>
+        <tr><td>U13</td><td>코드 블록</td><td>cdnjs 테마, 복사 없음</td><td>Shiki + 복사 + 파일명</td><td>Astro 내장 Shiki</td></tr>
+        <tr><td>U14</td><td>커버 체계</td><td>시리즈 사진 vs 글 코드 커버</td><td>불일치</td><td>통일</td></tr>
+        <tr><td>U15</td><td>이모지 제목</td><td>📚 👋</td><td></td><td>제거</td></tr>
+        <tr><td>U16</td><td>푸터</td><td>한 줄</td><td></td><td>RSS · GitHub · 이메일 · 사이트맵</td></tr>
+        <tr><td>U17</td><td>라이트 테마</td><td>변수만 교체</td><td>코드·에디터·카드 대비 미검증</td><td>두 테마 같은 수준</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <figure style="margin-top:var(--s-6)">
+    <div class="shots">
+      <div class="shot"><div class="tallbox"><img src="cruz-lab-audit-assets/home-desktop-tall.jpg" width="1200" height="3500" alt="홈 전체 캡처" loading="lazy"></div><span class="ve-label">지금 홈. 글(Latest Posts)은 7개 섹션 중 6번째</span></div>
+      <div class="shot"><div class="tallbox"><img src="cruz-lab-audit-assets/post-desktop-tall.jpg" width="1200" height="2500" alt="글 상세 캡처" loading="lazy"></div><span class="ve-label">지금 글 상세. 본문 단락이 회색이고 오른쪽 공간이 비어 있다</span></div>
+    </div>
+    <figcaption><span class="fig-n">Fig. 10</span>운영 사이트 캡처(2026-11-06). 와이어프레임 Fig. 9와 대조.</figcaption>
+  </figure>
+</section>
+
+<section id="s8">
+  <div class="sec-head"><p class="ve-label caps">8 · 개선안</p><h2>Firebase는 유지하고, 컬렉션 구조·규칙·경로를 다시 짠다</h2></div>
+  <figure>
+    <div class="frame">
+      <svg class="ve-svg" viewBox="0 0 960 330" role="img" aria-label="목표 구조: 관리자 React 앱이 세션 쿠키로 Astro API를 부르고, API는 Admin SDK로 Firestore와 Storage에 쓴다. 발행 시 CDN 퍼지와 publishLog. 이미지는 sharp 변형. GitHub Action이 Firestore를 content 브랜치로 동기화. 공개 페이지는 Admin SDK select 조회와 CDN 60초.">
+        <rect class="bound" x="16" y="16" width="220" height="300"/><text class="bound-l" x="28" y="36">브라우저</text>
+        <rect class="bound" x="280" y="16" width="300" height="300"/><text class="bound-l" x="292" y="36">Vercel (Firestore 리전과 동일)</text>
+        <rect class="bound" x="620" y="16" width="324" height="300"/><text class="bound-l" x="632" y="36">Firebase · GitHub</text>
+        <path class="ve-e is-hot" d="M210 100H300"/><text class="ve-el k" x="255" y="91">세션 쿠키</text>
+        <path class="ve-e is-hot" d="M460 100H640"/><text class="ve-el k" x="550" y="91">Admin SDK 쓰기</text>
+        <path class="ve-e" d="M460 120H560V180"/><text class="ve-el" x="560" y="201">sharp 변형</text>
+        <path class="ve-e" d="M380 140V180"/><text class="ve-el r" x="390" y="162">발행: 퍼지 + log</text>
+        <path class="ve-e is-async is-ok" d="M740 150V210H740"/><text class="ve-el good" x="840" y="185">Action 매일 + 발행 후</text>
+        <path class="ve-e" d="M640 280H460"/><text class="ve-el" x="550" y="271">select(요약) · published만</text>
+        <path class="ve-e" d="M300 280H210"/><text class="ve-el" x="255" y="271">HTML · CDN 60 s</text>
+        <g class="ve-n is-key" transform="translate(30 60)"><rect class="sh" width="180" height="80" rx="6"/><text x="90" y="24">관리자 React 앱</text><text class="sub" x="90" y="48">Tiptap · Router</text><text class="sub" x="90" y="66">오프라인 큐 IndexedDB</text></g>
+        <g class="ve-n" transform="translate(30 250)"><rect class="sh" width="180" height="50" rx="6"/><text x="90" y="18">독자 · JS 없이 완전</text><text class="sub" x="90" y="38">목차·복사는 작은 script</text></g>
+        <g class="ve-n is-new" transform="translate(300 60)"><rect class="sh" width="160" height="80" rx="6"/><text x="80" y="24">/api/admin/*</text><text class="sub" x="80" y="48">verifySessionCookie</text><text class="sub" x="80" y="66">관리자 UID만</text></g>
+        <g class="ve-n" transform="translate(300 180)"><rect class="sh" width="160" height="50" rx="6"/><text x="80" y="18">CDN 퍼지 · publishLog</text><text class="sub" x="80" y="38">출간 직후 반영</text></g>
+        <g class="ve-n" transform="translate(300 250)"><rect class="sh" width="160" height="50" rx="6"/><text x="80" y="18">공개 페이지 (Astro)</text><text class="sub" x="80" y="38">SSR + 메모리 캐시</text></g>
+        <g class="ve-n is-key" transform="translate(640 60)"><path class="sh" d="M0 8V72A100 8 0 0 0 200 72V8"/><ellipse class="sh lid" cx="100" cy="8" rx="100" ry="8"/><text x="100" y="30">Firestore</text><text class="sub" x="100" y="50">posts{draft, published}</text><text class="sub" x="100" y="68">revisions · assets · series</text></g>
+        <g class="ve-n" transform="translate(640 150)" style="display:none"></g>
+        <g class="ve-n is-new" transform="translate(640 210)"><rect class="sh" width="200" height="50" rx="6"/><text x="100" y="18">GitHub content 브랜치</text><text class="sub" x="100" y="38">main 아님 → 재배포 없음</text></g>
+        <g class="ve-n" transform="translate(860 150)"><rect class="sh" width="70" height="40" rx="6"/><text x="35" y="20">Storage</text></g>
+        <path class="ve-e" d="M560 180H640" transform="translate(0 -10)"/>
+      </svg>
+    </div>
+    <figcaption><span class="fig-n">Fig. 11</span>클라이언트 SDK는 읽기 전용이 된다. 쓰기는 전부 서버가 관리자 UID를 검사한 뒤 Admin SDK로 한다.</figcaption>
+  </figure>
+  <div class="frame" style="margin-top:var(--s-5); background: var(--surface); overflow-x:auto"><pre style="font: 500 var(--t-small)/1.6 var(--font-mono); color: var(--text); white-space: pre; margin:0">posts/{id}
+  slug · title · description · tags[] · seriesId? · seriesOrder? · kind: post | note | project
+  status: draft | published | unlisted | scheduled · publishedAt? · scheduledAt? · updatedAt · createdAt
+  cover: { kind: generated | image, assetId? }
+  published: { markdown, readingTime, wordCount, toc[] }     ← 공개 페이지가 읽는 스냅샷
+  draft:     { markdown, editorJson, updatedAt, device }     ← 서버 초안
+posts/{id}/revisions/{rev}      ← 발행할 때마다 published 복사
+series/{id}                     ← name · slug · description · coverAssetId · order · status
+assets/{id}                     ← storagePath · variants{w480,w960,w1600 webp} · width · height · bytes · usedBy[] · uploadedAt
+settings/editor                 ← keymap · 슬래시 순서 · 기본 보기 모드
+publishLog/{id}                 ← postId · action · at · by</pre></div>
+  <p class="note" style="margin-top:var(--s-4)"><b>왜 Firestore를 유지하나.</b> 관계형 DB로 옮겨 얻는 것(전문 검색, 조인)보다 이전 비용이 크다. 수백 편 이하면 검색은 클라이언트 인덱스(Pagefind 또는 JSON + MiniSearch)로 충분하다. 바꿔야 할 것은 DB가 아니라 컬렉션 구조와 규칙과 경로다.</p>
+  <figure style="margin-top:var(--s-6)">
+    <div class="timeline">
+      <div class="ph"><span class="n">1</span><h3>즉시 수리</h3><span class="dep">의존 없음 · PR 1개 · 하루</span><ul><li>규칙: 클라이언트 쓰기 금지, 읽기 published만</li><li><code>by-slug</code> 인증</li><li><code>exists</code> · 중첩 <code>&lt;a&gt;</code></li><li><code>content/posts</code> · <code>functions</code> · 업로드 API · 미사용 15파일 삭제</li><li><code>docs/</code> git 추적</li></ul></div>
+      <div class="ph"><span class="n">2</span><h3>데이터 모델 · 서버</h3><span class="dep">의존 1</span><ul><li>컬렉션 재설계 + 마이그레이션(56편 · 2시리즈 · <code>seriesId</code> 잔존 활용)</li><li>세션 쿠키 인증</li><li>초안 · 발행 · 리비전 API</li><li>이미지 서버 업로드 + sharp</li><li>백업 Action · CDN 퍼지 · 리전 정렬</li></ul></div>
+      <div class="ph"><span class="n">3</span><h3>에디터</h3><span class="dep">의존 2 · 4와 병행</span><ul><li>Tiptap + 명령 레지스트리</li><li>키맵 설정 · 슬래시 · 팔레트</li><li>블록 세트 · 이미지 다중</li><li>편집/소스/미리보기 3모드</li><li>모바일 툴바 · 오프라인 큐</li><li>56편 왕복 diff 0 테스트</li></ul></div>
+      <div class="ph"><span class="n">4</span><h3>공개 사이트</h3><span class="dep">의존 2 · 3과 병행</span><ul><li>토큰 · 타이포 재정의</li><li>홈 글 중심 · 목록 리스트형 · 검색</li><li>글 상세: 목차 · 시리즈 · 이전다음 · Shiki · 복사</li><li>프로젝트 통합 · about · 푸터</li><li>React 아일랜드 제거 · OG 생성</li></ul></div>
+      <div class="ph"><span class="n">5</span><h3>관리자 앱</h3><span class="dep">의존 2 · 3</span><ul><li>단일 React 앱 · 라우터</li><li>상태 필터 · 비공개 미리보기</li><li>글 안 시리즈 지정</li><li>태그 · 이미지 라이브러리</li><li>출간 기록 · 설정 · 헤더 진입점</li></ul></div>
+    </div>
+    <figcaption><span class="fig-n">Fig. 12</span>1단계는 하루 크기다. 2단계가 끝나면 3·4는 병행한다. 2~5는 각각 설계 문서(Plan)를 따로 쓴다.</figcaption>
+  </figure>
+  <p class="note" style="margin-top:var(--s-5)"><b>하지 않을 것.</b> Next.js 등 프레임워크 교체(4절). Firestore → Postgres 이전(위). CodeMirror 라이브 프리뷰 자체 구현(2절). 기존 글 URL 변경(<code>/blog/&lt;slug&gt;</code> 유지).</p>
+</section>
+
+<section id="s9">
+  <div class="sec-head"><p class="ve-label caps">9 · 검증</p><h2>개선 후 이것이 참이어야 한다</h2></div>
+  <div class="cases">
+    <div class="case"><span class="chip ok">보안</span><p>관리자가 아닌 Google 계정의 클라이언트 SDK 쓰기 → <b>거부</b>. <code>by-slug?slug=&lt;비공개&gt;</code> → 401/404.</p></div>
+    <div class="case"><span class="chip ok">쓰기 마찰</span><p>폰에서 노트 작성 → 데스크톱에서 같은 초안 열림 → 발행 → <b>60초 안</b> 공개 반영. 시간 측정.</p></div>
+    <div class="case"><span class="chip ok">왕복</span><p>기존 56편을 새 에디터로 열고 수정 없이 저장 → <b>diff 0</b>.</p></div>
+    <div class="case"><span class="chip ok">공개 페이지</span><p>JS 비활성화로 홈·목록·상세 전부 읽힘. <code>/blog/</code> HTML ≤ 100 KB. Lighthouse 모바일 ≥ 90.</p></div>
+    <div class="case"><span class="chip ok">관리자</span><p>비공개 글이 목록에 보이고 미리보기가 열림. 시리즈 수정이 열림. 글 삭제 시 이미지도 삭제.</p></div>
+  </div>
+</section>
+
+
+<section id="s10">
+  <div class="sec-head"><p class="ve-label caps">10 · 2차 질문</p><h2>시리즈는 태그를 한 번 더 저장한 것이다. 크기를 1/10로 줄인다</h2></div>
+  <figure>
+    <div class="frame">
+      <svg class="ve-svg" viewBox="0 0 960 300" role="img" aria-label="시리즈 크래프톤 정글 22편과 태그 크래프톤 정글 23편이 같은 집합이다. 시리즈 WesBos 21편과 태그 wesbos30 22편이 같은 집합이다. 시리즈가 더한 것은 순서, 커버, 설명, 시작 버튼, 동작하지 않는 진행률이다. 2026년 글 2편은 시리즈가 없다. 프로젝트 글 8편은 이미 Part 순서를 가진다.">
+        <text class="bound-l" x="20" y="30">시리즈 (Firestore series · 2,514줄)</text>
+        <text class="bound-l" x="20" y="180">태그 (posts.tags · 0줄 추가)</text>
+        <g class="ve-n is-key" transform="translate(20 50)"><rect class="sh" width="260" height="90" rx="6"/><text x="130" y="24">크래프톤 정글</text><text class="sub" x="130" y="48">22편 · 순서 = 발행일</text><text class="sub" x="130" y="68">커버 사진 · 설명 1줄 · 진행률 0%</text></g>
+        <g class="ve-n is-key" transform="translate(320 50)"><rect class="sh" width="260" height="90" rx="6"/><text x="130" y="24">WesBos Vanilla JS 30</text><text class="sub" x="130" y="48">21편 · 순서 = 제목 번호 01~30</text><text class="sub" x="130" y="68">커버 사진 · 설명 1줄 · 진행률 0%</text></g>
+        <g class="ve-n is-gone" transform="translate(620 50)"><rect class="sh" width="320" height="90" rx="6"/><text x="160" y="24">그 밖의 글 13편 · 2026년 글 2편</text><text class="sub" x="160" y="48">시리즈 없음</text><text class="sub" x="160" y="68">프로젝트 글 8편은 Part 1·2·3을 따로 가짐</text></g>
+        <path class="ve-e is-none" d="M150 140V200" stroke-dasharray="3 4" marker-end="none"/><text class="ve-el r" x="160" y="172">= 같은 집합</text>
+        <path class="ve-e is-none" d="M450 140V200" stroke-dasharray="3 4" marker-end="none"/><text class="ve-el r" x="460" y="172">= 같은 집합</text>
+        <g class="ve-n" transform="translate(20 200)"><rect class="sh" width="260" height="60" rx="6"/><text x="130" y="22">tag: 크래프톤 정글</text><text class="sub" x="130" y="44">23편 (변형 1 포함)</text></g>
+        <g class="ve-n" transform="translate(320 200)"><rect class="sh" width="260" height="60" rx="6"/><text x="130" y="22">tag: wesbos30</text><text class="sub" x="130" y="44">22편 (중복 파일 1 포함)</text></g>
+        <g class="ve-n" transform="translate(620 200)"><rect class="sh" width="320" height="60" rx="6"/><text x="160" y="22">제목 접두사 [Pintos] [AI] [자료구조] …</text><text class="sub" x="160" y="44">57편 중 56편 = 사실상 카테고리</text></g>
+      </svg>
+    </div>
+    <figcaption><span class="fig-n">Fig. 13</span>시리즈가 태그와 다른 점은 "작성자가 정한 읽기 순서"와 "닫힌 집합"뿐이다. 그 가치가 필요한 글은 56편 중 Pintos 5편, Proxy-lab 2편 정도다.</figcaption>
+  </figure>
+  <figure style="margin-top:var(--s-6)">
+    <div class="frame">
+      <svg class="ve-svg" viewBox="0 0 960 250" role="img" aria-label="목표 분류 체계: category 단일 값 10~12개가 1차 축, tags가 보조, series는 글의 필드 key와 order로만 존재하고 posts에서 /series/key 페이지를 생성한다. 프로젝트 글의 Part도 같은 series 필드를 쓴다.">
+        <g class="ve-n is-new" transform="translate(20 40)"><rect class="sh" width="280" height="80" rx="6"/><text x="140" y="24">category (단일, 10~12개)</text><text class="sub" x="140" y="48">AI · JavaScript · React · 운영체제 …</text><text class="sub" x="140" y="66">= 지금의 제목 접두사를 승격</text></g>
+        <g class="ve-n" transform="translate(340 40)"><rect class="sh" width="280" height="80" rx="6"/><text x="140" y="24">tags (다대다, 최대 3)</text><text class="sub" x="140" y="48">정규화 · 별칭 합치기</text><text class="sub" x="140" y="66">크래프톤 정글 → 태그로만</text></g>
+        <g class="ve-n is-key" transform="translate(660 40)"><rect class="sh" width="280" height="80" rx="6"/><text x="140" y="24">series: { key, order }</text><text class="sub" x="140" y="48">글의 선택 필드. 관리 화면 없음</text><text class="sub" x="140" y="66">wesbos30 1~30 · pintos 1~5</text></g>
+        <path class="ve-e" d="M160 120V170"/><text class="ve-el r" x="170" y="150">1차 축</text>
+        <path class="ve-e" d="M480 120V170"/><text class="ve-el r" x="490" y="150">검색 · 글 하단</text>
+        <path class="ve-e" d="M800 120V170"/><text class="ve-el r" x="810" y="150">posts에서 생성</text>
+        <g class="ve-n" transform="translate(20 170)"><rect class="sh" width="280" height="50" rx="6"/><text x="140" y="18">/blog 탭 10개</text><text class="sub" x="140" y="38">25개 칩 패널 대신</text></g>
+        <g class="ve-n" transform="translate(340 170)"><rect class="sh" width="280" height="50" rx="6"/><text x="140" y="18">/blog?tag=…</text><text class="sub" x="140" y="38">태그 관리: 이름 바꾸기 · 합치기</text></g>
+        <g class="ve-n" transform="translate(660 170)"><rect class="sh" width="280" height="50" rx="6"/><text x="140" y="18">/series/[key] · 글 상단 N/M · 이전/다음</text><text class="sub" x="140" y="38">/projects Part도 같은 필드 (kind=project)</text></g>
+      </svg>
+    </div>
+    <figcaption><span class="fig-n">Fig. 14</span>분류 두 층 + 연재 필드 하나. "순서가 있는 묶음" 메커니즘은 하나이고, 시리즈와 프로젝트는 그것을 보는 두 화면이다.</figcaption>
+  </figure>
+  <div class="cases" style="margin-top:var(--s-5)">
+    <div class="case"><span class="chip risk">제거</span><h3>독립 시리즈</h3><p><code>series</code> 컬렉션, <code>/admin/series*</code>, <code>SeriesEditor</code>·<code>SeriesList</code>, 시리즈 API, 카드 4종. 2,514줄.</p></div>
+    <div class="case"><span class="chip ok">환원</span><h3>기존 2개</h3><p>크래프톤 정글 → 태그만(주제가 제각각). wesbos30 → <code>series.key</code> + 제목 번호. 옛 URL 2개는 리다이렉트.</p></div>
+    <div class="case"><span class="chip ok">규칙</span><h3>앞으로 쓰는 때</h3><p>뒤 편이 앞 편을 전제할 때만. "RAG 파이프라인 만들기 1·2·3", "Pintos Project 1→4". 주제·경험·프로젝트는 각각 카테고리·태그·프로젝트가 맡는다. 일상 글은 시리즈를 안 쓰는 것이 정상.</p></div>
+  </div>
+  <div class="sec-head" style="margin-top:var(--s-7)"><p class="ve-label caps">10.2 · 방향</p><h2>포트폴리오를 버리는 게 아니라 랜딩에서 /about + /projects + PDF로 옮긴다</h2></div>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>역할</th><th>지금</th><th>목표</th></tr></thead>
+      <tbody>
+        <tr><td>10초 파악 (링크 클릭)</td><td>홈 히어로 + 7섹션. 읽을 것이 많다</td><td><code>/about</code> 1화면: 한 줄 · 하는 일 · 프로젝트 4개 한 줄씩 · 이력서 PDF · 연락처</td></tr>
+        <tr><td>깊이 확인 (면접 전)</td><td><code>/projects</code> Part 글 — 실제로 읽히는 것</td><td>유지. 이력서에 직접 링크. 측정값·설계 결정을 글 안에</td></tr>
+        <tr><td>제출용</td><td>없음 (웹 링크로 대체)</td><td>PDF 포트폴리오. <code>~/projects/career</code>에서 관리. 프로젝트 글과 같은 원고</td></tr>
+        <tr><td>홈</td><td>포트폴리오 랜딩</td><td>최신 글 · 노트 + 2줄 소개 + about 링크</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="cases" style="margin-top:var(--s-5)">
+    <div class="case"><span class="chip warn">조건 1</span><h3>노트 스트림</h3><p><code>kind:'note'</code>를 공개한다. 짧고 거친 기록을 그날 올린다. 글 2주 공백에도 사이트가 살아 있어 보인다.</p></div>
+    <div class="case"><span class="chip warn">조건 2</span><h3>최소 운영 규칙</h3><p>노트는 배운 날, 글은 2주 1편. 노트 3~5개 → 글 1편 승격. 2·3단계(서버 초안·새 에디터·모바일)의 목적이 이 규칙을 지키게 하는 것.</p></div>
+    <div class="case"><span class="chip ok">안전망</span><h3>about은 글 없이도 완전</h3><p>홈이 비어도 <code>/about</code>과 <code>/projects</code>가 포트폴리오 역할을 한다.</p></div>
+  </div>
+  '<div class="sec-head" style="margin-top:var(--s-7)"><p class="ve-label caps">10.3 · docs</p><h2><code>docs/blog-rebuilding/</code>만 추적한다. 이전 문서는 지금처럼 무시한다</h2></div>
+  <div class="cases">
+    <div class="case"><span class="chip ok">이유</span><p>이전 문서 23개는 이 재건으로 교체될 코드를 설명한다. 재건이 끝나면 전부 낡은 문서다. 올리면 "어느 문서가 현재인가"를 또 가려야 한다.</p></div>
+    <div class="case"><span class="chip ok">이유</span><p>파일명 날짜가 틀린 것이 많다(<code>2024-12-*</code> 7개는 실제 2025-12). 문서 간격도 길어 보인다. 고쳐서 올릴 가치가 없다.</p></div>
+    <div class="case"><span class="chip ok">이유</span><p>면접 증거와 AI 작업 추적에 필요한 것은 재건 문서뿐이다. 이 폴더에서 한 흐름으로 시작한다.</p></div>
+    <div class="case"><span class="chip info">규칙</span><p><code>.gitignore</code>: <code>docs/*</code> 유지 + <code>!docs/blog-rebuilding/</code>. 이미 추적 중인 옛 문서 2개는 3단계에서 <code>git rm</code>. 이전 문서는 로컬에 그대로.</p></div>
+    <div class="case"><span class="chip info">규칙</span><p>캡처는 1200px JPEG로 줄여 폴더 1.5 MB 이하(적용: 14장 1.3 MB). 후속 판단은 새 문서가 아니라 기존 문서에 절을 더한다. 추적 전 키·개인정보 검색 → 없음.</p></div>
+  </div>
+</section>
+
+<section class="sources" aria-label="출처">
+  <div class="sec-head"><p class="ve-label caps">출처</p><h2>근거</h2></div>
+  <p class="note">모든 사실은 1편(<code>docs/blog-rebuilding/2026-11-06-blog-architecture-audit-1-current-state.md</code>)과 같은 조사에서 나왔다: <code>src/**</code> 전부, 규칙 파일, Firestore 실데이터, 운영 응답 측정, 빌드 산출물, git 로그, 운영 사이트 캡처. 편집기 엔진 비교는 각 라이브러리의 공개 문서와 일반적인 사용 경험에 근거한 판단이다. 마크다운 원본: <code>docs/blog-rebuilding/2026-11-06-blog-architecture-audit-2-problems-and-plan.md</code>.</p>
+</section>
+
+</main>
+</div>
+<script>
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const links = [...document.querySelectorAll('nav.toc a')];
+  const secs = links.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const spy = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) { links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + e.target.id)); } }, { rootMargin: '-10% 0px -80% 0px' });
+  secs.forEach(s => spy.observe(s));
+  if (!still) {
+    document.documentElement.classList.add('js-motion');
+    const io = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) { io.unobserve(e.target); e.target.classList.add('in'); } }, { rootMargin: '0px 0px -10% 0px' });
+    for (const el of document.querySelectorAll('main > *')) io.observe(el);
+  }
+</script>
+</body>
+</html>

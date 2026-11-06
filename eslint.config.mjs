@@ -10,7 +10,7 @@ import tseslint from 'typescript-eslint';
 
 export default [
   // 무시 경로
-  { ignores: ['dist', 'node_modules', '.astro', '.vercel', 'coverage', 'functions/lib'] },
+  { ignores: ['dist', 'node_modules', '.astro', '.vercel', 'coverage'] },
 
   {
     files: ['**/*.{js,mjs,cjs}'],

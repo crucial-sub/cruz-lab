@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cruz Lab 구조 전수조사 (1) 현재 상태</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%230d1520'/%3E%3Cpath d='M14 20h36M14 32h36M14 44h22' stroke='%23ffb547' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* Blueprint register (architecture / data flow) */
+  :root {
+    color-scheme: dark light;
+    --bg: #0d1520; --surface: #132031; --border: #22324a; --border-bright: #596b87;
+    --text: #e3ecf5; --text-dim: #92a6bb; --accent: #ffb547; --accent-dim: rgba(255,181,71,.14);
+    --ok: #6fd3a0; --warn: #e8d36a; --risk: #ff7b6b; --info: #7cc0f0;
+    --node-top: color-mix(in srgb, var(--text) 7%, var(--surface)); --lift: rgb(0 0 0 / .45); --halo: 32%;
+    --font-body: 'IBM Plex Sans', 'IBM Plex Sans KR', 'Pretendard', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --t-label: .75rem; --t-small: .875rem; --t-body: 1rem; --t-lead: 1.25rem; --t-h2: 1.625rem; --t-h1: clamp(2.25rem, 5.5vw, 3.5rem);
+    --s-1: .25rem; --s-2: .5rem; --s-3: .75rem; --s-4: 1rem; --s-5: 1.5rem; --s-6: 2rem; --s-7: 3rem; --s-8: 4.5rem;
+    --r-1: 4px; --r-2: 10px;
+    --ease: cubic-bezier(.16,1,.3,1); --fast: 150ms; --med: 300ms; --slow: 500ms;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f2f6fa; --surface: #ffffff; --border: #d6e0ea; --border-bright: #818f9e; --text: #0f1a26; --text-dim: #4d6074; --accent: #a34700; --accent-dim: rgba(163,71,0,.12); --ok: #1c7443; --warn: #776300; --risk: #b0341e; --info: #145f99; --node-top: var(--surface); --lift: rgb(18 22 20 / .12); --halo: 22%; }
+  }
+  html { font-size: 17px; }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 400 var(--t-body)/1.65 var(--font-body); text-wrap: pretty; font-kerning: normal; font-synthesis: none; -webkit-font-smoothing: antialiased; word-break: keep-all; }
+  ::selection { background: var(--accent-dim); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .layout { display: grid; grid-template-columns: minmax(0,1fr); }
+  @media (min-width: 1000px) { .layout { grid-template-columns: 15rem minmax(0,1fr); } }
+  nav.toc { position: sticky; top: 0; align-self: start; padding: var(--s-5); border-bottom: 1px solid var(--border); background: var(--bg); z-index: 5; }
+  @media (min-width: 1000px) { nav.toc { height: 100vh; border-right: 1px solid var(--border); border-bottom: 0; overflow-y: auto; } }
+  nav.toc ol { list-style: none; padding: 0; display: flex; gap: var(--s-3); overflow-x: auto; scrollbar-width: none; mask-image: linear-gradient(90deg, #000 85%, transparent); }
+  nav.toc ol::-webkit-scrollbar { display: none; }
+  @media (min-width: 1000px) { nav.toc ol { flex-direction: column; overflow: visible; mask-image: none; } }
+  nav.toc a { color: var(--text-dim); text-decoration: none; font: 500 var(--t-small) var(--font-mono); white-space: nowrap; display: block; padding: var(--s-1) 0; border-left: 2px solid transparent; padding-left: var(--s-3); }
+  nav.toc a.active, nav.toc a:hover { color: var(--text); border-color: var(--accent); }
+  nav.toc .ttl { font: 600 var(--t-label) var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: var(--s-3); }
+  main { max-width: 64rem; margin: 0 auto; padding: var(--s-8) var(--s-5); display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-8); width: 100%; }
+  section, figure, header { min-width: 0; scroll-margin-top: 4rem; }
+  header { display: grid; gap: var(--s-4); }
+  h1 { font-size: var(--t-h1); line-height: 1.1; font-weight: 600; letter-spacing: -.03em; text-wrap: balance; max-width: 22ch; }
+  h1 .num { color: var(--accent); font-variant-numeric: tabular-nums; }
+  h2 { font-size: var(--t-h2); line-height: 1.25; font-weight: 600; letter-spacing: -.015em; text-wrap: balance; }
+  .sec-head { display: grid; gap: var(--s-3) var(--s-5); align-items: baseline; border-top: 1px solid var(--border); padding-top: var(--s-5); margin-bottom: var(--s-6); }
+  @media (min-width: 52rem) { .sec-head { grid-template-columns: 3fr 9fr; } }
+  h3 { font-size: var(--t-body); line-height: 1.3; font-weight: 600; }
+  .eyebrow { display: flex; align-items: center; gap: var(--s-2); font: 600 var(--t-label) var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  .eyebrow::before { content: ''; width: 1.25rem; height: 2px; background: currentColor; }
+  .ve-label { font: 500 var(--t-label) var(--font-mono); color: var(--text-dim); }
+  .caps { text-transform: uppercase; letter-spacing: .08em; font-weight: 600; color: var(--text); }
+  .lead { font-size: var(--t-lead); line-height: 1.5; color: var(--text-dim); max-width: 46ch; }
+  .lead b { color: var(--text); font-weight: 600; }
+  .meta { font: 500 var(--t-label) var(--font-mono); color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  p.note { max-width: 65ch; color: var(--text-dim); }
+  p.note b { color: var(--text); font-weight: 600; }
+  code { font: .875em var(--font-mono); font-variant-ligatures: none; }
+  .frame { background: linear-gradient(var(--border) 1px, transparent 1px) 0 0 / 24px 24px, linear-gradient(90deg, var(--border) 1px, transparent 1px) 0 0 / 24px 24px, var(--bg); border: 1px solid var(--border); border-radius: var(--r-1); padding: var(--s-5); overflow-x: auto; }
+  .frame.plain { background: var(--surface); }
+  figcaption { font-size: var(--t-body); color: var(--text-dim); margin-top: var(--s-3); max-width: 65ch; }
+  .fig-n { font: 600 var(--t-label) var(--font-mono); color: var(--text); margin-right: var(--s-2); }
+  .ve-svg { width: 100%; min-width: 720px; height: auto; display: block; font: 500 16px var(--font-body); }
+  .ve-n .sh { fill: url(#ve-node); stroke: var(--border-bright); stroke-width: 1.5; filter: drop-shadow(0 6px 14px var(--lift)); }
+  .ve-n .lid { fill: var(--node-top); }
+  .ve-n.is-key .sh { fill: color-mix(in srgb, var(--accent) 11%, var(--surface)); stroke: var(--accent); stroke-width: 2; filter: drop-shadow(0 0 16px color-mix(in srgb, var(--accent) var(--halo), transparent)); }
+  .ve-n.is-dead .sh { stroke-dasharray: 5 4; fill: var(--surface); filter: none; }
+  .ve-n.is-dead text { fill: var(--text-dim); }
+  .ve-n text { fill: var(--text); text-anchor: middle; dominant-baseline: central; font-weight: 600; }
+  .ve-n .sub { fill: var(--text-dim); font: 500 13px var(--font-mono); }
+  .ve-e { fill: none; stroke: var(--text-dim); stroke-width: 1.75; marker-end: url(#ve-ah); }
+  .ve-e.is-hot { stroke: var(--accent); stroke-width: 2.75; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 55%, transparent)); }
+  .ve-e.is-async { stroke-dasharray: 6 5; }
+  .ve-e.is-risk { stroke: var(--risk); }
+  .ve-e.is-none { marker-end: none; }
+  .ve-el { fill: var(--text-dim); font: 500 13px var(--font-mono); text-anchor: middle; paint-order: stroke; stroke: var(--bg); stroke-width: 5px; stroke-linejoin: round; }
+  .ve-el.l { text-anchor: end; } .ve-el.r { text-anchor: start; }
+  .ve-el.k { fill: var(--text); }
+  .bound { fill: none; stroke: var(--border-bright); stroke-dasharray: 6 5; stroke-width: 1; }
+  .bound-l { fill: var(--text-dim); font: 600 12px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+  .ve-co circle { fill: var(--surface); stroke: var(--accent); stroke-width: 1.75; }
+  .ve-co text { fill: var(--accent); font: 600 13px var(--font-mono); text-anchor: middle; dominant-baseline: central; }
+  .ve-dim path { fill: none; stroke-width: 1; } .ve-dim .ext { stroke: var(--border-bright); } .ve-dim .ln { stroke: var(--text-dim); }
+  .ve-dim text { fill: var(--text); font: 500 13px var(--font-mono); text-anchor: middle; }
+  .ve-dim.is-key .ln { stroke: var(--accent); } .ve-dim.is-key text { fill: var(--accent); }
+  .kpis { display: flex; flex-wrap: wrap; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: var(--r-1); overflow: hidden; }
+  .kpi { flex: 1 1 13rem; background: var(--surface); padding: var(--s-5); display: grid; grid-template-rows: auto auto 1fr; gap: var(--s-3); min-width: 0; }
+  .kpi .val { font: 600 2.5rem/1 var(--font-body); font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
+  .kpi .val .unit { font-size: .45em; font-weight: 500; color: var(--text-dim); letter-spacing: 0; margin-left: .1em; }
+  .ve-bars { align-self: end; width: 100%; max-width: 18rem; height: auto; font: 500 12px var(--font-mono); overflow: visible; }
+  .ve-bars text { fill: var(--text-dim); dominant-baseline: central; }
+  .ve-bars rect { fill: var(--border-bright); }
+  .ve-bars .hot { fill: var(--accent); } .ve-bars .hot + text { fill: var(--text); }
+  .ve-bars .dead { fill: var(--risk); opacity: .7; }
+  .ve-waffle { align-self: end; width: 11rem; height: auto; font: 500 12px var(--font-mono); overflow: visible; }
+  .ve-waffle text { fill: var(--text-dim); dominant-baseline: central; }
+  .cases { display: grid; grid-template-columns: repeat(auto-fit, minmax(14.5rem, 1fr)); gap: var(--s-4); }
+  .case { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-1); padding: var(--s-4); display: grid; gap: var(--s-3); align-content: start; }
+  .case p { color: var(--text-dim); font-size: var(--t-small); }
+  .chip { display: inline-flex; align-items: center; gap: var(--s-2); font: 600 var(--t-label) var(--font-mono); padding: 2px var(--s-2); border: 1px solid currentColor; border-radius: var(--r-1); white-space: nowrap; justify-self: start; }
+  .chip::before { content: ''; width: .5rem; height: .5rem; background: currentColor; }
+  .chip.ok { color: var(--ok); } .chip.ok::before { border-radius: 50%; }
+  .chip.warn { color: var(--warn); } .chip.warn::before { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+  .chip.risk { color: var(--risk); }
+  .chip.info { color: var(--info); } .chip.info::before { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+  .chip.dim { color: var(--text-dim); }
+  .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-1); }
+  table { border-collapse: collapse; width: 100%; font-size: var(--t-small); }
+  th { background: var(--surface); text-align: left; font: 500 var(--t-label) var(--font-mono); color: var(--text-dim); padding: var(--s-3) var(--s-4); white-space: nowrap; }
+  td { padding: var(--s-3) var(--s-4); border-top: 1px solid var(--border); vertical-align: top; }
+  td.n { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); white-space: nowrap; }
+  td code { white-space: nowrap; }
+  .shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: var(--s-4); }
+  .shot { display: grid; gap: var(--s-2); align-content: start; }
+  .shot img { width: 100%; height: auto; border: 1px solid var(--border-bright); border-radius: var(--r-1); display: block; background: #0e0f12; }
+  .shot .ve-label { display: block; }
+  .tall { max-height: 32rem; overflow-y: auto; border: 1px solid var(--border-bright); border-radius: var(--r-1); }
+  .tall img { width: 100%; height: auto; display: block; }
+  .steps { counter-reset: s; display: grid; gap: var(--s-3); max-width: 65ch; padding: 0; list-style: none; }
+  .steps li { position: relative; padding-left: 2.25rem; }
+  .steps li::before { counter-increment: s; content: counter(s); position: absolute; left: 0; top: .15rem; font: 600 var(--t-label) var(--font-mono); color: var(--accent); border: 1px solid var(--accent); border-radius: 50%; width: 1.5rem; height: 1.5rem; display: grid; place-items: center; }
+  .keys { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: var(--s-2); }
+  .key { display: flex; justify-content: space-between; gap: var(--s-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-1); padding: var(--s-2) var(--s-3); font-size: var(--t-small); }
+  kbd { font: 500 var(--t-label) var(--font-mono); background: var(--bg); border: 1px solid var(--border-bright); border-radius: var(--r-1); padding: 1px var(--s-2); white-space: nowrap; }
+  .filemap { font: 500 var(--t-small) var(--font-mono); columns: 2; column-gap: var(--s-6); max-width: 60rem; }
+  @media (max-width: 52rem) { .filemap { columns: 1; } }
+  .filemap div { break-inside: avoid; display: flex; justify-content: space-between; gap: var(--s-3); padding: var(--s-1) 0; border-bottom: 1px solid var(--border); }
+  .filemap .dead { color: var(--risk); }
+  .tl { display: grid; gap: 0; border-left: 2px solid var(--border); margin-left: .5rem; }
+  .tl div { position: relative; padding: 0 0 var(--s-4) var(--s-5); }
+  .tl div::before { content: ''; position: absolute; left: -7px; top: .45rem; width: 12px; height: 12px; border-radius: 50%; background: var(--bg); border: 2px solid var(--border-bright); }
+  .tl div.now::before { border-color: var(--accent); background: var(--accent); }
+  .tl .d { font: 600 var(--t-label) var(--font-mono); color: var(--text-dim); display: block; }
+  .js-motion main > * { transition: opacity var(--slow) var(--ease), transform var(--slow) var(--ease); }
+  .js-motion main > :not(.in) { opacity: 0; transform: translateY(1rem); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  @media print { :root { --bg:#fff; --surface:#fff; --border:#d6e0ea; --border-bright:#818f9e; --text:#0f1a26; --text-dim:#4d6074; --accent:#a34700; } nav.toc { display:none; } .frame { overflow: visible; } .ve-svg { min-width: 0; } .frame, .case, .kpi { break-inside: avoid; } svg * { filter: none !important; } .js-motion main > * { opacity:1 !important; transform:none !important; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <marker id="ve-ah" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker>
+  <linearGradient id="ve-node" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--node-top)"/><stop offset="1" style="stop-color:var(--surface)"/></linearGradient>
+  <pattern id="ve-w-on" width="10" height="10" patternUnits="userSpaceOnUse"><rect x="1" y="1" width="8" height="8" rx="1.5" style="fill:var(--accent)"/></pattern>
+  <pattern id="ve-w-off" width="10" height="10" patternUnits="userSpaceOnUse"><rect x="1.5" y="1.5" width="7" height="7" rx="1.5" style="fill:none;stroke:var(--text-dim)"/></pattern>
+</defs></svg>
+<div class="layout">
+<nav class="toc" aria-label="목차">
+  <p class="ttl">현재 상태</p>
+  <ol>
+    <li><a href="#s0">0 한눈에</a></li>
+    <li><a href="#s1">1 저장소 5곳</a></li>
+    <li><a href="#s2">2 글의 생애주기</a></li>
+    <li><a href="#s3">3 출간 요청</a></li>
+    <li><a href="#s4">4 시리즈</a></li>
+    <li><a href="#s5">5 관리자</a></li>
+    <li><a href="#s6">6 공개 페이지</a></li>
+    <li><a href="#s7">7 편집기</a></li>
+    <li><a href="#s8">8 Astro · React</a></li>
+    <li><a href="#s9">9 이력</a></li>
+    <li><a href="#src">출처</a></li>
+  </ol>
+</nav>
+<main>
+
+<header id="s0">
+  <p class="eyebrow">Cruz Lab · 구조 전수조사 1/2</p>
+  <h1>글 한 편이 <span class="num">5곳</span>의 저장소와 <span class="num">4개</span>의 외부 서비스를 지나 공개된다</h1>
+  <p class="lead">이 문서는 <b>평가하지 않는다</b>. 2026-11-06 기준으로 코드, 실제 데이터, 운영 사이트를 직접 읽고 블로그가 어떻게 돌아가는지만 그린다. 판단은 2편에 있다.</p>
+  <p class="meta">src 148파일 · 15,455줄 전부 읽음 · Firestore 실데이터 조회 · 운영 응답 측정 · git 306커밋 · 브랜치 fix/perf-and-ui-polish @156f586</p>
+</header>
+
+<figure>
+  <div class="frame">
+    <svg class="ve-svg" viewBox="0 0 960 470" role="img" aria-label="관리자 브라우저의 React 에디터가 초안을 localStorage에 저장하고, 이미지를 Firebase Storage에 올리고, 출간 시 Astro API를 거쳐 GitHub 백업과 Firestore에 쓴다. 공개 페이지는 Firestore를 읽어 CDN에 60초 캐시된다. content/posts 57개 파일은 어느 코드도 읽지 않는다.">
+      <rect class="bound" x="16" y="16" width="300" height="200"/><text class="bound-l" x="28" y="36">브라우저 (관리자)</text>
+      <rect class="bound" x="360" y="16" width="250" height="330"/><text class="bound-l" x="372" y="36">Vercel iad1 · Astro SSR</text>
+      <rect class="bound" x="650" y="16" width="294" height="440"/><text class="bound-l" x="662" y="36">외부 서비스</text>
+      <!-- edges -->
+      <path class="ve-e" d="M130 110H190"/><text class="ve-el" x="160" y="101">1.5s</text>
+      <path class="ve-e" d="M80 140V200H690V160"/><text class="ve-el" x="420" y="213">업로드 (클라이언트 SDK, 규칙: auth != null)</text>
+      <path class="ve-e is-hot" d="M130 90H400"/><text class="ve-el k" x="265" y="81">출간 POST + ID token</text>
+      <path class="ve-e" d="M520 90H690"/><text class="ve-el" x="605" y="81">lookup</text>
+      <path class="ve-e" d="M520 100H690V250"/><text class="ve-el" x="612" y="241">PUT .md</text>
+      <path class="ve-e is-hot" d="M520 110H660V330H690"/><text class="ve-el k" x="600" y="321">upsert</text>
+      <path class="ve-e" d="M690 350H600V400H520"/><text class="ve-el" x="605" y="391">read (Admin SDK)</text>
+      <path class="ve-e" d="M400 400H240"/><text class="ve-el" x="320" y="391">HTML · s-maxage 60</text>
+      <path class="ve-e is-async is-none" d="M690 440H560V430"/><text class="ve-el" x="625" y="458">content/posts: 읽는 코드 없음</text>
+      <!-- nodes -->
+      <g class="ve-n is-key" transform="translate(30 60)"><rect class="sh" width="100" height="80" rx="4"/><text x="50" y="30">React 에디터</text><text class="sub" x="50" y="55">CodeMirror 6</text></g>
+      <g class="ve-n" transform="translate(190 80)"><rect class="sh" width="110" height="60" rx="4"/><text x="55" y="22">localStorage</text><text class="sub" x="55" y="44">초안 · 기기별</text></g>
+      <g class="ve-n is-key" transform="translate(400 60)"><rect class="sh" width="120" height="80" rx="4"/><text x="60" y="30">publish-post</text><text class="sub" x="60" y="55">API 라우트</text></g>
+      <g class="ve-n" transform="translate(400 370)"><rect class="sh" width="120" height="60" rx="4"/><text x="60" y="22">공개 페이지</text><text class="sub" x="60" y="44">/blog, /series …</text></g>
+      <g class="ve-n" transform="translate(130 370)"><rect class="sh" width="110" height="60" rx="4"/><text x="55" y="22">CDN icn1</text><text class="sub" x="55" y="44">60 s + SWR 1일</text></g>
+      <g class="ve-n" transform="translate(690 60)"><rect class="sh" width="200" height="60" rx="4"/><text x="100" y="22">Identity Toolkit</text><text class="sub" x="100" y="44">accounts:lookup REST</text></g>
+      <g class="ve-n" transform="translate(690 130)"><path class="sh" d="M0 8V52A100 8 0 0 0 200 52V8"/><ellipse class="sh lid" cx="100" cy="8" rx="100" ry="8"/><text x="100" y="30">Firebase Storage</text><text class="sub" x="100" y="48">images/heroes · blog</text></g>
+      <g class="ve-n" transform="translate(690 220)"><rect class="sh" width="200" height="60" rx="4"/><text x="100" y="22">GitHub Contents API</text><text class="sub" x="100" y="44">data/post-archive · 3개</text></g>
+      <g class="ve-n is-key" transform="translate(690 300)"><path class="sh" d="M0 8V62A100 8 0 0 0 200 62V8"/><ellipse class="sh lid" cx="100" cy="8" rx="100" ry="8"/><text x="100" y="32">Firestore</text><text class="sub" x="100" y="54">posts 56 · series 2</text></g>
+      <g class="ve-n is-dead" transform="translate(690 410)"><rect class="sh" width="200" height="40" rx="4"/><text x="100" y="20">content/posts · 57개 .md</text></g>
+    </svg>
+  </div>
+  <figcaption><span class="fig-n">Fig. 1</span>굵은 선이 출간 경로다. 초안은 브라우저에만 있고, 백업은 출간 요청 안에서 동기로 쓰이며, <code>content/posts</code>는 어느 코드도 읽지 않는다.</figcaption>
+</figure>
+
+<section>
+  <div class="sec-head"><p class="ve-label caps">규모</p><h2>글 56편, 코드 15,455줄, 클라이언트 JS 1.4 MB</h2></div>
+  <figure>
+    <div class="kpis">
+      <div class="kpi"><span class="ve-label">Firestore posts</span><span class="val">56</span>
+        <svg class="ve-bars" viewBox="0 0 260 52" role="img" aria-label="published 55, draft 1"><text y="12">published</text><rect class="hot" x="80" y="5" width="165" height="14" rx="2"/><text x="252" y="12">55</text><text y="40">draft</text><rect x="80" y="33" width="4" height="14" rx="2"/><text x="92" y="40">1 (비공개, 목록에 없음)</text></svg></div>
+      <div class="kpi"><span class="ve-label">src 코드</span><span class="val">15,455<span class="unit">줄</span></span>
+        <svg class="ve-bars" viewBox="0 0 260 80" role="img" aria-label="FullScreenEditor 781, SeriesEditor 729, PostList 579, CodeMirrorEditor 577, BlogPostList 559"><text y="10">FullScreenEditor</text><rect class="hot" x="120" y="3" width="100" height="12" rx="2"/><text x="226" y="10">781</text><text y="28">SeriesEditor</text><rect x="120" y="21" width="93" height="12" rx="2"/><text x="219" y="28">729</text><text y="46">PostList</text><rect x="120" y="39" width="74" height="12" rx="2"/><text x="200" y="46">579</text><text y="64">CodeMirror</text><rect x="120" y="57" width="74" height="12" rx="2"/><text x="200" y="64">577</text></svg></div>
+      <div class="kpi"><span class="ve-label">클라이언트 JS 합계</span><span class="val">1,436<span class="unit">KB</span></span>
+        <svg class="ve-bars" viewBox="0 0 260 80" role="img" aria-label="CodeMirrorEditor 616KB, react-dom 178KB, AdminGuard+Auth 163KB, framer-motion 113KB, firebase 106KB"><text y="10">CodeMirror</text><rect class="hot" x="100" y="3" width="130" height="12" rx="2"/><text x="236" y="10">616</text><text y="28">react-dom</text><rect x="100" y="21" width="38" height="12" rx="2"/><text x="144" y="28">178</text><text y="46">Auth</text><rect x="100" y="39" width="34" height="12" rx="2"/><text x="140" y="46">163</text><text y="64">framer</text><rect x="100" y="57" width="24" height="12" rx="2"/><text x="130" y="64">113</text></svg></div>
+      <div class="kpi"><span class="ve-label">React 아일랜드 디렉티브</span><span class="val">28</span>
+        <svg class="ve-bars" viewBox="0 0 260 80" role="img" aria-label="client:visible 19, load 4, only 3, idle 2"><text y="10">visible</text><rect class="hot" x="70" y="3" width="150" height="12" rx="2"/><text x="226" y="10">19</text><text y="28">load</text><rect x="70" y="21" width="32" height="12" rx="2"/><text x="108" y="28">4</text><text y="46">only</text><rect x="70" y="39" width="24" height="12" rx="2"/><text x="100" y="46">3</text><text y="64">idle</text><rect x="70" y="57" width="16" height="12" rx="2"/><text x="92" y="64">2</text></svg></div>
+    </div>
+    <figcaption><span class="fig-n">Fig. 2</span>에디터 청크 하나가 클라이언트 JS의 43%다. 아일랜드 28개 중 19개가 화면에 보일 때 하이드레이션되는 장식 컴포넌트다.</figcaption>
+  </figure>
+  <div class="table-scroll" style="margin-top:var(--s-5)">
+    <table>
+      <thead><tr><th>영역</th><th>기술</th><th>버전</th></tr></thead>
+      <tbody>
+        <tr><td>프레임워크</td><td>Astro, <code>output: 'server'</code>, Vercel 어댑터 (<code>nodejs22.x</code>, 함수 리전 iad1, 엣지 icn1)</td><td class="n">5.13.8</td></tr>
+        <tr><td>UI</td><td>React 19 아일랜드 (<code>@astrojs/react</code>)</td><td class="n">19.1.1 / 4.3.1</td></tr>
+        <tr><td>스타일·모션</td><td>Tailwind 3 + typography, CSS 변수 토큰 · framer-motion</td><td class="n">3.4.17 · 12.23</td></tr>
+        <tr><td>에디터</td><td>CodeMirror 6 (<code>@uiw/react-codemirror</code>, <code>@codemirror/lang-markdown</code>)</td><td class="n">4.25.3</td></tr>
+        <tr><td>마크다운 렌더</td><td>react-markdown + remark-gfm + rehype-highlight + rehype-raw, highlight.js CSS는 cdnjs</td><td class="n">10.x</td></tr>
+        <tr><td>백엔드</td><td>Firebase Auth · Firestore · Storage (클라이언트 SDK) + firebase-admin (서버)</td><td class="n">12.6.0 · 13.7</td></tr>
+        <tr><td>폰트</td><td>Pretendard Variable, JetBrains Mono (self-host)</td><td class="n"></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="s1">
+  <div class="sec-head"><p class="ve-label caps">저장소</p><h2>같은 글이 세 곳에, 초안은 한 곳에만 있다</h2></div>
+  <figure>
+    <div class="cases">
+      <div class="case"><span class="chip ok">원본</span><h3>Firestore <code>posts</code></h3><p>56 문서. 본문·메타·상태. 공개 페이지와 관리자가 읽는 유일한 원본. 43개 문서에 코드가 읽지 않는 <code>seriesId/seriesOrder</code> 잔존.</p></div>
+      <div class="case"><span class="chip ok">원본</span><h3>Firestore <code>series</code></h3><p>2 문서. <code>postIds[]</code>는 글 문서 ID(현재 데이터) 또는 slug(새로 저장 시). 글 → 시리즈 방향 연결은 없음.</p></div>
+      <div class="case"><span class="chip ok">원본</span><h3>Firebase Storage</h3><p><code>images/heroes</code>, <code>images/blog</code>, <code>images/series-covers</code>. 토큰 포함 다운로드 URL을 글에 문자열로 저장. 메타데이터 없음.</p></div>
+      <div class="case"><span class="chip info">백업</span><h3>GitHub <code>data/post-archive</code></h3><p>3 파일. 출간 요청 안에서 Contents API로 PUT. 2026-04 이후 출간분만.</p></div>
+      <div class="case"><span class="chip risk">읽는 코드 없음</span><h3>GitHub <code>content/posts</code></h3><p>57 파일. 2026-05-05까지 자동 커밋됨. <code>content.config.ts</code>가 컬렉션으로 정의하지만 <code>getCollection('blog')</code> 호출이 없음. "이관" 버튼만 서버 FS에서 읽음.</p></div>
+      <div class="case"><span class="chip warn">기기별</span><h3>브라우저 <code>localStorage</code></h3><p>초안 <code>cruz-lab-editor-draft:*</code>, 테마, 시리즈 읽음 기록. 서버에 초안 없음. 대시보드 "로컬 초안" 수는 이 브라우저만 셈.</p></div>
+    </div>
+    <figcaption><span class="fig-n">Fig. 3</span>원본 3곳(Firestore 2 + Storage) · 백업 1곳 · 죽은 사본 1곳 · 기기 종속 1곳.</figcaption>
+  </figure>
+</section>
+
+<section id="s2">
+  <div class="sec-head"><p class="ve-label caps">플로우</p><h2>작성 → 초안 → 이미지 → 출간 → 수정 → 삭제</h2></div>
+  <figure>
+    <div class="frame">
+      <svg class="ve-svg" viewBox="0 0 960 330" role="img" aria-label="/admin 진입과 Google 로그인, /admin/posts/new 에디터, localStorage 초안 1.5초 자동저장, 썸네일과 본문 이미지는 Canvas 리사이즈 후 Storage 업로드, 출간 모달의 publish-status 6항목 확인, publish-post 호출, /admin/posts 배너, 수정은 /admin/edit?slug와 비인증 by-slug API, 삭제는 Firestore와 GitHub 파일만 지우고 이미지는 남김.">
+        <path class="ve-e" d="M150 70H200"/>
+        <path class="ve-e" d="M350 70H400"/>
+        <path class="ve-e" d="M550 70H600"/>
+        <path class="ve-e" d="M750 70H800"/>
+        <path class="ve-e is-async" d="M275 100V140"/><text class="ve-el r" x="285" y="125">1.5 s 디바운스</text>
+        <path class="ve-e is-async" d="M475 100V140"/><text class="ve-el r" x="485" y="125">Canvas 1920×1080</text>
+        <path class="ve-e" d="M675 100V140"/><text class="ve-el r" x="685" y="125">6항목 all-ready</text>
+        <path class="ve-e" d="M875 100V140"/>
+        <path class="ve-e" d="M875 200V250"/><text class="ve-el l" x="865" y="230">제목 클릭</text>
+        <path class="ve-e" d="M800 280H640"/><text class="ve-el" x="720" y="271">GET by-slug (인증 없음)</text>
+        <path class="ve-e is-risk" d="M540 280H410"/><text class="ve-el" x="475" y="271">로컬 초안이 덮어씀</text>
+        <path class="ve-e" d="M875 200H920V300H800"/>
+        <g class="ve-n" transform="translate(40 40)"><rect class="sh" width="110" height="60" rx="4"/><text x="55" y="22">/admin</text><text class="sub" x="55" y="44">Google 팝업</text></g>
+        <g class="ve-n is-key" transform="translate(200 40)"><rect class="sh" width="150" height="60" rx="4"/><text x="75" y="22">/admin/posts/new</text><text class="sub" x="75" y="44">제목·태그·메타·본문</text></g>
+        <g class="ve-n" transform="translate(400 40)"><rect class="sh" width="150" height="60" rx="4"/><text x="75" y="22">이미지 드롭·선택</text><text class="sub" x="75" y="44">image/* 1개씩</text></g>
+        <g class="ve-n" transform="translate(600 40)"><rect class="sh" width="150" height="60" rx="4"/><text x="75" y="22">출간 모달</text><text class="sub" x="75" y="44">publish-status</text></g>
+        <g class="ve-n is-key" transform="translate(800 40)"><rect class="sh" width="150" height="60" rx="4"/><text x="75" y="22">publish-post</text><text class="sub" x="75" y="44">GitHub → Firestore</text></g>
+        <g class="ve-n" transform="translate(200 140)"><rect class="sh" width="150" height="60" rx="4"/><text x="75" y="22">localStorage</text><text class="sub" x="75" y="44">draft:&lt;uuid&gt; · &lt;slug&gt;</text></g>
+        <g class="ve-n" transform="translate(400 140)"><path class="sh" d="M0 8V52A75 8 0 0 0 150 52V8"/><ellipse class="sh lid" cx="75" cy="8" rx="75" ry="8"/><text x="75" y="30">Storage</text><text class="sub" x="75" y="48">heroes · blog</text></g>
+        <g class="ve-n" transform="translate(600 140)"><rect class="sh" width="150" height="60" rx="4"/><text x="75" y="22">막힘</text><text class="sub" x="75" y="44">하나라도 실패 시</text></g>
+        <g class="ve-n" transform="translate(800 140)"><rect class="sh" width="150" height="60" rx="4"/><text x="75" y="22">/admin/posts</text><text class="sub" x="75" y="44">배너 · 반영 확인</text></g>
+        <g class="ve-n" transform="translate(800 250)"><rect class="sh" width="150" height="60" rx="4"/><text x="75" y="22">/admin/edit?slug=</text><text class="sub" x="75" y="44">독립 HTML</text></g>
+        <g class="ve-n" transform="translate(540 250)"><rect class="sh" width="100" height="60" rx="4"/><text x="50" y="22">서버 원본</text><text class="sub" x="50" y="44">status 무관</text></g>
+        <g class="ve-n" transform="translate(260 250)"><rect class="sh" width="150" height="60" rx="4"/><text x="75" y="22">에디터 상태</text><text class="sub" x="75" y="44">originalSlug 유지</text></g>
+        <g class="ve-n" transform="translate(40 250)"><rect class="sh" width="150" height="60" rx="4"/><text x="75" y="22">삭제</text><text class="sub" x="75" y="44">Firestore + .md · 이미지 남김</text></g>
+        <path class="ve-e" d="M260 280H190"/>
+      </svg>
+    </div>
+    <figcaption><span class="fig-n">Fig. 4</span>윗줄이 새 글, 아랫줄이 수정과 삭제다. 수정 시 로컬 초안이 서버 원본을 묻지 않고 덮어쓴다(빨간 선).</figcaption>
+  </figure>
+  <ol class="steps" style="margin-top:var(--s-5)">
+    <li><b>초안</b> — 내용이 바뀌고 1.5초 뒤, <kbd>⌘S</kbd>, 탭 숨김(<code>pagehide</code>) 때 <code>localStorage</code>에 JSON으로 저장. 서버 저장 없음.</li>
+    <li><b>썸네일</b> — 파일 선택 → 관리자 토큰 갱신 → Canvas 리사이즈(JPEG 0.85, PNG는 그대로) → Storage 클라이언트 SDK 업로드 → 토큰 URL을 <code>heroImage</code>에 저장. 목록 카드는 2026-11-05부터 코드 커버를 쓰고, 상세와 OG 이미지만 이 사진을 쓴다.</li>
+    <li><b>본문 이미지</b> — 드롭·붙여넣기 → 같은 업로드 → 커서 위치에 <code>![파일명](URL)</code>. 여러 장 드롭 시 첫 장만.</li>
+    <li><b>slug</b> — 자동 생성 없음. 메타 패널에 직접 입력.</li>
+    <li><b>분류</b> — <code>tags[]</code>만 있다(25종, 대소문자 구분, 자유 입력). 제목 앞 <code>[카테고리]</code> 관례(57편 중 55편)는 <code>PostCover</code> 라벨에만 쓰인다. 카테고리 필드 없음.</li>
+    <li><b>비공개 출간</b> — <code>isPublic:false</code>면 <code>status:'draft'</code>로 저장. 관리자 목록은 published만 보여 줘서 이 글은 UI에서 사라진다(현재 1건).</li>
+  </ol>
+</section>
+
+<section id="s3">
+  <div class="sec-head"><p class="ve-label caps">출간 요청</p><h2>출간 버튼 한 번에 서버가 외부로 5~7번 나간다</h2></div>
+  <figure>
+    <div class="frame">
+      <svg class="ve-svg" viewBox="0 0 960 420" role="img" aria-label="시퀀스: 브라우저가 publish-status를 요청하면 서버는 Identity Toolkit 1회, GitHub 3회, 공개 사이트 1회를 호출한다. 출간 시 Identity Toolkit 1회, Firestore 읽기 1회, GitHub GET과 PUT, Firestore upsert, 실패 시 GitHub DELETE, slug 변경 시 DELETE, 메모리 캐시 무효화.">
+        <!-- lifelines -->
+        <g font="600 14px var(--font-body)" fill="var(--text)" text-anchor="middle">
+          <text x="90" y="30">브라우저</text><text x="300" y="30">Astro API</text><text x="520" y="30">Identity Toolkit</text><text x="700" y="30">GitHub</text><text x="880" y="30">Firestore</text>
+        </g>
+        <g stroke="var(--border-bright)" stroke-width="1" stroke-dasharray="3 4"><path d="M90 40V400M300 40V400M520 40V400M700 40V400M880 40V400"/></g>
+        <!-- phase A: status -->
+        <text class="bound-l" x="20" y="62">A · 모달 열기</text>
+        <path class="ve-e" d="M90 80H300"/><text class="ve-el" x="195" y="71">GET publish-status</text>
+        <path class="ve-e" d="M300 100H520"/><text class="ve-el" x="410" y="91">accounts:lookup</text>
+        <path class="ve-e" d="M300 120H700"/><text class="ve-el" x="500" y="111">repo · branch · path (3회)</text>
+        <path class="ve-e" d="M300 140H260"/><text class="ve-el l" x="250" y="131">fetch cruzlab.dev/blog</text>
+        <path class="ve-e" d="M300 160H90"/><text class="ve-el" x="195" y="151">6 checks</text>
+        <!-- phase B: publish -->
+        <text class="bound-l" x="20" y="202">B · 출간</text>
+        <path class="ve-e is-hot" d="M90 220H300"/><text class="ve-el k" x="195" y="211">POST publish-post</text>
+        <path class="ve-e" d="M300 240H520"/><text class="ve-el" x="410" y="231">① lookup</text>
+        <path class="ve-e" d="M300 260H880"/><text class="ve-el" x="590" y="251">② 기존 글 조회 (pubDate)</text>
+        <path class="ve-e" d="M300 280H700"/><text class="ve-el" x="500" y="271">③ GET sha → PUT data/post-archive/*.md</text>
+        <path class="ve-e is-hot" d="M300 300H880"/><text class="ve-el k" x="590" y="291">④ upsert posts (slug 검색)</text>
+        <path class="ve-e is-async is-risk" d="M300 320H700"/><text class="ve-el" x="500" y="311">⑤ 실패 시 DELETE (보상)</text>
+        <path class="ve-e is-async" d="M300 340H700"/><text class="ve-el" x="500" y="331">⑥ slug 변경 시 이전 파일 DELETE</text>
+        <path class="ve-e" d="M300 360H90"/><text class="ve-el" x="195" y="351">publicUrl · commit</text>
+        <path class="ve-e" d="M90 380H40"/><text class="ve-el r" x="20" y="400">sessionStorage → /admin/posts</text>
+        <g class="ve-dim is-key"><path class="ext" d="M930 220H945M930 360H945"/><path class="ln" d="M940 220V360M936 224l4-4 4 4M936 356l4 4 4-4"/><text x="940" y="296" transform="rotate(90 940 296)">직렬 5~7 호출</text></g>
+      </svg>
+    </div>
+    <figcaption><span class="fig-n">Fig. 5</span>A의 6개 체크가 모두 통과해야 B의 버튼이 켜진다. GitHub API가 느리거나 막히면 글을 올릴 수 없다.</figcaption>
+  </figure>
+</section>
+
+<section id="s4">
+  <div class="sec-head"><p class="ve-label caps">시리즈</p><h2>시리즈는 글을 가리키지만 글은 시리즈를 모른다</h2></div>
+  <figure>
+    <div class="frame">
+      <svg class="ve-svg" viewBox="0 0 960 250" role="img" aria-label="series 문서의 postIds 배열이 posts 문서 ID 또는 slug를 가리킨다. posts에는 시리즈 필드가 없다. 공개 페이지 /series와 /series/slug, 홈이 읽는다. 글 상세 페이지에는 시리즈 표시가 없다. 읽음 기록 localStorage 키는 읽기만 하고 쓰는 코드가 없다.">
+        <path class="ve-e" d="M230 90H330"/><text class="ve-el" x="280" y="81">postIds[] (ID 또는 slug)</text>
+        <path class="ve-e is-risk is-none" d="M330 110H230" stroke-dasharray="4 4"/><text class="ve-el" x="280" y="128">역방향 없음</text>
+        <path class="ve-e" d="M130 130V180"/><text class="ve-el r" x="140" y="160">read</text>
+        <path class="ve-e" d="M620 90H700"/><text class="ve-el" x="660" y="81">getItem</text>
+        <path class="ve-e is-risk is-none" d="M700 110H620" stroke-dasharray="4 4"/><text class="ve-el" x="660" y="128">setItem 없음 → 0%</text>
+        <g class="ve-n is-key" transform="translate(30 60)"><path class="sh" d="M0 8V62A100 8 0 0 0 200 62V8"/><ellipse class="sh lid" cx="100" cy="8" rx="100" ry="8"/><text x="100" y="32">series · 2</text><text class="sub" x="100" y="54">name slug cover order</text></g>
+        <g class="ve-n" transform="translate(330 60)"><path class="sh" d="M0 8V62A100 8 0 0 0 200 62V8"/><ellipse class="sh lid" cx="100" cy="8" rx="100" ry="8"/><text x="100" y="32">posts · 56</text><text class="sub" x="100" y="54">시리즈 필드 없음</text></g>
+        <g class="ve-n" transform="translate(30 180)"><rect class="sh" width="200" height="50" rx="4"/><text x="100" y="18">/series · /series/[slug] · 홈</text><text class="sub" x="100" y="38">exists() → 관리자 수정 API 오류</text></g>
+        <g class="ve-n is-dead" transform="translate(330 180)"><rect class="sh" width="200" height="50" rx="4"/><text x="100" y="18">/blog/[slug]</text><text class="sub" x="100" y="38">시리즈 위젯 · 이전/다음 없음</text></g>
+        <g class="ve-n" transform="translate(700 60)"><rect class="sh" width="230" height="70" rx="4"/><text x="115" y="26">localStorage</text><text class="sub" x="115" y="50">series-&lt;slug&gt;-read</text></g>
+      </svg>
+    </div>
+    <figcaption><span class="fig-n">Fig. 6</span>관리자 시리즈 수정 API는 Admin SDK 스냅샷에 <code>exists()</code>를 호출한다. Admin SDK의 <code>exists</code>는 속성이므로 이 경로는 TypeError를 낸다(코드로 확인, 실행 미확인).</figcaption>
+  </figure>
+</section>
+
+<section id="s5">
+  <div class="sec-head"><p class="ve-label caps">관리자</p><h2>인증은 브라우저가 하고, 규칙은 "로그인만 하면" 쓰기를 허용한다</h2></div>
+  <figure>
+    <div class="frame">
+      <svg class="ve-svg" viewBox="0 0 960 300" role="img" aria-label="AdminGuard가 Google 로그인 이메일을 PUBLIC_ADMIN_EMAIL과 비교한다. 서버 API는 Identity Toolkit REST로 토큰을 검증한다. Firestore 규칙은 posts와 series 쓰기를 request.auth != null에 허용하고 posts list를 모두에게 허용한다. Storage 쓰기도 auth != null.">
+        <path class="ve-e" d="M190 90H260"/><text class="ve-el" x="225" y="81">email ==</text>
+        <path class="ve-e" d="M190 110H260V200H300"/><text class="ve-el" x="230" y="191">Bearer</text>
+        <path class="ve-e" d="M450 200H520"/><text class="ve-el" x="485" y="191">lookup</text>
+        <path class="ve-e is-hot" d="M450 220H700V250"/><text class="ve-el k" x="580" y="211">Admin SDK (규칙 안 거침)</text>
+        <path class="ve-e is-risk" d="M190 70H700V60"/><text class="ve-el" x="450" y="61">클라이언트 SDK 직접 쓰기 — 규칙: auth != null 이면 허용</text>
+        <g class="ve-n" transform="translate(30 50)"><rect class="sh" width="160" height="80" rx="4"/><text x="80" y="28">Google 계정</text><text class="sub" x="80" y="52">누구나 로그인 가능</text></g>
+        <g class="ve-n is-key" transform="translate(260 60)"><rect class="sh" width="150" height="60" rx="4"/><text x="75" y="22">AdminGuard</text><text class="sub" x="75" y="44">PUBLIC_ADMIN_EMAIL</text></g>
+        <g class="ve-n" transform="translate(300 170)"><rect class="sh" width="150" height="60" rx="4"/><text x="75" y="22">/api/admin/*</text><text class="sub" x="75" y="44">verifyAdminIdToken</text></g>
+        <g class="ve-n" transform="translate(520 170)"><rect class="sh" width="160" height="60" rx="4"/><text x="80" y="22">Identity Toolkit</text><text class="sub" x="80" y="44">REST, 호출마다</text></g>
+        <g class="ve-n" transform="translate(700 20)"><rect class="sh" width="230" height="110" rx="4"/><text x="115" y="22">firestore.rules</text><text class="sub" x="115" y="46">posts write: auth != null</text><text class="sub" x="115" y="66">posts list: true</text><text class="sub" x="115" y="86">series write: auth != null</text></g>
+        <g class="ve-n" transform="translate(700 250)"><rect class="sh" width="230" height="40" rx="4"/><text x="115" y="20">Firestore · Storage</text></g>
+      </svg>
+    </div>
+    <figcaption><span class="fig-n">Fig. 7</span>관리자 이메일 검사는 브라우저와 API에만 있다. 보안 규칙에는 없다. 규칙 그대로의 사실을 그린 것이고, 평가는 2편 5.1절에 있다.</figcaption>
+  </figure>
+  <div class="table-scroll" style="margin-top:var(--s-5)">
+    <table>
+      <thead><tr><th>경로</th><th>렌더</th><th>레이아웃</th><th>React 마운트</th><th>초기 데이터</th></tr></thead>
+      <tbody>
+        <tr><td><code>/admin</code></td><td>SSR</td><td>BaseLayout (사이트 헤더 포함)</td><td><code>client:load</code></td><td>서버가 발행 글 목록을 props로 (인증 검사 없음)</td></tr>
+        <tr><td><code>/admin/posts</code></td><td>SSR</td><td>BaseLayout</td><td><code>client:only</code></td><td>서버가 발행 글 목록을 props로</td></tr>
+        <tr><td><code>/admin/posts/new</code>, <code>/admin/edit</code></td><td>정적</td><td>없음 (자체 <code>&lt;html&gt;</code>, <code>bg-white</code>)</td><td><code>client:only</code></td><td>클라이언트가 <code>by-slug</code> 호출</td></tr>
+        <tr><td><code>/admin/series*</code></td><td>정적</td><td>BaseLayout</td><td>인라인 <code>&lt;script&gt;</code>의 <code>createRoot</code></td><td>클라이언트가 <code>/api/admin/series</code> 호출</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="shots" style="margin-top:var(--s-5)">
+    <div class="shot"><img src="cruz-lab-audit-assets/admin-dashboard-2025-12-screenshot.jpg" width="1200" height="670" alt="2025-12 관리자 대시보드 스크린샷: 사이드바 4항목, 통계 3칸, 최근 포스트" loading="lazy"><span class="ve-label">관리자 대시보드 (사용자 캡처, 2025-12). 지금은 "출간 시스템 상태" 카드가 추가됨</span></div>
+    <div class="shot"><img src="cruz-lab-audit-assets/admin-login-desktop.jpg" width="1200" height="750" alt="/admin 진입 화면: 인증 확인 중 스피너" loading="lazy"><span class="ve-label">/admin 진입 (2026-11-06 캡처). 로그인 전에는 스피너 → Google 버튼만</span></div>
+  </div>
+</section>
+
+<section id="s6">
+  <div class="sec-head"><p class="ve-label caps">공개 페이지</p><h2>SSR + CDN 60초. 블로그 목록 HTML은 353 KB</h2></div>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>경로</th><th>렌더</th><th>데이터</th><th>HTML</th><th>CDN</th><th>React 아일랜드</th></tr></thead>
+      <tbody>
+        <tr><td><code>/</code></td><td>SSR</td><td>posts + series</td><td class="n">97.8 KB</td><td>60 s · HIT 확인</td><td>21개 (히어로, 카드, 커서, 진행바, 글자 등장 …)</td></tr>
+        <tr><td><code>/blog/</code></td><td>SSR</td><td>posts 55 (본문 제외) + 태그</td><td class="n">353 KB</td><td>60 s · HIT 확인</td><td><code>BlogPostList client:load</code> (props 47.8 KB) + TextReveal</td></tr>
+        <tr><td><code>/blog/[slug]</code></td><td>SSR</td><td>posts 1</td><td class="n">29.6 KB</td><td>60 s (404 제외)</td><td>0 — <code>MarkdownPostView</code>는 서버 렌더만</td></tr>
+        <tr><td><code>/blog/tag/[tag]</code></td><td>SSR</td><td>posts 전체 필터</td><td class="n"></td><td>60 s</td><td><code>BlogCard</code> ×N</td></tr>
+        <tr><td><code>/series/</code>, <code>/series/[slug]</code></td><td>SSR</td><td>series + posts</td><td class="n">23.4 KB</td><td>60 s</td><td><code>SeriesCard</code> ×N / 0</td></tr>
+        <tr><td><code>/projects/**</code></td><td>정적</td><td><code>src/content/projects</code> (4 + 8)</td><td class="n">35.1 KB</td><td>정적 HIT</td><td><code>ProjectCard</code> ×N / 0</td></tr>
+        <tr><td><code>/rss.xml</code>, <code>/sitemap-posts.xml</code></td><td>SSR</td><td>posts (+series)</td><td class="n"></td><td>0 / 3600 s</td><td></td></tr>
+        <tr><td><code>/api/posts/by-slug</code></td><td>SSR</td><td>posts 1 (status 무관)</td><td class="n"></td><td>없음</td><td>인증 없음</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <figure style="margin-top:var(--s-6)">
+    <div class="kpis">
+      <div class="kpi"><span class="ve-label">/blog/ HTML 구성</span><span class="val">353<span class="unit">KB</span></span>
+        <svg class="ve-bars" viewBox="0 0 260 52" role="img" aria-label="카드 마크업 305KB, 아일랜드 props 48KB"><text y="12">카드 마크업</text><rect class="hot" x="90" y="5" width="150" height="14" rx="2"/><text x="246" y="12">305</text><text y="40">props</text><rect x="90" y="33" width="24" height="14" rx="2"/><text x="120" y="40">48 KB</text></svg></div>
+      <div class="kpi"><span class="ve-label">함수 ↔ 엣지</span><span class="val">iad1<span class="unit">→ icn1</span></span>
+        <svg class="ve-bars" viewBox="0 0 260 52" role="img" aria-label="x-vercel-id icn1::iad1"><text y="12">서울 엣지 → 미국 동부 함수 → Firestore</text><text y="40">첫 요청 MISS, 60초 안 재요청 HIT (age 55)</text></svg></div>
+      <div class="kpi"><span class="ve-label">최근 6개월 새 글</span><span class="val">0</span>
+        <svg class="ve-bars" viewBox="0 0 260 52" role="img" aria-label="2025년 54편, 2026년 2편, 2026-05-05 이후 0편"><text y="12">2025</text><rect class="hot" x="50" y="5" width="190" height="14" rx="2"/><text x="246" y="12">54</text><text y="40">2026</text><rect x="50" y="33" width="7" height="14" rx="2"/><text x="64" y="40">2 (마지막 2026-05-05)</text></svg></div>
+    </div>
+    <figcaption><span class="fig-n">Fig. 8</span>목록 페이지는 55개 카드 마크업을 서버가 그리고, 같은 데이터를 React가 props로 한 번 더 받는다.</figcaption>
+  </figure>
+  <figure style="margin-top:var(--s-6)">
+    <div class="shots">
+      <div class="shot"><div class="tall"><img src="cruz-lab-audit-assets/home-desktop-tall.jpg" width="1200" height="3500" alt="홈 전체: 히어로, Experience 아코디언, Featured Projects 3, Tech Stack 로고 그리드, Featured Series 2, Latest Posts 3, Let's Connect" loading="lazy"></div><span class="ve-label">홈 전체 (1440px, 스크롤)</span></div>
+      <div class="shot"><div class="tall"><img src="cruz-lab-audit-assets/blog-desktop-tall.jpg" width="1200" height="2000" alt="블로그 목록: 검색, 뷰 토글, 정렬, 태그 필터 패널 25개, 카드 그리드" loading="lazy"></div><span class="ve-label">/blog/ (태그 패널 기본 열림, 카드 3열)</span></div>
+      <div class="shot"><div class="tall"><img src="cruz-lab-audit-assets/post-desktop-tall.jpg" width="1200" height="2500" alt="글 상세: 태그, 제목, 날짜, 썸네일, 본문" loading="lazy"></div><span class="ve-label">/blog/ai-agent-context (목차·이전다음·시리즈 없음)</span></div>
+      <div class="shot"><img src="cruz-lab-audit-assets/series-desktop.jpg" width="1200" height="750" alt="시리즈 목록: 사진 커버 카드 2개" loading="lazy"><span class="ve-label">/series/ (사진 커버)</span></div>
+      <div class="shot"><img src="cruz-lab-audit-assets/series-detail-desktop.jpg" width="1200" height="750" alt="시리즈 상세 상단: 큰 커버, 이모지 제목" loading="lazy"><span class="ve-label">/series/wesbos</span></div>
+      <div class="shot"><img src="cruz-lab-audit-assets/projects-desktop.jpg" width="1200" height="750" alt="프로젝트 목록: Featured 4라는 제목 아래 카드가 비어 있음" loading="lazy"><span class="ve-label">/projects/ 헤드리스 캡처 — 카드는 서버 HTML에 <code>opacity:0</code>으로 들어 있고 JS가 돌아야 보인다</span></div>
+    </div>
+    <figcaption><span class="fig-n">Fig. 9</span>운영 사이트 캡처(2026-11-06, 헤드리스 Chrome 1440×900). 프로젝트 카드가 빈 것은 버그가 아니라 구조다: framer-motion <code>initial opacity 0</code>.</figcaption>
+  </figure>
+</section>
+
+<section id="s7">
+  <div class="sec-head"><p class="ve-label caps">편집기</p><h2>소스 모드 CodeMirror. 단축키 12개, 슬래시 항목 9개, 확장 지점 0개</h2></div>
+  <figure>
+    <div class="frame">
+      <svg class="ve-svg" viewBox="0 0 960 300" role="img" aria-label="FullScreenEditor가 title content tags slug description heroImage isPublic 상태를 들고 있다. CodeMirrorEditor는 onChange로 content를 올리고, 키 입력마다 FullScreenEditor 전체와 EditorMetaPanel이 리렌더된다. 키맵과 빠른 삽입과 플로팅 버튼이 각각 같은 함수를 부른다.">
+        <path class="ve-e is-hot" d="M250 150H330"/><text class="ve-el k" x="290" y="141">onChange</text>
+        <path class="ve-e" d="M480 150H560"/><text class="ve-el" x="520" y="141">setContent</text>
+        <path class="ve-e" d="M640 110V80H760"/><text class="ve-el" x="700" y="71">매 키 리렌더</text>
+        <path class="ve-e is-async" d="M640 190V220H760"/><text class="ve-el" x="700" y="211">1.5 s → localStorage</text>
+        <path class="ve-e" d="M170 100V60H100"/><text class="ve-el" x="140" y="51">keymap 12</text>
+        <path class="ve-e" d="M170 200V240H100"/><text class="ve-el" x="140" y="258">빠른 삽입 9 · 버튼 2</text>
+        <g class="ve-n" transform="translate(20 40)"><rect class="sh" width="80" height="40" rx="4"/><text x="40" y="20">closure</text></g>
+        <g class="ve-n" transform="translate(20 220)"><rect class="sh" width="80" height="40" rx="4"/><text x="40" y="20">closure</text></g>
+        <g class="ve-n is-key" transform="translate(90 110)"><rect class="sh" width="160" height="80" rx="4"/><text x="80" y="28">CodeMirrorEditor</text><text class="sub" x="80" y="52">소스 모드 · 비제어</text></g>
+        <g class="ve-n" transform="translate(330 110)"><rect class="sh" width="150" height="80" rx="4"/><text x="75" y="28">FullScreenEditor</text><text class="sub" x="75" y="52">781줄 · 상태 15개</text></g>
+        <g class="ve-n" transform="translate(560 110)"><rect class="sh" width="160" height="80" rx="4"/><text x="80" y="28">React state</text><text class="sub" x="80" y="52">content 문자열</text></g>
+        <g class="ve-n" transform="translate(760 50)"><rect class="sh" width="170" height="60" rx="4"/><text x="85" y="22">EditorMetaPanel</text><text class="sub" x="85" y="44">준비도 · 카드 · 읽기시간</text></g>
+        <g class="ve-n" transform="translate(760 190)"><rect class="sh" width="170" height="60" rx="4"/><text x="85" y="22">localStorage</text><text class="sub" x="85" y="44">서버 저장 없음</text></g>
+      </svg>
+    </div>
+    <figcaption><span class="fig-n">Fig. 10</span>같은 동작(제목 토글, 코드 블록)이 키맵·빠른 삽입·버튼 세 경로에서 각각 호출된다. 명령 레지스트리가 없다.</figcaption>
+  </figure>
+  <div class="shots" style="margin-top:var(--s-5)">
+    <div class="shot"><img src="cruz-lab-audit-assets/editor-2025-12-screenshot.jpg" width="1200" height="657" alt="2025-12 WYSIWYG 에디터 스크린샷: 렌더된 H1, H2, 인용구, 코드 블록" loading="lazy"><span class="ve-label">2025-12 사용자 캡처 (당시 WYSIWYG). <b style="color:var(--text)">지금 코드에는 이 에디터가 없다.</b> 현재는 소스 모드 CodeMirror다</span></div>
+    <div class="shot">
+      <div class="keys">
+        <div class="key"><span>빠른 삽입</span><kbd>⌘⇧P</kbd></div><div class="key"><span>빈 줄 빠른 삽입</span><kbd>/</kbd></div>
+        <div class="key"><span>굵게 · 기울임</span><kbd>⌘B ⌘I</kbd></div><div class="key"><span>링크</span><kbd>⌘K</kbd></div>
+        <div class="key"><span>제목 1·2·3</span><kbd>⌘⌥1·2·3</kbd></div><div class="key"><span>코드 블록</span><kbd>⌘⌥C</kbd></div>
+        <div class="key"><span>인용</span><kbd>⌘⌥Q</kbd></div><div class="key"><span>체크리스트</span><kbd>⌘⌥L</kbd></div>
+        <div class="key"><span>임시저장</span><kbd>⌘S</kbd></div><div class="key"><span>도움말</span><kbd>⌘⇧/</kbd></div>
+      </div>
+      <span class="ve-label">단축키 12개 전부. 변경·추가 UI 없음. 빠른 삽입은 2열 버튼 그리드(검색·방향키 없음)</span>
+    </div>
+  </div>
+  <p class="note" style="margin-top:var(--s-5)"><b>구성</b>: <code>basicSetup</code>(줄번호·접기·자동완성 끔, 검색 켬) + 선택 그리기, 활성 줄, 괄호 짝, 들여쓰기 2칸, <code>markdown({addKeymap:true})</code>, 커스텀 하이라이트 9태그, 줄 바꿈, 드롭·붙여넣기. 미리보기·분할·라이브 프리뷰 없음. 읽기 시간 공식이 에디터(공백 단어 수)와 유틸(한글 글자 보정) 2개.</p>
+</section>
+
+<section id="s8">
+  <div class="sec-head"><p class="ve-label caps">Astro · React</p><h2>Astro가 데이터와 페이지를, React가 장식과 관리자를 맡는다</h2></div>
+  <figure>
+    <div class="frame">
+      <svg class="ve-svg" viewBox="0 0 960 280" role="img" aria-label="Astro: 라우팅, 레이아웃, 서버 데이터 조회, 정적 섹션, Reveal. React: 공개 페이지 장식 아일랜드 17개 사용, 관리자 전체. 서버는 글은 Admin SDK, 시리즈는 클라이언트 SDK로 읽는다.">
+        <rect class="bound" x="16" y="16" width="440" height="250"/><text class="bound-l" x="28" y="36">Astro</text>
+        <rect class="bound" x="500" y="16" width="444" height="250"/><text class="bound-l" x="512" y="36">React</text>
+        <g class="ve-n" transform="translate(30 60)"><rect class="sh" width="200" height="50" rx="4"/><text x="100" y="18">페이지 · 레이아웃 · API</text><text class="sub" x="100" y="38">26 .astro + 14 라우트</text></g>
+        <g class="ve-n" transform="translate(30 130)"><rect class="sh" width="200" height="50" rx="4"/><text x="100" y="18">서버 데이터 조회</text><text class="sub" x="100" y="38">글: Admin SDK · 시리즈: 클라 SDK</text></g>
+        <g class="ve-n" transform="translate(30 200)"><rect class="sh" width="200" height="50" rx="4"/><text x="100" y="18">Reveal · 테마 스크립트</text><text class="sub" x="100" y="38">IO + content-visibility</text></g>
+        <g class="ve-n" transform="translate(250 60)"><rect class="sh" width="190" height="50" rx="4"/><text x="95" y="18">서버 전용 React</text><text class="sub" x="95" y="38">MarkdownPostView (JS 없음)</text></g>
+        <g class="ve-n is-dead" transform="translate(250 130)"><rect class="sh" width="190" height="50" rx="4"/><text x="95" y="18">템플릿 잔재 6 .astro</text><text class="sub" x="95" y="38">Header/Footer/BaseHead/Hero…</text></g>
+        <g class="ve-n is-dead" transform="translate(250 200)"><rect class="sh" width="190" height="50" rx="4"/><text x="95" y="18">content.config blog</text><text class="sub" x="95" y="38">정의만, 호출 없음</text></g>
+        <g class="ve-n is-key" transform="translate(520 60)"><rect class="sh" width="200" height="50" rx="4"/><text x="100" y="18">장식 아일랜드 17 사용</text><text class="sub" x="100" y="38">틸트·글로우·마그네틱·글자등장</text></g>
+        <g class="ve-n is-dead" transform="translate(520 130)"><rect class="sh" width="200" height="50" rx="4"/><text x="100" y="18">미사용 아일랜드 8</text><text class="sub" x="100" y="38">TOC·이전다음·시리즈위젯·검색…</text></g>
+        <g class="ve-n is-key" transform="translate(730 60)"><rect class="sh" width="200" height="50" rx="4"/><text x="100" y="18">관리자 · 에디터 전체</text><text class="sub" x="100" y="38">client:only · createRoot</text></g>
+        <g class="ve-n" transform="translate(730 130)"><rect class="sh" width="200" height="50" rx="4"/><text x="100" y="18">framer-motion</text><text class="sub" x="100" y="38">28 파일이 import</text></g>
+        <g class="ve-n" transform="translate(520 200)"><rect class="sh" width="410" height="50" rx="4"/><text x="205" y="18">디렉티브: visible 19 · load 4 · only 3 · idle 2</text><text class="sub" x="205" y="38">카드 3종은 initial opacity 0 → JS 전까지 보이지 않음</text></g>
+      </svg>
+    </div>
+    <figcaption><span class="fig-n">Fig. 11</span>점선 상자는 어디서도 import하지 않는 파일이다. 총 15개(아일랜드 8, 템플릿 잔재 3, 훅 1, 유틸 1, 이미지 컴포넌트 1, 컬렉션 정의 1).</figcaption>
+  </figure>
+  <div class="filemap" style="margin-top:var(--s-5)">
+    <div><span class="dead">islands/FadeInSection.tsx</span><span class="dead">0 import</span></div>
+    <div><span class="dead">islands/MiniSeriesCard.tsx</span><span class="dead">0</span></div>
+    <div><span class="dead">islands/PostNavigation.tsx</span><span class="dead">0</span></div>
+    <div><span class="dead">islands/PostSearch.tsx</span><span class="dead">0</span></div>
+    <div><span class="dead">islands/RelatedPosts.tsx</span><span class="dead">0</span></div>
+    <div><span class="dead">islands/SeriesWidget.tsx</span><span class="dead">0</span></div>
+    <div><span class="dead">islands/StatsSection.tsx (+CountUp)</span><span class="dead">0</span></div>
+    <div><span class="dead">islands/TableOfContents.tsx</span><span class="dead">0</span></div>
+    <div><span class="dead">common/OptimizedImage.tsx · lib/image-utils.ts</span><span class="dead">0</span></div>
+    <div><span class="dead">components/Hero.astro · ExperienceCard.astro · FormattedDate.astro</span><span class="dead">0</span></div>
+    <div><span class="dead">components/BaseHead · Header · Footer · HeaderLink .astro</span><span class="dead">서로만 참조</span></div>
+    <div><span class="dead">hooks/useAutoSave.ts · utils/relatedPosts.ts</span><span class="dead">0</span></div>
+    <div><span class="dead">api/admin/upload-asset.ts · asset-preview.ts</span><span class="dead">호출자 없음</span></div>
+    <div><span class="dead">functions/ (빈 index.ts) · scripts/generate-pwa-icons.js</span><span class="dead">폐기됨</span></div>
+  </div>
+</section>
+
+<section id="s9">
+  <div class="sec-head"><p class="ve-label caps">이력</p><h2>출간 경로가 세 번 바뀌었고, 마지막 글은 6개월 전이다</h2></div>
+  <div class="tl">
+    <div><span class="d">2025-09-22</span>첫 커밋. Astro 블로그 템플릿.</div>
+    <div><span class="d">2025-12</span>Firestore CMS, 시리즈, WYSIWYG 에디터. 글 54편 일괄 이관(pubDate 2025-12-03~23).</div>
+    <div><span class="d">2026-03</span>CodeMirror 에디터로 교체. <code>content/posts</code> + GitHub API 출간 경로 (<code>PUBLISHING.md</code>).</div>
+    <div><span class="d">2026-04-08 · 04-22</span>"Firestore direct publish" + <code>data/post-archive</code> 백업. 새 글 3편. 출간마다 커밋 2개(<code>content/posts</code> + 백업).</div>
+    <div><span class="d">2026-05-05</span>마지막 글 수정. 이후 새 글 없음.</div>
+    <div><span class="d">2026-10-13 · 14</span>사이트 기본 항목 수리, PWA 제거, career 폴더 분리, README 재작성.</div>
+    <div class="now"><span class="d">2026-11-05</span>성능·UI 수정: CDN 캐시, 메모리 캐시, 시리즈 N+1 제거, CSS 애니메이션, <code>Reveal.astro</code>, 코드 커버. PR #2 병합.</div>
+  </div>
+</section>
+
+<section class="sources" id="src" aria-label="출처">
+  <div class="sec-head"><p class="ve-label caps">출처</p><h2>직접 확인한 것</h2></div>
+  <p class="note">코드: <code>src/**</code> 148파일 전부, <code>astro.config.mjs</code>, <code>firestore.rules</code>, <code>storage.rules</code>, <code>firestore.indexes.json</code>, <code>content.config.ts</code>, <code>scripts/*</code>, <code>tools/*</code>, <code>functions/src/index.ts</code>. 데이터: Firebase Admin SDK로 <code>posts</code>·<code>series</code>·<code>comments</code> 읽기 전용 조회. 운영: <code>curl -I https://www.cruzlab.dev/…</code> 응답 헤더와 크기, <code>dist/client/_astro/*.js</code> 크기. 이력: <code>git log</code>. 캡처: 헤드리스 Chrome 1440×900, 2026-11-06 01:06~01:08 KST. 관리자 실행 화면은 로그인이 필요해 캡처하지 못했고 코드로 정리했다. 마크다운 원본: <code>docs/blog-rebuilding/2026-11-06-blog-architecture-audit-1-current-state.md</code>.</p>
+</section>
+
+</main>
+</div>
+<script>
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // 목차 활성 표시
+  const links = [...document.querySelectorAll('nav.toc a')];
+  const secs = links.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const spy = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) { links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + e.target.id)); } }, { rootMargin: '-10% 0px -80% 0px' });
+  secs.forEach(s => spy.observe(s));
+  if (!still) {
+    document.documentElement.classList.add('js-motion');
+    const io = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) { io.unobserve(e.target); e.target.classList.add('in'); } }, { rootMargin: '0px 0px -10% 0px' });
+    for (const el of document.querySelectorAll('main > *')) io.observe(el);
+  }
+</script>
+</body>
+</html>

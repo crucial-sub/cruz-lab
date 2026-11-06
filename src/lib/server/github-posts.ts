@@ -13,10 +13,6 @@ export function getGitHubPublishTarget() {
   };
 }
 
-export function getGitHubRawFileUrl(filePath: string) {
-  return `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${filePath}`;
-}
-
 interface GitHubFileResponse {
   sha: string;
 }
@@ -189,29 +185,6 @@ export async function upsertPostFile({
     commitSha: putResult.commitSha,
     commitUrl: putResult.commitUrl,
     fileUrl: putResult.fileUrl,
-  };
-}
-
-export async function upsertRepositoryAssetFile({
-  filePath,
-  contentBase64,
-  message,
-}: {
-  filePath: string;
-  contentBase64: string;
-  message: string;
-}) {
-  const result = await upsertGitHubFile({
-    filePath,
-    contentBase64,
-    message,
-  });
-
-  return {
-    filePath,
-    commitSha: result.commitSha,
-    commitUrl: result.commitUrl,
-    fileUrl: result.fileUrl,
   };
 }
 

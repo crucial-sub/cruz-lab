@@ -7,7 +7,8 @@ const DEFAULT_PUBLIC_SITE_URL = 'https://www.cruzlab.dev/';
 const TARGET = {
   repository: 'crucial-sub/cruz-lab',
   branch: 'main',
-  postsPath: 'content/posts',
+  // CMS가 발행할 때 GitHub에 마크다운 사본을 남기는 경로 (src/lib/server/github-posts.ts의 POSTS_PATH)
+  postsPath: 'data/post-archive',
 };
 
 function parseDotEnv(raw) {
@@ -161,7 +162,7 @@ function printUsage() {
   console.log('');
   console.log('Examples:');
   console.log('  npm run publish:verify -- --slug wesbos30-01-drum-kit --pub-date 2025-12-03T00:00:00.000Z');
-  console.log('  npm run publish:verify -- --slug llm-yatcha-ai-council --file-path content/posts/2026-03-26-llm-yatcha-ai-council.md');
+  console.log('  npm run publish:verify -- --slug ai-agent-context --file-path data/post-archive/2026-04-22-ai-agent-context.md');
 }
 
 async function main() {

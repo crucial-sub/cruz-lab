@@ -8,7 +8,8 @@ const DEFAULT_PUBLIC_SITE_URL = 'https://www.cruzlab.dev/';
 const TARGET = {
   repository: 'crucial-sub/cruz-lab',
   branch: 'main',
-  postsPath: 'content/posts',
+  // CMS가 발행할 때 GitHub에 마크다운 사본을 남기는 경로 (src/lib/server/github-posts.ts의 POSTS_PATH)
+  postsPath: 'data/post-archive',
 };
 
 function parseDotEnv(raw) {
@@ -42,17 +43,6 @@ async function readAstroSite() {
   const configModule = await import(pathToFileURL(path.join(ROOT_DIR, 'astro.config.mjs')).href);
   const site = configModule?.default?.site;
   return site ? String(site) : DEFAULT_PUBLIC_SITE_URL;
-}
-
-async function readPostFileStats() {
-  const postsDir = path.join(ROOT_DIR, 'content/posts');
-  const entries = await fs.readdir(postsDir, { withFileTypes: true });
-  const markdownFiles = entries.filter((entry) => entry.isFile() && /\.(md|mdx)$/i.test(entry.name));
-  return {
-    postsDir,
-    markdownCount: markdownFiles.length,
-    sampleFiles: markdownFiles.slice(0, 3).map((entry) => entry.name),
-  };
 }
 
 async function probeGitHub(envValues) {
@@ -163,7 +153,6 @@ function formatCheck(label, ready, detail) {
 async function main() {
   const envValues = await readEnvFile();
   const publicSiteUrl = await readAstroSite();
-  const postStats = await readPostFileStats();
   const githubProbe = await probeGitHub(envValues);
   const publicSiteProbe = await probePublicSite(publicSiteUrl);
 
@@ -189,11 +178,6 @@ async function main() {
       detail: publicSiteUrl,
     },
     {
-      label: 'content/posts',
-      ready: postStats.markdownCount > 0,
-      detail: `${postStats.postsDir} (${postStats.markdownCount} files)`,
-    },
-    {
       label: 'GitHub Target Probe',
       ready: githubProbe.ok,
       detail: githubProbe.detail,
@@ -208,7 +192,6 @@ async function main() {
   console.log('=== Publish Preflight ===');
   console.log(`cwd: ${ROOT_DIR}`);
   console.log(`target: ${TARGET.repository} / ${TARGET.branch} / ${TARGET.postsPath}`);
-  console.log(`sample posts: ${postStats.sampleFiles.join(', ') || 'none'}`);
   console.log('');
 
   for (const check of checks) {
@@ -224,7 +207,7 @@ async function main() {
 
   const failedRequiredChecks = checks.filter(
     (check) =>
-      ['Firebase API Key', 'Admin Email', 'GitHub Token', 'content/posts', 'GitHub Target Probe'].includes(
+      ['Firebase API Key', 'Admin Email', 'GitHub Token', 'GitHub Target Probe'].includes(
         check.label
       ) && !check.ready
   );
