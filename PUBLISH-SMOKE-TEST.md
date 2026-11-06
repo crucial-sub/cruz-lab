@@ -30,7 +30,7 @@
 8. 필요하면 터미널에서 같은 slug로 CLI 재검증
 
 ```bash
-npm run publish:verify -- --slug <slug> --file-path content/posts/YYYY-MM-DD-slug.md
+npm run publish:verify -- --slug <slug> --file-path data/post-archive/YYYY-MM-DD-slug.md
 ```
 
 ## 성공 기준

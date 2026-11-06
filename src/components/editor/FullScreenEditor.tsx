@@ -20,6 +20,7 @@ import {
   generateMarkdownFileName,
   parseMarkdownDocument,
 } from '@/lib/markdown-publish';
+import { getClientAdminIdToken } from '@/lib/firebase-auth-client';
 import type { PublishFeedback } from '@/lib/publish-feedback';
 import { EditorMetaPanel } from './EditorMetaPanel';
 
@@ -208,9 +209,15 @@ export default function FullScreenEditor({ mode, postId: initialPostId }: Props)
     try {
       setActiveDraftKey(null);
       lastPersistedDraftKeyRef.current = null;
-      const response = await fetch(`/api/posts/by-slug?slug=${encodeURIComponent(targetSlug)}`);
+      // 비공개 글도 불러오므로 관리자 토큰을 함께 보낸다
+      const idToken = await getClientAdminIdToken();
+      const response = await fetch(`/api/posts/by-slug?slug=${encodeURIComponent(targetSlug)}`, {
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
       if (!response.ok) {
-        setLoadError('포스트를 찾을 수 없습니다.');
+        setLoadError(
+          response.status === 401 ? '관리자 인증에 실패했습니다.' : '포스트를 찾을 수 없습니다.'
+        );
         return;
       }
 

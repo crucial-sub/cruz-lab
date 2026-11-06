@@ -28,8 +28,6 @@ export default function AdminDashboard({ publishedPosts }: Props) {
   const [draftCount, setDraftCount] = useState(0);
   const [publishStatus, setPublishStatus] = useState<PublishStatusPayload | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
-  const [importMessage, setImportMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -42,35 +40,6 @@ export default function AdminDashboard({ publishedPosts }: Props) {
 
     setDraftCount(getStoredEditorDrafts(window.localStorage).length);
   }, []);
-
-  const handleImportArchivePosts = async () => {
-    const confirmed = window.confirm('기존 markdown 백업 파일들을 Firestore posts 컬렉션으로 이관할까요?');
-    if (!confirmed) return;
-
-    try {
-      setIsImporting(true);
-      setImportMessage(null);
-      const idToken = await getClientAdminIdToken();
-      const response = await fetch('/api/admin/import-content-posts', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${idToken}`,
-        },
-      });
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || '기존 markdown 포스트 이관에 실패했습니다.');
-      }
-
-      setImportMessage(`기존 markdown 백업 ${result.importedCount}/${result.totalCount}개를 Firestore로 이관했습니다.`);
-      window.location.reload();
-    } catch (error) {
-      setImportMessage(error instanceof Error ? error.message : '기존 markdown 포스트 이관에 실패했습니다.');
-    } finally {
-      setIsImporting(false);
-    }
-  };
 
   useEffect(() => {
     let active = true;
@@ -210,21 +179,7 @@ export default function AdminDashboard({ publishedPosts }: Props) {
             >
               포스트 관리
             </a>
-            <button
-              type="button"
-              onClick={handleImportArchivePosts}
-              disabled={isImporting}
-              className="inline-flex items-center gap-2 rounded-xl border border-border px-6 py-3 font-semibold text-text-primary transition-colors hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isImporting ? '이관 중...' : '기존 markdown 글 이관'}
-            </button>
           </div>
-
-          {importMessage && (
-            <p className="rounded-2xl border border-border bg-bg px-4 py-3 text-sm text-text-secondary">
-              {importMessage}
-            </p>
-          )}
 
           <div className="rounded-2xl border border-border bg-bg-surface p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">

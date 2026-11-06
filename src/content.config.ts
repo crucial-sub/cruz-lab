@@ -1,24 +1,6 @@
 import { defineCollection, z } from 'astro:content';
 import { glob } from 'astro/loaders';
 
-// 블로그 포스트 컬렉션
-const blog = defineCollection({
-  loader: glob({ base: './content/posts', pattern: '**/*.{md,mdx}' }),
-  schema: () =>
-    z.object({
-      title: z.string(),
-      description: z.string(),
-      pubDate: z.coerce.date(),
-      updatedDate: z.coerce.date().optional(),
-      heroImage: z.string().optional(),
-      heroVideo: z.string().optional(),
-      tags: z.array(z.string()).default([]),
-      slug: z.string().optional(),
-      readingTime: z.number().optional(),
-      isPublic: z.boolean().default(true),
-    }),
-});
-
 // 프로젝트 메타와 프로젝트 포스트를 같은 컬렉션 안에서 관리한다.
 const projects = defineCollection({
   loader: glob({ base: './src/content/projects', pattern: '**/*.{md,mdx}' }),
@@ -51,4 +33,5 @@ const projects = defineCollection({
     ]),
 });
 
-export const collections = { blog, projects };
+// 블로그 글은 Firestore에서 읽는다(src/lib/content-posts.ts). 여기에는 프로젝트 글만 둔다.
+export const collections = { projects };

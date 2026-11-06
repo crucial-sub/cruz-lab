@@ -48,7 +48,8 @@ export async function listAdminSeries() {
 export async function getAdminSeriesById(id: string) {
   const db = getServerDb();
   const seriesSnap = await db.collection('series').doc(id).get();
-  if (!seriesSnap.exists()) return null;
+  // Admin SDK의 DocumentSnapshot.exists는 메서드가 아니라 속성이다
+  if (!seriesSnap.exists) return null;
   return buildSeries(seriesSnap.id, seriesSnap.data());
 }
 

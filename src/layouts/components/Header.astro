@@ -19,9 +19,8 @@ const isActive = (href: string) => pathname === href || (href !== '/' && pathnam
   <div class="container">
     <nav class="flex items-center justify-between gap-4 py-3">
       <h2 class="m-0">
-        <a href="/" class="flex items-center gap-4 text-xl font-black uppercase">
-          <a href="/" class="font-bold">Cruz</a>
-        </a>
+        <!-- 중첩 <a>를 없앤다. 브라우저가 그리던 안쪽 링크만 남겨 모양을 유지한다 -->
+        <a href="/" class="font-bold">Cruz</a>
       </h2>
       <div class="flex items-center gap-1">
         <!-- 좁은 화면에서는 가운데 메뉴와 겹치므로 sm 이상에서만 GitHub 아이콘 표시 -->

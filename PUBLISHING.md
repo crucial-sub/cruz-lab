@@ -1,6 +1,6 @@
 # Publish Runbook
 
-현재 Cruz Lab의 포스트 출간 경로는 `content/posts` markdown 파일과 GitHub API를 기준으로 동작한다.
+현재 Cruz Lab의 포스트 원본은 Firestore `posts`다. 출간하면 GitHub API로 `data/post-archive`에 markdown 사본을 남긴다.
 
 ## 사전 점검
 
@@ -14,8 +14,7 @@ npm run publish:preflight
 
 - `.env`에 `PUBLIC_FIREBASE_API_KEY`, `PUBLIC_ADMIN_EMAIL`, `GITHUB_TOKEN`이 있는지
 - `astro.config.mjs`의 공개 사이트 기준 URL
-- `content/posts` 경로가 실제로 존재하는지
-- 가능하면 GitHub API로 대상 저장소의 `main` 브랜치와 `content/posts` 경로에 접근 가능하고 push 권한이 있는지
+- 가능하면 GitHub API로 대상 저장소의 `main` 브랜치와 `data/post-archive` 경로에 접근 가능하고 push 권한이 있는지
 - 가능하면 공개 사이트 `/blog` 응답이 오는지
 
 출간 뒤 특정 포스트를 다시 확인하고 싶으면 아래 명령도 쓸 수 있다.
@@ -27,7 +26,7 @@ npm run publish:verify -- --slug <slug> --pub-date <ISO_DATE>
 또는 파일 경로를 이미 알고 있으면:
 
 ```bash
-npm run publish:verify -- --slug <slug> --file-path content/posts/YYYY-MM-DD-slug.md
+npm run publish:verify -- --slug <slug> --file-path data/post-archive/YYYY-MM-DD-slug.md
 ```
 
 ## 실제 출간 순서
