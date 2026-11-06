@@ -49,6 +49,7 @@
 ### 2.5 `exists()` 버그 (A4)
 
 - `src/lib/server/admin-series.ts`: `seriesSnap.exists()` → `seriesSnap.exists`. Admin SDK에서 `exists`는 속성이다. 시리즈는 2단계에서 들어내므로 이 줄만 고쳤다.
+- 이 수정으로 시리즈 수정 화면이 열리게 됐고, 그 화면의 다른 하자가 드러났다(A13, 계획 문서 5.4절). 그 화면에서 저장하면 공개 시리즈의 글이 전부 사라진다. 저장하지 않는다.
 
 ### 2.6 중첩 `<a>` (A12)
 
@@ -112,3 +113,5 @@
 3. `tsc` 오류 25개. 대부분 `src/lib/series.ts`와 `admin-series.ts`의 Firestore 데이터 타입이다. 시리즈 코드는 2단계에서 들어내므로 그때 함께 사라진다. 남는 것은 2단계 끝에 다시 센다.
 4. Secret Manager의 `GITHUB_TOKEN`(옛 함수용)이 아직 필요한지 판단한다. CMS 서버는 Vercel 환경 변수의 `GITHUB_TOKEN`을 쓴다. 2단계의 백업 Action 설계 때 함께 정한다.
 5. 2단계 설계 때 주의: 운영 상태(배포된 함수, 규칙, 환경 변수)는 저장소 소스만으로 판단하지 않는다. `firebase functions:list` 같은 운영 조회로 확인한다.
+6. **A13 경고**: 2단계가 시리즈 관리 화면을 제거할 때까지 `/admin/series/edit`에서 저장하지 않는다.
+7. 관리자 화면 실행 점검(2026-11-06, ego-browser)을 했다. 결과는 계획 문서 5.4절이다. 1단계 확인 항목(기존 글 열기, 썸네일 업로드)도 그 점검에서 정상이었다.
