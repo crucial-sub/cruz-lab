@@ -2,6 +2,7 @@
 
 - 날짜: 2026-11-06
 - 브랜치: `fix/rebuild-stage1-repairs` (`origin/main` `bb97e81`에서 만듦)
+- PR: [#3](https://github.com/crucial-sub/cruz-lab/pull/3) (병합 대기)
 - 계획: [2026-11-06-blog-architecture-audit-2-problems-and-plan.md](./2026-11-06-blog-architecture-audit-2-problems-and-plan.md) 11.1절 1~9번
 - 규모: 112개 파일, 추가 87줄, 삭제 16,647줄. 삭제의 대부분은 `content/posts` 11,448줄, `functions/` 2,936줄, `src`·`scripts` 2,226줄이다.
 

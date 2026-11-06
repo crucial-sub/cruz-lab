@@ -418,7 +418,7 @@ Firestore ──(GitHub Action, 매일 + 발행 후 트리거)──▶ GitHub `
 |---|---|---|---|---|
 | 2026-11-05 | 사전 작업 | 완료 | 홈페이지 성능 및 UI 개선 | PR #2 병합(`bb97e81`). [2026-11-05-perf-and-ui-polish.md](./2026-11-05-perf-and-ui-polish.md) |
 | 2026-11-06 | 전수조사 | 완료 | 이 문서를 쓴 세션 | 1편·2편 문서, 시각 문서, 캡처. 10절(시리즈·방향·docs) 결정 |
-| 2026-11-06 | 1. 즉시 수리 | 완료 | 1단계 세션 | 브랜치 `fix/rebuild-stage1-repairs`. 규칙 배포 완료. 계획 밖 2건(사용자 승인): `publish-verify.mjs` 경로, 운영 함수 `syncPostToGitHub` 삭제. 관리자 로그인 확인(이미지 업로드·글 열기)은 사용자 몫. [2026-11-06-stage1-immediate-repairs.md](./2026-11-06-stage1-immediate-repairs.md) |
+| 2026-11-06 | 1. 즉시 수리 | 완료 (PR 병합 대기) | 1단계 세션 | [PR #3](https://github.com/crucial-sub/cruz-lab/pull/3), 브랜치 `fix/rebuild-stage1-repairs`. 규칙 배포 완료. 계획 밖 2건(사용자 승인): `publish-verify.mjs` 경로, 운영 함수 `syncPostToGitHub` 삭제. 관리자 로그인 확인(이미지 업로드·글 열기)은 사용자 몫. [2026-11-06-stage1-immediate-repairs.md](./2026-11-06-stage1-immediate-repairs.md) |
 | — | 2. 데이터 모델과 서버 | 다음 | 새 세션 | 시작 전에 Plan 문서와 visual-plan HTML(`visual-plans/`)을 쓴다. 범위: 8.3의 2단계 행, 10.1의 결정. 운영 상태는 소스가 아니라 운영 조회로 확인한다(작업 문서 4절) |
 
 ### 11.1 1단계 작업 범위 (인계용 상세)
@@ -453,7 +453,7 @@ Firestore ──(GitHub Action, 매일 + 발행 후 트리거)──▶ GitHub `
 
 **열린 질문.**
 
-1. 1단계 PR 병합. 사용자가 정한다.
+1. 1단계 [PR #3](https://github.com/crucial-sub/cruz-lab/pull/3) 병합. 사용자가 정한다. 2단계 브랜치는 병합 뒤 `origin/main`에서 만든다. 병합 전이면 `fix/rebuild-stage1-repairs`에서 만든다.
 2. 관리자 로그인 확인(기존 글 열기, 썸네일 업로드 1회). 사용자가 한다.
 3. 2단계 마이그레이션의 입력. `content/posts`는 삭제됐다. 10.1 표의 태그 수치는 `content/posts` frontmatter에서 셌다. 2단계 스크립트는 Firestore `posts`를 입력으로 쓴다. 옛 파일이 필요하면 git 기록(`bb97e81`)에서 읽는다.
 4. Secret Manager의 `GITHUB_TOKEN`(옛 함수용)을 지울지. 2단계 백업 Action 설계 때 정한다.
