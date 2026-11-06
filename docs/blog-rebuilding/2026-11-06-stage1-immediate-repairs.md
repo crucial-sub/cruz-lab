@@ -2,7 +2,8 @@
 
 - 날짜: 2026-11-06
 - 브랜치: `fix/rebuild-stage1-repairs` (`origin/main` `bb97e81`에서 만듦)
-- PR: [#3](https://github.com/crucial-sub/cruz-lab/pull/3) (병합 대기)
+- PR: [#3](https://github.com/crucial-sub/cruz-lab/pull/3) (2026-11-06 main 병합)
+- 되돌리기 기준 태그: `pre-rebuild` = `bb97e81` (1단계 병합 전 main)
 - 계획: [2026-11-06-blog-architecture-audit-2-problems-and-plan.md](./2026-11-06-blog-architecture-audit-2-problems-and-plan.md) 11.1절 1~9번
 - 규모: 112개 파일, 추가 87줄, 삭제 16,647줄. 삭제의 대부분은 `content/posts` 11,448줄, `functions/` 2,936줄, `src`·`scripts` 2,226줄이다.
 
@@ -73,6 +74,7 @@
 
 - `scripts/publish-preflight.mjs`: 대상 경로를 `data/post-archive`로 바꿨다. `content/posts` 파일 수 확인과 필수 항목 목록의 `content/posts`를 지웠다.
 - `scripts/publish-verify.mjs` (계획 밖, 사용자 승인): 같은 옛 경로를 `data/post-archive`로 바꿨다. 사용 예시도 실제 파일(`2026-04-22-ai-agent-context.md`)로 바꿨다.
+- `PUBLISHING.md`, `PUBLISH-SMOKE-TEST.md`: 같은 옛 경로 안내를 고쳤다. PR #3의 Codex 리뷰(P2)가 지적했다. `PUBLISHING.md`의 2026-03-26 확인 결과 기록은 그날의 기록이라 그대로 뒀다.
 
 ### 2.9 배포된 Firebase 함수 삭제 (계획 밖, 사용자 승인)
 
@@ -105,8 +107,8 @@
 
 ## 4. 남은 것
 
-1. 사용자 확인: 관리자 로그인 → 글 편집 화면에서 기존 글 열기 → 썸네일 이미지 업로드 1회.
-2. 2단계(데이터 모델과 서버). 시작 전에 Plan 문서와 visual-plan HTML(`docs/blog-rebuilding/visual-plans/`)을 쓴다. 범위는 계획 문서 8.3의 2단계 행과 10.1의 결정이다.
+1. 사용자 확인: localhost(`pnpm dev` → `http://localhost:4321/admin`)에서 관리자 로그인 → 기존 글 열기 → 썸네일 이미지 업로드 1회. 발행은 하지 않는다. localhost도 운영 Firebase를 쓴다.
+2. 2단계(데이터 모델과 서버). `rebuild` 브랜치에서 한다. 브랜치와 데이터 조건은 계획 문서 11.3절을 따른다. 시작 전에 Plan 문서와 visual-plan HTML(`docs/blog-rebuilding/visual-plans/`)을 쓴다. 범위는 계획 문서 8.3의 2단계 행과 10.1의 결정이다.
 3. `tsc` 오류 25개. 대부분 `src/lib/series.ts`와 `admin-series.ts`의 Firestore 데이터 타입이다. 시리즈 코드는 2단계에서 들어내므로 그때 함께 사라진다. 남는 것은 2단계 끝에 다시 센다.
 4. Secret Manager의 `GITHUB_TOKEN`(옛 함수용)이 아직 필요한지 판단한다. CMS 서버는 Vercel 환경 변수의 `GITHUB_TOKEN`을 쓴다. 2단계의 백업 Action 설계 때 함께 정한다.
 5. 2단계 설계 때 주의: 운영 상태(배포된 함수, 규칙, 환경 변수)는 저장소 소스만으로 판단하지 않는다. `firebase functions:list` 같은 운영 조회로 확인한다.

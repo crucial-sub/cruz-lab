@@ -418,8 +418,8 @@ Firestore ──(GitHub Action, 매일 + 발행 후 트리거)──▶ GitHub `
 |---|---|---|---|---|
 | 2026-11-05 | 사전 작업 | 완료 | 홈페이지 성능 및 UI 개선 | PR #2 병합(`bb97e81`). [2026-11-05-perf-and-ui-polish.md](./2026-11-05-perf-and-ui-polish.md) |
 | 2026-11-06 | 전수조사 | 완료 | 이 문서를 쓴 세션 | 1편·2편 문서, 시각 문서, 캡처. 10절(시리즈·방향·docs) 결정 |
-| 2026-11-06 | 1. 즉시 수리 | 완료 (PR 병합 대기) | 1단계 세션 | [PR #3](https://github.com/crucial-sub/cruz-lab/pull/3), 브랜치 `fix/rebuild-stage1-repairs`. 규칙 배포 완료. 계획 밖 2건(사용자 승인): `publish-verify.mjs` 경로, 운영 함수 `syncPostToGitHub` 삭제. 관리자 로그인 확인(이미지 업로드·글 열기)은 사용자 몫. [2026-11-06-stage1-immediate-repairs.md](./2026-11-06-stage1-immediate-repairs.md) |
-| — | 2. 데이터 모델과 서버 | 다음 | 새 세션 | 시작 전에 Plan 문서와 visual-plan HTML(`visual-plans/`)을 쓴다. 범위: 8.3의 2단계 행, 10.1의 결정. 운영 상태는 소스가 아니라 운영 조회로 확인한다(작업 문서 4절) |
+| 2026-11-06 | 1. 즉시 수리 | 완료 (main 병합) | 1단계 세션 | [PR #3](https://github.com/crucial-sub/cruz-lab/pull/3), 브랜치 `fix/rebuild-stage1-repairs`. 되돌리기 기준 태그 `pre-rebuild`(`bb97e81`). 규칙 배포 완료. 계획 밖 2건(사용자 승인): `publish-verify.mjs` 경로, 운영 함수 `syncPostToGitHub` 삭제. 관리자 로그인 확인(이미지 업로드·글 열기)은 사용자 몫. [2026-11-06-stage1-immediate-repairs.md](./2026-11-06-stage1-immediate-repairs.md) |
+| — | 2. 데이터 모델과 서버 | 다음 | 새 세션 | `rebuild` 브랜치에서 한다(11.3). 시작 전에 Plan 문서와 visual-plan HTML(`visual-plans/`)을 쓴다. 범위: 8.3의 2단계 행, 10.1의 결정. 운영 상태는 소스가 아니라 운영 조회로 확인한다(작업 문서 4절) |
 
 ### 11.1 1단계 작업 범위 (인계용 상세)
 
@@ -453,8 +453,35 @@ Firestore ──(GitHub Action, 매일 + 발행 후 트리거)──▶ GitHub `
 
 **열린 질문.**
 
-1. 1단계 [PR #3](https://github.com/crucial-sub/cruz-lab/pull/3) 병합. 사용자가 정한다. 2단계 브랜치는 병합 뒤 `origin/main`에서 만든다. 병합 전이면 `fix/rebuild-stage1-repairs`에서 만든다.
+1. ~~1단계 PR 병합~~ → 2026-11-06 사용자 결정으로 [PR #3](https://github.com/crucial-sub/cruz-lab/pull/3)을 main에 병합했다. 2단계부터는 `rebuild` 브랜치에서 한다(11.3).
 2. 관리자 로그인 확인(기존 글 열기, 썸네일 업로드 1회). 사용자가 한다.
 3. 2단계 마이그레이션의 입력. `content/posts`는 삭제됐다. 10.1 표의 태그 수치는 `content/posts` frontmatter에서 셌다. 2단계 스크립트는 Firestore `posts`를 입력으로 쓴다. 옛 파일이 필요하면 git 기록(`bb97e81`)에서 읽는다.
 4. Secret Manager의 `GITHUB_TOKEN`(옛 함수용)을 지울지. 2단계 백업 Action 설계 때 정한다.
 5. `tsc --noEmit` 오류 25개(원래 있던 것). 시리즈 제거 뒤 다시 센다.
+
+### 11.3 브랜치와 되돌리기 전략 (2026-11-06 결정)
+
+사용자 결정: 1단계만 main에 병합한다. 2~5단계는 `rebuild` 통합 브랜치에 모은다. 사용자가 최종 결과에 만족할 때만 main에 병합한다.
+
+**되돌리기 기준점.** 태그 `pre-rebuild`는 1단계 병합 전 main(`bb97e81`)이다. 코드는 이 태그나 Vercel Instant Rollback(이전 운영 배포로 되돌리기)으로 되돌린다.
+
+**1단계를 main에 넣은 이유.** 운영의 `/api/posts/by-slug`가 비공개 글 본문을 인증 없이 돌려줬다(A2). 1단계는 대부분 삭제라서 되돌리기 쉽다.
+
+**2~5단계 흐름.**
+
+1. 단계별 작업 브랜치를 `rebuild`에서 만든다.
+2. 단계 PR의 대상은 `rebuild`다. main이 아니다.
+3. `rebuild` 미리보기 주소에서 확인한다. 주소: `https://cruz-lab-git-rebuild-crucialsubs-projects.vercel.app`. Vercel 로그인 보호가 걸려 있어 본인만 열 수 있다.
+4. 사용자가 최종 결과에 만족하면 `rebuild`를 main에 병합한다.
+
+main에는 긴급 수정만 넣는다. main에 긴급 수정을 넣으면 main을 `rebuild`에 병합한다.
+
+**데이터는 브랜치로 격리되지 않는다.** Firebase 프로젝트 하나(Firestore, Storage, Auth, 규칙, 함수)를 모든 브랜치와 localhost가 함께 쓴다. `rebuild`에서 데이터를 바꾸면 운영도 바뀐다. 그래서 2단계 이후 Plan은 다음 조건을 지킨다.
+
+1. 마이그레이션 전에 Firestore를 백업한다.
+2. 마이그레이션은 더하기만 한다. 새 필드와 컬렉션을 추가한다. 옛 필드와 `series` 컬렉션은 남긴다. 운영의 옛 코드가 계속 동작해야 한다.
+3. 옛 필드와 `series` 컬렉션 삭제는 `rebuild`를 main에 병합한 뒤 별도 작업으로 한다.
+4. 규칙을 바꾸면 옛 코드와 새 코드가 둘 다 동작하는지 확인한다.
+5. 운영 CMS로 쓴 글이 마이그레이션 뒤에도 생길 수 있다. 마이그레이션 스크립트는 여러 번 실행해도 결과가 같아야 한다(멱등). main 병합 직전에 한 번 더 실행한다.
+
+**관리자 화면 확인 위치.** localhost는 Firebase Auth가 기본으로 허용한다. 미리보기 주소에서 Google 로그인을 하려면 Firebase 콘솔의 Authentication → 설정 → 승인된 도메인에 위 주소를 추가해야 할 가능성이 크다(확인 안 함). 추가는 사용자가 한다. 그 전에는 localhost에서 확인한다.
