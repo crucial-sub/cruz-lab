@@ -38,3 +38,6 @@ docs/*
 
 # 서비스 계정 키
 *adminsdk*.json
+
+# Obsidian 편집기 설정은 추적하지 않는다
+.obsidian/
