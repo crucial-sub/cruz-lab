@@ -22,6 +22,8 @@ import { visit } from 'unist-util-visit';
 import type { EmbedProvider } from './embed-url.ts';
 import remarkCallout from './remark-callout.ts';
 import remarkEmbed, { embedUrlOfParagraph } from './remark-embed.ts';
+import rehypeStripUnsafe from './rehype-strip-unsafe.ts';
+import { isVideoUrl, safeUrl, VIDEO_EXTENSIONS } from './safe-url.ts';
 
 // 변환기(from-doc)가 만드는 임베드 노드. 마크다운에는 주소 한 줄로 쓴다
 export interface EmbedNode extends MdNode {
@@ -39,8 +41,8 @@ declare module 'mdast' {
   }
 }
 
-// 공개 페이지가 영상으로 그리는 확장자 (MarkdownPostView.tsx와 같다)
-export const VIDEO_EXTENSIONS = ['.webm', '.mp4', '.mov'];
+// 주소 판정(safeUrl, isVideoUrl, VIDEO_EXTENSIONS)은 safe-url.ts에 있다. 여기서 다시 내보낸다
+export { isVideoUrl, safeUrl, VIDEO_EXTENSIONS };
 
 // ───────────── 파서 ─────────────
 
@@ -116,25 +118,6 @@ export function countBreakTags(value: string): number {
 
 // ───────────── HTML (미리보기, 4단계 공개 페이지) ─────────────
 
-function isVideoSource(src: string): boolean {
-  const lower = src.toLowerCase();
-  return VIDEO_EXTENSIONS.some((ext) => lower.endsWith(ext));
-}
-
-// 허용 프로토콜 (react-markdown defaultUrlTransform과 같다). 그 밖(javascript:, data: 등)은 빈 주소로 바꾼다
-const SAFE_PROTOCOLS = new Set(['http', 'https', 'mailto', 'tel']);
-
-export function safeUrl(url: string): string {
-  const colon = url.indexOf(':');
-  if (colon === -1) return url;
-  // 첫 `/`, `?`, `#`보다 뒤의 `:`는 프로토콜이 아니다(상대 경로)
-  for (const marker of ['/', '?', '#']) {
-    const position = url.indexOf(marker);
-    if (position !== -1 && colon > position) return url;
-  }
-  return SAFE_PROTOCOLS.has(url.slice(0, colon).toLowerCase()) ? url : '';
-}
-
 // react-markdown의 components 규칙을 hast에 적용한다 (MarkdownPostView.tsx 114~160행)
 // - 주소 필터(safeUrl)도 react-markdown과 같다. 4단계 공개 페이지가 이 함수를 쓰므로 여기서 막는다
 function rehypePublicRules() {
@@ -143,7 +126,7 @@ function rehypePublicRules() {
       if (node.tagName === 'img') {
         const src = safeUrl(typeof node.properties.src === 'string' ? node.properties.src : '');
         const alt = typeof node.properties.alt === 'string' ? node.properties.alt : undefined;
-        if (isVideoSource(src)) {
+        if (isVideoUrl(src)) {
           node.tagName = 'video';
           const properties: Properties = {
             src,
@@ -196,12 +179,14 @@ const htmlProcessor = unified()
   .use(remarkEmbed)
   .use(remarkRehype, { allowDangerousHtml: true })
   .use(rehypeRaw)
+  // 원시 HTML의 스크립트·이벤트 속성·위험 주소를 지운다(리뷰 6.2 지적 11). KaTeX·하이라이트 결과보다 먼저 돈다
+  .use(rehypeStripUnsafe)
   .use(rehypeKatex)
   .use(rehypeHighlight)
   .use(rehypePublicRules)
   .use(rehypeStringify);
 
-// 마크다운 → HTML (콜아웃·임베드·수식·하이라이트 포함)
+// 마크다운 → HTML (콜아웃·임베드·수식·하이라이트 포함, 원시 HTML 안전 처리)
 export function markdownToHtml(markdown: string): string {
   return String(htmlProcessor.processSync(markdown));
 }

@@ -1,0 +1,336 @@
+/* 에디터 페이지 스타일 (재건 3단계 D8·D13)
+   - 편집 영역(.tiptap-body)과 미리보기는 공개 글 페이지(src/pages/blog/[...slug].astro)의 .prose 규칙과 같다.
+     4단계가 공개 페이지를 공유 파이프라인으로 바꿀 때 한 곳으로 합친다.
+   - 색은 모두 global.css 토큰이다. html.light로 라이트 전환(M10). */
+
+/* ── 공개 글 페이지와 같은 .prose ── */
+.prose {
+  color: var(--text-primary);
+}
+.prose h1 {
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+.prose h2 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+}
+.prose h3 {
+  font-size: 1.375rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+.prose h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+.prose p {
+  margin: 1rem 0;
+  line-height: 1.8;
+  color: var(--text-secondary);
+}
+.prose ul,
+.prose ol {
+  padding-left: 1.5rem;
+  margin: 1rem 0;
+}
+.prose li {
+  margin: 0.5rem 0;
+  color: var(--text-secondary);
+}
+.prose blockquote {
+  border-left: 4px solid var(--brand);
+  padding-left: 1rem;
+  margin: 1.5rem 0;
+  color: var(--text-secondary);
+  font-style: italic;
+  background: var(--bg-card);
+  padding: 1rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+.prose pre {
+  background-color: #1e1e1e;
+  color: #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 1.5rem 0;
+}
+.prose code {
+  font-family: 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+  font-size: 0.875rem;
+}
+.prose pre code {
+  background: transparent;
+  padding: 0;
+}
+.prose img,
+.prose video {
+  max-width: 100%;
+  border-radius: 0.5rem;
+  margin: 1.5rem 0;
+}
+.prose a {
+  color: var(--brand);
+  text-decoration: underline;
+}
+.prose a:hover {
+  color: var(--brand);
+  opacity: 0.8;
+}
+.prose hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2.5rem 0;
+}
+.prose strong {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.prose em {
+  font-style: italic;
+}
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+}
+.prose th,
+.prose td {
+  border: 1px solid var(--border);
+  padding: 0.75rem;
+  text-align: left;
+}
+.prose th {
+  background: var(--bg-card);
+  font-weight: 600;
+}
+
+/* ── 콜아웃·임베드 (공유 파이프라인과 콜아웃 노드가 같은 클래스를 쓴다) ── */
+.prose .callout,
+.tiptap-body .callout {
+  border-left: 4px solid var(--brand);
+  background: var(--bg-card);
+  padding: 0.75rem 1rem;
+  margin: 1.5rem 0;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+.prose .callout[data-callout='tip'],
+.tiptap-body .callout[data-callout='tip'] {
+  border-left-color: var(--graph-4);
+}
+.prose .callout[data-callout='warning'],
+.tiptap-body .callout[data-callout='warning'] {
+  border-left-color: #f59e0b;
+}
+.prose .callout::before,
+.tiptap-body .callout::before {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  content: attr(data-callout);
+}
+.prose .callout > p:first-of-type,
+.tiptap-body .callout > p:first-of-type {
+  margin-top: 0.25rem;
+}
+.prose .embed,
+.tiptap-body .embed {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin: 1.5rem 0;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: var(--bg-card);
+}
+.prose .embed iframe,
+.tiptap-body .embed iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* ── 편집 영역 ── */
+.tiptap-body {
+  min-height: 60vh;
+  padding-bottom: 30vh;
+  caret-color: var(--brand);
+}
+.tiptap-body:focus {
+  outline: none;
+}
+/* 자리표시 문구(@tiptap/extensions Placeholder) */
+.tiptap-body p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+/* 블록 노드 선택 표시 */
+.tiptap-body .ProseMirror-selectednode {
+  outline: 2px solid var(--ring-focus);
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+/* 표 */
+.tiptap-body table {
+  table-layout: fixed;
+}
+.tiptap-body td,
+.tiptap-body th {
+  position: relative;
+  min-width: 3rem;
+  vertical-align: top;
+}
+.tiptap-body td > p,
+.tiptap-body th > p {
+  margin: 0;
+}
+.tiptap-body .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 185, 129, 0.15);
+  pointer-events: none;
+}
+/* 체크 목록 */
+.tiptap-body ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0.25rem;
+}
+.tiptap-body ul[data-type='taskList'] li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+.tiptap-body ul[data-type='taskList'] li > label {
+  flex: 0 0 auto;
+  margin-top: 0.45rem;
+}
+.tiptap-body ul[data-type='taskList'] li > div {
+  flex: 1 1 auto;
+}
+.tiptap-body ul[data-type='taskList'] li > div > p {
+  margin: 0.25rem 0;
+}
+/* 코드 블록 안의 하이라이트 토큰은 highlight.js 클래스다. 색은 공개 페이지 테마를 그대로 쓴다 */
+.tiptap-body pre {
+  white-space: pre;
+}
+/* 수식(KaTeX 노드 뷰) */
+.tiptap-body .tiptap-mathematics-render {
+  cursor: pointer;
+  border-radius: 0.25rem;
+  padding: 0 0.15rem;
+}
+.tiptap-body .tiptap-mathematics-render--editable:hover {
+  background: var(--bg-card);
+}
+.tiptap-body [data-type='block-math'] {
+  margin: 1.5rem 0;
+  text-align: center;
+}
+
+/* ── 이미지 노드 뷰 ── */
+.editor-image {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.editor-image img,
+.editor-image video {
+  display: block;
+  max-width: 100%;
+  margin: 0.5rem 0;
+}
+.editor-image.is-selected img,
+.editor-image.is-selected video {
+  outline: 2px solid var(--ring-focus);
+  outline-offset: 2px;
+}
+.editor-image.is-uploading img {
+  opacity: 0.6;
+}
+.editor-image-overlay {
+  position: absolute;
+  inset: 0.5rem 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: rgba(var(--bg-app-rgb), 0.55);
+  border-radius: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  text-align: center;
+  padding: 0.5rem;
+}
+.editor-image-progress {
+  width: 60%;
+  height: 0.4rem;
+  accent-color: var(--brand);
+}
+.editor-image-error {
+  color: #fca5a5;
+}
+.editor-image-menu {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-popover);
+  white-space: nowrap;
+}
+.editor-chip {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.1rem 0.6rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: var(--bg-app);
+}
+.editor-chip:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+.editor-chip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.editor-chip.is-active {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+.editor-chip-danger {
+  color: #fca5a5;
+}

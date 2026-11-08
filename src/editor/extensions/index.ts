@@ -44,6 +44,23 @@ export const EditorCodeBlock = CodeBlockLowlight.extend({
 export const EditorTableCell = TableCell.extend({ content: 'paragraph' });
 export const EditorTableHeader = TableHeader.extend({ content: 'paragraph' });
 
+// 이미지: 단락 안 인라인 노드(D10). 업로드 상태 속성 3개는 DOM·마크다운에 쓰지 않는다(D11 3·7).
+// - uploadId가 있는 동안은 src가 blob: 주소다. EditorApp은 이 노드가 있으면 자동저장을 멈춘다.
+// - 노드 뷰(React)는 ui/editor-extensions.ts가 extend로 더한다. 여기는 DOM 없이 돈다.
+export const EditorImageNode = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      uploadId: { default: null, rendered: false },
+      uploadProgress: { default: null, rendered: false },
+      uploadError: { default: null, rendered: false },
+    };
+  },
+});
+// extend() 뒤에는 옵션이 기본값으로 돌아가므로 UI 쪽도 같은 옵션으로 다시 configure한다
+export const IMAGE_OPTIONS = { inline: true, allowBase64: false } as const;
+export const EditorImage = EditorImageNode.configure(IMAGE_OPTIONS);
+
 // 에디터 스키마를 이루는 확장 배열
 export function createEditorExtensions(): Extensions {
   return [
@@ -68,7 +85,7 @@ export function createEditorExtensions(): Extensions {
     TableRow,
     EditorTableHeader,
     EditorTableCell,
-    Image.configure({ inline: true, allowBase64: false }),
+    EditorImage,
     Callout,
     Embed,
     Mathematics,
