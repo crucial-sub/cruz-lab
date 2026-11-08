@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<!-- 재건 3단계 Plan의 시각 문서 소스.
+     원본 Plan: docs/blog-rebuilding/2026-11-08-stage3-editor-plan.md
+     렌더: node <visual-explainer>/plan/render.mjs 이 파일 -o 2026-11-08-cruz-lab-stage3-plan.html --root <저장소> -->
+<html lang="ko">
+<head>
+<title>재건 3단계 에디터</title>
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">Plan · cruz-lab · 재건 3단계 · 승인 2026-11-08</p>
+  <h1>Tiptap 에디터가 entries 초안을 쓰고 발행한다</h1>
+  <p class="lead">쓰는 동안 문서가 렌더되어 보인다. 초안은 2초마다 서버에 저장된다. 기존 55편은 <b>고치지 않으면 마크다운이 그대로</b>다. 옛 CodeMirror 에디터와 관리자 화면 약 4,800줄은 지운다.</p>
+  <ve-files>
+    + src/editor/extensions/index.ts            # Tiptap 확장 묶음 = 스키마
+    + src/editor/extensions/callout.ts          # > [!note] 콜아웃
+    + src/editor/extensions/embed.ts            # YouTube · CodeSandbox 임베드 노드
+    + src/editor/markdown/to-doc.ts             # mdast → ProseMirror JSON
+    + src/editor/markdown/from-doc.ts           # ProseMirror JSON → mdast → remark-stringify
+    + src/editor/commands/registry.ts           # 명령 하나 = 단축키 · 슬래시 · 팔레트 · 툴바
+    + src/editor/state/autosave.ts              # 2초 디바운스, 409 충돌, 오프라인 1칸
+    + src/editor/upload/upload-client.ts        # sha256 → 서명 URL PUT → finalize
+    + src/editor/ui/EditorApp.tsx               # 페이지 루트
+    + src/lib/content/markdown.ts               # 공유 파이프라인(미리보기 · 검사 · 4단계 공개 페이지)
+    + src/lib/content/remark-embed.ts           # 지원 주소 단락 → iframe (허용 호스트 2개)
+    + src/pages/admin/edit/[id].astro           # 에디터 페이지
+    + src/pages/api/admin/assets/[id]/index.ts  # GET 자산 문서 (3단계에 더하는 유일한 API)
+    + scripts/smoke/stage3-roundtrip.mjs        # 55편 왕복 검사(읽기 전용)
+    ~ src/pages/admin/index.astro               # 최소 서버 렌더 목록
+    ~ src/pages/admin/posts/new.astro           # 빈 초안 생성 → 302
+    ~ src/lib/server/cdn-purge.ts               # 글 상세는 삭제, 목록은 무효화
+    - src/components/editor/FullScreenEditor.tsx  # 788줄
+    - src/components/editor/CodeMirrorEditor.tsx  # 577줄 + CSS 547줄
+    - src/components/editor/PublishModal.tsx
+    - src/components/admin/PostList.tsx           # 579줄
+    - src/components/admin/AdminDashboard.tsx
+    - src/lib/markdown-publish.ts
+    - docs/cms-rebuild-tracker.md               # 계획 문서 10.3
+    - docs/editor-engine-evaluation.md
+  </ve-files>
+  <ve-why>
+    <ve-quote via="계획 문서 2.1" from="전수조사" at="2026-11-06">원했던 것: 옵시디언 수준의 편집 경험 (기호가 렌더되어 보이는 라이브 프리뷰), 단축키 자유 등록, / 명령으로 커스텀 동작, 내가 만든 플러그인 등록</ve-quote>
+    <ve-quote via="계획 문서 0절" from="전수조사" at="2026-11-06">편집기는 소스 모드 CodeMirror다. 명령 체계·단축키·플러그인을 등록할 구조 자체가 없다. 수정이 아니라 교체가 맞다.</ve-quote>
+    <ve-quote via="계획 문서 5.4 M7" from="실행 점검" at="2026-11-06">열자마자 본문. 메타는 오른쪽 패널 또는 접힘</ve-quote>
+    <ve-quote via="계획 문서 3.3" from="전수조사" at="2026-11-06">폰에서 메모 → 데스크톱에서 다듬기 → 발행까지 한 흐름</ve-quote>
+  </ve-why>
+  <ve-revision v="2"><li>D2: 사용자가 "옛 화면 삭제 + 최소 서버 렌더 목록"을 골랐다(2026-11-08). 결정 질문을 뺐다.</li></ve-revision>
+  <ve-revision v="3">
+    <li>D1: 사용자가 "렌더 결과 동일 + 고치지 않으면 쓰지 않음"을 골랐다(2026-11-08).</li>
+    <li>D3: 임베드(YouTube · CodeSandbox) · 수식 · 이미지 크기 선택을 3단계에 넣는다. 찾기·바꾸기 · 드래그 핸들 · 링크 카드 · 임의 px 폭은 미룬다(Plan 14절 상기 목록). 키맵 저장·설정 UI는 5단계.</li>
+    <li>더한 것: 임베드·수식 노드와 파이프라인 플러그인, 이미지 크기 메뉴, <code>GET /api/admin/assets/{id}</code>.</li>
+  </ve-revision>
+</header>
+
+<figure class="hero">
+  <ve-flow label="최소 목록이 entries를 읽어 글을 고른다. 변환기가 entries 초안의 마크다운을 remark로 읽어 Tiptap 문서로 바꾸고, 에디터 화면이 그 문서를 렌더한다. 에디터는 2초마다 /api/admin/posts에 초안을 저장하고 발행한다. 그 API가 entries에 트랜잭션으로 쓰고 CDN 캐시를 비운다. 이미지는 자산 API로 서명 URL을 받아 Storage에 직접 올린다. 옛 CodeMirror 에디터와 관리자 화면은 지운다.">
+    <ve-node id="old" at="1 1" sub="CodeMirror · PublishModal · PostList" gone>옛 화면 4,800줄</ve-node>
+    <ve-node id="conv" at="2 1" sub="remark ↔ ProseMirror" key new claim="1">변환기</ve-node>
+    <ve-node id="editor" at="3 1" sub="Tiptap · 3모드 · 모바일" new claim="1 4">에디터 화면</ve-node>
+    <ve-node id="entries" at="1 2" sub="draft · published" shape="db" claim="1">entries</ve-node>
+    <ve-node id="api" at="2 2" sub="draft · publish" claim="2 5">/api/admin/posts</ve-node>
+    <ve-node id="assets" at="3 2" sub="upload-url · finalize" claim="3">자산 API</ve-node>
+    <ve-node id="list" at="1 3" sub="서버 렌더 · 100줄" new claim="5">최소 목록 /admin</ve-node>
+    <ve-node id="cdn" at="2 3" sub="글 상세 삭제 · 목록 무효화" claim="5">CDN 퍼지</ve-node>
+    <ve-node id="storage" at="3 3" sub="CORS E2 필요" claim="3">Storage assets/</ve-node>
+    <ve-edge from="entries" to="conv" claim="1" label="markdown"/>
+    <ve-edge from="conv" to="editor" hot claim="1" label="doc · 경고 목록"/>
+    <ve-edge from="editor" to="api" hot claim="2" label="2초 저장 · 409"/>
+    <ve-edge from="api" to="entries" claim="2" label="트랜잭션"/>
+    <ve-edge from="editor" to="assets" new claim="3" label="sha256"/>
+    <ve-edge from="assets" to="storage" claim="3" label="서명 URL PUT"/>
+    <ve-edge from="api" to="cdn" claim="5" label="발행 뒤"/>
+    <ve-edge from="list" to="entries" new claim="5" label="목록 읽기"/>
+  </ve-flow>
+  <figcaption><span class="fig-n">Fig. 1</span>에디터는 2단계 API만 부른다. 변환기가 에디터와 공개 페이지를 같은 파서로 잇는다.</figcaption>
+</figure>
+
+<ve-plan>
+
+  <ve-claim rev="3" check="왕복 검사 스크립트가 55편 모두 통과(렌더 결과 동일)다. 기존 글을 열고 닫은 뒤 GET /api/admin/posts/{id}의 draft.version과 updatedAt이 그대로다.">
+    <p>기존 55편을 열면 렌더된 문서가 보이고, 고치지 않으면 마크다운이 그대로다.</p>
+    <ve-mock w="460" label="에디터 · 기존 글을 연 첫 화면 (M7)">
+      <style>
+        .doc{padding:10px 14px;line-height:1.55}
+        .doc h2{font-size:15px;margin:8px 0 4px}
+        .doc p{margin:4px 0}
+        .doc code{font-family:ui-monospace,monospace;font-size:12px;padding:0 4px;border:1px solid currentColor;border-radius:4px;opacity:.8}
+        .call{border-left:3px solid currentColor;padding:4px 10px;margin:6px 0;opacity:.85}
+        .side{font-size:11px;opacity:.7;text-align:right}
+      </style>
+      <div class="ui">
+        <div class="hd">← 목록 <small class="muted">저장됨 · 열 때 그대로 · v1</small> <span class="btn pri">발행</span> <span class="btn">⋯</span></div>
+        <div class="doc">
+          <h2>Threads - Alarm Clock 구현</h2>
+          <div class="call" data-pin="1">💡 Pintos의 <code>timer_sleep</code>이 busy waiting으로 구현돼 있다. 이걸 고친다.</div>
+          <p><b>목표</b>: 재우는 스레드를 <code>sleep_list</code>에 넣고 깨울 시각이 되면 꺼낸다.</p>
+          <p class="muted small">… 표 · 코드 블록 · 이미지가 그대로 렌더된다</p>
+        </div>
+        <div class="ft side" data-pin="2">메타 패널 접힘 ▸ · 글자 1,284 · 약 4분</div>
+      </div>
+      <ve-pin n="1">기존 <code>&gt; 💡</code> 인용은 인용 그대로 둔다. 새 콜아웃은 <code>&gt; [!note]</code> 문법이다.</ve-pin>
+      <ve-pin n="2">열 때의 문서 JSON을 기억한다. 저장 직전에 비교해 같으면 PUT을 보내지 않는다.</ve-pin>
+    </ve-mock>
+    <p class="muted">사용자 결정(2026-11-08): 통과 기준은 "렌더 결과 동일 + 고치지 않으면 쓰지 않음"이다. 계획 문서 9절의 "diff 0"은 고르지 않았다. 55편 중 0편이 통과하고(글머리 <code>*</code> 502, 구분선 <code>***</code> 108, ZWSP 977이 모두 바뀐다), 독자가 보는 결과는 같기 때문이다.</p>
+
+    <ve-claim>
+      <p>변환기는 공개 페이지와 같은 파서(remark-parse + remark-gfm)로 읽는다.</p>
+      <ve-code src="src/components/blog/MarkdownPostView.tsx" lines="112-116" hl="114-115">
+        <ve-pin line="114">공개 페이지는 react-markdown이 remark-gfm으로 읽는다. 에디터도 같은 remark로 읽으면 "에디터가 읽은 것 = 검사가 읽은 것 = 독자가 보는 것"이다. 공식 <code>@tiptap/markdown</code>은 marked, 커뮤니티 <code>tiptap-markdown</code>은 markdown-it을 쓴다. 그래서 자체 변환기다(D4).</ve-pin>
+      </ve-code>
+    </ve-claim>
+
+    <ve-claim>
+      <p>정규화 규칙 5개는 모두 55편의 데이터에서 나왔다.</p>
+      <ve-code title="normalizeForCompare · sketch" lang="ts">
+<script type="text/plain">
+// 비교 전에 원문과 결과 양쪽 hast에 같은 처리를 한다 (D1)
+1. 텍스트의 ZWSP(U+200B) 제거        // 옛 에디터의 보정 문자. 15편 977개
+2. 블록 위치의 <br> 제거              // 단락 사이에 홀로 있는 것. 20편 50개. 세로 여백만 만든다
+3. 공백 묶음 → 공백 하나               // 줄 안 줄바꿈 225개가 공백이 되는 것과 같다
+4. 코드 블록 안은 그대로               // 글자 하나도 달라지면 실패
+5. position 제거
+// 정규화로 덮지 않고 변환기가 지키는 것:
+//   목록 spread, 순서 목록 start, 표 정렬, 이미지 title(39개), 코드 lang·meta, 제목 h1~h6, NBSP
+</script>
+      </ve-code>
+    </ve-claim>
+
+    <ve-claim>
+      <p>다음 편집은 저장해 둔 에디터 JSON을 먼저 열고, 마크다운이 밖에서 바뀌었으면 버린다.</p>
+      <ve-code title="draft.editorJson · sketch" lang="json">
+<script type="text/plain">
+{ "v": 1,
+  "markdownSha256": "9f2c…",        // 저장할 때 draft.markdown의 해시
+  "doc": { "type": "doc", "content": [ … ] } }
+// 열 때: 해시가 지금 draft.markdown과 같으면 doc, 다르거나 null(기존 55편)이면 markdownToDoc()
+// 운영 CMS 재동기화나 백업 복원이 마크다운을 고치면 JSON은 자동으로 버려진다
+</script>
+      </ve-code>
+    </ve-claim>
+  </ve-claim>
+
+  <ve-claim check="시험 글을 고치고 2초 뒤 API version이 오른다. 탭 2개에서 고치면 늦은 쪽이 충돌 화면을 보고 두 선택이 모두 동작한다. DevTools 오프라인에서 고친 뒤 온라인이 되면 저장된다.">
+    <p>쓰는 동안 2초마다 서버에 저장되고, 다른 기기와 충돌하면 고르며, 오프라인도 잃지 않는다.</p>
+    <ve-mock w="460" label="에디터 · 상단 바와 충돌 화면 (M9)">
+      <div class="ui">
+        <div class="hd">← 목록 <small class="muted">저장 중 · v8 · macbook</small> <span class="btn pri">발행</span> <span class="btn">⋯</span></div>
+        <div class="row bad"><span>iphone이 2분 전에 v9를 저장했습니다. 이 화면은 v8에서 시작했습니다.</span></div>
+        <div class="row"><span class="btn" data-pin="1">서버 것 열기</span><span class="btn">내 것으로 덮기</span></div>
+        <div class="ft muted small">오프라인이면 "오프라인 · 기기에 보관됨". 온라인이 되면 보낸다. 상단 바에는 저장 상태와 발행만 있다. 나머지는 ⋯ 메뉴다.</div>
+      </div>
+      <ve-pin n="1">내 변경은 마크다운 텍스트로 복사할 수 있게 둔다. 자동으로 덮지 않는다(A7).</ve-pin>
+    </ve-mock>
+
+    <ve-claim>
+      <p>서버는 409와 함께 서버 초안 전체를 준다. 화면은 그것으로 두 선택을 만든다.</p>
+      <ve-code src="src/lib/server/admin-entries.ts" lines="80-88" hl="82-87">
+        <ve-pin line="83">2단계가 이미 <code>version</code>·<code>device</code>·<code>updatedAt</code>·<code>draft</code>를 준다. "내 것으로 덮기"는 <code>baseVersion</code>을 이 <code>version</code>으로 바꿔 다시 보낸다.</ve-pin>
+      </ve-code>
+    </ve-claim>
+
+    <ve-claim>
+      <p>오프라인 보관은 큐가 아니라 글당 1칸이다. 마지막 상태만 의미가 있다.</p>
+      <ve-calls title="autosave 상태 기계 · sketch">
+<script type="text/plain">
++ **save**(doc, meta)                      @ src/editor/state/autosave.ts
++   doc·meta가 마지막 저장과 같음              -- 보내지 않는다 (D1)
++   PUT /api/admin/posts/{id}/draft { baseVersion, device, draft }
++     200 { version }                       -- 상태 "저장됨 · 방금"
++     409 DRAFT_CONFLICT                    -- 충돌 화면
++     401                                   -- 보관함에 두고 /admin/login?next=
++     fetch 실패 · navigator.onLine false    -- IndexedDB drafts[id] = { baseVersion, draft, savedAt }
++ **restore**(id)                          -- 열 때 칸이 있으면 "이어 쓰기 / 버리기"
++   서버 version == 칸의 baseVersion          -- 그대로 연다
++   다르다                                   -- 충돌 화면
+</script>
+      </ve-calls>
+    </ve-claim>
+  </ve-claim>
+
+  <ve-claim check="이미지 2장을 떨어뜨리면 진행률 뒤 assets/{id}/w….webp 주소가 본문에 들어간다. 같은 파일을 다시 떨어뜨리면 업로드 없이 바로 들어간다. 미리보기 origin에서도 1회 성공한다.">
+    <p>이미지를 떨어뜨리거나 붙여넣으면 올라가고, 가장 큰 webp 변형 주소가 본문에 들어간다.</p>
+    <ve-calls title="업로드 · 2단계 자산 API 그대로">
+<script type="text/plain">
++ **drop/paste**(files)                     @ src/editor/upload/paste-drop.ts
++   형식 png·jpeg·webp·gif·webm·mp4, 크기 20 MB / 100 MB  -- 틀리면 서버에 묻지 않는다
++   image 노드 삽입 src=blob: uploading=true  -- 자리표시 + 진행률. 자동저장은 멈춘다
++   sha256 (Web Crypto)
++   POST /api/admin/assets/upload-url        -- { existing } 이면 그 주소를 바로 쓴다
++   PUT uploadUrl (Content-Type만)           -- XMLHttpRequest 진행률. **CORS E2가 없으면 여기서 실패**
++   POST /api/admin/assets/{id}/finalize     -- { asset }. src ← asset.url, blob 해제, 자동저장 재개
+?   실패                                     -- 노드에 "다시 시도". 포기하면 노드 삭제
++ **크기 선택** 작게 w480 · 보통 w960 · 크게(최대)  -- src를 그 변형 주소로. 마크다운은 표준 그대로
++   GET /api/admin/assets/{id}               -- 다시 열 때 있는 변형 확인. 3단계에 더하는 유일한 API. legacy·외부 이미지는 비활성
+</script>
+    </ve-calls>
+
+    <ve-claim evidence="inferred">
+      <p>브라우저가 서명 URL로 직접 올리려면 버킷 CORS를 열어야 한다. 3단계의 유일한 운영 설정 변경이다.</p>
+      <p class="muted">2단계 Plan 1절(2026-11-07 확인): 버킷 CORS가 비어 있고 <code>storage.googleapis.com</code> 사전 요청에 허용 헤더가 없다. 오늘 다시 조회하지는 않았다. 설정은 사용자 확인 뒤 Admin SDK로 한다. 되돌리기는 빈 배열이다.</p>
+      <ve-code title="버킷 CORS (외부 변경 E2) · sketch" lang="json">
+<script type="text/plain">
+[{ "origin": ["http://localhost:4321",
+              "https://cruz-lab-git-rebuild-crucialsubs-projects.vercel.app",
+              "https://www.cruzlab.dev"],
+   "method": ["PUT"], "responseHeader": ["Content-Type"], "maxAgeSeconds": 3600 }]
+</script>
+      </ve-code>
+    </ve-claim>
+  </ve-claim>
+
+  <ve-claim rev="3" check="`## ` 입력, 슬래시 /제목2, Mod+Shift+2, 툴바 버튼, 모바일 툴바가 모두 같은 명령 heading-2를 돈다. 390px에서 포커스하면 키보드 위에 툴바가 뜨고 자동저장이 된다. 빈 줄의 YouTube 주소는 임베드가 되고 $$ 수식은 KaTeX로 그려진다.">
+    <p>명령 하나가 입력 규칙·단축키·슬래시·팔레트·툴바·모바일 툴바에서 같이 돈다.</p>
+    <ve-code title="src/editor/commands/registry.ts · sketch" lang="ts">
+<script type="text/plain">
+interface EditorCommand {
+  id: 'heading-2' | 'bold' | 'insert-image' | …;
+  title: string;                                  // 한국어 표시 이름
+  group: 'block' | 'mark' | 'insert' | 'view' | 'doc';
+  keys: { mac: string; other: string } | null;    // 'Mod-Shift-2'. Mod+Alt는 쓰지 않는다
+  run: (editor) => boolean;  isActive?: (editor) => boolean;
+  inSlash: boolean;  inPalette: boolean;  icon: LucideIcon;
+}
+// 단축키: 레지스트리 → addKeyboardShortcuts()   슬래시: @tiptap/suggestion   팔레트: Mod+K
+// applyKeymapOverrides(), findKeyConflicts(), 맥/윈도 표기는 순수 함수 + 테스트
+// 저장(settings/editor)과 설정 화면은 5단계. 3단계에서 overrides는 늘 {}
+</script>
+    </ve-code>
+    <p class="muted">사용자 결정(2026-11-08): 계획 문서 2.4의 요구 중 <b>임베드(YouTube · CodeSandbox), 수식, 이미지 크기 선택</b>은 3단계에 넣는다. 찾기·바꾸기, 드래그 핸들, 링크 카드, 임의 px 폭·정렬은 미루고 Plan 14절 상기 목록에 적었다. 키맵 저장·설정 UI는 5단계다. 처음 제안(6개 모두 미룸)과 다르다.</p>
+
+    <ve-claim>
+      <p>블록 세트는 55편이 쓴 문법을 모두 덮고, 제목은 스키마 h1~h6 · UI h2~h4다.</p>
+      <ve-calls title="확장 세트 (D10)">
+<script type="text/plain">
+~ StarterKit                 -- 제목 levels 1~6(기존 h1 7 · h4 35 · h5 2), 굵게·기울임·취소선·코드·링크·인용·구분선·하드 브레이크
++ 목록 + TaskList/TaskItem   -- spread(느슨함) 속성 보존, start 보존. 새 목록은 빽빽하다
++ **Callout**                -- > [!note|tip|warning]. 기존 > 💡 인용은 그대로
++ CodeBlockLowlight          -- 언어 선택. 등록: javascript c python jsx objectivec css typescript html markdown nasm java + bash json yaml sql go rust swift kotlin
++ TableKit                   -- 셀 안 단락 1개(마크다운 제약). 열 정렬 align[]
++ Image inline:true          -- ![alt](url "title"). 단락 안에 둬야 <p><img></p>가 원문과 같다. 크기는 변형 3종 중 선택
++ **Embed**                  -- 지원 주소 하나만 있는 단락 → iframe. youtube-nocookie · codesandbox 두 호스트만. 그 밖은 링크. 링크 카드는 미룸
++ Mathematics + KaTeX        -- $인라인$ · $$블록$$ (remark-math). 파이프라인은 remark-math + rehype-katex
+- 원시 HTML 노드              -- 없음. <br>만 하드 브레이크로. 그 밖은 열 때 경고 + 텍스트
+</script>
+      </ve-calls>
+    </ve-claim>
+
+    <ve-claim evidence="inferred">
+      <p>390px에서는 본문만 보이고, 키보드 위에 툴바 7개가 뜬다.</p>
+      <ve-mock w="380" label="iPhone 390px · 편집 중">
+        <style>
+          .body{padding:12px 14px;min-height:120px;line-height:1.5}
+          .kb{display:flex;gap:6px;padding:6px 8px;border-top:1px solid currentColor;opacity:.9}
+          .kb span{flex:1;text-align:center;padding:6px 0;border:1px solid currentColor;border-radius:6px;font-size:12px}
+        </style>
+        <div class="ui">
+          <div class="hd">← <small class="muted">저장됨 · iphone</small></div>
+          <div class="body"><b>오늘 배운 것</b><br>Pintos 알람은 <code>sleep_list</code>에 …|</div>
+          <div class="kb" data-pin="1"><span>B</span><span>H</span><span>≡</span><span>❝</span><span>🖼</span><span>↶</span><span>⋯</span></div>
+          <div class="ft muted small">메타는 아래에서 올라오는 시트. 발행 버튼은 시트 안</div>
+        </div>
+        <ve-pin n="1">위치는 <code>visualViewport</code>의 height·offsetTop으로 맞춘다. iOS Safari에서 흔들리면 하단 고정으로 떨어뜨린다. 실기기 확인은 시뮬레이터 또는 사용자 iPhone이다.</ve-pin>
+      </ve-mock>
+    </ve-claim>
+
+    <ve-claim>
+      <p>편집 · 소스 · 미리보기 3모드. 미리보기는 공개 페이지와 같은 플러그인과 토큰으로 그린다.</p>
+      <ve-code title="src/lib/content/markdown.ts · sketch" lang="ts">
+<script type="text/plain">
+parseMarkdown(md): Root            // remark-parse + remark-gfm + remark-math            ← 변환기와 검사가 쓴다
+markdownToHtml(md): string         // + remark-callout + remark-embed + remark-rehype(allowDangerousHtml) + rehype-raw
+                                   //   + rehype-katex + rehype-highlight + 영상 확장자→<video> + 외부 링크 target + rehype-stringify
+normalizeForCompare(md): string    // D1 규칙 1~5 → 문자열
+// 브라우저(미리보기)와 Node(테스트 · 스크립트)에서 같이 돈다. 4단계 공개 페이지가 이어받고 rehype-highlight를 Shiki로 바꾼다.
+// 소스 모드는 <textarea>. CodeMirror 의존성 6개를 지운다. 편집 모드로 돌아갈 때 다시 파싱한다.
+</script>
+      </ve-code>
+    </ve-claim>
+  </ve-claim>
+
+  <ve-claim rev="2" check="rebuild 미리보기에서 로그인 → 목록 → 새 글 → 이미지 → 발행이 끝까지 된다. 발행 직후 글 주소 첫 요청이 x-vercel-cache MISS이고 새 내용이다. tsc 오류가 9개에서 1개(TextReveal)가 된다.">
+    <p>목록에서 글을 골라 발행까지 rebuild 미리보기에서 끝나고, 발행한 글 주소는 첫 요청부터 새 내용이다.</p>
+    <ve-mock w="460" label="/admin · 최소 서버 렌더 목록 (D2 a)">
+      <div class="ui">
+        <div class="hd">Cruz Lab Admin <small class="muted">초안 1 · 발행 54 · 숨김 0</small> <span class="btn pri">새 글</span> <span class="btn">새 노트</span></div>
+        <div class="row"><span><b>크래프톤 정글 0주차 에세이</b><br><span class="muted small">draft · 2026-05-05</span></span><span class="muted small">열기 ›</span></div>
+        <div class="row"><span><b>Threads - Alarm Clock 구현</b><br><span class="muted small">published · 발행 뒤 변경 있음 · macbook</span></span><span class="muted small">열기 ›</span></div>
+        <div class="row"><span><b>Array 메서드 1탄</b><br><span class="muted small">published · 2025-12-18</span></span><span class="muted small">열기 ›</span></div>
+        <div class="ft muted small" data-pin="1">Astro 서버 렌더 1장 · React 없음 · 약 100줄 · 5단계가 React 앱으로 다시 만든다</div>
+      </div>
+      <ve-pin n="1"><code>listEntriesForAdmin()</code>을 서버에서 직접 부른다. <code>/admin/posts</code>와 <code>/admin/edit?slug=</code>는 301로 여기에 온다.</ve-pin>
+    </ve-mock>
+    <p class="muted">사용자 결정(2026-11-08): 옛 관리자 화면을 지금 지우고 최소 서버 렌더 목록을 둔다. 에디터 경로만 더하고 옛 화면을 깨진 채 두는 안은 고르지 않았다.</p>
+
+    <ve-claim>
+      <p>글 상세 태그는 캐시를 지우고, 목록 태그는 오래됨으로만 표시한다.</p>
+      <ve-code src="src/lib/server/cdn-purge.ts" lines="18-29" hl="23">
+        <ve-pin line="23">지금은 둘 다 <code>invalidateByTag</code>다. 퍼지 뒤 첫 요청이 옛 응답(STALE)이라 발행 직후 작성자가 옛 글을 본다(2단계 작업 문서 8절 4). <code>post-&lt;id&gt;</code>는 <code>dangerouslyDeleteByTag</code>로 바꾼다. 그 요청 1회가 Firestore를 읽는 비용만 든다. <code>posts</code>(홈·목록·RSS)는 그대로 둔다. 독자가 많이 여는 주소라 옛 응답을 주며 새로 만드는 쪽이 빠르다.</ve-pin>
+      </ve-code>
+    </ve-claim>
+
+    <ve-claim>
+      <p>옛 에디터·관리자 화면 20개 파일과 의존성 8개, 옛 문서 2개를 지운다.</p>
+      <ve-calls title="지우는 것 (6절)">
+<script type="text/plain">
+- src/components/editor/* 10개 파일                 -- 3,323줄. FullScreenEditor · CodeMirrorEditor(+CSS) · PublishModal · EditorMetaPanel · …
+- PostList · AdminDashboard · AdminLayout · AdminGuard -- 1,076줄. AdminLogin은 남긴다
+- useAdminAuth · markdown-publish · editor-drafts · publish-status · publish-verification · publish-feedback
+- @codemirror/* 4 · @lezer/highlight · @uiw/react-codemirror · browser-image-compression · remark-breaks(어디서도 안 씀)
+- docs/cms-rebuild-tracker.md · docs/editor-engine-evaluation.md · scripts/evaluate-markdown-pipeline.mjs · fixtures/editor-roundtrip-stress.md
++ @tiptap/* 10개(같은 버전 고정) · lowlight · unified · remark-parse · remark-stringify · remark-rehype · rehype-stringify · fake-indexeddb(dev)
+~ tsc 오류 9 → 1                                    -- PostList 3 · editor-drafts 4 · markdown-publish 1이 사라진다. TextReveal 1은 4단계
+</script>
+      </ve-calls>
+    </ve-claim>
+
+    <ve-claim>
+      <p>에디터 페이지는 사이트 토큰과 html.light 전환을 그대로 쓴다. 흰 바탕 고정이 사라진다(M10).</p>
+      <ve-code src="src/pages/admin/edit.astro" lines="11-21" hl="18">
+        <ve-pin line="18">옛 에디터 페이지는 자체 <code>&lt;html&gt;</code>에 <code>bg-white</code>를 고정한다. 관리자 목록은 다크다. 새 페이지는 <code>global.css</code>의 토큰을 쓰고 <code>html.light</code> 클래스로 전환한다. 헤더·푸터는 없다(전체 화면).</ve-pin>
+      </ve-code>
+    </ve-claim>
+  </ve-claim>
+
+  <ve-claim aux="shared">
+    <p>공유: src/editor 패키지 하나와 공유 파이프라인 하나.</p>
+    <ve-code title="src/editor/ · sketch" lang="ts">
+<script type="text/plain">
+src/editor/
+  extensions/   index.ts(스키마) · callout.ts · embed.ts · lowlight.ts   (+ Mathematics)
+  markdown/     to-doc.ts · from-doc.ts · index.ts(markdownToDoc, docToMarkdown, 경고)
+  commands/     registry.ts · keymap.ts(순수) · shortcuts.ts · SlashMenu · CommandPalette · CommandList
+  state/        autosave.ts(리듀서) · offline-store.ts(IndexedDB) · api.ts · device.ts
+  upload/       upload-client.ts · paste-drop.ts
+  ui/           EditorApp · TopBar · MetaPanel · MobileBar · Outline · SourceMode · PreviewMode · ConflictDialog · ImageNodeView
+src/lib/content/markdown.ts · remark-callout.ts · remark-embed.ts   // 서버 · 에디터 · 테스트 공용
+src/pages/api/admin/assets/[id]/index.ts              // GET { asset } — 3단계에 더하는 유일한 API
+scripts/smoke/stage3-roundtrip.mjs                    // entries 55편 읽기 전용
+tests/unit/editor-*.test.ts · tests/fixtures/markdown/*.md
+// PR-A: 변환기 · 파이프라인 · 왕복 검사   PR-B: 에디터 페이지 · 이미지 · 모드 · 퍼지   PR-C: 명령 · 모바일 · 최소 목록 · 삭제 · 문서
+// 병합 전 태그 rebuild-pre-stage3 (4f9baef)
+</script>
+    </ve-code>
+  </ve-claim>
+
+  <ve-claim aux="scope">
+    <p>바꾸지 않는 것: 공개 페이지, API 계약, 데이터 구조, 규칙.</p>
+    <ul>
+      <li>공개 페이지 렌더(react-markdown)는 그대로다. 공유 파이프라인 적용, Shiki, 코드 복사, 목차는 4단계다.</li>
+      <li>2단계 API 계약(초안 version 409, 발행 draftVersion, 서명 URL → finalize)은 바꾸지 않는다. 바뀌는 서버 코드는 <code>cdn-purge.ts</code> 한 곳이고, 더하는 API는 읽기 전용 <code>GET /api/admin/assets/{id}</code> 하나다.</li>
+      <li>미룬 것(Plan 14절 상기 목록): 드래그 핸들, 이미지 임의 px 폭·정렬, 링크 카드, 찾기·바꾸기. 키맵 저장·설정 UI는 5단계.</li>
+      <li><code>entries</code> 스키마는 그대로다. <code>editorJson</code>은 이미 있는 칸에 넣는다. 마이그레이션이 없다.</li>
+      <li>기존 글의 본문을 일괄 변환하지 않는다. 그 글을 실제로 고칠 때만 새 표기(글머리 <code>-</code>, ZWSP 없음)로 다시 쓴다.</li>
+      <li>관리자 목록 재설계, 태그 관리, 이미지 라이브러리, 리비전 UI, 출간 기록, 키맵 저장·설정 화면, 헤더 "쓰기" 진입점은 5단계다.</li>
+      <li>노트는 쓰고 발행할 수 있지만 공개 페이지(<code>/notes</code>)는 4단계다.</li>
+      <li>Firestore·Storage 규칙, 인덱스, 함수, 환경 변수, 비밀값을 바꾸지 않는다. 운영 설정 변경은 버킷 CORS(E2) 하나다. 사용자 확인 뒤에 한다.</li>
+      <li>기존 글은 "열기"와 "변경 없이 닫기"로만 시험한다. 저장·발행·삭제는 시험 글로만 한다.</li>
+    </ul>
+  </ve-claim>
+
+</ve-plan>
+
+</body>
+</html>

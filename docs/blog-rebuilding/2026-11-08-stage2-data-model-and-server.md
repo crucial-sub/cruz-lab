@@ -304,5 +304,5 @@ PR-B·PR-C에서 판단한 것:
 1. ~~`vercel.json`의 `regions`가 적용되는지~~ 적용된다. PR-B 미리보기의 `x-vercel-id`가 `icn1::icn1::…`다(2026-11-08).
 2. 어느 글도 쓰지 않는 legacy 파일이 26개 있다(시리즈 커버 3개 포함). 병합 뒤 정리 작업에서 다룬다.
 3. 개발 서버에서 없는 관리자 경로는 404 대신 401·403이다. prerender된 404 페이지를 그릴 때 미들웨어가 헤더 없이 한 번 더 돈다. Vercel에서는 함수까지 오지 않는다(엣지 404). 해가 없어 그대로 둔다.
-4. 퍼지 뒤 첫 요청은 옛 응답이다. D8의 `invalidateByTag`는 캐시를 "오래됨"으로 표시한다(`@vercel/functions` 문서). 다음 첫 요청은 옛 응답(`STALE`)을 받고 뒤에서 새로 만든다. 그다음 요청부터 새 내용이다(미리보기에서 약 2초 안). 대안은 `dangerouslyDeleteByTag`다. 캐시를 지우므로 첫 요청이 새 내용을 받는다. 대신 그 요청은 Firestore를 읽어 느리다. 3단계에서 정한다. 발행 직후 에디터가 공개 주소를 바로 열면, 다시 발행한 글은 첫 화면이 옛 내용일 수 있다.
+4. 퍼지 뒤 첫 요청은 옛 응답이다. D8의 `invalidateByTag`는 캐시를 "오래됨"으로 표시한다(`@vercel/functions` 문서). 다음 첫 요청은 옛 응답(`STALE`)을 받고 뒤에서 새로 만든다. 그다음 요청부터 새 내용이다(미리보기에서 약 2초 안). 대안은 `dangerouslyDeleteByTag`다. 캐시를 지우므로 첫 요청이 새 내용을 받는다. 대신 그 요청은 Firestore를 읽어 느리다. 3단계에서 정한다. 발행 직후 에디터가 공개 주소를 바로 열면, 다시 발행한 글은 첫 화면이 옛 내용일 수 있다. → [3단계 Plan](./2026-11-08-stage3-editor-plan.md) D7에서 정했다(2026-11-08): 글 상세 태그 `post-<id>`는 `dangerouslyDeleteByTag`, 목록 태그 `posts`는 `invalidateByTag` 그대로.
 5. dispatch PAT에는 만료일이 있다. 만료되면 발행·삭제 응답의 `backup`이 `failed`가 된다. 발행은 성공하고 매일 03:00 예약 백업은 계속 돈다. 그때 PAT를 새로 만들어 Vercel `BACKUP_DISPATCH_TOKEN` 값을 바꾸고 다시 배포한다.
