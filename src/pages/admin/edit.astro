@@ -1,5 +1,6 @@
 ---
-export const prerender = true;
+// 관리자 페이지는 모두 SSR이다. 미들웨어가 세션 쿠키를 검사한다(재건 2단계 D5)
+export const prerender = false;
 
 // 포스트 수정 페이지
 // 풀스크린 CodeMirror 에디터
