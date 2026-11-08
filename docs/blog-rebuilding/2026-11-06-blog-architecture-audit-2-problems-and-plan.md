@@ -455,6 +455,7 @@ Firestore ──(GitHub Action, 매일 + 발행 후 트리거)──▶ GitHub `
 | 2026-11-06 | 전수조사 | 완료 | 이 문서를 쓴 세션 | 1편·2편 문서, 시각 문서, 캡처. 10절(시리즈·방향·docs) 결정 |
 | 2026-11-06 | 1. 즉시 수리 | 완료 (main 병합) | 1단계 세션 | [PR #3](https://github.com/crucial-sub/cruz-lab/pull/3), 브랜치 `fix/rebuild-stage1-repairs`. 되돌리기 기준 태그 `pre-rebuild`(`bb97e81`). 규칙 배포 완료. 계획 밖 2건(사용자 승인): `publish-verify.mjs` 경로, 운영 함수 `syncPostToGitHub` 삭제. 관리자 로그인 확인(이미지 업로드·글 열기)은 사용자 몫. [2026-11-06-stage1-immediate-repairs.md](./2026-11-06-stage1-immediate-repairs.md) |
 | 2026-11-07 | 2. 데이터 모델과 서버 | 완료 (`rebuild` 병합, 2026-11-08): PR-A [#4](https://github.com/crucial-sub/cruz-lab/pull/4)(`bf55696`, 태그 `rebuild-pre-stage2`), PR-B [#5](https://github.com/crucial-sub/cruz-lab/pull/5)(`e232b94`), PR-C [#6](https://github.com/crucial-sub/cruz-lab/pull/6)(`814e7b3`). 사용자 설정 E3·E4·E5 뒤 미리보기·백업 확인 끝 | 2단계 Plan 세션 | [Plan 문서](./2026-11-07-stage2-data-model-and-server-plan.md), [visual plan](./visual-plans/2026-11-07-cruz-lab-stage2-plan.html). 사용자 결정 5건에 모두 답했다(Plan 14절): D1 새 컬렉션 `entries`, D7 새 비공개 저장소, D10 API만, D11 4단계로 미룸, 부록 A 그대로. 사용자가 2026-11-08에 Plan을 승인했다. 코드·데이터·운영 설정 변경 없음. 구현은 승인 뒤 새 세션에서 T1부터 한다. 진행 기록은 11.4. 구현은 2단계 구현 세션이 한다: [작업 문서](./2026-11-08-stage2-data-model-and-server.md), 진행 기록 11.5 |
+| 2026-11-08 | 3. 에디터 | Plan 승인(2026-11-08). 구현 전 | 3단계 Plan 세션 | [Plan 문서](./2026-11-08-stage3-editor-plan.md), [visual plan](./visual-plans/2026-11-08-cruz-lab-stage3-plan.html). 사용자 결정 3건에 모두 답했다(Plan 13절): D1 왕복 검사는 "렌더 결과 동일 + 고치지 않으면 쓰지 않음"(9절의 "diff 0"을 대체), D2 옛 관리자 화면 삭제 + 최소 서버 렌더 목록, D3 임베드(YouTube·CodeSandbox)·수식·이미지 크기 선택은 넣고 찾기·바꾸기·드래그 핸들·링크 카드·임의 px 폭은 미룸(Plan 14절 상기 목록). 코드·데이터·운영 설정 변경 없음. 구현은 새 세션에서 T1부터. 진행 기록은 11.6 |
 
 ### 11.1 1단계 작업 범위 (인계용 상세)
 
@@ -574,7 +575,7 @@ main에는 긴급 수정만 넣는다. main에 긴급 수정을 넣으면 main�
 
 **다음 것.**
 
-1. 3단계(에디터) Plan. 새 세션에서 한다. 먼저 읽을 것: 2단계 작업 문서 2.4~2.6, 5절, 6.2, 8절 4.
+1. ~~3단계(에디터) Plan. 새 세션에서 한다. 먼저 읽을 것: 2단계 작업 문서 2.4~2.6, 5절, 6.2, 8절 4.~~ → 2026-11-08 Plan을 쓰고 승인받았다(11.6).
 2. E2(버킷 CORS)는 3단계 에디터 업로드 전에 한다.
 3. 원격의 병합 끝난 브랜치(`stage2/a-data-model`, `stage2/c-backup`, 문서 PR 병합 뒤 `stage2/finish-docs`) 삭제(사용자 확인 뒤).
 4. E6(Secret Manager `GITHUB_TOKEN` 삭제)은 언제든. Vercel 환경 변수 `GITHUB_TOKEN`은 main 병합 뒤에 지운다.
@@ -583,4 +584,27 @@ main에는 긴급 수정만 넣는다. main에 긴급 수정을 넣으면 main�
 
 1. 운영 CMS로 글을 고치면 병합 전에 재동기화를 다시 돌린다(Plan 15절).
 2. 끝내지 않은 업로드의 원본이 Storage 공개 읽기로 열린다. 병합 뒤 규칙 정리 때 막을지 정한다(작업 문서 6.2 미룬 것 1).
-3. 퍼지 방식. 지금 `invalidateByTag`는 퍼지 뒤 첫 요청에 옛 응답을 준다. `dangerouslyDeleteByTag`로 바꿀지 3단계에서 정한다(작업 문서 8절 4).
+3. 퍼지 방식. 지금 `invalidateByTag`는 퍼지 뒤 첫 요청에 옛 응답을 준다. `dangerouslyDeleteByTag`로 바꿀지 3단계에서 정한다(작업 문서 8절 4). → 3단계 Plan D7에서 정했다: 글 상세 태그는 `dangerouslyDeleteByTag`, 목록 태그는 `invalidateByTag`.
+
+### 11.6 3단계 Plan 작성 (2026-11-08)
+
+**끝난 것.**
+
+1. Plan 문서 [2026-11-08-stage3-editor-plan.md](./2026-11-08-stage3-editor-plan.md)와 visual plan(`visual-plans/2026-11-08-cruz-lab-stage3-plan.html`, 소스 `.src.html`)을 썼다. 2단계 Plan의 절 구성을 따랐다.
+2. 기존 55편의 마크다운을 공개 페이지와 같은 파서(remark)로 조사했다(Plan 1.1, 부록 A). 요점: 원시 HTML은 `<br>` 59개뿐이다. 글머리 `*` 502, 구분선 `***` 108, ZWSP 977이 있다. 체크 목록·콜아웃 `[!note]`·수식·iframe은 0건이다. 이 조사가 D1·D3·D10의 근거다.
+3. 2단계 API 11개 경로를 코드로 확인했다(Plan 5절). 계약은 그대로 쓴다. 3단계가 더하는 API는 읽기 전용 `GET /api/admin/assets/{id}` 하나다. 바꾸는 서버 코드는 `cdn-purge.ts` 한 곳이다.
+4. 사용자가 결정 3건에 답했다(2026-11-08). D1 왕복 검사 기준은 "렌더 결과 동일 + 고치지 않으면 쓰지 않음"이다. 이 문서 9절의 "diff 0"을 대체한다(WYSIWYG 에디터는 글머리·구분선 표기를 기억하지 않는다). D2 옛 관리자 화면을 지우고 최소 서버 렌더 목록을 둔다. D3 임베드(YouTube·CodeSandbox)·수식·이미지 크기 선택은 넣는다. 찾기·바꾸기·드래그 핸들·링크 카드·임의 px 폭·정렬은 미룬다(Plan 14절 상기 목록). 키맵 저장·설정 UI는 5단계다.
+5. 사용자가 Plan을 승인했다(2026-11-08). Plan 12절 끝의 "Claude 판단" 목록도 함께 승인했다.
+6. 검증 기준선: `pnpm lint` 통과, `pnpm test` 112개, `tsc --noEmit` 오류 9개. 문서만 바꿔 그대로다.
+7. 코드·데이터·운영 설정은 바꾸지 않았다. 버킷 CORS(E2)는 3단계 T9에서 사용자 확인 뒤에 한다.
+
+**다음 것.**
+
+1. Plan 문서를 `stage3/plan` 브랜치(`origin/rebuild` `4f9baef` 기준)로 커밋하고 `rebuild` 대상 PR을 연다(사용자 확인 뒤).
+2. 새 세션에서 구현을 T1부터 한다(전역 7번 규칙). 작업 브랜치는 `rebuild`에서 `stage3/a-markdown`부터 만든다. PR-A 병합 전에 태그 `rebuild-pre-stage3`를 단다.
+3. 원격의 병합 끝난 브랜치(`stage2/a-data-model`, `stage2/c-backup`, `stage2/finish-docs`) 삭제는 아직이다(사용자 확인 뒤).
+4. 미룬 기능을 다시 물을 시점은 Plan 14절에 있다. 3단계 작업 문서를 쓸 때 드래그 핸들, 4단계 Plan 때 이미지 임의 px 폭·링크 카드, 5단계 Plan 때 찾기·바꾸기·키맵 설정.
+
+**열린 질문.**
+
+없음. 구현 중 생기는 질문은 3단계 작업 문서에 적는다.
