@@ -546,7 +546,8 @@ export default function BlogPostList({ initialPosts, initialTags }: Props) {
                     index={0} // 이미 stagger가 motion.div에서 적용되므로 0으로 설정
                     readingTime={post.readingTime}
                     featured={viewMode === 'list'}
-                    seriesId={post.seriesId}
+                    categoryLabel={post.categoryLabel}
+                    series={post.series}
                   />
                 </motion.div>
               ))}

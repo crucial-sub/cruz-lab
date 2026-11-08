@@ -20,6 +20,9 @@ const posts = (await getPublishedContentPosts()).map((post) => ({
   updatedDate: post.updatedDate,
   readingTime: post.readingTime,
   isPublic: post.isPublic,
+  category: post.category,
+  categoryLabel: post.categoryLabel,
+  series: post.series,
 }));
 const tags = await getAllContentTags();
 

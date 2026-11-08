@@ -7,24 +7,16 @@ import CursorFollower from '@/components/islands/CursorFollower';
 import Reveal from '@/components/Reveal.astro';
 import InteractiveHero from '@/components/islands/InteractiveHero';
 import ScrollProgress from '@/components/islands/ScrollProgress';
-import SeriesPreview from '@/components/islands/SeriesPreview';
 import SkillsSection from '@/components/islands/SkillsSection';
 import PostsPreview from '@/components/PostsPreview.astro';
 import ProjectsPreview from '@/components/ProjectsPreview.astro';
 import { getPublishedContentPosts } from '@/lib/content-posts';
-import { getPublishedSeriesWithReadingTime } from '@/lib/series';
 import { setPublicPageCache } from '@/lib/server/cache-headers';
 import me from '../assets/img/profile.png';
 import BaseLayout from '../layouts/BaseLayout.astro';
 
-// 최신 글과 시리즈를 동시에 조회한다
-// - 시리즈는 예전에 브라우저가 화면에 닿은 뒤 /api/series-preview를 따로 불러 늦게 떴다.
-// - 지금은 서버가 HTML에 바로 넣는다. 글 목록 조회는 메모리 캐시로 한 번만 한다.
-const [allPosts, featuredSeries] = await Promise.all([
-  getPublishedContentPosts(),
-  getPublishedSeriesWithReadingTime(),
-]);
-const recentPosts = allPosts.slice(0, 3);
+// 최신 글 3편 (Featured Series 구역은 재건 2단계에서 뺐다)
+const recentPosts = (await getPublishedContentPosts()).slice(0, 3);
 
 // CDN이 60초 동안 이 응답을 저장하게 한다
 setPublicPageCache(Astro.response.headers);
@@ -80,11 +72,6 @@ const heroDescription = `사용자 경험(UX)은 눈에 보이는 디자인에�
   <!-- Skills 섹션 -->
   <Reveal delay={0.1}>
     <SkillsSection client:visible />
-  </Reveal>
-
-  <!-- Featured Series 섹션 -->
-  <Reveal delay={0.1}>
-    <SeriesPreview client:visible series={featuredSeries.slice(0, 3)} />
   </Reveal>
 
   <!-- Latest Posts 섹션 -->

@@ -4,15 +4,15 @@ export const prerender = false;
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import Reveal from '@/components/Reveal.astro';
 import TextReveal from '@/components/islands/TextReveal';
-import SeriesCard from '@/components/islands/SeriesCard';
-import { getPublishedSeriesWithReadingTime } from '@/lib/series';
+import { getPublishedSeriesList } from '@/lib/content-posts';
 import { setPublicPageCache } from '@/lib/server/cache-headers';
 
 const title = 'Series';
 const description = '시리즈로 정리된 심도있는 학습 기록';
 
-// 시리즈 목록 + 총 읽기 시간 (Firestore 조회 2번으로 끝낸다)
-const seriesWithReadingTime = await getPublishedSeriesWithReadingTime();
+// 연재 목록 (재건 2단계: entries의 published.series.key로 모은다. 커버는 없다)
+// - 화면 재설계는 4단계다.
+const seriesWithReadingTime = await getPublishedSeriesList();
 
 // CDN이 60초 동안 이 응답을 저장하게 한다
 setPublicPageCache(Astro.response.headers);
@@ -85,19 +85,22 @@ setPublicPageCache(Astro.response.headers);
             총 {seriesWithReadingTime.length}개의 시리즈
           </div>
           <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {seriesWithReadingTime.map((series, index) => (
-              <SeriesCard
-                client:visible
-                id={series.id}
-                name={series.name}
-                slug={series.slug}
-                description={series.description}
-                coverImage={series.coverImage}
-                postCount={series.postCount}
-                totalReadingTime={series.totalReadingTime}
-                updatedAt={series.updatedAt}
-                index={index}
-              />
+            {seriesWithReadingTime.map((series) => (
+              <a
+                href={`/series/${series.key}`}
+                class="group flex h-full flex-col rounded-2xl border border-border bg-bg-surface p-6 transition-all hover:border-brand hover:shadow-lg hover:shadow-brand/10"
+              >
+                <h2 class="mb-2 text-xl font-bold text-text-primary transition-colors group-hover:text-brand">
+                  📚 {series.title}
+                </h2>
+                {series.description && (
+                  <p class="mb-4 line-clamp-2 text-sm text-text-secondary">{series.description}</p>
+                )}
+                <div class="mt-auto flex items-center gap-4 text-sm text-text-secondary">
+                  <span>{series.posts.length}개 포스트</span>
+                  <span>약 {series.totalReadingTime}분</span>
+                </div>
+              </a>
             ))}
           </div>
         </Reveal>

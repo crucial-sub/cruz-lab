@@ -51,6 +51,8 @@ const recentPosts = (Astro.props.posts ?? (await getPublishedContentPosts())).sl
         slug={post.slug || post.id}
         index={index}
         readingTime={post.readingTime}
+        categoryLabel={post.categoryLabel}
+        series={post.series}
       />
     ))}
   </div>

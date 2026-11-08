@@ -5,7 +5,7 @@
 import { getCoverTheme } from '@/lib/post-cover';
 
 interface Props {
-  title: string;
+  categoryLabel?: string | null; // 큰 글자로 쓸 카테고리 표시 이름
   tags: string[];
   slug: string;
   date: Date;
@@ -16,8 +16,8 @@ interface Props {
 const NOISE_URL =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
 
-export default function PostCover({ title, tags, slug, date, compact = false }: Props) {
-  const { label, palette, blobPositions, angle } = getCoverTheme(title, tags, slug);
+export default function PostCover({ categoryLabel, tags, slug, date, compact = false }: Props) {
+  const { label, palette, blobPositions, angle } = getCoverTheme(categoryLabel, tags, slug);
 
   // 블롭 3개를 radial-gradient로 겹쳐 메시 그라디언트를 만든다
   const mesh = blobPositions

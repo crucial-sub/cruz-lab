@@ -64,6 +64,10 @@ function buildContentPost(id: string, data: FirestorePostData): ContentPost {
     updatedDate,
     readingTime: typeof data.readingTime === 'number' ? data.readingTime : 1,
     isPublic: data.isPublic !== false,
+    // 옛 posts에는 분류 필드가 없다 (옛 출간 API가 지워지는 T9까지만 쓴다)
+    category: null,
+    categoryLabel: '',
+    series: null,
   };
 }
 

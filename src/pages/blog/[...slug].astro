@@ -1,13 +1,22 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import MarkdownPostView from '@/components/blog/MarkdownPostView';
-import { getContentPostBySlug } from '@/lib/content-posts';
-import { setPublicPageCache } from '@/lib/server/cache-headers';
+import { resolveContentPostBySlug } from '@/lib/content-posts';
+import { POSTS_CACHE_TAG, postCacheTag, setPublicPageCache } from '@/lib/server/cache-headers';
 
 export const prerender = false;
 
 const slug = Astro.params.slug || '';
-const post = await getContentPostBySlug(slug);
+const lookup = await resolveContentPostBySlug(slug);
+
+// 예전 slug면 새 주소로 301 (slugHistory, Plan 7.4)
+if (lookup && 'redirectTo' in lookup) {
+  const response = Astro.redirect(encodeURI(`/blog/${lookup.redirectTo}`), 301);
+  setPublicPageCache(response.headers, [POSTS_CACHE_TAG, postCacheTag(lookup.id)]);
+  return response;
+}
+
+const post = lookup?.post ?? null;
 
 if (!post) {
   Astro.response.status = 404;
@@ -15,7 +24,7 @@ if (!post) {
   Astro.response.headers.set('X-Astro-Reroute', 'no');
 } else {
   // 글을 찾은 경우에만 CDN 캐시를 건다. 404는 저장하지 않는다
-  setPublicPageCache(Astro.response.headers);
+  setPublicPageCache(Astro.response.headers, [POSTS_CACHE_TAG, postCacheTag(post.id)]);
 }
 
 const title = post?.title || '포스트를 찾을 수 없습니다';
