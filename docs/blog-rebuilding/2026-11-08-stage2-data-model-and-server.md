@@ -3,7 +3,7 @@
 - 날짜: 2026-11-08
 - Plan: [2026-11-07-stage2-data-model-and-server-plan.md](./2026-11-07-stage2-data-model-and-server-plan.md) (2026-11-08 승인)
 - 기준: `rebuild` `04e2425`
-- 브랜치: PR-A `stage2/a-data-model`. PR-B·PR-C는 이 브랜치 위에 만든다.
+- 브랜치: PR-A `stage2/a-data-model` → [PR #4](https://github.com/crucial-sub/cruz-lab/pull/4) (대상 `rebuild`, 2026-11-08 열림). PR-B·PR-C는 이 브랜치 위에 만든다.
 - 상태: **PR-A(T1·T2·T6) 구현·검증 완료.** PR-B(T3·T4·T5), PR-C(T8·T9), T10은 남았다.
 
 ## 1. 현재 상황
@@ -119,7 +119,7 @@ E7이 쓴 문서는 242개다. `entries` 55, `entries/*/revisions` 54, `seriesMe
 
 ## 7. 다음 작업
 
-1. PR-A를 `rebuild` 대상으로 연다(사용자 확인 뒤).
+1. PR-A([#4](https://github.com/crucial-sub/cruz-lab/pull/4))를 검토하고 `rebuild`에 병합한다(사용자 확인 뒤). 병합 전에 태그 `rebuild-pre-stage2`를 단다(Plan 11.1).
 2. PR-B: T3 세션 인증, T4 글 API, T5 자산 API.
 3. PR-C: T8 백업 저장소와 Action, T9 옛 출간 경로 삭제.
 4. T10: 전체 검증, `rebuild` 미리보기 확인(E3 승인 도메인 추가 뒤).
