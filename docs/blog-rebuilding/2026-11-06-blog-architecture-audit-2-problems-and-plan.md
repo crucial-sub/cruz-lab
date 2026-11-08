@@ -454,7 +454,7 @@ Firestore ──(GitHub Action, 매일 + 발행 후 트리거)──▶ GitHub `
 | 2026-11-05 | 사전 작업 | 완료 | 홈페이지 성능 및 UI 개선 | PR #2 병합(`bb97e81`). [2026-11-05-perf-and-ui-polish.md](./2026-11-05-perf-and-ui-polish.md) |
 | 2026-11-06 | 전수조사 | 완료 | 이 문서를 쓴 세션 | 1편·2편 문서, 시각 문서, 캡처. 10절(시리즈·방향·docs) 결정 |
 | 2026-11-06 | 1. 즉시 수리 | 완료 (main 병합) | 1단계 세션 | [PR #3](https://github.com/crucial-sub/cruz-lab/pull/3), 브랜치 `fix/rebuild-stage1-repairs`. 되돌리기 기준 태그 `pre-rebuild`(`bb97e81`). 규칙 배포 완료. 계획 밖 2건(사용자 승인): `publish-verify.mjs` 경로, 운영 함수 `syncPostToGitHub` 삭제. 관리자 로그인 확인(이미지 업로드·글 열기)은 사용자 몫. [2026-11-06-stage1-immediate-repairs.md](./2026-11-06-stage1-immediate-repairs.md) |
-| 2026-11-07 | 2. 데이터 모델과 서버 | 구현 완료, PR 검토 중: PR-A [#4](https://github.com/crucial-sub/cruz-lab/pull/4) 병합(`bf55696`, 태그 `rebuild-pre-stage2`), PR-B [#5](https://github.com/crucial-sub/cruz-lab/pull/5)·PR-C [#6](https://github.com/crucial-sub/cruz-lab/pull/6) 열림(2026-11-08). 사용자 설정 E3·E4·E5 남음 | 2단계 Plan 세션 | [Plan 문서](./2026-11-07-stage2-data-model-and-server-plan.md), [visual plan](./visual-plans/2026-11-07-cruz-lab-stage2-plan.html). 사용자 결정 5건에 모두 답했다(Plan 14절): D1 새 컬렉션 `entries`, D7 새 비공개 저장소, D10 API만, D11 4단계로 미룸, 부록 A 그대로. 사용자가 2026-11-08에 Plan을 승인했다. 코드·데이터·운영 설정 변경 없음. 구현은 승인 뒤 새 세션에서 T1부터 한다. 진행 기록은 11.4. 구현은 2단계 구현 세션이 한다: [작업 문서](./2026-11-08-stage2-data-model-and-server.md), 진행 기록 11.5 |
+| 2026-11-07 | 2. 데이터 모델과 서버 | 완료 (`rebuild` 병합, 2026-11-08): PR-A [#4](https://github.com/crucial-sub/cruz-lab/pull/4)(`bf55696`, 태그 `rebuild-pre-stage2`), PR-B [#5](https://github.com/crucial-sub/cruz-lab/pull/5)(`e232b94`), PR-C [#6](https://github.com/crucial-sub/cruz-lab/pull/6)(`814e7b3`). 사용자 설정 E3·E4·E5 뒤 미리보기·백업 확인 끝 | 2단계 Plan 세션 | [Plan 문서](./2026-11-07-stage2-data-model-and-server-plan.md), [visual plan](./visual-plans/2026-11-07-cruz-lab-stage2-plan.html). 사용자 결정 5건에 모두 답했다(Plan 14절): D1 새 컬렉션 `entries`, D7 새 비공개 저장소, D10 API만, D11 4단계로 미룸, 부록 A 그대로. 사용자가 2026-11-08에 Plan을 승인했다. 코드·데이터·운영 설정 변경 없음. 구현은 승인 뒤 새 세션에서 T1부터 한다. 진행 기록은 11.4. 구현은 2단계 구현 세션이 한다: [작업 문서](./2026-11-08-stage2-data-model-and-server.md), 진행 기록 11.5 |
 
 ### 11.1 1단계 작업 범위 (인계용 상세)
 
@@ -560,15 +560,27 @@ main에는 긴급 수정만 넣는다. main에 긴급 수정을 넣으면 main�
 4. PR-B(T3 세션 인증, T4 글 API, T5 자산 API): [PR #5](https://github.com/crucial-sub/cruz-lab/pull/5), 대상 `rebuild`. 별도 리뷰어가 치명 1건(인코딩 경로로 인증 우회)을 찾았고 고쳤다(작업 문서 6.2).
 5. PR-C(T8 백업 알림, T9 옛 출간 경로 삭제): [PR #6](https://github.com/crucial-sub/cruz-lab/pull/6), PR-B 위에 쌓음. 비공개 백업 저장소 `crucial-sub/cruz-lab-content`를 만들었다(사용자 승인).
 6. 검증: 단위 테스트 112개, 린트, 빌드 통과. `tsc` 오류 9개 그대로. API 스모크 104건, 공개 페이지 322건 통과. 관리자 Google 로그인·로그아웃(localhost) 확인. 미리보기 함수 리전 `icn1` 확인.
+7. PR #5(`e232b94`, 19:47 KST)와 PR #6(`814e7b3`, 19:57 KST, 대상을 `rebuild`로 바꾼 뒤)을 `rebuild`에 병합했다(사용자 승인).
+8. 사용자가 외부 설정을 했다(20시대 KST): E4(Vercel Preview `ADMIN_UID`, `BACKUP_DISPATCH_TOKEN`, Redeploy), E5 나머지(서비스 계정 `cruz-lab-backup` 키 → 백업 저장소 비밀값, dispatch PAT), E3(Auth 승인 도메인에 미리보기 주소).
+9. 설정 뒤 확인(사용자 승인, 작업 문서 4절):
+   - 백업 Action 수동 실행 2회. 첫 실행 커밋 `9f87c37`(356개 파일), 두 번째는 커밋 없음.
+   - 미리보기 관리자 Google 로그인. `cruz_admin`은 HttpOnly이고, 서버가 본 주소가 https라 Secure다(간접 확인).
+   - 시험 글 발행: `purge: ok`, `backup: dispatched`, 백업 커밋 `ed9238b`. 삭제: 백업 커밋 `4f646ca`. 퍼지 뒤 첫 요청만 옛 응답(`STALE`)이고 다음 요청부터 새 내용이다.
+   - 로그아웃 뒤 `/admin`은 로그인 페이지로 리다이렉트된다.
+   - 시험 데이터는 남은 것 0이다(`publishLog` 2건은 Admin SDK로 지움).
+10. 작업 문서 3·4·7·8절과 이 표·11.5를 갱신했다(브랜치 `stage2/finish-docs`).
+
+**2단계는 끝났다.**
 
 **다음 것.**
 
-1. 사용자 설정: E4(Vercel Preview `ADMIN_UID`, `BACKUP_DISPATCH_TOKEN`), E5 나머지(서비스 계정 키 → 백업 저장소 비밀값, dispatch PAT), E3(Auth 승인 도메인에 미리보기 주소).
-2. PR #5 병합 → PR #6 대상을 `rebuild`로 바꾸고 병합(사용자 확인 뒤). 되돌리기 기준 태그 `rebuild-pre-stage2`는 PR-A 병합 전 `rebuild`(`04e2425`)에 있다(Plan 11.1).
-3. 설정 뒤 확인: 백업 Action 수동 실행, `rebuild` 미리보기 관리자 로그인(Secure 쿠키), 시험 글 발행으로 퍼지·백업 알림 확인(작업 문서 7절).
-4. 3단계(에디터) Plan. 새 세션에서 한다.
+1. 3단계(에디터) Plan. 새 세션에서 한다. 먼저 읽을 것: 2단계 작업 문서 2.4~2.6, 5절, 6.2, 8절 4.
+2. E2(버킷 CORS)는 3단계 에디터 업로드 전에 한다.
+3. 원격의 병합 끝난 브랜치(`stage2/a-data-model`, `stage2/c-backup`, 문서 PR 병합 뒤 `stage2/finish-docs`) 삭제(사용자 확인 뒤).
+4. E6(Secret Manager `GITHUB_TOKEN` 삭제)은 언제든. Vercel 환경 변수 `GITHUB_TOKEN`은 main 병합 뒤에 지운다.
 
 **열린 질문.**
 
 1. 운영 CMS로 글을 고치면 병합 전에 재동기화를 다시 돌린다(Plan 15절).
 2. 끝내지 않은 업로드의 원본이 Storage 공개 읽기로 열린다. 병합 뒤 규칙 정리 때 막을지 정한다(작업 문서 6.2 미룬 것 1).
+3. 퍼지 방식. 지금 `invalidateByTag`는 퍼지 뒤 첫 요청에 옛 응답을 준다. `dangerouslyDeleteByTag`로 바꿀지 3단계에서 정한다(작업 문서 8절 4).

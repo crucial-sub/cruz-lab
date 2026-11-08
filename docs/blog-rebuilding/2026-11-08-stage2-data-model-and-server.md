@@ -5,17 +5,18 @@
 - 기준: `rebuild` `04e2425`
 - 브랜치·PR:
   - PR-A `stage2/a-data-model` → [PR #4](https://github.com/crucial-sub/cruz-lab/pull/4). `rebuild`에 병합됨(2026-11-08 18:53 KST, 병합 커밋 `bf55696`). 병합 전에 주석 태그 `rebuild-pre-stage2`(대상 `04e2425`)를 달았다.
-  - PR-B `stage2/b-api` → [PR #5](https://github.com/crucial-sub/cruz-lab/pull/5). 대상 `rebuild`.
-  - PR-C `stage2/c-backup` → [PR #6](https://github.com/crucial-sub/cruz-lab/pull/6). PR-B 위에 쌓았다(대상 `stage2/b-api`). PR-B가 병합되면 대상을 `rebuild`로 바꾼다.
-- 상태: **T1~T6, T8, T9 구현·검증 완료. PR 3개를 열었다.** 남은 것은 사용자 설정(E3, E4, E5 비밀값)과 그 뒤의 미리보기·백업 확인이다(7절).
+  - PR-B `stage2/b-api` → [PR #5](https://github.com/crucial-sub/cruz-lab/pull/5). `rebuild`에 병합됨(2026-11-08 19:47 KST, 병합 커밋 `e232b94`).
+  - PR-C `stage2/c-backup` → [PR #6](https://github.com/crucial-sub/cruz-lab/pull/6). PR-B 위에 쌓았고, PR-B 병합 뒤 대상을 `rebuild`로 바꿨다. `rebuild`에 병합됨(2026-11-08 19:57 KST, 병합 커밋 `814e7b3`).
+- 상태: **2단계 완료(2026-11-08).** T1~T6, T8, T9를 구현·검증하고 PR 3개를 모두 `rebuild`에 병합했다. 사용자 설정(E3, E4, E5) 뒤 미리보기 관리자 로그인, 발행 퍼지, 백업 알림을 확인했다(4절). 다음은 3단계 에디터 Plan이다(7절).
 
 ## 1. 현재 상황
 
 1. 새 컬렉션 `entries`, `seriesMeta`, `assets`가 운영 Firestore에 있다. 옛 `posts`·`series`는 그대로다.
 2. `rebuild`의 공개 페이지는 `entries`를 읽는다. 운영(main)은 옛 `posts`를 계속 읽는다. 운영 사이트는 바뀌지 않았다.
-3. PR-B·PR-C 브랜치에는 세션 인증, 글 API, 자산 API, 백업 알림이 있다. 옛 출간 경로는 지웠다.
+3. `rebuild`에는 세션 인증, 글 API, 자산 API, 백업 알림이 있다. 옛 출간 경로는 지웠다.
 4. 옛 관리자 화면은 로그인과 미들웨어만 새 방식으로 동작한다. 목록·저장·출간은 실패한다(D10).
-5. 백업 저장소 `crucial-sub/cruz-lab-content`(비공개)를 만들었다. 서비스 계정 키를 넣기 전까지 Action은 실패한다.
+5. 백업 저장소 `crucial-sub/cruz-lab-content`(비공개)의 Action이 동작한다. 매일 03:00 KST, 수동 실행, 발행·삭제 알림 때 돈다. 첫 백업 커밋은 `9f87c37`이다.
+6. `rebuild` 미리보기에서 관리자 Google 로그인과 API 쓰기가 된다. 발행·삭제 응답은 `purge: ok`, `backup: dispatched`다.
 
 ## 2. 한 일
 
@@ -129,14 +130,31 @@ PR-B·PR-C에서 한 외부 변경:
 | E5 일부 | 비공개 저장소 `crucial-sub/cruz-lab-content` 생성, 파일 푸시, 저장소 변수 `FIREBASE_STORAGE_BUCKET` | 2026-11-08 19:36 KST | `gh repo archive` 또는 저장소 삭제 |
 | 시험 데이터 | API 스모크 테스트 3회(사용자 승인). 시험 글·자산을 만들고 모두 지웠다 | 2026-11-08 19:09~19:38 KST | 남은 데이터 0을 확인했다 |
 
-사용자가 할 외부 변경(남음):
+사용자가 한 외부 변경(2026-11-08 20:20~20:50 KST 사이, 웹 콘솔):
+
+| # | 변경 | 되돌리기 |
+|---|---|---|
+| E5 나머지 | dispatch용 fine-grained PAT(`crucial-sub/cruz-lab-content`만, Contents 읽기·쓰기) | GitHub에서 PAT 삭제 |
+| E4 | Vercel Preview 환경 변수 `ADMIN_UID`, `BACKUP_DISPATCH_TOKEN`(Type Secret, Preview만, 브랜치 지정 없음). 그 뒤 `rebuild` 미리보기를 Redeploy했다 | Vercel에서 변수 삭제 뒤 다시 배포 |
+| E5 나머지 | GCP 서비스 계정 `cruz-lab-backup@cruz-lab.iam.gserviceaccount.com`(역할 `roles/datastore.viewer`, `roles/storage.objectViewer`)과 JSON 키 → 백업 저장소 비밀값 `FIREBASE_SERVICE_ACCOUNT`(20:40 KST). 내려받은 키 파일은 지웠다 | 키 삭제, 계정 삭제, `gh secret delete` |
+| E3 | Firebase Auth 승인 도메인에 `cruz-lab-git-rebuild-crucialsubs-projects.vercel.app` 추가 | 도메인 삭제 |
+
+콘솔 이름 주의: 역할 선택기에서 `roles/storage.objectViewer`는 "저장소 개체 뷰어"로 번역돼 있다. 이름이 비슷한 "환경 및 스토리지 객체 뷰어"는 Composer 역할이다. Vercel의 옛 "Sensitive" 표시는 지금 Type "Secret"이다.
+
+설정 뒤 확인에서 한 외부 변경(사용자 승인):
+
+| # | 변경 | 시각 | 되돌리기 |
+|---|---|---|---|
+| 백업 실행 | 백업 Action 수동 실행 2회. 첫 실행이 커밋 `9f87c37`(파일 356개)을 만들었다. 두 번째는 커밋 없음 | 2026-11-08 20:51~20:53 KST | 백업 저장소의 커밋 되돌리기 |
+| 시험 데이터 (미리보기) | 시험 글 `zgLYmKDGDGumHx0vUcdD`(slug `stage2-preview-check-20261108115839`, 이미지 없음) 생성·발행·API 삭제. 백업 저장소에 발행 커밋 `ed9238b`와 삭제 커밋 `4f646ca`가 생겼다. 삭제 API가 남기는 `publishLog` 2건은 Admin SDK로 지웠다(문서 ID와 `entryId`를 확인한 뒤) | 2026-11-08 20:58~21:05 KST | 남은 데이터 0을 확인했다(`entries`·`publishLog`·`entryTombstones`). 백업 저장소의 `raw/publishLog/34bpIrren83ykdpTyVX2.json`은 다음 예약 실행이 지운다 |
+
+남은 외부 변경:
 
 | # | 변경 |
 |---|---|
-| E3 | Firebase Auth 승인 도메인에 미리보기 주소 추가. 미리보기에서 관리자 로그인을 하려면 필요하다 |
-| E4 | Vercel Preview 환경 변수 `ADMIN_UID`, `BACKUP_DISPATCH_TOKEN`. `ADMIN_UID`가 없어 PR-B 미리보기의 관리자 경로는 503 `ADMIN_NOT_CONFIGURED`다 |
-| E5 나머지 | 서비스 계정 `cruz-lab-backup`(역할 `roles/datastore.viewer`, `roles/storage.objectViewer`)과 JSON 키 → 백업 저장소 비밀값 `FIREBASE_SERVICE_ACCOUNT`. dispatch용 fine-grained PAT(백업 저장소만, Contents 읽기·쓰기) |
+| E2 | Storage 버킷 CORS. 3단계 에디터 업로드 전에 한다 |
 | E6 | Secret Manager `GITHUB_TOKEN` 삭제(언제든) |
+| 병합 뒤 | Vercel 환경 변수 `GITHUB_TOKEN` 삭제. `rebuild` 코드는 쓰지 않는다. 운영(main)의 `src/lib/server/github-posts.ts`가 아직 쓰므로 main 병합 뒤에 지운다 |
 
 ## 4. 검증 결과
 
@@ -164,6 +182,26 @@ PR-B·PR-C 검증(2026-11-08):
 | 10.5 관리자 로그인(localhost) | 쿠키 없이 `/admin` → 302. 사용자가 Google 로그인 → 세션 발급 204, `/admin` 200. 로그아웃 → DELETE 204 → 다시 `/admin` 302. 쿠키 속성은 스모크가 확인했다(HttpOnly, SameSite=Lax, Path=/, 14일. http라 Secure 없음은 설계대로) |
 | 10.6 미리보기(PR-B 배포 `cruz-mfrjvwcpm-…vercel.app`) | `x-vercel-id`가 `icn1::icn1::…`(함수가 서울에서 돈다). `/blog`·홈·글·연재·RSS 200, `Set-Cookie` 없음, `x-vercel-cache: HIT`. 관리자 경로는 `ADMIN_UID`가 없어 503. 미리보기 관리자 로그인과 발행 직후 퍼지 확인은 E3·E4 뒤에 한다 |
 | 백업 내보내기(읽기만) | 파일 356개. 두 번 실행한 결과가 같다 |
+
+설정 뒤 확인(2026-11-08, `rebuild` `814e7b3` 미리보기):
+
+| 항목 | 결과 |
+|---|---|
+| E4 적용 | Redeploy 뒤 `GET /api/admin/session`이 503에서 401 `UNAUTHENTICATED`로 바뀌었다. 쿠키 없이 `/admin`은 리다이렉트된다 |
+| 백업 Action 수동 실행 1 | [run 42477603381](https://github.com/crucial-sub/cruz-lab-content/actions/runs/42477603381) 성공. 커밋 `9f87c37`. `published/` 54, `drafts/` 1, `raw/` 300(`entries` 55, revisions 54, `seriesMeta` 3, `assets` 130, `posts` 56, `series` 2), `assets/index.json` 1. 합계 356개로 로컬 시험 실행과 같다 |
+| 백업 Action 수동 실행 2 | [run 42477678177](https://github.com/crucial-sub/cruz-lab-content/actions/runs/42477678177) 성공. "바뀐 것이 없다". 커밋 없음 |
+| 관리자 로그인 | 사용자가 브라우저 패널에서 Google 로그인. 세션 발급 204, `/admin` 대시보드로 이동. `GET /api/admin/session` 200(`no-store`) |
+| 쿠키 속성 | HttpOnly: `document.cookie`에 `cruz_admin`이 없는데 세션 요청은 200이다. Secure: 브라우저 JS는 `Set-Cookie`를 읽을 수 없어 간접으로 확인했다. 코드는 `requestUrl.protocol === 'https:'`일 때 Secure를 붙인다. 서버가 본 요청 주소가 https다(같은 주소로 하는 Origin 검사가 세션 발급을 통과했고, 발행 응답의 `publicUrl`이 `https://`다). SameSite=Lax·Path=/·14일은 코드 값이고 localhost 스모크가 헤더로 확인했다 |
+| 시험 글 발행 | 생성 201 → 초안 저장 200(v2) → 발행 200 `{revision: 1, purge: "ok", backup: "dispatched", assetUsage: "ok"}`. 글 주소 첫 요청 200(MISS, 제목 일치) |
+| 발행 뒤 `/blog` | 발행 1.9초 뒤 첫 요청은 `STALE`(옛 목록)이다. 그다음 요청부터 `HIT`(age 12)이고 시험 글이 있다. `invalidateByTag`는 캐시를 지우지 않고 오래됨으로 표시한다. 첫 요청이 옛 응답을 받으면서 새로 만들기를 시작한다(8절 4) |
+| 발행 백업 알림 | `repository_dispatch` run 42478083098 성공. 커밋 `ed9238b` "(publish zgLYmKDGDGumHx0vUcdD)". 발행본 md, `raw/entries` 2개, `raw/publishLog` 1개 추가 |
+| 시험 글 삭제 | `DELETE` 200 `{deleted: true, orphanedAssets: 0, purge: "ok", backup: "dispatched"}`. 관리자 한 편 읽기 404. `/blog`는 첫 요청 `STALE`, 다음 요청부터 시험 글이 없다. 글 주소는 첫 요청 `STALE` 200, 다음부터 404 |
+| 삭제 백업 알림 | run 42478162197 성공. 커밋 `4f646ca` "(delete zgLYmKDGDGumHx0vUcdD)". 발행본 md, `raw/entries` 2개 삭제, `raw/publishLog` 1개 추가 |
+| 로그아웃 | `DELETE /api/admin/session` 204 → 세션 401. `/admin`으로 이동하면 리다이렉트 1회로 `/admin/login?next=%2Fadmin`에 간다(미들웨어 코드는 302) |
+| 시험 데이터 정리 | `publishLog` 2건을 지운 뒤 시험 글의 `entries`·`publishLog`·`entryTombstones`가 모두 0이다. 전체 `publishLog`도 시험 전처럼 0건이다 |
+| `pnpm lint` / `pnpm test` / `tsc --noEmit` | 통과 / 112개 통과 / 9개 그대로(`PostList` 3, `editor-drafts` 4, `TextReveal` 1, `markdown-publish` 1) |
+
+옛 관리자 대시보드는 지운 `GET /api/admin/publish-status`를 불러 404를 받는다. D10대로 옛 화면은 고치지 않는다. 3단계 에디터가 화면을 바꾼다.
 
 ## 5. Plan과 다르게 하거나 Plan이 정하지 않은 것
 
@@ -248,16 +286,23 @@ PR-B·PR-C에서 판단한 것:
 
 ## 7. 다음 작업
 
-1. 사용자: E4(`ADMIN_UID`, `BACKUP_DISPATCH_TOKEN`), E5 나머지(서비스 계정 키, PAT), E3(승인 도메인).
-2. PR #5를 검토하고 `rebuild`에 병합한다(사용자 확인 뒤). PR #6의 대상을 `rebuild`로 바꾸고 병합한다. 되돌리기 기준 태그 `rebuild-pre-stage2`(`04e2425`)는 이미 있다(Plan 11.1).
-3. 설정 뒤 확인:
-   1. 백업 저장소 Action을 수동 실행한다. `published/`, `drafts/`, `raw/`, `assets/`가 커밋되는지 본다.
-   2. `rebuild` 미리보기에서 관리자 로그인(쿠키에 Secure)을 확인한다.
-   3. 미리보기에서 시험 글을 발행해 목록이 바로 바뀌는지(퍼지), 응답의 `backup: dispatched`와 백업 커밋을 본다(시험 글은 끝에 지운다).
-4. 3단계: 에디터. 새 API의 첫 화면이다. 버킷 CORS(E2)가 필요하다.
+끝난 것(2026-11-08):
+
+1. ~~사용자: E4, E5 나머지, E3~~ 끝났다(3절).
+2. ~~PR #5·#6 병합~~ 끝났다. 되돌리기 기준 태그는 `rebuild-pre-stage2`(`04e2425`)다(Plan 11.1).
+3. ~~설정 뒤 확인(백업 Action, 미리보기 로그인, 발행 퍼지·백업 알림)~~ 끝났다(4절 "설정 뒤 확인").
+
+다음 것:
+
+1. 3단계: 에디터 Plan. 새 세션에서 한다. 새 API의 첫 화면이다. 먼저 읽을 것: 이 문서 2.4~2.6(API), 5절(판단), 6.2(미룬 것), 8절 4(퍼지 뒤 첫 요청).
+2. E2(버킷 CORS)는 3단계 에디터 업로드 전에 한다. 미리보기에서 서명 URL로 올리려면 필요하다.
+3. 원격에 남은 병합 끝난 브랜치 `stage2/a-data-model`, `stage2/c-backup`을 지운다(사용자 확인 뒤). 이 문서 PR의 `stage2/finish-docs`도 병합 뒤 지운다.
+4. E6(Secret Manager `GITHUB_TOKEN` 삭제)은 언제든 한다. Vercel 환경 변수 `GITHUB_TOKEN`은 main 병합 뒤에 지운다(3절).
 
 ## 8. 열린 질문
 
 1. ~~`vercel.json`의 `regions`가 적용되는지~~ 적용된다. PR-B 미리보기의 `x-vercel-id`가 `icn1::icn1::…`다(2026-11-08).
 2. 어느 글도 쓰지 않는 legacy 파일이 26개 있다(시리즈 커버 3개 포함). 병합 뒤 정리 작업에서 다룬다.
 3. 개발 서버에서 없는 관리자 경로는 404 대신 401·403이다. prerender된 404 페이지를 그릴 때 미들웨어가 헤더 없이 한 번 더 돈다. Vercel에서는 함수까지 오지 않는다(엣지 404). 해가 없어 그대로 둔다.
+4. 퍼지 뒤 첫 요청은 옛 응답이다. D8의 `invalidateByTag`는 캐시를 "오래됨"으로 표시한다(`@vercel/functions` 문서). 다음 첫 요청은 옛 응답(`STALE`)을 받고 뒤에서 새로 만든다. 그다음 요청부터 새 내용이다(미리보기에서 약 2초 안). 대안은 `dangerouslyDeleteByTag`다. 캐시를 지우므로 첫 요청이 새 내용을 받는다. 대신 그 요청은 Firestore를 읽어 느리다. 3단계에서 정한다. 발행 직후 에디터가 공개 주소를 바로 열면, 다시 발행한 글은 첫 화면이 옛 내용일 수 있다.
+5. dispatch PAT에는 만료일이 있다. 만료되면 발행·삭제 응답의 `backup`이 `failed`가 된다. 발행은 성공하고 매일 03:00 예약 백업은 계속 돈다. 그때 PAT를 새로 만들어 Vercel `BACKUP_DISPATCH_TOKEN` 값을 바꾸고 다시 배포한다.
