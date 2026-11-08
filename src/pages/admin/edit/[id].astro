@@ -1,0 +1,43 @@
+---
+// 에디터 페이지 (재건 3단계 T3, D13)
+// - 관리자 페이지는 모두 SSR이다. 미들웨어가 세션 쿠키를 검사한다(2단계 D5).
+// - 사이트 헤더·푸터 없이 전체 화면이다. global.css의 토큰과 html.light 전환을 그대로 쓴다(M10).
+// - 에디터 코드는 이 페이지에서만 내려받는다(client:only). KaTeX CSS도 이 페이지에만 넣는다(D3 수식).
+// - 글 데이터는 클라이언트가 GET /api/admin/posts/{id}로 읽는다. 404면 목록으로 간다(Plan 5절).
+export const prerender = false;
+
+import EditorApp from '@/editor/ui/EditorApp';
+import '@/styles/global.css';
+import 'katex/dist/katex.min.css';
+import '@/editor/editor.css';
+
+const { id } = Astro.params;
+if (!id) return Astro.redirect('/admin');
+---
+
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex" />
+    <title>글 편집 | Cruz Lab</title>
+    <link rel="icon" href="/favicon.svg" />
+    <!-- 사이트와 같은 테마 초기화(BaseHead.astro와 같은 규칙). 그려지기 전에 html.light/dark를 정한다 -->
+    <script is:inline>
+      (() => {
+        try {
+          const saved = localStorage.getItem('theme');
+          const prefers = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const isDark = saved ? saved === 'dark' : prefers;
+          const root = document.documentElement;
+          root.classList.toggle('dark', isDark);
+          root.classList.toggle('light', !isDark);
+        } catch {}
+      })();
+    </script>
+  </head>
+  <body class="bg-bg-app text-text-primary antialiased">
+    <EditorApp client:only="react" entryId={id} />
+  </body>
+</html>

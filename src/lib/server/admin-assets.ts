@@ -65,6 +65,15 @@ export function serializeAsset(id: string, asset: AssetDoc) {
   };
 }
 
+// ───────────── 한 개 읽기 (재건 3단계 D11 9) ─────────────
+
+// 자산 문서 하나. 에디터의 이미지 크기 메뉴가 있는 변형을 확인할 때 쓴다(GET /api/admin/assets/{id}). 읽기만 한다
+export async function getAssetForAdmin(id: string) {
+  const snapshot = await assetsRef().doc(id).get();
+  if (!snapshot.exists) throw new ApiError(404, 'NOT_FOUND', '자산이 없습니다.');
+  return { asset: serializeAsset(id, parseStoredAsset(id, snapshot.data())) };
+}
+
 // ───────────── 업로드 주소 ─────────────
 
 export interface UploadUrlInput {
