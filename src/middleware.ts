@@ -72,11 +72,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
     session = await verifyAdminSessionCookie(context.cookies.get(ADMIN_SESSION_COOKIE)?.value);
   } catch (error) {
     console.error('[middleware] 관리자 인증 설정 오류', error);
+    // 500은 Astro가 오류 페이지로 바꿔 본문이 사라진다. 설정 문제는 503으로 알린다
     if (kind === 'admin-api') {
-      return errorResponse(500, 'ADMIN_NOT_CONFIGURED', '관리자 인증 설정이 없습니다.');
+      return errorResponse(503, 'ADMIN_NOT_CONFIGURED', '관리자 인증 설정이 없습니다.');
     }
     return new Response('관리자 인증 설정이 없습니다.', {
-      status: 500,
+      status: 503,
       headers: { 'Cache-Control': ADMIN_PAGE_CACHE_CONTROL, 'Content-Type': 'text/plain; charset=utf-8' },
     });
   }

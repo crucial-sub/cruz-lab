@@ -41,7 +41,7 @@ export function adminCookieOptions(requestUrl: URL): AstroCookieSetOptions {
 export async function createAdminSessionCookie(idToken: string): Promise<string> {
   const adminUid = getAdminUid();
   if (!adminUid) {
-    throw new ApiError(500, 'ADMIN_NOT_CONFIGURED', 'ADMIN_UID 설정이 없습니다.');
+    throw new ApiError(503, 'ADMIN_NOT_CONFIGURED', 'ADMIN_UID 설정이 없습니다.');
   }
 
   const auth = getServerAuth();
