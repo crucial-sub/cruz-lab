@@ -265,6 +265,7 @@ async function postFlow(db, asset) {
   check(publish.status === 200 && publish.json?.revision === 1 && publish.json?.status === 'published', `발행: 200, revision 1이어야 한다 (${publish.status} ${publish.text})`);
   check(['ok', 'skipped'].includes(publish.json?.purge), `발행: purge 값이 이상하다 (${publish.json?.purge})`);
   check(publish.json?.assetUsage === 'ok', `발행: assetUsage가 ok가 아니다 (${publish.json?.assetUsage})`);
+  check(['dispatched', 'skipped'].includes(publish.json?.backup), `발행: backup 값이 이상하다 (${publish.json?.backup})`);
   const slug = draftContent().slug;
   check(publish.json?.publicUrl === `${ORIGIN}/blog/${slug}`, `발행: publicUrl이 다르다 (${publish.json?.publicUrl})`);
 
@@ -344,6 +345,7 @@ async function deleteAndPurgeFlow(db, bucket, postId, asset, otherIds) {
 
   const remove = await api('DELETE', `/api/admin/posts/${postId}`, { body: { confirm: postId } });
   check(remove.status === 200 && remove.json?.deleted === true && remove.json?.orphanedAssets === 1, `삭제: 200, orphanedAssets 1이어야 한다 (${remove.status} ${remove.text})`);
+  check(['dispatched', 'skipped'].includes(remove.json?.backup), `삭제: backup 값이 이상하다 (${remove.json?.backup})`);
   const gone = await db.collection('entries').doc(postId).get();
   const revisions = await db.collection('entries').doc(postId).collection('revisions').get();
   check(!gone.exists && revisions.empty, '삭제 뒤 문서나 revisions가 남았다');
