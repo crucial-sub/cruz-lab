@@ -1,0 +1,16 @@
+---
+// 관리자 로그인 페이지 (재건 2단계 D5)
+// - 미들웨어가 쿠키 없이 여는 유일한 관리자 페이지다.
+// - next는 /admin 아래 경로만 받는다. 그 밖이면 /admin으로 돌아간다.
+export const prerender = false;
+
+import AdminLogin from '@/components/admin/AdminLogin';
+import { safeAdminNextPath } from '@/lib/admin-guard';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+
+const nextPath = safeAdminNextPath(Astro.url.searchParams.get('next'));
+---
+
+<BaseLayout title="관리자 로그인 | Cruz Lab" description="Cruz Lab 관리자 로그인">
+  <AdminLogin client:load nextPath={nextPath} />
+</BaseLayout>

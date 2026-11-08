@@ -101,13 +101,22 @@ export function useAdminAuth(): UseAdminAuthReturn {
     }
   }, []);
 
-  // 로그아웃
+  // 로그아웃 (재건 2단계 D5)
+  // 1. 서버 세션 쿠키를 지운다(DELETE /api/admin/session). 토큰 폐기는 하지 않는다.
+  // 2. 클라이언트 로그인 상태를 지운다.
+  // 3. 로그인 페이지로 간다.
   const logout = useCallback(async () => {
+    try {
+      await fetch('/api/admin/session', { method: 'DELETE', credentials: 'same-origin' });
+    } catch (error) {
+      console.error('세션 삭제 오류:', error);
+    }
     try {
       await signOut(getClientAuth());
     } catch (error) {
       console.error('로그아웃 오류:', error);
     }
+    window.location.assign('/admin/login');
   }, []);
 
   return { ...state, login, logout };

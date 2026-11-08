@@ -1,8 +1,15 @@
+// Firebase Admin SDK 서버 초기화
+// - Firestore, Auth, Storage를 같은 앱 인스턴스로 쓴다.
+// - 서버(SSR, API)에서만 가져온다. 클라이언트 번들에 들어가면 안 된다.
+
 import { cert, getApps, initializeApp, type App } from 'firebase-admin/app';
+import { getAuth, type Auth } from 'firebase-admin/auth';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 
 let app: App | undefined;
 let db: Firestore | undefined;
+let auth: Auth | undefined;
 
 function getServerApp() {
   if (!app) {
@@ -37,4 +44,27 @@ export function getServerDb() {
   }
 
   return db;
+}
+
+// 세션 쿠키 발급·검증에 쓰는 Admin Auth (재건 2단계 D5)
+export function getServerAuth() {
+  if (!auth) {
+    auth = getAuth(getServerApp());
+  }
+
+  return auth;
+}
+
+// 기본 Storage 버킷 이름. 본문의 자산 주소를 찾을 때도 쓴다
+export function getStorageBucketName(): string {
+  const name = import.meta.env.PUBLIC_FIREBASE_STORAGE_BUCKET;
+  if (!name) {
+    throw new Error('PUBLIC_FIREBASE_STORAGE_BUCKET 설정이 없습니다.');
+  }
+  return name;
+}
+
+// 기본 Storage 버킷 (자산 업로드·변형·정리, 재건 2단계 D6)
+export function getServerBucket() {
+  return getStorage(getServerApp()).bucket(getStorageBucketName());
 }
