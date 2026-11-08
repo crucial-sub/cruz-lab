@@ -26,25 +26,25 @@
 | ---------------- | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | 브라우저 CMS     | CodeMirror 6 기반 마크다운 에디터, localStorage 초안, 1.5초 디바운스 자동 저장, markdown import/export   | `src/components/editor/FullScreenEditor.tsx`, `src/components/editor/CodeMirrorEditor.tsx`, `src/lib/editor-drafts.ts`                  |
 | 이미지 업로드    | 드래그 앤 드롭/붙여넣기 이미지 처리, Canvas 리사이즈, Firebase Storage 업로드, 진행 상태 표시            | `src/components/editor/media-upload-client.ts`, `src/components/editor/UploadProgress.tsx`                                              |
-| 출간 파이프라인  | 관리자 인증, markdown 직렬화, GitHub 백업, Firestore 반영, 실패 시 백업 정리, 출간 후 검증               | `src/pages/api/admin/publish-post.ts`, `src/pages/api/admin/publish-status.ts`, `src/pages/api/admin/publish-verify.ts`                 |
-| 공개 블로그      | Firestore 발행 포스트 조회, markdown 렌더링, 태그/검색/시리즈 페이지 구성                                | `src/lib/content-posts.ts`, `src/pages/blog/index.astro`, `src/pages/blog/[...slug].astro`, `src/lib/series.ts`                         |
+| 출간 API         | 세션 쿠키 인증, 서버 초안과 버전 충돌 검사, 발행·숨김·삭제, CDN 캐시 태그 퍼지, 이미지 webp 변형          | `src/middleware.ts`, `src/lib/server/admin-entries.ts`, `src/lib/server/admin-assets.ts`, `src/pages/api/admin/posts/`                 |
+| 공개 블로그      | Firestore `entries`의 발행본 조회, markdown 렌더링, 태그/검색/연재 페이지 구성                           | `src/lib/server/entries.ts`, `src/lib/content-posts.ts`, `src/pages/blog/index.astro`, `src/pages/blog/[...slug].astro`                |
 | 접근성/읽기 경험 | skip link, `aria-current`, `aria-live`, View Transitions, `prefers-reduced-motion`, 네트워크 상태 토스트 | `src/layouts/BaseLayout.astro`, `src/layouts/components/Header.astro`, `src/components/islands/PostSearch.tsx`, `src/styles/global.css` |
 | Knowledge MCP    | 허용된 markdown 문서만 읽는 로컬 stdio MCP 서버, tools/resources/prompts 분리                            | `tools/cruz-lab-knowledge-mcp/server.mjs`                                                                                               |
 
 ## 출간 흐름
 
-관리자 화면에서 출간 버튼을 누르면 다음 순서로 처리됩니다.
+재건 브랜치(`rebuild`)의 흐름이다. 자세한 순서는 [PUBLISHING.md](./PUBLISHING.md)에 있다.
 
-| 단계 | 위치                | 처리 내용                                                                     |
-| ---- | ------------------- | ----------------------------------------------------------------------------- |
-| 1    | React CMS           | 글 본문, 메타데이터, 이미지 업로드 결과를 출간 payload로 정리합니다.          |
-| 2    | Astro API           | Firebase ID token으로 관리자 이메일을 검증합니다.                             |
-| 3    | GitHub Contents API | 포스트를 markdown으로 직렬화해 `data/post-archive`에 백업합니다.              |
-| 4    | Firestore           | 공개 블로그가 읽는 `posts` 컬렉션에 발행본을 upsert합니다.                    |
-| 5    | Public blog         | `/blog`와 `/blog/[...slug]` 페이지가 Firestore 기준으로 최신 글을 조회합니다. |
-| 6    | Admin UI            | 공개 URL, GitHub 파일, 커밋 정보를 반환받아 출간 결과를 확인합니다.           |
+| 단계 | 위치           | 처리 내용                                                                                 |
+| ---- | -------------- | ----------------------------------------------------------------------------------------- |
+| 1    | 미들웨어       | 관리자 경로에서 세션 쿠키를 검사하고, 쓰기 요청의 Origin을 확인합니다.                    |
+| 2    | 초안 API       | 초안을 서버(Firestore `entries`)에 저장합니다. 버전 번호가 다르면 409로 덮어쓰기를 막습니다. |
+| 3    | 자산 API       | 서명 URL로 Storage에 직접 올리고, 서버가 sharp로 webp 변형을 만듭니다.                    |
+| 4    | 발행 API       | 발행 조건을 검사하고, 발행본·리비전·발행 기록을 한 트랜잭션으로 씁니다.                   |
+| 5    | CDN            | 캐시 태그로 공개 페이지 캐시를 비웁니다.                                                  |
+| 6    | 백업 저장소    | 비공개 저장소의 GitHub Action이 발행 직후와 매일 Firestore를 마크다운·JSON으로 남깁니다.  |
 
-Firestore 반영이 실패하면 방금 만든 GitHub 백업을 삭제해 중간 상태를 줄입니다. 공개 블로그는 Firestore를 기준으로 최신 글을 읽고, markdown은 복구와 이관을 위한 기록으로 남깁니다.
+출간은 GitHub를 부르지 않습니다. 백업이 실패해도 발행은 성공합니다.
 
 ## 구조
 
@@ -52,9 +52,9 @@ Firestore 반영이 실패하면 방금 만든 GitHub 백업을 삭제해 중간
 | ------------- | --------------------------------------------------------------------------------------------------------- |
 | Public pages  | Astro 기반 블로그, 프로젝트, 시리즈 페이지입니다. 발행 포스트는 Firestore에서 읽습니다.                   |
 | Admin UI      | React island로 구성된 관리자 대시보드, 포스트 목록, CodeMirror 에디터, 시리즈 편집기입니다.               |
-| Astro API     | 관리자 인증, 포스트 출간/삭제/검증, 시리즈 저장, markdown 백업 요청을 처리합니다.                         |
-| Firebase      | Auth는 관리자 확인에, Firestore는 발행 포스트와 시리즈 저장에, Storage는 이미지/영상 업로드에 사용합니다. |
-| GitHub backup | 출간된 글의 markdown 원본을 `data/post-archive`에 남깁니다.                                               |
+| Astro API     | 세션 인증, 초안 저장, 발행·숨김·삭제, 이미지 업로드·변형·정리를 처리합니다.                               |
+| Firebase      | Auth는 관리자 확인에, Firestore는 글(`entries`)과 자산 기록 저장에, Storage는 이미지/영상 저장에 사용합니다. |
+| GitHub backup | 비공개 저장소의 GitHub Action이 모든 글을 마크다운과 JSON으로 남깁니다.                                   |
 | Knowledge MCP | 허용된 프로젝트 문서, 기술 글 초안, 이력서 문서를 read-only stdio MCP 서버로 제공합니다.                  |
 
 ## 주요 설계 선택
