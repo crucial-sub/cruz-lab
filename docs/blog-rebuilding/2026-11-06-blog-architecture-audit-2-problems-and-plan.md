@@ -454,7 +454,7 @@ Firestore ──(GitHub Action, 매일 + 발행 후 트리거)──▶ GitHub `
 | 2026-11-05 | 사전 작업 | 완료 | 홈페이지 성능 및 UI 개선 | PR #2 병합(`bb97e81`). [2026-11-05-perf-and-ui-polish.md](./2026-11-05-perf-and-ui-polish.md) |
 | 2026-11-06 | 전수조사 | 완료 | 이 문서를 쓴 세션 | 1편·2편 문서, 시각 문서, 캡처. 10절(시리즈·방향·docs) 결정 |
 | 2026-11-06 | 1. 즉시 수리 | 완료 (main 병합) | 1단계 세션 | [PR #3](https://github.com/crucial-sub/cruz-lab/pull/3), 브랜치 `fix/rebuild-stage1-repairs`. 되돌리기 기준 태그 `pre-rebuild`(`bb97e81`). 규칙 배포 완료. 계획 밖 2건(사용자 승인): `publish-verify.mjs` 경로, 운영 함수 `syncPostToGitHub` 삭제. 관리자 로그인 확인(이미지 업로드·글 열기)은 사용자 몫. [2026-11-06-stage1-immediate-repairs.md](./2026-11-06-stage1-immediate-repairs.md) |
-| — | 2. 데이터 모델과 서버 | 다음 | 새 세션 | `rebuild` 브랜치에서 한다(11.3). 시작 전에 Plan 문서와 visual-plan HTML(`visual-plans/`)을 쓴다. 범위: 8.3의 2단계 행, 10.1의 결정. 운영 상태는 소스가 아니라 운영 조회로 확인한다(작업 문서 4절) |
+| 2026-11-07 | 2. 데이터 모델과 서버 | Plan 승인(2026-11-08), 구현 전 | 2단계 Plan 세션 | [Plan 문서](./2026-11-07-stage2-data-model-and-server-plan.md), [visual plan](./visual-plans/2026-11-07-cruz-lab-stage2-plan.html). 사용자 결정 5건에 모두 답했다(Plan 14절): D1 새 컬렉션 `entries`, D7 새 비공개 저장소, D10 API만, D11 4단계로 미룸, 부록 A 그대로. 사용자가 2026-11-08에 Plan을 승인했다. 코드·데이터·운영 설정 변경 없음. 구현은 승인 뒤 새 세션에서 T1부터 한다. 진행 기록은 11.4 |
 
 ### 11.1 1단계 작업 범위 (인계용 상세)
 
@@ -521,4 +521,29 @@ main에는 긴급 수정만 넣는다. main에 긴급 수정을 넣으면 main�
 4. 규칙을 바꾸면 옛 코드와 새 코드가 둘 다 동작하는지 확인한다.
 5. 운영 CMS로 쓴 글이 마이그레이션 뒤에도 생길 수 있다. 마이그레이션 스크립트는 여러 번 실행해도 결과가 같아야 한다(멱등). main 병합 직전에 한 번 더 실행한다.
 
-**관리자 화면 확인 위치.** localhost는 Firebase Auth가 기본으로 허용한다. 미리보기 주소에서 Google 로그인을 하려면 Firebase 콘솔의 Authentication → 설정 → 승인된 도메인에 위 주소를 추가해야 할 가능성이 크다(확인 안 함). 추가는 사용자가 한다. 그 전에는 localhost에서 확인한다.
+**관리자 화면 확인 위치.** localhost는 Firebase Auth가 기본으로 허용한다. 미리보기 주소에서 Google 로그인을 하려면 Firebase 콘솔의 Authentication → 설정 → 승인된 도메인에 위 주소를 추가해야 한다. 2026-11-07 조회에서 이 주소는 승인 도메인 목록에 없었다(2단계 Plan 1절). 추가는 사용자가 한다. 그 전에는 localhost에서 확인한다.
+
+### 11.4 2단계 Plan 작성 (2026-11-07)
+
+**끝난 것.**
+
+1. Plan 문서 [2026-11-07-stage2-data-model-and-server-plan.md](./2026-11-07-stage2-data-model-and-server-plan.md)와 visual plan(`visual-plans/2026-11-07-cruz-lab-stage2-plan.html`, 소스 `.src.html`)을 썼다.
+2. 운영 상태를 읽기 전용으로 다시 조회했다. 새로 확인한 사실은 Plan 1절에 있다. 요점은 다섯 가지다.
+   - slug가 같은 중복 글 2문서(본문 차이는 끝 줄바꿈 하나).
+   - Firestore는 서울(`asia-northeast3`)이고 Vercel 함수는 `iad1`.
+   - `rebuild` 미리보기 주소가 Auth 승인 도메인에 없다.
+   - Secret Manager `GITHUB_TOKEN`이 아직 있다.
+   - GitHub 저장소가 공개라서 초안 백업을 이 저장소에 두면 안 된다.
+3. 분류 규칙을 실제 56편에 시험 적용했다(쓰기 없음). 55편 이전, 카테고리 10개, 태그 23종 → 12종, 연재 3개, 규칙 위반 0.
+4. 사용자가 D10을 정했다(2026-11-07). 2단계는 API만 만들고 지금의 관리자 화면은 고치지 않는다. 이유: 재건이 끝날 때까지 새 글을 쓸 계획이 없다. 따라 바뀐 것: 작업 T7 삭제, 화면 확인(Plan 10.5)은 로그인만, 옛 화면이 쓰는 lib 4개는 3·5단계에서 지움, 버킷 CORS(E2)는 3단계로 미룸. Plan 문서와 visual plan에 반영했다.
+5. 사용자가 남은 결정 4건에 답했다(2026-11-08). D1은 새 컬렉션 `entries`, D7은 새 비공개 저장소 `crucial-sub/cruz-lab-content`, D11은 4단계로 미룬다. 부록 A 분류 매핑과 D3 중복 글 제외는 그대로 승인했다. 태그를 정규화한 값 그대로 보이는 방식(`#csapp`)도 함께 확인했다. Plan 문서와 visual plan에 반영했다. visual plan에는 남은 질문이 없다.
+6. 사용자가 Plan을 승인했다(2026-11-08). Plan 14절 끝의 "Claude 판단" 목록도 함께 승인했다.
+
+**다음 것.**
+
+1. Plan 문서와 visual plan을 커밋할 브랜치를 정한다.
+2. 새 세션에서 구현을 T1부터 한다(전역 7번 규칙). 브랜치는 `rebuild`에서 만든다.
+
+**열린 질문.**
+
+1. Plan 문서와 visual plan을 어느 브랜치에 커밋할지. 지금은 `rebuild` 작업 트리에 커밋하지 않은 상태로 있다.

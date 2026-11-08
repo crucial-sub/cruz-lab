@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<!-- 재건 2단계 Plan의 시각 문서 소스.
+     원본 Plan: docs/blog-rebuilding/2026-11-07-stage2-data-model-and-server-plan.md
+     렌더: node <visual-explainer>/plan/render.mjs 이 파일 -o 2026-11-07-cruz-lab-stage2-plan.html --root <저장소> -->
+<html lang="ko">
+<head>
+<title>재건 2단계 데이터 모델과 서버</title>
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">Plan · cruz-lab · 재건 2단계 · 승인 2026-11-08</p>
+  <h1>글 데이터를 entries로 옮기고 서버가 쓴다</h1>
+  <p class="lead">rebuild는 새 컬렉션 <b>entries</b>를 읽고 쓴다. 운영(main)의 옛 <code>posts</code>는 한 글자도 바뀌지 않는다.</p>
+  <ve-files>
+    + src/lib/taxonomy.ts                       # 카테고리 10개, 태그 정규화
+    + src/lib/server/entries.ts                 # entries 읽기·쓰기, 컬렉션 이름 상수
+    + src/lib/migrate/legacy-to-entry.ts        # 옛 문서 → entries 문서 (순수 함수)
+    + src/middleware.ts                         # 세션 쿠키 검사, 301 리다이렉트
+    + src/pages/admin/login.astro               # 구글 로그인 → 쿠키
+    + src/pages/api/admin/session.ts            # 쿠키 발급·확인·폐기
+    + src/pages/api/admin/posts/index.ts        # 목록, 새 초안
+    + src/pages/api/admin/posts/[id]/index.ts   # 한 편, 삭제
+    + src/pages/api/admin/posts/[id]/draft.ts   # 초안 저장 (버전 잠금)
+    + src/pages/api/admin/posts/[id]/publish.ts # 발행
+    + src/pages/api/admin/posts/[id]/visibility.ts # 숨김 / 다시 보임
+    + src/pages/api/admin/assets/upload-url.ts  # 서명 URL
+    + src/pages/api/admin/assets/[id]/finalize.ts # sharp 변형
+    + src/pages/api/admin/assets/purge.ts       # 고아 정리
+    + scripts/migrate/stage2-entries.mjs        # 시험·실제 실행, 재동기화
+    + scripts/migrate/stage2-mapping.json       # 사람이 검토하는 매핑
+    + scripts/migrate/stage2-rollback.mjs
+    + scripts/smoke/stage2-api.mjs              # API 스모크 테스트
+    + vercel.json                               # regions: icn1
+    ~ src/lib/content-posts.ts                  # entries를 읽는다
+    ~ src/pages/series/[slug].astro             # entries의 series.key로 만든다
+    ~ src/pages/series/index.astro
+    ~ src/pages/index.astro                     # Featured Series 구역 제거
+    ~ src/pages/sitemap-posts.xml.ts
+    - src/lib/series.ts
+    - src/lib/server/admin-series.ts
+    - src/components/admin/series/SeriesEditor.tsx
+    - src/components/admin/series/SeriesList.tsx
+    - src/components/islands/SeriesCard.tsx
+    - src/components/islands/SeriesPreview.tsx
+    - src/pages/api/admin/publish-post.ts       # /api/admin/posts로 대체
+    - src/pages/api/admin/delete-post.ts
+    - src/lib/server/github-posts.ts            # 백업은 Action이 한다
+    - src/lib/server/admin-auth.ts              # 세션 쿠키로 대체
+  </ve-files>
+  <ve-why>
+    <ve-quote via="계획 문서 11.3" from="사용자 결정" at="2026-11-06">2~5단계는 rebuild 통합 브랜치에 모은다. 최종 결과가 마음에 들 때만 main에 병합한다.</ve-quote>
+    <ve-quote via="이전 세션 기록" from="사용자">마음에 안 들면 원래대로 돌아갈 보험</ve-quote>
+    <ve-quote via="D10 답" from="사용자" at="2026-11-07">높은 확률로 이 개선 작업을 끝낼때까지 블로그에 새 글을 게시할 일은 없을 거거든? 그래서 관리자 화면도 굳이 최소 연결같은거 할필요 없어보이는데</ve-quote>
+    <ve-quote via="계획 문서 0절" from="전수조사" at="2026-11-06">이 블로그의 최우선 과제는 쓰기 마찰이다.</ve-quote>
+  </ve-why>
+</header>
+
+<figure class="hero">
+  <ve-flow label="운영 main은 옛 posts 컬렉션을 그대로 읽고 쓴다. 마이그레이션 스크립트는 posts를 읽기만 하고 새 entries 컬렉션에 쓴다. 2단계에서는 스모크 테스트가, 3단계부터는 새 에디터가 세션 쿠키로 /api/admin/posts를 부르고, 그 API가 entries에 트랜잭션으로 쓴다. 이미지는 서명 URL로 Storage assets 경로에 직접 올린다. 발행하면 API가 CDN 캐시를 비우고, entries는 매일과 발행 직후 백업 저장소로 복사된다.">
+    <ve-node id="prod" at="1 1" sub="옛 CMS">운영 main</ve-node>
+    <ve-node id="posts" at="2 1" sub="그대로" shape="db">posts</ve-node>
+    <ve-node id="migrate" at="3 1" sub="멱등" new claim="1">마이그레이션</ve-node>
+    <ve-node id="admin" at="1 2" sub="3단계부터 에디터" claim="3">스모크 테스트</ve-node>
+    <ve-node id="api" at="2 2" sub="초안 · 발행" key new claim="2 3">/api/admin/posts</ve-node>
+    <ve-node id="entries" at="3 2" sub="새 컬렉션" shape="db" new claim="1 2">entries</ve-node>
+    <ve-node id="storage" at="1 3" sub="webp 3종" new claim="4">Storage assets/</ve-node>
+    <ve-node id="cdn" at="2 3" sub="즉시 퍼지" new claim="5">CDN 캐시 태그</ve-node>
+    <ve-node id="backup" at="3 3" new claim="5">백업<small>비공개 저장소</small></ve-node>
+    <ve-edge from="prod" to="posts" label="읽기 · 쓰기"/>
+    <ve-edge from="posts" to="migrate" claim="1" label="읽기만"/>
+    <ve-edge from="migrate" to="entries" hot claim="1" label="생성 · 갱신"/>
+    <ve-edge from="admin" to="api" hot claim="3" label="쿠키 검사"/>
+    <ve-edge from="api" to="entries" hot claim="2" label="트랜잭션"/>
+    <ve-edge from="admin" to="storage" new claim="4" label="서명 URL PUT"/>
+    <ve-edge from="api" to="cdn" new claim="5" label="퍼지"/>
+    <ve-edge from="entries" to="backup" async new claim="5" label="매일 · 발행 직후"/>
+  </ve-flow>
+  <figcaption><span class="fig-n">Fig. 1</span>새 코드는 새 컬렉션만 쓴다. 옛 컬렉션은 마이그레이션이 읽기만 한다.</figcaption>
+</figure>
+
+<ve-plan>
+
+  <ve-claim check="시험 실행 보고서가 생성 55 · 제외 1 · 충돌 0을 보이고, 두 번째 실제 실행이 모두 '건너뜀'이다. 옛 posts 문서 해시가 실행 전후로 같다.">
+    <p>rebuild는 55편을 새 분류로 읽고, 운영 데이터는 그대로다.</p>
+    <ve-mock w="420" label="마이그레이션 시험 실행 보고서">
+      <style>
+        .bar{display:inline-block;height:8px;background:currentColor;opacity:.55;border-radius:2px;vertical-align:middle;margin-right:6px}
+        .k{font-family:ui-monospace,monospace}
+      </style>
+      <div class="ui">
+        <div class="hd">stage2-entries.mjs <small>시험 실행 · 쓰기 없음</small></div>
+        <div class="row"><span><b>생성 55</b> (발행 54 · 초안 1) · <span class="bad">충돌 0</span></span><span class="muted small" data-pin="1">제외 1</span></div>
+        <div class="row"><span class="k">javascript</span><span><span class="bar" style="width:115px"></span>23</span></div>
+        <div class="row"><span class="k">os</span><span><span class="bar" style="width:40px"></span>8</span></div>
+        <div class="row"><span class="k">algorithm · data-structure</span><span><span class="bar" style="width:25px"></span>5 · 5</span></div>
+        <div class="row"><span class="k">react-native · network</span><span><span class="bar" style="width:20px"></span>4 · 3</span></div>
+        <div class="row"><span class="k">ai · react · computer-arch · retro</span><span><span class="bar" style="width:10px"></span>2 · 2 · 2 · 1</span></div>
+        <div class="row"><span>태그</span><span><b>23종 → 12종</b></span></div>
+        <div class="row"><span>연재</span><span class="k">wesbos30 21 · pintos 5 · proxy-lab 2</span></div>
+        <div class="ft muted small">옛 posts 쓰기 0 · 운영 영향 없음</div>
+      </div>
+      <ve-pin n="1">같은 slug의 중복 글 1편. 본문 차이는 끝 줄바꿈 하나뿐이다.</ve-pin>
+    </ve-mock>
+    <p class="muted">사용자 결정(2026-11-08): 새 데이터는 새 컬렉션 entries에 둔다. 같은 posts 문서에 새 필드를 더하는 안은 고르지 않았다. title·tags 이름이 겹쳐 임시 필드 이름과 이중 쓰기가 필요하기 때문이다.</p>
+
+    <ve-claim>
+      <p>제목 접두사가 카테고리가 되고, 태그는 23종에서 12종이 된다.</p>
+      <ve-code title="scripts/migrate/stage2-mapping.json · sketch" lang="json">
+<script type="text/plain">
+{
+  "prefixToCategory": {
+    "wesbos30": "javascript", "JavaScript": "javascript", "React": "react",
+    "ReactNative": "react-native", "AI": "ai", "Pintos": "os", "운영체제": "os",
+    "Proxy-lab": "network", "네트워크": "network", "알고리즘": "algorithm",
+    "자료구조": "data-structure", "컴퓨터구조": "computer-architecture"
+  },
+  "categoryOverride": { "ZVlt7gb5R0lMZH3Gog5H": "retrospective" },
+  "tagAliases": { "크래프톤정글": "크래프톤-정글" },
+  "tagOverride": { "ezneh5BHhPGp5Iv9e98f": ["malloc-lab", "csapp", "크래프톤-정글"] },
+  "series": {
+    "wesbos30": "series 문서 postIds + 제목 번호 01~30",
+    "pintos": ["Threads 01", "Threads 02", "Priority", "UserProgram 01", "UserProgram 02"],
+    "proxy-lab": ["01 소켓과 Tiny", "02 프록시 서버"]
+  },
+  "exclude": ["hah2lSGUxneSHRSDhm1r"]
+}
+</script>
+      </ve-code>
+      <p class="muted">사용자 승인(2026-11-08): Plan 부록 A의 분류 매핑과 중복 글 제외를 그대로 쓴다. 태그는 정규화한 값 그대로 보인다(#csapp, #llm).</p>
+    </ve-claim>
+
+    <ve-claim>
+      <p>다시 실행하면 운영에서 고친 글만 옮기고, 양쪽에서 고친 글은 멈춘다.</p>
+      <ve-calls title="글 1편의 판정 (5.4) · sketch">
+<script type="text/plain">
++ **judge**(legacyPost, entry)
++   entry 없음                                   -- 생성
++   legacy.updatedAt == entry.legacy.sourceUpdatedAt -- 건너뜀
++   옛 글만 바뀜 (version · revision · status가 synced 값과 같음) -- 갱신
++   양쪽 다 바뀜 (rebuild의 숨김 포함)             -- 충돌: 쓰지 않고 보고
++   entryTombstones에 있음                        -- rebuild에서 지운 글: 되살리지 않음
+?   옛 글이 사라짐                                -- 삭제 후보: --propagate-deletes일 때만
+</script>
+      </ve-calls>
+    </ve-claim>
+
+    <ve-claim evidence="inferred">
+      <p>지금 같은 slug의 두 문서는 상세에서 하나, 목록에서 둘로 보인다.</p>
+      <ve-code src="src/lib/server/firestore-posts.ts" lines="69-90" hl="72">
+        <ve-pin line="72">slug 조회는 첫 문서(g70n…)만 돌려준다. 목록 조회(82행)는 두 문서를 모두 돌려준다. 그래서 목록에 같은 카드가 두 번 나온다고 판단했다. 화면으로 확인하지는 않았다.</ve-pin>
+      </ve-code>
+    </ve-claim>
+
+    <ve-claim>
+      <p>/series는 entries에서 만들고, 옛 주소 2개는 301로 간다.</p>
+      <ve-calls title="시리즈 · sketch">
+<script type="text/plain">
+- getSeriesBySlug(slug)                  @ src/lib/series.ts:141   -- 클라이언트 SDK로 series 컬렉션 조회
+- SeriesEditor 저장                       @ src/components/admin/series/SeriesEditor.tsx:120 -- slug로만 맞춰 글 22편을 지운다(A13)
++ listEntriesBySeries(key)               -- published.series.key로 모으고 order로 정렬
++ middleware 301                         -- /series/wesbos → /series/wesbos30
++ middleware 301                         -- /series/크래프톤-정글 → /blog/tag/크래프톤-정글
+</script>
+      </ve-calls>
+    </ve-claim>
+  </ve-claim>
+
+  <ve-claim check="스모크 테스트에서 낡은 baseVersion으로 저장하면 409 DRAFT_CONFLICT를 받는다. 목록 counts가 draft 1 · published 54다.">
+    <p>초안은 서버에 있고, 두 기기의 저장이 서로 덮지 않는다.</p>
+    <ve-mock w="420" label="에디터 · 다른 기기가 먼저 저장했을 때">
+      <div class="ui">
+        <div class="hd">Threads - Alarm Clock 구현 <small class="muted">저장됨 · v8 · macbook</small></div>
+        <div class="row bad"><span>iphone에서 2분 전에 더 최근 버전(v9)을 저장했습니다.</span></div>
+        <div class="row"><span class="btn" data-pin="1">iphone 버전 열기</span><span class="btn pri">내 버전으로 덮기</span></div>
+        <div class="ft muted small">2단계는 이 화면을 만들지 않는다. API만 409를 돌려준다. 화면은 3단계 에디터가 만든다.</div>
+      </div>
+      <ve-pin n="1">서버는 409와 함께 서버 초안 전체를 준다. 화면은 사용자에게 고르게 한다.</ve-pin>
+    </ve-mock>
+
+    <ve-claim>
+      <p>발행은 화면에 보이는 초안 버전만 스냅샷으로 복사한다.</p>
+      <ve-calls title="POST /api/admin/posts/{id}/publish · sketch">
+<script type="text/plain">
++ **publish**(id, draftVersion)
++   draftVersion != draft.version            -- 409
++   validate(draft)                          -- 422: slug 유일성, 카테고리, 태그 ≤ 3
++   transaction
++     published ← draft (+ readingTime, wordCount), revision + 1
++     status = 'published', slug가 바뀌면 slugHistory에 이전 값
++     revisions/{revision}, publishLog
++   assets.usedBy 갱신
++   invalidateByTag(['posts', 'post-<id>'])  -- 실패해도 발행은 성공
++   repository_dispatch(content-changed)     -- 2초 제한, 실패해도 성공
+</script>
+      </ve-calls>
+    </ve-claim>
+
+    <ve-claim>
+      <p>목록은 초안·발행·숨김 수를 서버에서 센다.</p>
+      <ve-code title="GET /api/admin/posts 응답 · sketch" lang="json">
+<script type="text/plain">
+{
+  "counts": { "draft": 1, "published": 54, "hidden": 0 },
+  "items": [{ "id": "ZVlt7gb5R0lMZH3Gog5H", "status": "draft",
+              "title": "크래프톤 정글 0주차 에세이", "category": "retrospective",
+              "hasUnpublishedChanges": true, "draftDevice": null }]
+}
+</script>
+      </ve-code>
+    </ve-claim>
+  </ve-claim>
+
+  <ve-claim check="쿠키 없는 GET /api/admin/posts가 401, 다른 Origin의 POST가 403, 쿠키 없는 /admin이 /admin/login으로 302다.">
+    <p>관리자 화면과 API는 세션 쿠키 하나로만 열린다.</p>
+    <ve-calls title="로그인과 요청 · sketch">
+<script type="text/plain">
++ /admin/login: signInWithPopup(Google) → idToken
++ **POST /api/admin/session** { idToken }
++   verifyIdToken(idToken, checkRevoked) -- uid == ADMIN_UID, email_verified, 로그인 5분 이내
++   createSessionCookie(14일)            -- HttpOnly · Secure · SameSite=Lax
++ **middleware** (/admin/**, /api/admin/**)
++   verifySessionCookie(cookie, true)    -- 실패: 페이지 302, API 401
++   쓰기 요청은 Origin 검사                -- 다르면 403
++ DELETE /api/admin/session             -- 쿠키만 삭제. 운영 로그인은 그대로
+?   ?all=1                              -- revokeRefreshTokens: 운영 관리자 로그인도 끊긴다
+</script>
+    </ve-calls>
+
+    <ve-claim>
+      <p>지금 서버는 요청마다 외부 REST로 이메일을 비교한다.</p>
+      <ve-code src="src/lib/server/admin-auth.ts" lines="5-33" hl="14">
+        <ve-pin line="14">관리자 API 호출마다 Identity Toolkit에 HTTP 1회. 이메일 문자열만 비교한다. 이 파일을 지운다.</ve-pin>
+      </ve-code>
+    </ve-claim>
+
+    <ve-claim>
+      <p>지금 에디터 페이지는 prerender라서 서버 검사를 거치지 않는다.</p>
+      <ve-code src="src/pages/admin/edit.astro" lines="1-8" hl="2">
+        <ve-pin line="2">prerender 페이지는 미들웨어를 거치지 않는다. 관리자 페이지를 모두 <code>prerender = false</code>로 바꾼다(A10).</ve-pin>
+      </ve-code>
+    </ve-claim>
+  </ve-claim>
+
+  <ve-claim check="스모크 테스트가 w480 · w960 · w1600 webp를 확인한다. 글을 지운 뒤 정리 시험 실행에 그 자산이 나온다.">
+    <p>이미지는 서버가 webp 3종으로 줄이고, 지운 글의 이미지는 7일 뒤 정리된다.</p>
+    <ve-calls title="업로드에서 정리까지 · sketch">
+<script type="text/plain">
++ POST /api/admin/assets/upload-url { sha256, contentType, bytes }
++   같은 sha256 있음                       -- 기존 자산을 준다. 업로드 없음
++   assets/{id} pending + V4 서명 PUT URL  -- 15분 만료
++ 브라우저 → Storage PUT                    -- 함수 4.5 MB 한도를 거치지 않는다
++ **POST /api/admin/assets/{id}/finalize**
++   sharp.metadata()                       -- 실제 형식 확인. svg 거부
++   rotate · EXIF/GPS 제거 · webp w480/w960/w1600 · 원본 삭제
++ DELETE 글 → usedBy에서 빼기 → 비면 orphanedAt
++ POST /api/admin/assets/purge { dryRun: true }
++   7일 지난 고아 + 지우기 직전 재검사: entries, 옛 posts 본문·heroImage, 옛 series 커버
++   병합 전에는 legacy 자산을 후보에서 뺀다   -- 운영이 옛 이미지를 쓴다
+</script>
+    </ve-calls>
+
+    <ve-claim>
+      <p>지금 글 삭제는 Storage 이미지를 남긴다.</p>
+      <ve-code src="src/pages/api/admin/delete-post.ts" lines="27-41" hl="33">
+        <ve-pin line="33">Firestore 문서와 GitHub 백업만 지운다. Storage는 건드리지 않는다(A6).</ve-pin>
+      </ve-code>
+    </ve-claim>
+
+    <ve-claim>
+      <p>브라우저가 서명 URL로 직접 올리려면 버킷 CORS를 열어야 한다.</p>
+      <p class="muted">2026-11-07 확인: 버킷 CORS 설정이 비어 있다. <code>storage.googleapis.com</code> 사전 요청에 허용 헤더가 없다.</p>
+      <p class="muted">이 변경(E2)은 3단계에서 한다. 2단계의 스모크 테스트는 Node에서 올리므로 CORS를 거치지 않는다.</p>
+      <ve-code title="버킷 CORS (외부 변경 E2) · sketch" lang="json">
+<script type="text/plain">
+[{ "origin": ["http://localhost:4321",
+              "https://cruz-lab-git-rebuild-crucialsubs-projects.vercel.app",
+              "https://www.cruzlab.dev"],
+   "method": ["PUT"], "responseHeader": ["Content-Type"], "maxAgeSeconds": 3600 }]
+</script>
+      </ve-code>
+    </ve-claim>
+
+    <ve-claim>
+      <p>기존 Storage 파일 130개도 legacy 자산이 되지만, 병합 전에는 정리하지 않는다.</p>
+      <ve-code title="assets/legacy-… · sketch" lang="json">
+<script type="text/plain">
+{ "storagePath": "images/blog/2025/12/…webp", "legacy": true, "variants": null,
+  "usedBy": ["qsBO9vhe4BtXRHRAidiN"], "orphanedAt": null }
+</script>
+      </ve-code>
+    </ve-claim>
+  </ve-claim>
+
+  <ve-claim check="rebuild 미리보기에서 발행 직후 /blog 목록이 바뀐다. 백업 저장소에 커밋이 하나 생긴다. 응답 헤더 x-vercel-id에 icn1이 있다.">
+    <p>발행은 GitHub를 기다리지 않고, 공개 페이지는 바로 바뀐다.</p>
+    <ve-code src="src/pages/api/admin/publish-post.ts" lines="41-70" hl="48-49">
+      <ve-pin line="48">지금은 GitHub 커밋이 끝나야 Firestore에 쓴다. GitHub가 멈추면 출간도 멈춘다(A9). 이 단계를 출간에서 뺀다.</ve-pin>
+    </ve-code>
+    <p class="muted">사용자 결정(2026-11-08): 백업 Action은 새 비공개 저장소 crucial-sub/cruz-lab-content에 모든 상태의 글을 커밋한다. cruz-lab 저장소는 공개라서 초안을 둘 수 없다.</p>
+
+    <ve-claim>
+      <p>발행 뒤 캐시 태그로 그 글과 목록의 CDN 캐시만 비운다.</p>
+      <ve-calls title="캐시 태그 · sketch">
+<script type="text/plain">
++ 공개 응답 헤더 Vercel-Cache-Tag: posts            -- 홈, /blog, 태그, /series, RSS, 사이트맵
++ 글 상세 헤더 Vercel-Cache-Tag: posts,post-<id>
++ 발행·숨김·삭제 뒤 invalidateByTag(['posts', 'post-<id>'])
++   태그는 환경별이다                               -- 미리보기 발행은 운영 캐시를 건드리지 않는다
+?   로컬에서는 건너뛴다                              -- purge: 'skipped'
+</script>
+      </ve-calls>
+    </ve-claim>
+
+    <ve-claim>
+      <p>백업 Action이 매일과 발행 직후에 마크다운과 JSON을 커밋한다.</p>
+      <ve-code title="백업 워크플로 · sketch" lang="yaml">
+<script type="text/plain">
+on:
+  schedule: [{ cron: "0 18 * * *" }]        # 03:00 KST
+  workflow_dispatch: {}
+  repository_dispatch: { types: [content-changed] }
+permissions: { contents: write }
+steps:
+  - export.mjs  # 읽기 전용 서비스 계정 cruz-lab-backup
+  #  published/<slug>.md · drafts/<id>.md · raw/<컬렉션>/<id>.json · assets/index.json
+  - 바뀐 것이 있을 때만 커밋
+</script>
+      </ve-code>
+    </ve-claim>
+
+    <ve-claim>
+      <p>공개 함수가 Firestore와 같은 서울 리전에서 돈다.</p>
+      <ve-code title="vercel.json · sketch" lang="json">
+<script type="text/plain">
+{ "regions": ["icn1"] }
+</script>
+      </ve-code>
+    </ve-claim>
+  </ve-claim>
+
+  <ve-claim aux="shared">
+    <p>공유: entries 문서 하나가 초안과 발행본을 함께 담는다.</p>
+    <ve-code title="entries/{id} · sketch" lang="ts">
+<script type="text/plain">
+entries/{id}                      // id = 옛 posts 문서 ID
+  kind: 'post' | 'note' | 'project'
+  status: 'draft' | 'published' | 'hidden'
+  publishedAt, lastPublishedAt, createdAt, updatedAt
+  slugHistory: string[]           // 예전 slug → 301
+  draft:     { title, description, slug, category, tags[≤3], series, cover,
+               markdown, editorJson, version, updatedAt, device }
+  published: { …같은 필드, revision, fromDraftVersion, readingTime, wordCount } | null
+  legacy:    { postId, sourceUpdatedAt, syncedDraftVersion, syncedRevision } | null
+entries/{id}/revisions/{n}  ·  seriesMeta/{key}  ·  assets/{id}  ·  publishLog/{id}
+</script>
+    </ve-code>
+  </ve-claim>
+
+  <ve-claim aux="scope">
+    <p>바꾸지 않는 것: 운영 데이터, 규칙, 인덱스, 공개 화면 모양.</p>
+    <ul>
+      <li>옛 <code>posts</code>·<code>series</code> 컬렉션과 옛 필드는 main 병합 뒤 별도 작업에서 지운다.</li>
+      <li>Firestore·Storage 규칙, 인덱스, 함수를 배포하지 않는다.</li>
+      <li>공개 페이지는 데이터 경로만 바꾼다. 화면 재설계는 4단계, 에디터는 3단계, 관리자 앱은 5단계다.</li>
+      <li>지금의 관리자 화면은 고치지 않는다(사용자 결정). 3단계 전까지 rebuild 관리자 화면은 로그인까지만 된다. 병합 전에 글을 써야 하면 운영 관리자 화면으로 쓴다.</li>
+      <li>모든 <code>/blog/&lt;slug&gt;</code>를 유지한다.</li>
+      <li>노트(<code>kind: 'note'</code>)는 API가 받지만 공개 페이지에는 4단계까지 나오지 않는다.</li>
+      <li>병합 전에는 기존 글로 시험하지 않는다. 시험은 시험 글로만 한다.</li>
+      <li>운영 설정 변경은 6건(E1, E3~E7)이다. 예약 백업, Auth 승인 도메인, Vercel Preview 변수, 백업 저장소, Secret Manager 정리, 마이그레이션 실행. 각각 사용자 확인 뒤에 한다. 버킷 CORS(E2)는 3단계로 미룬다.</li>
+    </ul>
+    <p class="muted">사용자 결정(2026-11-08): 프로젝트 글 8편은 4단계에서 /projects를 다시 만들 때 옮긴다. 2단계 스키마는 kind: 'project'를 받게만 만든다.</p>
+  </ve-claim>
+
+</ve-plan>
+
+</body>
+</html>
