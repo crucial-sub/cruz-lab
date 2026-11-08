@@ -4,7 +4,7 @@
  */
 
 // 단어 수 계산 (한글 + 영어 모두 고려)
-function countWords(text: string): number {
+export function countWords(text: string): number {
   // 마크다운 문법 제거
   const cleanText = text
     .replace(/```[\s\S]*?```/g, '') // 코드 블록 제거

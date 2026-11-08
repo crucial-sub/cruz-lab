@@ -47,24 +47,18 @@ function seededRandom(seed: number) {
   };
 }
 
-// 커버 카테고리 이름 결정
-// 1) 제목 앞 대괄호 접두사: "[Pintos] Threads ..." → "Pintos"
+// 커버 카테고리 이름 결정 (재건 2단계: 제목 접두사 대신 카테고리 표시 이름)
+// 1) 카테고리 표시 이름: "운영체제", "React Native"
 // 2) 없으면 첫 번째 태그
 // 3) 둘 다 없으면 "Note"
-export function getCoverLabel(title: string, tags: string[]): string {
-  const bracket = title.match(/^\s*\[([^\]]+)\]/);
-  if (bracket) return bracket[1].trim();
+export function getCoverLabel(categoryLabel: string | null | undefined, tags: string[]): string {
+  if (categoryLabel) return categoryLabel;
   if (tags.length > 0) return tags[0];
   return 'Note';
 }
 
-// 제목에서 대괄호 접두사를 뺀 본문
-export function stripCoverPrefix(title: string): string {
-  return title.replace(/^\s*\[[^\]]+\]\s*/, '');
-}
-
-export function getCoverTheme(title: string, tags: string[], slug: string): CoverTheme {
-  const label = getCoverLabel(title, tags);
+export function getCoverTheme(categoryLabel: string | null | undefined, tags: string[], slug: string): CoverTheme {
+  const label = getCoverLabel(categoryLabel, tags);
   // 색 계열은 카테고리로 정한다 (대소문자 무시)
   const palette = PALETTES[hashString(label.toLowerCase()) % PALETTES.length];
   // 블롭 배치는 글마다 다르게 한다

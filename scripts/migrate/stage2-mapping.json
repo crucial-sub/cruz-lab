@@ -1,0 +1,60 @@
+{
+  "mappingVersion": 1,
+  "prefixToCategory": {
+    "wesbos30": "javascript",
+    "JavaScript": "javascript",
+    "React": "react",
+    "ReactNative": "react-native",
+    "AI": "ai",
+    "Pintos": "os",
+    "운영체제": "os",
+    "Proxy-lab": "network",
+    "네트워크": "network",
+    "알고리즘": "algorithm",
+    "자료구조": "data-structure",
+    "컴퓨터구조": "computer-architecture"
+  },
+  "postOverrides": {
+    "ZVlt7gb5R0lMZH3Gog5H": {
+      "title": "크래프톤 정글 0주차 에세이",
+      "category": "retrospective"
+    },
+    "ezneh5BHhPGp5Iv9e98f": {
+      "title": "[운영체제] CSAPP 9.9장 Malloc-lab",
+      "tags": ["malloc-lab", "csapp", "크래프톤-정글"]
+    }
+  },
+  "series": [
+    {
+      "key": "wesbos30",
+      "fromLegacySeries": "wesbos",
+      "order": "titleNumber"
+    },
+    {
+      "key": "pintos",
+      "title": "Pintos",
+      "members": [
+        { "id": "DuWBTNuiR5FB68iK6SoZ", "title": "[Pintos] Threads - 핀토스 시작하기 & 과제 소개" },
+        { "id": "PsNhrNarhWG2GDgSt8jI", "title": "[Pintos] Threads - Alarm Clock 구현" },
+        { "id": "7CvJWrd6Gx0ssbHRrx0p", "title": "[Pintos] Threads - Priority Scheduling과 Donation" },
+        { "id": "V4fdWiF3uylNl0dHaT9P", "title": "[Pintos] UserProgram - Argument Passing" },
+        { "id": "4uV2me7isPDl2Nf8uKTQ", "title": "[Pintos] UserProgram - 시스템 콜 동작 흐름" }
+      ]
+    },
+    {
+      "key": "proxy-lab",
+      "title": "Proxy Lab",
+      "members": [
+        { "id": "9LMEzjogwiH0tIz5mauL", "title": "[Proxy-lab] 소켓과 Tiny 웹 서버 분석" },
+        { "id": "prNvDXp4Rcuj6vzb6IAy", "title": "[Proxy-lab] 프록시 서버 구현: 순차 처리에서 동시성 처리까지" }
+      ]
+    }
+  ],
+  "exclude": [
+    {
+      "id": "hah2lSGUxneSHRSDhm1r",
+      "title": "[ReactNative] React Native의 New Architecture: 더 빠르고 효율적인 앱 개발의 미래 2편",
+      "reason": "D3 중복 글. g70nsD1FCw1F4wEkUFAT와 본문이 같다(끝 줄바꿈만 다름). updatedAt이 없다"
+    }
+  ]
+}

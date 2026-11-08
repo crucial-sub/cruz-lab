@@ -23,4 +23,5 @@ export interface ImageUploadConfig {
   onError?: (error: Error) => void;
 }
 
-export type CmsAssetScope = 'blog' | 'heroes' | 'series-covers';
+// 시리즈 커버 범위(series-covers)는 재건 2단계에서 시리즈 관리 화면과 함께 뺐다
+export type CmsAssetScope = 'blog' | 'heroes';
