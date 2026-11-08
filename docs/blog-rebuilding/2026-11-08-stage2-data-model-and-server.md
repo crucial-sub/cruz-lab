@@ -4,7 +4,7 @@
 - Plan: [2026-11-07-stage2-data-model-and-server-plan.md](./2026-11-07-stage2-data-model-and-server-plan.md) (2026-11-08 승인)
 - 기준: `rebuild` `04e2425`
 - 브랜치·PR:
-  - PR-A `stage2/a-data-model` → [PR #4](https://github.com/crucial-sub/cruz-lab/pull/4). `rebuild`에 병합됨(2026-11-08).
+  - PR-A `stage2/a-data-model` → [PR #4](https://github.com/crucial-sub/cruz-lab/pull/4). `rebuild`에 병합됨(2026-11-08 18:53 KST, 병합 커밋 `bf55696`). 병합 전에 주석 태그 `rebuild-pre-stage2`(대상 `04e2425`)를 달았다.
   - PR-B `stage2/b-api` → [PR #5](https://github.com/crucial-sub/cruz-lab/pull/5). 대상 `rebuild`.
   - PR-C `stage2/c-backup` → [PR #6](https://github.com/crucial-sub/cruz-lab/pull/6). PR-B 위에 쌓았다(대상 `stage2/b-api`). PR-B가 병합되면 대상을 `rebuild`로 바꾼다.
 - 상태: **T1~T6, T8, T9 구현·검증 완료. PR 3개를 열었다.** 남은 것은 사용자 설정(E3, E4, E5 비밀값)과 그 뒤의 미리보기·백업 확인이다(7절).

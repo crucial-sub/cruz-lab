@@ -454,7 +454,7 @@ Firestore ──(GitHub Action, 매일 + 발행 후 트리거)──▶ GitHub `
 | 2026-11-05 | 사전 작업 | 완료 | 홈페이지 성능 및 UI 개선 | PR #2 병합(`bb97e81`). [2026-11-05-perf-and-ui-polish.md](./2026-11-05-perf-and-ui-polish.md) |
 | 2026-11-06 | 전수조사 | 완료 | 이 문서를 쓴 세션 | 1편·2편 문서, 시각 문서, 캡처. 10절(시리즈·방향·docs) 결정 |
 | 2026-11-06 | 1. 즉시 수리 | 완료 (main 병합) | 1단계 세션 | [PR #3](https://github.com/crucial-sub/cruz-lab/pull/3), 브랜치 `fix/rebuild-stage1-repairs`. 되돌리기 기준 태그 `pre-rebuild`(`bb97e81`). 규칙 배포 완료. 계획 밖 2건(사용자 승인): `publish-verify.mjs` 경로, 운영 함수 `syncPostToGitHub` 삭제. 관리자 로그인 확인(이미지 업로드·글 열기)은 사용자 몫. [2026-11-06-stage1-immediate-repairs.md](./2026-11-06-stage1-immediate-repairs.md) |
-| 2026-11-07 | 2. 데이터 모델과 서버 | 구현 완료, PR 검토 중: PR-A [#4](https://github.com/crucial-sub/cruz-lab/pull/4) 병합, PR-B [#5](https://github.com/crucial-sub/cruz-lab/pull/5)·PR-C [#6](https://github.com/crucial-sub/cruz-lab/pull/6) 열림(2026-11-08). 사용자 설정 E3·E4·E5 남음 | 2단계 Plan 세션 | [Plan 문서](./2026-11-07-stage2-data-model-and-server-plan.md), [visual plan](./visual-plans/2026-11-07-cruz-lab-stage2-plan.html). 사용자 결정 5건에 모두 답했다(Plan 14절): D1 새 컬렉션 `entries`, D7 새 비공개 저장소, D10 API만, D11 4단계로 미룸, 부록 A 그대로. 사용자가 2026-11-08에 Plan을 승인했다. 코드·데이터·운영 설정 변경 없음. 구현은 승인 뒤 새 세션에서 T1부터 한다. 진행 기록은 11.4. 구현은 2단계 구현 세션이 한다: [작업 문서](./2026-11-08-stage2-data-model-and-server.md), 진행 기록 11.5 |
+| 2026-11-07 | 2. 데이터 모델과 서버 | 구현 완료, PR 검토 중: PR-A [#4](https://github.com/crucial-sub/cruz-lab/pull/4) 병합(`bf55696`, 태그 `rebuild-pre-stage2`), PR-B [#5](https://github.com/crucial-sub/cruz-lab/pull/5)·PR-C [#6](https://github.com/crucial-sub/cruz-lab/pull/6) 열림(2026-11-08). 사용자 설정 E3·E4·E5 남음 | 2단계 Plan 세션 | [Plan 문서](./2026-11-07-stage2-data-model-and-server-plan.md), [visual plan](./visual-plans/2026-11-07-cruz-lab-stage2-plan.html). 사용자 결정 5건에 모두 답했다(Plan 14절): D1 새 컬렉션 `entries`, D7 새 비공개 저장소, D10 API만, D11 4단계로 미룸, 부록 A 그대로. 사용자가 2026-11-08에 Plan을 승인했다. 코드·데이터·운영 설정 변경 없음. 구현은 승인 뒤 새 세션에서 T1부터 한다. 진행 기록은 11.4. 구현은 2단계 구현 세션이 한다: [작업 문서](./2026-11-08-stage2-data-model-and-server.md), 진행 기록 11.5 |
 
 ### 11.1 1단계 작업 범위 (인계용 상세)
 
@@ -554,7 +554,7 @@ main에는 긴급 수정만 넣는다. main에 긴급 수정을 넣으면 main�
 
 **끝난 것.**
 
-1. PR-A 범위(T1·T2·T6)를 구현하고 검증했다. [PR #4](https://github.com/crucial-sub/cruz-lab/pull/4)를 `rebuild`에 병합했다.
+1. PR-A 범위(T1·T2·T6)를 구현하고 검증했다. [PR #4](https://github.com/crucial-sub/cruz-lab/pull/4)를 `rebuild`에 병합했다(사용자 승인, 2026-11-08 18:53 KST, 병합 커밋 `bf55696`). 병합 전에 주석 태그 `rebuild-pre-stage2`(대상 `04e2425`)를 달고 푸시했다.
 2. E1: Firestore 예약 백업(일간, 7일)과 삭제 보호를 켰다(사용자 승인).
 3. E7: 마이그레이션을 실제 실행했다(사용자 승인). `entries` 55, `seriesMeta` 3, `assets` 130. 옛 `posts`·`series`는 그대로다. B1 덤프는 `~/projects/cruz-lab-backups/20261108-152505-stage2-migrate/`.
 4. PR-B(T3 세션 인증, T4 글 API, T5 자산 API): [PR #5](https://github.com/crucial-sub/cruz-lab/pull/5), 대상 `rebuild`. 별도 리뷰어가 치명 1건(인코딩 경로로 인증 우회)을 찾았고 고쳤다(작업 문서 6.2).
