@@ -702,3 +702,5 @@ Claude 판단으로 정한 것(승인 때 함께 확인): D4 remark 기반 자�
 ## 15. 구현과 다른 것 (구현 중 추가)
 
 구현 세션이 Plan과 다르게 하거나 Plan이 정하지 않은 것을 판단한 목록은 [작업 문서 5절](./2026-11-09-stage3-editor.md)에 있다. PR-A(2026-11-09): 표 정렬은 셀 속성, lowlight `common`, Code 마크 겹침 허용, underline 끔, 정규화 규칙 6, 단락 끝 하드 브레이크 `<br>`, 마크 감싸기 순서, 왕복 스크립트 `--dump`, 빈 단락 생략, HTML 경고 단위. 리뷰 뒤: **기울임 표기 `*`(4.2의 `_` 대신, 사용자 확인 필요)**, 인라인 노드의 마크 상속, 제목·표 셀 안 `<br>`, 임베드 `<주소>` 폴백, URL 프로토콜 필터, ZWSP 옆 줄바꿈 삭제, 표 초과 셀 자르기, 모르는 마크 오류, 느슨한 목록 판정, 마크 앞뒤 공백, `nasm` 등록.
+
+PR-B(2026-11-09): `posts/new.astro` 새 흐름을 PR-B에서(T7 일부), 브라우저용 주소 파서 `asset-url.ts`, 업로드 상태 속성 3개(`rendered: false`), 변경 판정 기준(열기 직후 `docToMarkdown`), 소스 모드 저장은 editorJson null, 테마 전환 메뉴, Placeholder. 리뷰 뒤: 저장 컨트롤러 클래스(`state/save-controller.ts`, 4.1에 없음), 공유 파이프라인의 원시 HTML 안전 처리(`rehype-strip-unsafe.ts`), editorJson이 Firestore 깊이 한도를 넘으면 null(D5 형식은 그대로), blob 주소 3겹 차단, 업로드 결과 재적용, 발행 전 저장 결과 확인, 저장 전 서버 규칙 검사, 영상 판정 `isVideoUrl`. 외부 변경 E2에 `http://localhost:4322`를 더했다(사용자 결정). 상세는 작업 문서 5절 24~54.
