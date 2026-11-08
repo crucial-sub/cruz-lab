@@ -64,8 +64,7 @@ export async function resolveContentPostBySlug(slug: string): Promise<ContentPos
   if (!result) return null;
   if ('redirectTo' in result) {
     // 리다이렉트 대상도 post여야 한다
-    const target = (await listPublishedEntries()).find((entry) => entry.id === result.entryId);
-    return target?.kind === 'post' ? { redirectTo: result.redirectTo, id: result.entryId } : null;
+    return result.kind === 'post' ? { redirectTo: result.redirectTo, id: result.entryId } : null;
   }
   if (result.entry.kind !== 'post') return null;
   return { post: toContentPost(result.entry, result.entry.markdown) };

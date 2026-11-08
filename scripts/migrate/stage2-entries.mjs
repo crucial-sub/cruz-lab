@@ -20,6 +20,7 @@ import { assetDocSchema, entryDocSchema, seriesMetaSchema } from '../../src/lib/
 import {
   MappingError,
   decideSync,
+  expectedLegacyEntryCount,
   legacySourceUpdatedAt,
   legacyToEntry,
   parseMapping,
@@ -200,7 +201,9 @@ async function main() {
   for (const [entryId, entry] of entriesById) {
     if (!entry.legacy?.postId) continue; // 새 관리자로 만든 글은 건드리지 않는다
     if (legacyById.has(entry.legacy.postId)) continue;
-    decisions.push({ id: entryId, decision: 'delete-candidate', post: null, entry });
+    // 운영에서 지운 글. rebuild에서도 고쳤으면 conflict다(자동으로 지우지 않는다)
+    const decision = decideSync({ legacyUpdatedAt: null, entry: toSyncState(entry), tombstone: false, excluded: false });
+    decisions.push({ id: entryId, decision, post: null, entry });
   }
 
   // 판정별 쓸 문서 계산
@@ -228,6 +231,14 @@ async function main() {
         if (error instanceof MappingError) errors.push(error.message);
         else throw error;
       }
+    }
+  }
+
+  // 쓰기 전에 스키마로 검사한다. 하나라도 틀리면 아무것도 쓰지 않는다(Plan 5.3-1)
+  for (const item of [...writes.create, ...writes.update]) {
+    const parsed = entryDocSchema.safeParse(item.data);
+    if (!parsed.success) {
+      errors.push(`entries/${item.id}가 스키마에 맞지 않습니다: ${parsed.error.issues.map((issue) => `${issue.path.join('.')} ${issue.message}`).join('; ')}`);
     }
   }
 
@@ -498,10 +509,15 @@ async function main() {
   out(`- entries ${afterEntries.size}개 스키마 검증: 실패 ${invalid.length}`);
   for (const message of invalid) out(`  - ${message}`);
 
-  // 8. 수 맞추기
+  // 8. 수 맞추기: 판정으로 계산한 수 = legacy 표지가 있는 entries 수
   const migratedCount = afterEntries.docs.filter((docSnap) => docSnap.data().legacy?.postId).length;
-  const expected = legacyPosts.length - excludedIds.size - (counts['skip-deleted-in-rebuild'] ?? 0);
-  out(`- 수 맞추기: 옛 글 ${legacyPosts.length} − 제외 ${excludedIds.size} − rebuild 삭제 ${counts['skip-deleted-in-rebuild'] ?? 0} = ${expected}, legacy 표지가 있는 entries ${migratedCount} → ${expected === migratedCount ? '일치' : '불일치'}`);
+  const expected = expectedLegacyEntryCount(
+    decisions.map((item) => ({ decision: item.decision, hasLegacyEntry: Boolean(item.entry?.legacy?.postId) })),
+    PROPAGATE_DELETES,
+  );
+  out(
+    `- 수 맞추기: 판정 기준 ${expected}편(생성 ${counts.create ?? 0} + 갱신 ${counts.update ?? 0} + 건너뜀 ${counts.skip ?? 0} + 충돌 ${counts.conflict ?? 0} + 남긴 삭제 후보 ${PROPAGATE_DELETES ? 0 : (counts['delete-candidate'] ?? 0)}), legacy 표지가 있는 entries ${migratedCount} → ${expected === migratedCount ? '일치' : '불일치'}`,
+  );
 
   // 9. 옛 posts 해시 비교
   const afterPosts = await db.collection(LEGACY_POSTS).get();

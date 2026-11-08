@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { entryDocSchema } from '@/lib/entry-schema';
 import {
   decideSync,
+  expectedLegacyEntryCount,
   legacyToEntry,
   MappingError,
   parseMapping,
@@ -192,6 +193,13 @@ describe('legacyToEntry', () => {
     ).toThrow(MappingError);
   });
 
+  it('readingTime이 1분보다 작아도 스키마에 맞게 1분으로 둔다', () => {
+    const source = post('rt', { readingTime: 0.4 });
+    const entry = legacyToEntry(source, { mapping, series: null, bucket: BUCKET, resolveAssetId: () => null, now });
+    expect(entry.published?.readingTime).toBe(1);
+    expect(entryDocSchema.safeParse(entry).success).toBe(true);
+  });
+
   it('갱신이면 버전 번호를 1씩 올린다', () => {
     const source = post('a1', {});
     const entry = legacyToEntry(source, {
@@ -261,5 +269,35 @@ describe('decideSync (Plan 5.4)', () => {
     expect(decideSync({ legacyUpdatedAt: null, entry: synced, tombstone: false, excluded: false })).toBe(
       'delete-candidate',
     );
+  });
+
+  it('운영에서 지웠지만 rebuild에서 고친 글은 conflict(자동으로 지우지 않는다)', () => {
+    expect(
+      decideSync({ legacyUpdatedAt: null, entry: { ...synced, draftVersion: 3 }, tombstone: false, excluded: false }),
+    ).toBe('conflict');
+    expect(
+      decideSync({ legacyUpdatedAt: null, entry: { ...synced, status: 'hidden' }, tombstone: false, excluded: false }),
+    ).toBe('conflict');
+  });
+});
+
+describe('expectedLegacyEntryCount (실행 뒤 수 맞추기)', () => {
+  const rows = [
+    { decision: 'create' as const, hasLegacyEntry: false },
+    { decision: 'skip' as const, hasLegacyEntry: true },
+    { decision: 'update' as const, hasLegacyEntry: true },
+    { decision: 'conflict' as const, hasLegacyEntry: true },
+    { decision: 'conflict' as const, hasLegacyEntry: false }, // 같은 ID인데 legacy 표지 없음
+    { decision: 'exclude' as const, hasLegacyEntry: false },
+    { decision: 'skip-deleted-in-rebuild' as const, hasLegacyEntry: false },
+    { decision: 'delete-candidate' as const, hasLegacyEntry: true },
+  ];
+
+  it('삭제 전파를 끄면 삭제 후보도 남는다', () => {
+    expect(expectedLegacyEntryCount(rows, false)).toBe(5);
+  });
+
+  it('삭제 전파를 켜면 삭제 후보는 빠진다', () => {
+    expect(expectedLegacyEntryCount(rows, true)).toBe(4);
   });
 });

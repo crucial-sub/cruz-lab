@@ -3,6 +3,7 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 import MarkdownPostView from '@/components/blog/MarkdownPostView';
 import { resolveContentPostBySlug } from '@/lib/content-posts';
 import { POSTS_CACHE_TAG, postCacheTag, setPublicPageCache } from '@/lib/server/cache-headers';
+import { blogPath } from '@/lib/slug-lookup';
 
 export const prerender = false;
 
@@ -11,7 +12,7 @@ const lookup = await resolveContentPostBySlug(slug);
 
 // 예전 slug면 새 주소로 301 (slugHistory, Plan 7.4)
 if (lookup && 'redirectTo' in lookup) {
-  const response = Astro.redirect(encodeURI(`/blog/${lookup.redirectTo}`), 301);
+  const response = Astro.redirect(blogPath(lookup.redirectTo), 301);
   setPublicPageCache(response.headers, [POSTS_CACHE_TAG, postCacheTag(lookup.id)]);
   return response;
 }

@@ -321,9 +321,10 @@ export function legacyToEntry(post: LegacyPost, ctx: LegacyToEntryContext): Lega
   const revision = isPublic ? (ctx.previous?.revision ?? 0) + 1 : 0;
   const createdAt = data.createdAt ?? data.pubDate ?? sourceUpdatedAt;
   const updatedAt = data.updatedAt ?? data.updatedDate ?? createdAt;
+  // 스키마는 1 이상의 정수를 요구한다. 1분보다 작은 옛 값도 1분으로 둔다
   const readingTime =
     typeof data.readingTime === 'number' && data.readingTime > 0
-      ? Math.round(data.readingTime)
+      ? Math.max(1, Math.round(data.readingTime))
       : calculateReadingTime(markdown);
 
   return {
@@ -397,7 +398,9 @@ export function decideSync({ legacyUpdatedAt, entry, tombstone, excluded }: Sync
   if (excluded) return 'exclude';
 
   if (legacyUpdatedAt === null) {
-    // 옛 문서가 없다. 마이그레이션 출신 entries만 삭제 후보다 (호출하는 쪽이 legacy 없는 글을 거른다)
+    // 옛 문서가 없다(운영에서 지움). 마이그레이션 출신 entries만 여기 온다(호출하는 쪽이 legacy 없는 글을 거른다)
+    // - rebuild에서도 고쳤으면 양쪽이 바뀐 것이다. 사람이 정한다
+    if (entry && isChangedInRebuild(entry)) return 'conflict';
     return 'delete-candidate';
   }
 
@@ -409,9 +412,32 @@ export function decideSync({ legacyUpdatedAt, entry, tombstone, excluded }: Sync
   const legacyChanged = toMillisValue(legacyUpdatedAt) !== toMillisValue(entry.legacy.sourceUpdatedAt);
   if (!legacyChanged) return 'skip';
 
-  const rebuildChanged =
+  return isChangedInRebuild(entry) ? 'conflict' : 'update';
+}
+
+// 마이그레이션 뒤 새 관리자로 고쳤는지 (내용, 발행, 숨김 모두)
+function isChangedInRebuild(entry: SyncEntryState): boolean {
+  if (!entry.legacy) return true;
+  return (
     entry.draftVersion !== entry.legacy.syncedDraftVersion ||
     entry.revision !== entry.legacy.syncedRevision ||
-    entry.status !== entry.legacy.syncedStatus;
-  return rebuildChanged ? 'conflict' : 'update';
+    entry.status !== entry.legacy.syncedStatus
+  );
+}
+
+// 실행 뒤 legacy 표지가 있어야 하는 entries 수 (Plan 5.3의 8단계 수 맞추기)
+// - 생성·갱신·건너뜀은 entries가 있다.
+// - 충돌은 entries가 legacy 표지를 가진 경우만 센다.
+// - 삭제 후보는 삭제 전파를 켰을 때만 빠진다.
+export function expectedLegacyEntryCount(
+  rows: { decision: SyncDecision; hasLegacyEntry: boolean }[],
+  propagateDeletes: boolean,
+): number {
+  let count = 0;
+  for (const { decision, hasLegacyEntry } of rows) {
+    if (decision === 'create' || decision === 'update' || decision === 'skip') count += 1;
+    else if (decision === 'conflict' && hasLegacyEntry) count += 1;
+    else if (decision === 'delete-candidate' && !propagateDeletes) count += 1;
+  }
+  return count;
 }

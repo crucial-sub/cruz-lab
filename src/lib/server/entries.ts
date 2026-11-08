@@ -6,6 +6,7 @@
 
 import type { DocumentData, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import type { Cover, EntryKind, SeriesRef } from '@/lib/entry-schema';
+import { chooseSlugLookup } from '@/lib/slug-lookup';
 import { getCategoryLabel, type CategoryKey } from '@/lib/taxonomy';
 import { getServerDb } from './firebase-server';
 import { invalidateMemo, memoize } from './memo-cache';
@@ -116,32 +117,44 @@ export async function listPublishedEntries(): Promise<PublicEntrySummary[]> {
   });
 }
 
-export type PublicSlugLookup = { entry: PublicEntry } | { redirectTo: string; entryId: string } | null;
+export type PublicSlugLookup =
+  | { entry: PublicEntry }
+  | { redirectTo: string; entryId: string; kind: EntryKind }
+  | null;
 
 // 공개 slug 조회 (Plan 4.1)
-// 1. published.slug가 같은 발행 글을 찾는다.
+// 1. published.slug가 같은 발행 글을 찾는다. 여럿이면 post를 먼저 고른다.
 // 2. 없으면 slugHistory에 그 slug가 있는 발행 글을 찾아 새 slug를 돌려준다(301용).
+//    대상의 kind도 같은 조회 결과에서 준다(따로 캐시된 목록을 보지 않는다).
 export async function findPublishedEntryBySlug(slug: string): Promise<PublicSlugLookup> {
   return memoize(`${ENTRIES_MEMO_PREFIX}slug:${slug}`, async () => {
     const db = getServerDb();
     const direct = await db.collection(ENTRIES_COLLECTION).where('published.slug', '==', slug).get();
-    for (const docSnap of direct.docs) {
+    const directItems = direct.docs.flatMap((docSnap) => {
       const summary = toSummary(docSnap);
-      if (!summary) continue;
+      if (!summary) return [];
       const markdown = docSnap.data().published?.markdown;
-      return { entry: { ...summary, markdown: typeof markdown === 'string' ? markdown : '' } };
+      return [{ ...summary, markdown: typeof markdown === 'string' ? markdown : '' }];
+    });
+
+    // 리다이렉트 후보는 본문이 필요 없다(빈 문자열로 둔다)
+    let historyItems: PublicEntry[] = [];
+    if (directItems.length === 0) {
+      const history = await db
+        .collection(ENTRIES_COLLECTION)
+        .where('slugHistory', 'array-contains', slug)
+        .select(...LIST_FIELDS)
+        .get();
+      historyItems = history.docs
+        .map(toSummary)
+        .filter((entry): entry is PublicEntrySummary => entry !== null)
+        .map((entry) => ({ ...entry, markdown: '' }));
     }
 
-    const history = await db
-      .collection(ENTRIES_COLLECTION)
-      .where('slugHistory', 'array-contains', slug)
-      .select(...LIST_FIELDS)
-      .get();
-    for (const docSnap of history.docs) {
-      const summary = toSummary(docSnap);
-      if (summary && summary.slug !== slug) return { redirectTo: summary.slug, entryId: summary.id };
-    }
-    return null;
+    const choice = chooseSlugLookup(slug, directItems, historyItems);
+    if (!choice) return null;
+    if ('match' in choice) return { entry: choice.match };
+    return { redirectTo: choice.redirectTo, entryId: choice.target.id, kind: choice.target.kind };
   });
 }
 
