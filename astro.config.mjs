@@ -14,7 +14,9 @@ const SITE = 'https://www.cruzlab.dev';
 export default defineConfig({
   site: SITE,
   output: 'server', // SSR 모드 (Astro 5)
-  adapter: vercel(),
+  // 함수 최대 실행 시간 60초 (재건 2단계 Plan 6.4)
+  // - 이미지 변형(finalize)이 몇 초 걸린다. Fluid compute 설정과 상관없이 Hobby 한도 안의 같은 값을 쓴다.
+  adapter: vercel({ maxDuration: 60 }),
   integrations: [
     mdx(),
     sitemap({
