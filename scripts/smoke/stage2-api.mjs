@@ -130,6 +130,14 @@ async function checkGuards() {
   const noOrigin = await api('POST', '/api/admin/posts', { body: { kind: 'post' }, origin: null });
   check(noOrigin.status === 403, `Origin 없는 쓰기: 403이어야 한다 (${noOrigin.status})`);
 
+  // 인코딩된 경로로 인증을 건너뛰지 못한다 (Astro는 decodeURI한 경로로 라우트를 고른다)
+  const encodedApi = await api('GET', '/api/%61dmin/posts', { cookie: false });
+  check(encodedApi.status === 401, `인코딩된 관리자 API 경로: 401이어야 한다 (${encodedApi.status})`);
+  const encodedWrite = await api('POST', '/api/%61dmin/assets/purge', { body: { dryRun: true }, cookie: false, origin: null });
+  check(encodedWrite.status === 403 || encodedWrite.status === 401, `인코딩된 관리자 쓰기 경로: 401·403이어야 한다 (${encodedWrite.status})`);
+  const encodedPage = await fetch(`${BASE}/%61dmin`, { redirect: 'manual' });
+  check(encodedPage.status === 302, `인코딩된 관리자 페이지 경로: 302여야 한다 (${encodedPage.status})`);
+
   const badQuery = await api('GET', '/api/admin/posts?status=unlisted');
   check(badQuery.status === 400, `틀린 status 조건: 400이어야 한다 (${badQuery.status})`);
 }
@@ -214,6 +222,7 @@ async function uploadImage(db, bucket) {
 
   const doc = await db.collection('assets').doc(assetId).get();
   check(doc.get('legacy') === false && doc.get('usedBy').length === 0, '새 자산: legacy false, usedBy []여야 한다');
+  check(Boolean(doc.get('orphanedAt')), '어느 글도 쓰지 않는 새 자산: orphanedAt이 있어야 한다');
   return asset;
 }
 
@@ -246,6 +255,7 @@ async function postFlow(db, asset) {
   version = await saveDraft(id, version, draftContent({ markdown: `스모크 테스트 본문이다.\n\n![시험 이미지](${asset.url})\n` }));
   const assetDoc = await db.collection('assets').doc(asset.id).get();
   check(assetDoc.get('usedBy').includes(id), '초안 저장 뒤 자산 usedBy에 글 ID가 없다');
+  check(assetDoc.get('orphanedAt') === null, '초안 저장 뒤 자산 orphanedAt이 지워지지 않았다');
 
   const entry = await api('GET', `/api/admin/posts/${id}`);
   check(entry.status === 200 && entry.json?.draft?.tags?.[0] === 'stage2-smoke', `한 편 읽기: 태그가 정규화되지 않았다 (${JSON.stringify(entry.json?.draft?.tags)})`);
@@ -254,6 +264,7 @@ async function postFlow(db, asset) {
   const publish = await api('POST', `/api/admin/posts/${id}/publish`, { body: { draftVersion: version } });
   check(publish.status === 200 && publish.json?.revision === 1 && publish.json?.status === 'published', `발행: 200, revision 1이어야 한다 (${publish.status} ${publish.text})`);
   check(['ok', 'skipped'].includes(publish.json?.purge), `발행: purge 값이 이상하다 (${publish.json?.purge})`);
+  check(publish.json?.assetUsage === 'ok', `발행: assetUsage가 ok가 아니다 (${publish.json?.assetUsage})`);
   const slug = draftContent().slug;
   check(publish.json?.publicUrl === `${ORIGIN}/blog/${slug}`, `발행: publicUrl이 다르다 (${publish.json?.publicUrl})`);
 
@@ -317,6 +328,12 @@ async function noteFlow() {
   check(/^note-\d{8}-\d{4}$/.test(slug), `note slug 형식이 다르다 (${slug})`);
   check((await publicGet(`/blog/${slug}`)).status === 404, 'note /blog/<slug>: 404여야 한다');
   check(!(await publicGet('/blog')).text.includes(id), 'note가 /blog 목록에 있다');
+
+  // 빈 slug로 다시 발행해도 slug가 바뀌지 않는다
+  const nextVersion = await saveDraft(id, version, draftContent({ title: '', description: '', slug: '', category: null, tags: [], markdown: '스모크 노트 본문을 고쳤다.' }));
+  const republish = await api('POST', `/api/admin/posts/${id}/publish`, { body: { draftVersion: nextVersion } });
+  const after = await api('GET', `/api/admin/posts/${id}`);
+  check(republish.status === 200 && after.json?.published?.slug === slug && after.json?.slugHistory?.length === 0, `note 다시 발행: slug가 바뀌었다 (${after.json?.published?.slug})`);
   return id;
 }
 

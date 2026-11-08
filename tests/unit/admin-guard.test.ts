@@ -7,6 +7,7 @@ import {
   isRecentLogin,
   isSameOrigin,
   isWriteMethod,
+  resolveAdminRequestKind,
   safeAdminNextPath,
 } from '@/lib/admin-guard';
 
@@ -101,5 +102,34 @@ describe('isAdminClaims', () => {
     expect(isAdminClaims({ uid: 'u2', email_verified: true }, 'u1')).toBe(false);
     expect(isAdminClaims({ uid: 'u1', email_verified: true }, null)).toBe(false);
     expect(isAdminClaims({ uid: '', email_verified: true }, '')).toBe(false);
+  });
+});
+
+describe('resolveAdminRequestKind (인코딩 우회 방지)', () => {
+  it('인코딩된 관리자 경로도 관리자로 본다', () => {
+    expect(resolveAdminRequestKind({ pathname: '/api/%61dmin/posts', routePattern: '/api/admin/posts', method: 'GET' })).toBe('admin-api');
+    expect(resolveAdminRequestKind({ pathname: '/%61dmin', routePattern: '/admin', method: 'GET' })).toBe('admin-page');
+  });
+
+  it('라우트 정보가 없어도 디코딩한 경로로 판정한다', () => {
+    expect(resolveAdminRequestKind({ pathname: '/api/%61dmin/posts', routePattern: undefined, method: 'POST' })).toBe('admin-api');
+    expect(resolveAdminRequestKind({ pathname: '/api/admin/nope', routePattern: '/404', method: 'GET' })).toBe('admin-api');
+  });
+
+  it('실행할 라우트가 관리자면 경로와 상관없이 관리자다', () => {
+    expect(resolveAdminRequestKind({ pathname: '/x', routePattern: '/api/admin/posts/[id]', method: 'DELETE' })).toBe('admin-api');
+  });
+
+  it('로그인 페이지와 세션 발급은 라우트로도 같은 결과다', () => {
+    expect(resolveAdminRequestKind({ pathname: '/admin/logi%6E', routePattern: '/admin/login', method: 'GET' })).toBe('login-page');
+    expect(resolveAdminRequestKind({ pathname: '/api/admin/session', routePattern: '/api/admin/session', method: 'POST' })).toBe('session-create');
+  });
+
+  it('공개 경로는 그대로 공개다', () => {
+    expect(resolveAdminRequestKind({ pathname: '/blog/%ED%95%9C%EA%B8%80', routePattern: '/blog/[...slug]', method: 'GET' })).toBe('public');
+  });
+
+  it('디코딩할 수 없는 경로는 invalid다', () => {
+    expect(resolveAdminRequestKind({ pathname: '/api/%E0%A4%A', routePattern: undefined, method: 'GET' })).toBe('invalid');
   });
 });

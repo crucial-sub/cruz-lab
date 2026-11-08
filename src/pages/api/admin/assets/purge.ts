@@ -9,7 +9,7 @@ import type { APIRoute } from 'astro';
 import { z } from 'zod';
 import { DEFAULT_MIN_ORPHAN_DAYS } from '@/lib/asset-rules';
 import { purgeAssets } from '@/lib/server/admin-assets';
-import { jsonResponse, parseJsonBody, withApiErrors } from '@/lib/server/api-response';
+import { jsonResponse, parseJsonBody, withAdminApi } from '@/lib/server/api-response';
 
 export const prerender = false;
 
@@ -19,7 +19,7 @@ const purgeSchema = z.object({
   ids: z.array(z.string().min(1)).max(500).optional(),
 });
 
-export const POST: APIRoute = withApiErrors(async ({ request }) => {
+export const POST: APIRoute = withAdminApi(async ({ request }) => {
   const body = await parseJsonBody(request, purgeSchema);
   return jsonResponse(
     await purgeAssets({

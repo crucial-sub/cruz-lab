@@ -11,6 +11,7 @@ import {
   buildPublishedSnapshot,
   checkPublishable,
   emptyEntryContent,
+  exceedsEntryDocLimit,
   hasUnpublishedChanges,
   nextSlugHistory,
   pickEntryContent,
@@ -97,6 +98,23 @@ function addPublishLog(
 ) {
   const ref = getServerDb().collection(PUBLISH_LOG_COLLECTION).doc();
   tx.set(ref, { entryId, action, slug, at, ...(revision !== undefined ? { revision } : {}) });
+}
+
+// 커밋 뒤 부수 작업의 결과
+// - 트랜잭션이 커밋된 뒤의 일이라 실패해도 요청은 성공으로 끝낸다(다시 보내면 버전 충돌이 나기 때문이다).
+// - 실패는 로그로 남기고 응답에 'failed'를 적는다. 정리 API는 지우기 직전에 다시 훑으므로 안전하다.
+export type SideEffectResult = 'ok' | 'failed';
+
+async function syncAssetUsageSafely(
+  id: string,
+  ids: ReadonlySet<string>,
+): Promise<{ assetUsage: SideEffectResult; orphaned: number }> {
+  try {
+    return { assetUsage: 'ok', orphaned: await syncAssetUsage(id, ids) };
+  } catch (error) {
+    console.error(`[admin-entries] 자산 사용 기록 갱신 실패: ${id}`, error);
+    return { assetUsage: 'failed', orphaned: 0 };
+  }
 }
 
 // ───────────── 직렬화 (응답용, 시각은 ISO 문자열) ─────────────
@@ -286,8 +304,8 @@ export async function saveDraft(id: string, input: SaveDraftInput) {
     return { version: draft.version, published: entry.published };
   });
 
-  await syncAssetUsage(id, collectUsedAssetIds([input.draft, result.published]));
-  return { version: result.version, updatedAt: now.toISOString() };
+  const { assetUsage } = await syncAssetUsageSafely(id, collectUsedAssetIds([input.draft, result.published]));
+  return { version: result.version, updatedAt: now.toISOString(), assetUsage };
 }
 
 // ───────────── 초안 버리기 ─────────────
@@ -313,8 +331,8 @@ export async function discardDraft(id: string, baseVersion: number) {
     return { version: draft.version, published: entry.published };
   });
 
-  await syncAssetUsage(id, collectUsedAssetIds([result.published]));
-  return { version: result.version, updatedAt: now.toISOString() };
+  const { assetUsage } = await syncAssetUsageSafely(id, collectUsedAssetIds([result.published]));
+  return { version: result.version, updatedAt: now.toISOString(), assetUsage };
 }
 
 // ───────────── 발행 ─────────────
@@ -345,7 +363,13 @@ export async function publishEntry(id: string, draftVersion: number) {
     if (entry.draft.version !== draftVersion) throw draftConflict(entry);
 
     const previousSlug = entry.published?.slug ?? null;
-    const check = checkPublishable({ kind: entry.kind, draft: entry.draft, currentPublishedSlug: previousSlug, now });
+    const check = checkPublishable({
+      kind: entry.kind,
+      draft: entry.draft,
+      currentPublishedSlug: previousSlug,
+      ownSlugHistory: entry.slugHistory,
+      now,
+    });
     const issues = check.ok ? await findSlugConflicts(tx, id, check.content.slug) : check.issues;
     if (!check.ok || issues.length > 0) {
       throw new ApiError(422, 'VALIDATION_FAILED', '발행 조건을 지키지 않았습니다.', issues);
@@ -362,6 +386,11 @@ export async function publishEntry(id: string, draftVersion: number) {
       slugHistory: nextSlugHistory(entry.slugHistory, previousSlug, published.slug),
     };
     assertValidEntry(id, { ...entry, ...changes });
+    if (exceedsEntryDocLimit({ ...entry, ...changes })) {
+      throw new ApiError(422, 'VALIDATION_FAILED', '발행 조건을 지키지 않았습니다.', [
+        { field: 'markdown', message: '발행하면 문서가 Firestore 크기 한도를 넘습니다' },
+      ]);
+    }
 
     tx.update(ref, changes);
     tx.set(ref.collection(REVISIONS_SUBCOLLECTION).doc(String(revision)), { ...published, publishedAt: now });
@@ -369,8 +398,8 @@ export async function publishEntry(id: string, draftVersion: number) {
     return { kind: entry.kind, revision, published, draft: entry.draft };
   });
 
-  await syncAssetUsage(id, collectUsedAssetIds([result.draft, result.published]));
-  return { kind: result.kind, revision: result.revision, slug: result.published.slug };
+  const { assetUsage } = await syncAssetUsageSafely(id, collectUsedAssetIds([result.draft, result.published]));
+  return { kind: result.kind, revision: result.revision, slug: result.published.slug, assetUsage };
 }
 
 // ───────────── 숨김 / 다시 보임 ─────────────
@@ -417,8 +446,16 @@ export async function deleteEntry(id: string) {
   }
 
   await db.recursiveDelete(ref);
-  const orphanedAssets = await syncAssetUsage(id, new Set());
-  await db.collection(PUBLISH_LOG_COLLECTION).add({ entryId: id, action: 'delete', slug: lastSlug, at: Timestamp.fromDate(now) });
 
-  return { deleted: true as const, orphanedAssets, kind: entry.kind, wasPublic: entry.status === 'published' };
+  // 여기부터는 지운 뒤의 일이다. 실패해도 삭제는 성공으로 끝낸다
+  const { assetUsage, orphaned } = await syncAssetUsageSafely(id, new Set());
+  try {
+    await db
+      .collection(PUBLISH_LOG_COLLECTION)
+      .add({ entryId: id, action: 'delete', slug: lastSlug, at: Timestamp.fromDate(now) });
+  } catch (error) {
+    console.error(`[admin-entries] 삭제 기록 실패: ${id}`, error);
+  }
+
+  return { deleted: true as const, orphanedAssets: orphaned, assetUsage };
 }

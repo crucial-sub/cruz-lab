@@ -5,7 +5,7 @@
 import type { APIRoute } from 'astro';
 import { z } from 'zod';
 import { deleteEntry, getEntryForAdmin } from '@/lib/server/admin-entries';
-import { ApiError, jsonResponse, parseJsonBody, withApiErrors } from '@/lib/server/api-response';
+import { ApiError, jsonResponse, parseJsonBody, withAdminApi } from '@/lib/server/api-response';
 import { purgePublicCache } from '@/lib/server/cdn-purge';
 
 export const prerender = false;
@@ -20,16 +20,21 @@ function requireId(id: string | undefined): string {
   return id;
 }
 
-export const GET: APIRoute = withApiErrors(async ({ params }) => {
+export const GET: APIRoute = withAdminApi(async ({ params }) => {
   return jsonResponse(await getEntryForAdmin(requireId(params.id)));
 });
 
-export const DELETE: APIRoute = withApiErrors(async ({ params, request }) => {
+export const DELETE: APIRoute = withAdminApi(async ({ params, request }) => {
   const id = requireId(params.id);
   const { confirm } = await parseJsonBody(request, deleteSchema);
   if (confirm !== id) throw new ApiError(400, 'CONFIRM_MISMATCH', 'confirm 값이 글 ID와 다릅니다.');
 
   const result = await deleteEntry(id);
   const purge = await purgePublicCache(id);
-  return jsonResponse({ deleted: result.deleted, orphanedAssets: result.orphanedAssets, purge });
+  return jsonResponse({
+    deleted: result.deleted,
+    orphanedAssets: result.orphanedAssets,
+    assetUsage: result.assetUsage,
+    purge,
+  });
 });

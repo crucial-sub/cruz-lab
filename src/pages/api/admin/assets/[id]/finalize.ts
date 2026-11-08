@@ -5,11 +5,11 @@
 
 import type { APIRoute } from 'astro';
 import { finalizeAsset } from '@/lib/server/admin-assets';
-import { ApiError, jsonResponse, withApiErrors } from '@/lib/server/api-response';
+import { ApiError, jsonResponse, withAdminApi } from '@/lib/server/api-response';
 
 export const prerender = false;
 
-export const POST: APIRoute = withApiErrors(async ({ params }) => {
+export const POST: APIRoute = withAdminApi(async ({ params }) => {
   const id = params.id;
   if (!id) throw new ApiError(400, 'INVALID_REQUEST', '자산 ID가 없습니다.');
   return jsonResponse(await finalizeAsset(id));

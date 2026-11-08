@@ -1,12 +1,13 @@
 // 요청 미들웨어 (재건 2단계)
 // - 공개 주소의 301 리다이렉트(Plan 7.4). 공개 요청에서는 쿠키를 읽지도 쓰지도 않는다(D5).
 // - 관리자 경로(/admin/**, /api/admin/**)는 세션 쿠키를 검사한다(D5).
+//   판정은 실제로 실행할 라우트(routePattern)와 디코딩한 경로로 한다(인코딩 우회 방지).
 //   페이지는 /admin/login?next=…로 302, API는 401 JSON.
 // - 관리자 API의 쓰기 요청은 Origin이 요청 주소의 origin과 같아야 한다. 다르면 403.
 // - prerender 페이지는 미들웨어를 거치지 않는다. 관리자 페이지는 모두 SSR이다.
 
 import { defineMiddleware } from 'astro:middleware';
-import { buildLoginRedirect, classifyAdminRequest, isSameOrigin, isWriteMethod } from '@/lib/admin-guard';
+import { buildLoginRedirect, isSameOrigin, isWriteMethod, resolveAdminRequestKind } from '@/lib/admin-guard';
 import { findPublicRedirect } from '@/lib/redirects';
 import { errorResponse } from '@/lib/server/api-response';
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionCookie, type AdminSession } from '@/lib/server/admin-session';
@@ -28,7 +29,15 @@ function withNoStore(response: Response): Response {
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname, search } = context.url;
-  const kind = classifyAdminRequest(pathname, context.request.method);
+  const kind = resolveAdminRequestKind({
+    pathname,
+    routePattern: context.routePattern,
+    method: context.request.method,
+  });
+
+  if (kind === 'invalid') {
+    return new Response('잘못된 경로입니다.', { status: 400, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+  }
 
   if (kind === 'public') {
     const redirectTo = findPublicRedirect(pathname);

@@ -5,7 +5,7 @@
 import type { APIRoute } from 'astro';
 import { z } from 'zod';
 import { discardDraft } from '@/lib/server/admin-entries';
-import { ApiError, jsonResponse, parseJsonBody, withApiErrors } from '@/lib/server/api-response';
+import { ApiError, jsonResponse, parseJsonBody, withAdminApi } from '@/lib/server/api-response';
 
 export const prerender = false;
 
@@ -13,7 +13,7 @@ const discardSchema = z.object({
   baseVersion: z.number().int().positive(),
 });
 
-export const POST: APIRoute = withApiErrors(async ({ params, request }) => {
+export const POST: APIRoute = withAdminApi(async ({ params, request }) => {
   const id = params.id;
   if (!id) throw new ApiError(400, 'INVALID_REQUEST', '글 ID가 없습니다.');
   const { baseVersion } = await parseJsonBody(request, discardSchema);

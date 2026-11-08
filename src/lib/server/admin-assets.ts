@@ -3,7 +3,7 @@
 // - finalize: 원본의 실제 형식을 확인하고 webp 변형을 만든다. 변형을 만든 뒤 원본을 지운다(메타데이터·GPS 제거).
 // - purge: 고아가 된 지 N일 지난 자산과 24시간 지난 pending 자산을 지운다. 지우기 직전에 모든 글을 다시 훑는다.
 
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { DocumentData } from 'firebase-admin/firestore';
 import { getDownloadURL } from 'firebase-admin/storage';
 import sharp from 'sharp';
@@ -142,6 +142,13 @@ async function saveWithDownloadUrl(path: string, data: Buffer, contentType: stri
   return getDownloadURL(file);
 }
 
+// Storage 파일 전체의 SHA-256 (영상처럼 큰 파일은 스트림으로 읽는다)
+async function hashStorageFile(file: ReturnType<ReturnType<typeof getServerBucket>['file']>): Promise<string> {
+  const hash = createHash('sha256');
+  for await (const chunk of file.createReadStream()) hash.update(chunk as Buffer);
+  return hash.digest('hex');
+}
+
 // 이미지 → webp 변형들 (D6 변형 규칙)
 // - 회전 보정(EXIF), 메타데이터 제거(sharp 기본), 움직이는 gif는 움직이는 webp.
 async function buildImageVariants(assetId: string, buffer: Buffer) {
@@ -197,6 +204,10 @@ export async function finalizeAsset(id: string) {
   if (!snapshot.exists) throw new ApiError(404, 'NOT_FOUND', '자산이 없습니다.');
   const asset = parseStoredAsset(id, snapshot.data());
   if (asset.status === 'ready') return { asset: serializeAsset(id, asset) };
+  // legacy 자산이나 assets/{id}/ 밖의 경로는 다루지 않는다(운영이 쓰는 옛 원본을 지우지 않게)
+  if (asset.legacy || !asset.storagePath.startsWith(assetPrefixFor(id))) {
+    throw new ApiError(422, 'NOT_FINALIZABLE', '이 자산은 업로드를 끝낼 수 없습니다.');
+  }
 
   const declared = asset.contentType as AllowedContentType;
   if (!(ALLOWED_CONTENT_TYPES as readonly string[]).includes(declared)) {
@@ -214,6 +225,9 @@ export async function finalizeAsset(id: string) {
 
   let next: AssetDoc;
   if (isVideoContentType(declared)) {
+    if ((await hashStorageFile(original)) !== asset.sha256) {
+      throw new ApiError(422, 'HASH_MISMATCH', '올린 파일의 해시가 요청한 해시와 다릅니다.');
+    }
     const [head] = await original.download({ start: 0, end: 15 });
     if (detectVideoContentType(head) !== declared) {
       throw new ApiError(422, 'FORMAT_MISMATCH', '파일의 실제 형식이 선언한 형식과 다릅니다.');
@@ -226,6 +240,9 @@ export async function finalizeAsset(id: string) {
     next = { ...asset, url: await getDownloadURL(original), bytes: size, status: 'ready' };
   } else {
     const [buffer] = await original.download();
+    if (createHash('sha256').update(buffer).digest('hex') !== asset.sha256) {
+      throw new ApiError(422, 'HASH_MISMATCH', '올린 파일의 해시가 요청한 해시와 다릅니다.');
+    }
     const actual = contentTypeFromSharpFormat((await sharp(buffer).metadata()).format);
     if (actual !== declared) {
       throw new ApiError(422, 'FORMAT_MISMATCH', '파일의 실제 형식이 선언한 형식과 다릅니다.');
@@ -243,6 +260,10 @@ export async function finalizeAsset(id: string) {
       status: 'ready',
     };
   }
+
+  // 아직 어느 글도 쓰지 않으면 고아로 표시한다. 글에 넣고 저장하면 지워진다.
+  // 표시가 없으면 쓰지 않는 업로드가 영원히 정리되지 않는다(정리 직전 재검사가 쓰는 자산을 지킨다).
+  if (next.usedBy.length === 0) next = { ...next, orphanedAt: new Date() };
 
   assetDocSchema.parse(next);
   await ref.set(next);

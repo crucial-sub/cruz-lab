@@ -36,6 +36,27 @@ export function classifyAdminRequest(pathname: string, method: string): AdminReq
   return 'public';
 }
 
+// 미들웨어가 쓰는 요청 종류 판정 (경로 우회 방지)
+// - Astro는 decodeURI한 경로로 라우트를 고른다. 그래서 /api/%61dmin/posts도 관리자 라우트를 실행한다.
+// - 실제로 실행할 라우트(routePattern, 예: /api/admin/posts/[id])를 먼저 본다.
+// - 라우트가 공개면 디코딩한 경로로 한 번 더 본다(없는 관리자 경로도 인증을 요구한다).
+// - 경로를 디코딩할 수 없으면 'invalid'다. 미들웨어는 400으로 거부한다.
+export function resolveAdminRequestKind(input: {
+  pathname: string;
+  routePattern: string | undefined;
+  method: string;
+}): AdminRequestKind | 'invalid' {
+  let decodedPath: string;
+  try {
+    decodedPath = decodeURI(input.pathname);
+  } catch {
+    return 'invalid';
+  }
+  const byRoute = classifyAdminRequest(input.routePattern || '/', input.method);
+  if (byRoute !== 'public') return byRoute;
+  return classifyAdminRequest(decodedPath, input.method);
+}
+
 // 쓰기 메서드인지 확인한다. 쓰기 요청은 Origin 검사를 한다(CSRF)
 export function isWriteMethod(method: string): boolean {
   return ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method.toUpperCase());

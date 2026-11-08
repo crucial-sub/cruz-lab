@@ -7,7 +7,7 @@ import type { APIRoute } from 'astro';
 import { z } from 'zod';
 import { ALLOWED_CONTENT_TYPES } from '@/lib/asset-rules';
 import { requestUploadUrl } from '@/lib/server/admin-assets';
-import { jsonResponse, parseJsonBody, withApiErrors } from '@/lib/server/api-response';
+import { jsonResponse, parseJsonBody, withAdminApi } from '@/lib/server/api-response';
 
 export const prerender = false;
 
@@ -18,7 +18,7 @@ const uploadUrlSchema = z.object({
   sha256: z.string().regex(/^[0-9a-f]{64}$/, { message: 'sha256은 소문자 16진수 64자입니다' }),
 });
 
-export const POST: APIRoute = withApiErrors(async ({ request }) => {
+export const POST: APIRoute = withAdminApi(async ({ request }) => {
   const input = await parseJsonBody(request, uploadUrlSchema);
   return jsonResponse(await requestUploadUrl(input));
 });

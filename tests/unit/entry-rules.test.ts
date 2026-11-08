@@ -6,6 +6,7 @@ import {
   buildPublishedSnapshot,
   checkPublishable,
   emptyEntryContent,
+  exceedsEntryDocLimit,
   hasUnpublishedChanges,
   nextSlugHistory,
   normalizeDraftInput,
@@ -123,6 +124,28 @@ describe('checkPublishable', () => {
     expect(result.ok && result.content.slug).toBe('note-20261108-1204');
   });
 
+  it('note를 다시 발행할 때 slug가 비어 있으면 지금 발행본의 slug를 다시 쓴다', () => {
+    const result = checkPublishable({
+      kind: 'note',
+      draft: content({ title: '', description: '', slug: '', category: null }),
+      currentPublishedSlug: 'note-20261101-0900',
+      now: NOW,
+    });
+    expect(result.ok && result.content.slug).toBe('note-20261101-0900');
+  });
+
+  it('이 글의 예전 slug(slugHistory)는 옛 형식이어도 되돌릴 수 있다', () => {
+    const legacySlug = 'reactnative-flatlist-feat-';
+    const result = checkPublishable({
+      kind: 'post',
+      draft: content({ slug: legacySlug }),
+      currentPublishedSlug: 'new-slug',
+      ownSlugHistory: [legacySlug],
+      now: NOW,
+    });
+    expect(result.ok).toBe(true);
+  });
+
   it('note도 본문이 없으면 실패한다', () => {
     const result = checkPublishable({ kind: 'note', draft: content({ markdown: '' }), currentPublishedSlug: null, now: NOW });
     expect(result.ok).toBe(false);
@@ -199,5 +222,13 @@ describe('publicPathFor', () => {
   it('2단계에서는 post만 공개 주소가 있다', () => {
     expect(publicPathFor('post', 'abc')).toBe('/blog/abc');
     expect(publicPathFor('note', 'note-20261108-1204')).toBeNull();
+  });
+});
+
+describe('exceedsEntryDocLimit', () => {
+  it('초안과 발행본을 합쳐 1,000,000 바이트를 넘으면 true', () => {
+    const half = 'a'.repeat(600_000);
+    expect(exceedsEntryDocLimit({ draft: { markdown: half } })).toBe(false);
+    expect(exceedsEntryDocLimit({ draft: { markdown: half }, published: { markdown: half } })).toBe(true);
   });
 });

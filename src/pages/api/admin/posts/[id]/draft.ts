@@ -8,7 +8,7 @@ import type { APIRoute } from 'astro';
 import { z } from 'zod';
 import { MAX_DEVICE_LENGTH, draftInputSchema, normalizeDraftInput } from '@/lib/entry-rules';
 import { saveDraft } from '@/lib/server/admin-entries';
-import { ApiError, jsonResponse, parseJsonBody, withApiErrors } from '@/lib/server/api-response';
+import { ApiError, jsonResponse, parseJsonBody, withAdminApi } from '@/lib/server/api-response';
 
 export const prerender = false;
 
@@ -18,7 +18,7 @@ const saveDraftSchema = z.object({
   draft: draftInputSchema,
 });
 
-export const PUT: APIRoute = withApiErrors(async ({ params, request }) => {
+export const PUT: APIRoute = withAdminApi(async ({ params, request }) => {
   const id = params.id;
   if (!id) throw new ApiError(400, 'INVALID_REQUEST', '글 ID가 없습니다.');
 

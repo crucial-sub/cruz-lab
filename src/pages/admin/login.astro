@@ -11,6 +11,6 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 const nextPath = safeAdminNextPath(Astro.url.searchParams.get('next'));
 ---
 
-<BaseLayout title="관리자 로그인 | Cruz Lab" description="Cruz Lab 관리자 로그인">
+<BaseLayout title="관리자 로그인" description="Cruz Lab 관리자 로그인">
   <AdminLogin client:load nextPath={nextPath} />
 </BaseLayout>

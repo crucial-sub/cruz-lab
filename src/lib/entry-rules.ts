@@ -112,18 +112,21 @@ export function pickEntryContent(source: EntryContent): EntryContent {
 export interface PublishCheckInput {
   kind: EntryKind;
   draft: EntryContent;
-  currentPublishedSlug: string | null; // 지금 발행본의 slug. 같으면 형식 검사를 건너뛴다
+  currentPublishedSlug: string | null; // 지금 발행본의 slug
+  ownSlugHistory?: readonly string[]; // 이 글의 예전 slug
   now: Date;
 }
 
 // 발행 검사 (Plan 6.3 2단계, D4 kind별 규칙)
 // - 성공하면 발행할 내용을 돌려준다. 제목·설명·slug는 앞뒤 공백을 지운다.
-// - note는 본문만 필수다. slug가 비면 note-YYYYMMDD-HHmm으로 만든다.
+// - note는 본문만 필수다. slug가 비면 지금 발행본의 slug를 다시 쓴다. 처음 발행이면 note-YYYYMMDD-HHmm으로 만든다.
+// - 이 글이 쓰던 slug(지금 발행본, slugHistory)는 옛 형식이어도 받는다(Plan 4.1 "바꾸지 않으면 검사하지 않는다").
 // - slug 유일성은 Firestore를 봐야 하므로 여기서 검사하지 않는다(호출하는 쪽이 한다).
 export function checkPublishable({
   kind,
   draft,
   currentPublishedSlug,
+  ownSlugHistory = [],
   now,
 }: PublishCheckInput): { ok: true; content: EntryContent } | { ok: false; issues: FieldIssue[] } {
   const issues: FieldIssue[] = [];
@@ -136,7 +139,7 @@ export function checkPublishable({
     if (title.length > MAX_TITLE_LENGTH) {
       issues.push({ field: 'title', message: `제목은 ${MAX_TITLE_LENGTH}자까지입니다` });
     }
-    if (!slug) slug = buildNoteSlug(now);
+    if (!slug) slug = currentPublishedSlug ?? buildNoteSlug(now);
   } else {
     if (title.length < 1 || title.length > MAX_TITLE_LENGTH) {
       issues.push({ field: 'title', message: `제목은 1~${MAX_TITLE_LENGTH}자입니다` });
@@ -147,7 +150,8 @@ export function checkPublishable({
   }
 
   // 이미 쓰던 slug는 옛 형식이어도 그대로 둔다(Plan 4.1)
-  if (slug && slug !== currentPublishedSlug && !isValidSlug(slug)) {
+  const isOwnSlug = slug === currentPublishedSlug || ownSlugHistory.includes(slug);
+  if (slug && !isOwnSlug && !isValidSlug(slug)) {
     issues.push({ field: 'slug', message: 'slug는 영문 소문자·숫자·한글 묶음을 -로 잇습니다' });
   }
   if (draft.tags.length > MAX_TAGS) {
@@ -161,6 +165,15 @@ export function checkPublishable({
 
   if (issues.length > 0) return { ok: false, issues };
   return { ok: true, content: { ...pickEntryContent(draft), title, description, slug } };
+}
+
+// 글 문서 크기 상한 (Firestore 문서 한도 1 MiB보다 여유를 둔다)
+// - 초안 900 KB 검사는 초안만 센다. 발행하면 발행본이 더해져 문서가 두 배 가까이 된다.
+export const MAX_ENTRY_DOC_BYTES = 1_000_000;
+
+// 문서를 JSON으로 바꾼 UTF-8 크기가 상한을 넘는지 (Firestore 계산과 다르지만 가까운 어림값이다)
+export function exceedsEntryDocLimit(doc: unknown): boolean {
+  return new TextEncoder().encode(JSON.stringify(doc)).length > MAX_ENTRY_DOC_BYTES;
 }
 
 // 발행본 만들기 (Plan 6.3 3단계)

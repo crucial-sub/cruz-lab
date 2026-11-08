@@ -6,7 +6,7 @@
 import type { APIRoute } from 'astro';
 import { z } from 'zod';
 import { setEntryVisibility } from '@/lib/server/admin-entries';
-import { ApiError, jsonResponse, parseJsonBody, withApiErrors } from '@/lib/server/api-response';
+import { ApiError, jsonResponse, parseJsonBody, withAdminApi } from '@/lib/server/api-response';
 import { purgePublicCache, type PurgeResult } from '@/lib/server/cdn-purge';
 
 export const prerender = false;
@@ -15,7 +15,7 @@ const visibilitySchema = z.object({
   visible: z.boolean(),
 });
 
-export const POST: APIRoute = withApiErrors(async ({ params, request }) => {
+export const POST: APIRoute = withAdminApi(async ({ params, request }) => {
   const id = params.id;
   if (!id) throw new ApiError(400, 'INVALID_REQUEST', '글 ID가 없습니다.');
   const { visible } = await parseJsonBody(request, visibilitySchema);
