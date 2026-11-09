@@ -731,6 +731,16 @@ Claude 판단으로 정한 것(승인 때 함께 확인): D7 요청 때 렌더 +
 10. `github-mark` SVG 2개도 지웠다(6.1 목록 밖, 헤더를 인라인 SVG로 바꿔 쓰는 곳이 없다). `scripts/smoke/stage2-public.mjs`의 목록·동의어 태그 검사를 새 화면에 맞게 고쳤다.
 11. 리뷰 뒤: 안전 처리가 할 일 체크 상자(읽기 전용)만 남긴다(3단계부터 지워졌다). `renderMarkdown`에 `idPrefix`(노트 스트림). 노트의 카테고리·태그는 글자. Tailwind 통합의 base.css 자동 주입을 껐다(CSS 중복, 페이지당 약 17 KB). 에디터 태그 칩 CSS를 `editor.css`로 옮겼다.
 
+**PR-C (T6·T7·T8, 2026-11-10).** 작업 문서 5절 52~84(구현 22, 리뷰 뒤 11).
+
+1. 이전 표지는 `legacy`가 아니라 새 선택 칸 `projectSource`다(2단계 재동기화가 프로젝트 글을 삭제 후보로 보지 않게). 에디터로 지운 글은 `publishLog` 삭제 기록으로 알아본다. 원본 위치는 `--source-root`(원본을 지운 뒤 main checkout), 날짜는 원본 파일의 git 첫·마지막 커밋.
+2. seriesMeta 4개는 새 문서다(기간은 `YYYY-MM` 글자). `chapterLabel`은 옮기지 않는다(모두 "Part <order>"). 왕복 검사는 63이 아니라 69편이다(사용자 초안 2편 증가).
+3. (사용자 결정) `tools/cruz-lab-knowledge-mcp`가 읽던 `src/content/projects`를 Plan대로 지웠다. 도구의 프로젝트 기능은 "폴더 없음" 오류를 낸다. 도구 문서는 main 병합 직전 목록(감사 문서 11.3 5)에, Firestore 전환은 5단계 Plan에.
+4. 프로젝트 글은 머리줄 첫 칸이 프로젝트 이름, 연재 상자 자리가 Part 탭, 이전·다음이 Part 순서다. 프로젝트 정보(`seriesMeta.project`)가 없으면 404. `/projects/**`는 SSR + 캐시 태그(`posts`, 글은 `posts,post-<id>`). `publicPathFor`가 연재를 받는다.
+5. OG 카드는 카드 커버에서 필름 노이즈를 빼고 격자를 기울이지 않는다(satori 미지원, 기울인 격자 + 흐림이 한 장 3초). 글자는 NFC로 맞추고 그림으로 보이는 이모지(💡)만 뺀다. 서브셋 391 KB·2,704글자, 지금 글의 서브셋 밖 글자 0. cmap 판독기는 직접 썼다. OG 404는 글자 응답, 글 조회는 메모 없음.
+6. 점검 스크립트 `stage4-public.mjs`는 2단계 점검을 끝에 돌리고, 옛 프로젝트 페이지 비교는 옵션이다. 이전·다음 이름표 조사를 고쳤다.
+7. 리뷰 뒤: 되돌리기는 실행 기록(`migration.json`)에 있는 자산·seriesMeta 문서만 지우고, 에디터로 고친 글은 빼고, 글을 먼저 지운다. 재동기화 갱신은 읽은 시각을 전제 조건으로 쓰고 빠진 이미지의 usedBy를 고친다. 에디터로 지운 프로젝트 글도 삭제 표지(`entryTombstones`)를 쓴다. 2단계 재동기화가 seriesMeta의 `project` 칸을 남긴다. API 스모크의 낡은 기대값 3개(PR-B 목록·노트 주소)를 고쳤다(105/105).
+
 ## 부록 A. 계획 문서 6.1 요구(U1~U18)와 4단계 처리
 
 | # | 요소 | 4단계 처리 | 결정 |
