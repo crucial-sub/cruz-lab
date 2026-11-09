@@ -19,14 +19,10 @@ import {
 } from '@/editor/upload/image-size';
 import { assetIdFromUrl } from '@/lib/asset-url';
 import { isVideoUrl } from '@/lib/content/markdown';
+import { classNames } from './class-names';
 
 const BUCKET = (import.meta.env.PUBLIC_FIREBASE_STORAGE_BUCKET as string | undefined) ?? '';
 const SIZES: ImageSize[] = ['small', 'medium', 'large'];
-
-// 참인 클래스 이름만 공백으로 잇는다
-function classNames(...names: Array<string | false | null | undefined>): string {
-  return names.filter(Boolean).join(' ');
-}
 
 // 자산 문서는 글 하나를 여는 동안 한 번만 읽는다
 const assetCache = new Map<string, Promise<UploadedAsset>>();

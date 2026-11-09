@@ -1,10 +1,13 @@
 // 대화상자와 알림 (재건 3단계 D6·D13)
-// - Dialog: 공통 틀. ConflictDialog(409), OfflineRestoreDialog(보관함), DeleteDialog(삭제 2회 확인), DeviceDialog(기기 이름).
+// - Dialog: 공통 틀. ConflictDialog(409), OfflineRestoreDialog(보관함), DeleteDialog(삭제 2회 확인), DeviceDialog(기기 이름),
+//   LinkDialog(링크 주소), MathDialog(LaTeX 입력과 KaTeX 미리보기).
 // - Toast: 아래 가운데 알림. WarningsBanner: 지원하지 않는 HTML 경고 목록.
 
-import { useEffect, useState } from 'react';
+import katex from 'katex';
+import { useEffect, useMemo, useState } from 'react';
 import type { ConversionWarning } from '@/editor/markdown';
 import type { ConflictInfo } from '@/editor/state/autosave';
+import { classNames } from './class-names';
 
 export function Dialog({
   title,
@@ -41,6 +44,18 @@ const buttonBase = 'rounded-md px-3 py-1.5 text-sm font-medium disabled:opacity-
 export const primaryButton = `${buttonBase} bg-brand text-white hover:bg-brand-hover`;
 export const secondaryButton = `${buttonBase} border border-border text-text-primary hover:bg-bg-card`;
 export const dangerButton = `${buttonBase} bg-red-600 text-white hover:bg-red-700`;
+
+// 수식 키 없는 Enter(한글 조합 중 제외). 페이지 범위 키(Mod+Shift+Enter 발행)와 겹치지 않게 한다(리뷰 6.3 경미 10)
+function isPlainEnter(event: React.KeyboardEvent): boolean {
+  return (
+    event.key === 'Enter' &&
+    !event.nativeEvent.isComposing &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    !event.altKey
+  );
+}
 
 function formatWhen(iso: string | null): string {
   if (!iso) return '시각 모름';
@@ -177,7 +192,12 @@ export function DeviceDialog({
         value={name}
         maxLength={60}
         onChange={(event) => setName(event.target.value)}
-        onKeyDown={(event) => event.key === 'Enter' && onSave(name)}
+        onKeyDown={(event) => {
+          if (isPlainEnter(event)) {
+            event.preventDefault();
+            onSave(name);
+          }
+        }}
       />
       <div className="flex gap-2 pt-1">
         <button type="button" className={secondaryButton} onClick={onCancel}>
@@ -268,5 +288,121 @@ export function WarningsBanner({
         {warnings.length > 8 && <li>… 그 밖 {warnings.length - 8}개</li>}
       </ul>
     </div>
+  );
+}
+
+const fieldClass =
+  'w-full rounded-md border border-border bg-bg-app px-2.5 py-1.5 text-sm text-text-primary';
+
+// 링크 (부록 B Mod+Shift+K, /링크): 주소를 넣으면 선택 글자에 링크를 건다. 비우면 링크를 푼다
+export function LinkDialog({
+  initialHref,
+  onSave,
+  onCancel,
+}: {
+  initialHref: string;
+  onSave: (href: string) => void;
+  onCancel: () => void;
+}) {
+  const [href, setHref] = useState(initialHref);
+  return (
+    <Dialog title="링크" onClose={onCancel}>
+      <p>주소를 넣으세요. 비우고 저장하면 링크를 풉니다.</p>
+      <input
+        // 열자마자 주소를 친다
+        // eslint-disable-next-line jsx-a11y/no-autofocus
+        autoFocus
+        className={fieldClass}
+        value={href}
+        placeholder="https://"
+        spellCheck={false}
+        onChange={(event) => setHref(event.target.value)}
+        onKeyDown={(event) => {
+          if (isPlainEnter(event)) {
+            event.preventDefault();
+            onSave(href.trim());
+          }
+        }}
+        aria-label="링크 주소"
+      />
+      <div className="flex gap-2 pt-1">
+        <button type="button" className={secondaryButton} onClick={onCancel}>
+          취소
+        </button>
+        <button type="button" className={primaryButton} onClick={() => onSave(href.trim())}>
+          저장
+        </button>
+      </div>
+    </Dialog>
+  );
+}
+
+// 수식 (D3 수식, 8.4 #18): LaTeX를 쓰면 아래에 KaTeX로 미리 그린다
+export function MathDialog({
+  kind,
+  initialLatex,
+  canDelete,
+  onSave,
+  onDelete,
+  onCancel,
+}: {
+  kind: 'block' | 'inline';
+  initialLatex: string;
+  canDelete: boolean;
+  onSave: (latex: string) => void;
+  onDelete: () => void;
+  onCancel: () => void;
+}) {
+  const [latex, setLatex] = useState(initialLatex);
+  const preview = useMemo(() => {
+    if (!latex.trim()) return '';
+    return katex.renderToString(latex, { throwOnError: false, displayMode: kind === 'block' });
+  }, [kind, latex]);
+  return (
+    <Dialog title={kind === 'block' ? '수식 블록' : '인라인 수식'} onClose={onCancel}>
+      <p>LaTeX로 쓰세요. 마크다운에는 {kind === 'block' ? '$$…$$' : '$…$'}로 저장됩니다.</p>
+      <textarea
+        // 열자마자 수식을 친다
+        // eslint-disable-next-line jsx-a11y/no-autofocus
+        autoFocus
+        className={classNames(fieldClass, 'min-h-[96px] resize-y font-mono')}
+        value={latex}
+        spellCheck={false}
+        placeholder="E = mc^2"
+        onChange={(event) => setLatex(event.target.value)}
+        onKeyDown={(event) => {
+          // Mod+Enter로 저장한다(Enter는 줄바꿈). Shift가 붙은 발행 키는 받지 않는다
+          if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && !event.shiftKey) {
+            event.preventDefault();
+            onSave(latex.trim());
+          }
+        }}
+        aria-label="LaTeX"
+      />
+      <div
+        className="min-h-[2.5rem] overflow-x-auto rounded-md bg-bg-card px-3 py-2 text-text-primary"
+        aria-label="미리보기"
+        // KaTeX가 만든 HTML이다(throwOnError: false라 오류도 글자로 그린다)
+        dangerouslySetInnerHTML={{ __html: preview }}
+      />
+      <div className="flex flex-wrap gap-2 pt-1">
+        <button type="button" className={secondaryButton} onClick={onCancel}>
+          취소
+        </button>
+        {canDelete && (
+          <button type="button" className={secondaryButton} onClick={onDelete}>
+            수식 삭제
+          </button>
+        )}
+        <button
+          type="button"
+          className={primaryButton}
+          disabled={!latex.trim()}
+          onClick={() => onSave(latex.trim())}
+        >
+          저장
+        </button>
+      </div>
+    </Dialog>
   );
 }

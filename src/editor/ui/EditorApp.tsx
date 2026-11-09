@@ -3,12 +3,36 @@
 // - 자동저장: 판단은 SaveController(state/save-controller.ts)가 한다. 이 컴포넌트는 화면 상태를 컨트롤러에 넘기고(snapshot),
 //   입력·모드 전환·충돌 선택을 컨트롤러에 알린다. 표시는 autosave 리듀서 상태로 그린다.
 // - 보기 모드 3종(D8): 편집(Tiptap) · 소스(textarea) · 미리보기(공유 파이프라인).
-// - 발행·숨김·초안 버리기·삭제·로그아웃(D13). 명령 레지스트리·단축키·모바일 툴바·개요는 PR-C(T5)가 더한다.
-// - 리렌더: Tiptap 상태는 에디터 안에만 있다. 이 컴포넌트는 저장 상태·메타·모드가 바뀔 때만 다시 그린다.
+// - 발행·숨김·초안 버리기·삭제·로그아웃(D13).
+// - 명령(D9): 레지스트리 하나(commands/registry.ts)에서 단축키·슬래시·팔레트(Mod+K)·툴바·모바일 툴바가 나온다.
+//   에디터 범위 키는 Tiptap 키맵이, 페이지 범위 키(저장·발행·모드·패널·팔레트)는 창 keydown이 받는다.
+//   사용자 키맵 덮어쓰기는 5단계다. 지금은 빈 객체다.
+// - 개요·글자 수·읽기 시간(D13): 입력을 300ms 디바운스한 요약만 패널에 넘긴다.
+// - 리렌더: Tiptap 상태는 에디터 안에만 있다. 이 컴포넌트는 저장 상태·메타·모드·요약이 바뀔 때만 다시 그린다.
 
 import { EditorContent, useEditor, type Editor } from '@tiptap/react';
-import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from 'react';
+import { CommandPalette } from '@/editor/commands/CommandPalette';
+import { readRecent, recordRecent, writeRecent } from '@/editor/commands/filter';
+import { applyKeymapOverrides, detectPlatform } from '@/editor/commands/keymap';
+import {
+  createCommands,
+  isCommandAvailable,
+  type CommandActions,
+  type EditorCommand,
+  type MathTarget,
+} from '@/editor/commands/registry';
+import { createPageKeyHandler, createPageKeyListener } from '@/editor/commands/shortcuts';
 import { docToMarkdown, markdownToDoc, type ConversionWarning } from '@/editor/markdown';
+import { summarizeDoc, type DocSummary } from '@/editor/state/summary';
 import {
   adminApi,
   ApiClientError,
@@ -41,12 +65,15 @@ import {
 } from '@/editor/state/save-controller';
 import { countUploadingNodes } from '@/editor/upload/paste-drop';
 import { uploadAsset } from '@/editor/upload/upload-client';
+import { safeUrl } from '@/lib/content/safe-url';
 import { publicPathFor, type DraftInput } from '@/lib/entry-rules';
 import type { EntryKind, EntryPublished, EntryStatus } from '@/lib/entry-schema';
 import {
   ConflictDialog,
   DeleteDialog,
   DeviceDialog,
+  LinkDialog,
+  MathDialog,
   OfflineRestoreDialog,
   Toast,
   WarningsBanner,
@@ -54,12 +81,26 @@ import {
 } from './Dialogs';
 import { createUiExtensions } from './editor-extensions';
 import { MetaPanel } from './MetaPanel';
+import { MobileBar } from './MobileBar';
 import { PreviewMode } from './PreviewMode';
 import { SourceMode } from './SourceMode';
+import { Toolbar } from './Toolbar';
 import { TopBar, type ViewMode } from './TopBar';
 
 // 마지막 보기 모드를 기억하는 키 (D8)
 const MODE_STORAGE_KEY = 'cruz-lab:editor-mode';
+// 보기 모드 순환 순서(Mod+Shift+M, 부록 B)
+const MODE_CYCLE: Record<ViewMode, ViewMode> = {
+  edit: 'source',
+  source: 'preview',
+  preview: 'edit',
+};
+// 패널 요약 디바운스(D13)
+const SUMMARY_DELAY_MS = 300;
+// 이미지 고르기 창이 받는 형식(D11 2, asset-rules.ts와 같다)
+const IMAGE_ACCEPT = 'image/png,image/jpeg,image/webp,image/gif,video/webm,video/mp4';
+// 사용자 키맵 덮어쓰기. 저장과 설정 화면은 5단계다(D9)
+const KEYMAP_OVERRIDES = {};
 
 type ServerDraft = EntryResponse['draft'];
 
@@ -74,7 +115,19 @@ type DialogState =
   | { kind: 'offline-restore'; offline: OfflineDraft }
   | { kind: 'delete' }
   | { kind: 'device' }
+  | { kind: 'link'; href: string }
+  | { kind: 'math'; target: MathTarget }
   | null;
+
+// "지금 저장"이 끝나지 않았을 때의 안내
+const SAVE_BLOCKED_MESSAGES: Partial<Record<SaveOutcome, string>> = {
+  blocked: '저장을 끝내지 못했습니다. 업로드 중인 이미지가 있거나 입력이 이어지고 있습니다.',
+  invalid: '입력 값을 고친 뒤 저장됩니다.',
+  conflict: '다른 곳에서 먼저 저장했습니다. 충돌을 먼저 정리하세요.',
+  offline: '오프라인입니다. 기기에 보관했고 연결되면 보냅니다.',
+  failed: '저장이 실패했습니다. 상단의 다시 시도를 누르세요.',
+  skipped: '입력이 끝난 뒤 저장됩니다.',
+};
 
 // 발행 전 저장이 끝나지 않았을 때의 안내 (리뷰 6.2 지적 5)
 const PUBLISH_BLOCKED_MESSAGES: Partial<Record<SaveOutcome, string>> = {
@@ -119,6 +172,14 @@ function setContentSafely(
   } catch {
     return false;
   }
+}
+
+// 수식 창을 열 때의 노드가 아직 그 자리에 같은 내용으로 있는지
+function isMathNodeAt(editor: Editor, target: MathTarget): boolean {
+  if (target.pos === null) return false;
+  const node = editor.state.doc.nodeAt(target.pos);
+  const name = target.kind === 'block' ? 'blockMath' : 'inlineMath';
+  return !!node && node.type.name === name && String(node.attrs.latex ?? '') === target.latex;
 }
 
 // 라이트·다크를 바꾼다. 사이트 헤더의 토글과 같은 저장 키('theme')를 쓴다(M10)
@@ -171,6 +232,10 @@ export default function EditorApp({ entryId }: { entryId: string }) {
   const [coverUploading, setCoverUploading] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [save, dispatch] = useReducer(autosaveReducer, 1, initialAutosaveState);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  // 패널 요약(개요·글자 수·읽기 시간). 열기 전에는 null
+  const [summary, setSummary] = useState<DocSummary | null>(null);
+  const platform = useMemo(() => detectPlatform(navigator.platform), []);
 
   // 화면 상태의 거울. 컨트롤러의 snapshot과 이벤트 핸들러가 최신 값을 읽는다
   const editorRef = useRef<Editor | null>(null);
@@ -182,8 +247,60 @@ export default function EditorApp({ entryId }: { entryId: string }) {
   const issuesRef = useRef(issues);
   const serverDraftRef = useRef<ServerDraft | null>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const summaryTimerRef = useRef<number | null>(null);
   deviceRef.current = device;
   issuesRef.current = issues;
+
+  // ───────────── 명령 레지스트리 (D9) ─────────────
+
+  // 화면 동작. 레지스트리는 한 번만 만들고, 동작은 이 ref로 최신 함수를 부른다
+  const actionsRef = useRef<CommandActions | null>(null);
+  const commands = useMemo(
+    () =>
+      applyKeymapOverrides(
+        createCommands({
+          pickImage: () => actionsRef.current?.pickImage(),
+          editLink: () => actionsRef.current?.editLink(),
+          editMath: (target) => actionsRef.current?.editMath(target),
+          setMode: (mode) => actionsRef.current?.setMode(mode),
+          cycleMode: () => actionsRef.current?.cycleMode(),
+          saveNow: () => actionsRef.current?.saveNow(),
+          publish: () => actionsRef.current?.publish(),
+          togglePanel: () => actionsRef.current?.togglePanel(),
+          openPalette: () => actionsRef.current?.openPalette(),
+        }),
+        KEYMAP_OVERRIDES,
+      ),
+    [],
+  );
+  const commandsRef = useRef<readonly EditorCommand[]>(commands);
+  // 최근 사용 명령(슬래시·팔레트 정렬)
+  const recentRef = useRef<string[]>(readRecent(localStorage));
+
+  // 명령을 실행하고 최근 사용으로 기록한다(슬래시·팔레트·툴바·모바일 툴바가 같이 쓴다)
+  const runCommand = useCallback((command: EditorCommand, target: Editor | null) => {
+    recentRef.current = recordRecent(recentRef.current, command.id);
+    writeRecent(localStorage, recentRef.current);
+    command.run(target as Editor);
+  }, []);
+
+  // 패널 요약을 300ms 뒤에 한 번 만든다(키 입력마다 만들지 않는다, 2.2 #5)
+  const scheduleSummary = useCallback((instance: Editor) => {
+    if (summaryTimerRef.current !== null) window.clearTimeout(summaryTimerRef.current);
+    summaryTimerRef.current = window.setTimeout(() => {
+      summaryTimerRef.current = null;
+      if (instance.isDestroyed) return;
+      const doc = instance.getJSON();
+      setSummary(summarizeDoc(doc, docToMarkdown(doc)));
+    }, SUMMARY_DELAY_MS);
+  }, []);
+  useEffect(
+    () => () => {
+      if (summaryTimerRef.current !== null) window.clearTimeout(summaryTimerRef.current);
+    },
+    [],
+  );
 
   const showToast = useCallback(
     (tone: ToastState['tone'], message: string, link?: ToastState['link']) => {
@@ -278,6 +395,7 @@ export default function EditorApp({ entryId }: { entryId: string }) {
       metaRef.current = nextMeta;
       setMeta(nextMeta);
       controller.setBlockers(countUploadingNodes(editor.state.doc));
+      scheduleSummary(editor);
       return {
         baseline: {
           markdown: docToMarkdown(editor.getJSON()),
@@ -287,7 +405,7 @@ export default function EditorApp({ entryId }: { entryId: string }) {
         warnings: opened.warnings,
       };
     },
-    [controller],
+    [controller, scheduleSummary],
   );
 
   // 열린 문서에 맞춰 소스·미리보기 텍스트를 다시 채운다
@@ -328,6 +446,7 @@ export default function EditorApp({ entryId }: { entryId: string }) {
   handleUpdateRef.current = (editor) => {
     controller.setBlockers(countUploadingNodes(editor.state.doc));
     controller.markChanged();
+    scheduleSummary(editor);
     if (issuesRef.current.markdown) {
       // 본문을 고쳤으니 본문 칸의 발행 이유를 지운다
       setIssues((current) =>
@@ -339,8 +458,17 @@ export default function EditorApp({ entryId }: { entryId: string }) {
   const editor = useEditor(
     {
       extensions: createUiExtensions({
-        transport: uploadTransport,
-        onReject: (message) => showToastRef.current('error', message),
+        upload: {
+          transport: uploadTransport,
+          onReject: (message) => showToastRef.current('error', message),
+        },
+        getCommands: () => commandsRef.current,
+        getRecent: () => recentRef.current,
+        onSlashRun: (command, instance) => runCommand(command, instance),
+        platform,
+        onMathBlockRequest: () =>
+          actionsRef.current?.editMath({ kind: 'block', pos: null, latex: '' }),
+        onMathClick: (target) => actionsRef.current?.editMath(target),
       }),
       content: '',
       editorProps: {
@@ -472,6 +600,7 @@ export default function EditorApp({ entryId }: { entryId: string }) {
           }
           setWarnings(parsed.warnings);
           controller.setBlockers(countUploadingNodes(editor.state.doc));
+          scheduleSummary(editor);
         }
         sourceDirtyRef.current = false;
         // 모드를 먼저 바꿔야 컨트롤러가 편집 모드로 비교한다
@@ -491,7 +620,7 @@ export default function EditorApp({ entryId }: { entryId: string }) {
       setMode(next);
       localStorage.setItem(MODE_STORAGE_KEY, next);
     },
-    [controller, editor, showToast],
+    [controller, editor, scheduleSummary, showToast],
   );
 
   const changeSource = useCallback(
@@ -500,6 +629,12 @@ export default function EditorApp({ entryId }: { entryId: string }) {
       sourceDirtyRef.current = true;
       setSourceText(text);
       controller.markChanged();
+      // 소스에서 제목을 고치면 개요·글자 수도 따라간다(리뷰 6.3 경미 8)
+      if (summaryTimerRef.current !== null) window.clearTimeout(summaryTimerRef.current);
+      summaryTimerRef.current = window.setTimeout(() => {
+        summaryTimerRef.current = null;
+        setSummary(summarizeDoc(markdownToDoc(text).doc, text));
+      }, SUMMARY_DELAY_MS);
     },
     [controller],
   );
@@ -575,8 +710,11 @@ export default function EditorApp({ entryId }: { entryId: string }) {
 
   // ───────────── 발행·숨김·버리기·삭제 ─────────────
 
+  // 발행이 도는 동안 다시 들어오지 않는다(키·팔레트는 버튼처럼 막히지 않는다, 리뷰 6.3 중요 1)
+  const publishingRef = useRef(false);
   const publish = useCallback(async () => {
-    if (!entry) return;
+    if (!entry || publishingRef.current) return;
+    publishingRef.current = true;
     setBusy('publish');
     try {
       // 저장이 끝나지 않으면 발행하지 않는다(리뷰 6.2 지적 5)
@@ -618,6 +756,7 @@ export default function EditorApp({ entryId }: { entryId: string }) {
         showToast('error', `발행 실패 · ${messageOf(error)}`);
       }
     } finally {
+      publishingRef.current = false;
       setBusy(null);
     }
   }, [controller, entry, entryId, refreshEntry, showToast]);
@@ -706,6 +845,172 @@ export default function EditorApp({ entryId }: { entryId: string }) {
     [showToast, updateMeta],
   );
 
+  // ───────────── 명령의 화면 동작 (T5) ─────────────
+
+  // "지금 저장"(Mod+S). 보내지 못했으면 이유를 알린다. 저장됨 표시는 상단 바가 한다
+  const saveNow = useCallback(async () => {
+    const outcome = await controller.flush();
+    if (outcome !== 'saved' && outcome !== 'unchanged') {
+      showToast('info', SAVE_BLOCKED_MESSAGES[outcome] ?? '저장하지 못했습니다.');
+    }
+  }, [controller, showToast]);
+
+  // 링크 창을 연다. 커서가 링크 안이면 그 주소를 보인다
+  const openLinkDialog = useCallback(() => {
+    if (!editor || modeRef.current !== 'edit') return;
+    const href = editor.getAttributes('link').href;
+    setDialog({ kind: 'link', href: typeof href === 'string' ? href : '' });
+  }, [editor]);
+
+  // 링크 저장: 빈 주소면 링크를 풀고, 선택이 없으면 주소 글자를 링크로 넣는다
+  const saveLink = useCallback(
+    (href: string) => {
+      setDialog(null);
+      if (!editor) return;
+      const chain = editor.chain().focus().extendMarkRange('link');
+      if (!href) {
+        chain.unsetLink().run();
+        return;
+      }
+      // 넣기 경로는 Link 확장의 주소 검사를 거치지 않으므로 먼저 거른다(리뷰 6.3 경미 5)
+      if (safeUrl(href) !== href) {
+        showToast('error', '허용하지 않는 주소입니다. http·https·mailto 주소를 쓰세요.');
+        return;
+      }
+      const ok =
+        editor.state.selection.empty && !editor.isActive('link')
+          ? editor
+              .chain()
+              .focus()
+              .insertContent({
+                type: 'text',
+                text: href,
+                marks: [{ type: 'link', attrs: { href } }],
+              })
+              .run()
+          : chain.setLink({ href }).run();
+      if (!ok) showToast('error', '허용하지 않는 주소입니다. http·https·mailto 주소를 쓰세요.');
+    },
+    [editor, showToast],
+  );
+
+  // 수식 창을 연다(새로 넣기 또는 기존 노드 고치기)
+  const openMathDialog = useCallback((target: MathTarget) => {
+    if (modeRef.current !== 'edit') return;
+    setDialog({ kind: 'math', target });
+  }, []);
+
+  // 수식 저장: pos가 있으면 그 노드를 고치고, 없으면 지금 자리에 넣는다.
+  // 인라인 수식은 한 줄이어야 한다(마크다운 $…$ 안의 줄바꿈은 수식을 끊는다). 줄바꿈을 공백으로 바꾼다
+  const saveMath = useCallback(
+    (target: MathTarget, input: string) => {
+      setDialog(null);
+      const latex = target.kind === 'inline' ? input.replace(/\s*\n\s*/g, ' ').trim() : input;
+      if (!editor || !latex) return;
+      const chain = editor.chain().focus();
+      if (target.pos !== null) {
+        // 창이 열린 동안 문서가 바뀌었으면(충돌 창, 되돌리기) 다른 노드를 고치지 않는다(리뷰 6.3 경미 7)
+        if (!isMathNodeAt(editor, target)) {
+          showToast('error', '수식 자리가 바뀌어 저장하지 않았습니다. 수식을 다시 눌러 고치세요.');
+          return;
+        }
+        if (target.kind === 'block') chain.updateBlockMath({ pos: target.pos, latex }).run();
+        else chain.updateInlineMath({ pos: target.pos, latex }).run();
+        return;
+      }
+      if (target.kind === 'block') {
+        chain.insertContent({ type: 'blockMath', attrs: { latex } }).run();
+      } else {
+        chain.insertInlineMath({ latex }).run();
+      }
+    },
+    [editor, showToast],
+  );
+
+  // 수식 삭제(고치는 창에서만)
+  const deleteMath = useCallback(
+    (target: MathTarget) => {
+      setDialog(null);
+      if (!editor || target.pos === null) return;
+      if (!isMathNodeAt(editor, target)) return;
+      const chain = editor.chain().focus();
+      if (target.kind === 'block') chain.deleteBlockMath({ pos: target.pos }).run();
+      else chain.deleteInlineMath({ pos: target.pos }).run();
+    },
+    [editor],
+  );
+
+  // 이미지 고르기 창을 연다(/이미지, Mod+Shift+I, 툴바)
+  const pickImage = useCallback(() => {
+    if (modeRef.current !== 'edit') return;
+    imageInputRef.current?.click();
+  }, []);
+
+  // 개요에서 누른 제목(문서 안 순번)으로 간다
+  const jumpToHeading = useCallback(
+    (index: number) => {
+      if (!editor) return;
+      if (modeRef.current !== 'edit') changeMode('edit');
+      let seen = -1;
+      let target: number | null = null;
+      editor.state.doc.descendants((node, pos) => {
+        if (target !== null) return false;
+        if (node.type.name === 'heading') {
+          seen += 1;
+          if (seen === index) target = pos;
+        }
+        return true;
+      });
+      if (target === null) return;
+      const position = target;
+      // 모드를 바꾼 경우 편집 영역이 보인 뒤에 옮긴다
+      window.setTimeout(() => {
+        editor
+          .chain()
+          .focus()
+          .setTextSelection(position + 1)
+          .scrollIntoView()
+          .run();
+        // 좁은 화면에서는 시트를 닫아 본문이 보이게 한다
+        if (window.innerWidth < 1024) setPanelOpen(false);
+      }, 0);
+    },
+    [changeMode, editor],
+  );
+
+  // 레지스트리의 화면 동작을 최신 함수로 잇는다
+  actionsRef.current = {
+    pickImage,
+    editLink: openLinkDialog,
+    editMath: openMathDialog,
+    setMode: changeMode,
+    cycleMode: () => changeMode(MODE_CYCLE[modeRef.current]),
+    saveNow: () => void saveNow(),
+    publish: () => void publish(),
+    togglePanel: () => setPanelOpen((open) => !open),
+    openPalette: () => setPaletteOpen((open) => !open),
+  };
+
+  // 페이지 범위 키(저장·발행·모드·패널·팔레트). 소스·미리보기 모드와 제목 칸에서도 돈다
+  useEffect(() => {
+    const onKeyDown = createPageKeyListener(
+      createPageKeyHandler(commands, platform, () => editorRef.current),
+    );
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [commands, platform]);
+
+  // 팔레트에 보이는 명령: 편집 모드면 그 자리에서 쓸 수 있는 것, 아니면 페이지 범위만
+  const paletteCommands = useMemo(() => {
+    if (!paletteOpen) return [];
+    return commands.filter(
+      (command) =>
+        command.inPalette &&
+        (command.scope === 'page' ||
+          (mode === 'edit' && editor !== null && isCommandAvailable(command, editor))),
+    );
+  }, [commands, editor, mode, paletteOpen]);
+
   // ───────────── 화면 ─────────────
 
   if (phase === 'error') {
@@ -761,7 +1066,16 @@ export default function EditorApp({ entryId }: { entryId: string }) {
         onLogout={logout}
         panelOpen={panelOpen}
         onTogglePanel={() => setPanelOpen((open) => !open)}
+        onOpenPalette={() => setPaletteOpen(true)}
       />
+      {editor && mode === 'edit' && (
+        <Toolbar
+          editor={editor}
+          commands={commands}
+          platform={platform}
+          onRun={(command) => runCommand(command, editor)}
+        />
+      )}
 
       <div className="flex min-h-0 flex-1">
         <main className="min-w-0 flex-1 overflow-y-auto">
@@ -808,9 +1122,67 @@ export default function EditorApp({ entryId }: { entryId: string }) {
             issues={shownIssues}
             coverUploading={coverUploading}
             onCoverFile={uploadCover}
+            summary={summary}
+            onJumpToHeading={jumpToHeading}
+            onPublish={publish}
+            publishing={busy === 'publish'}
           />
         )}
       </div>
+
+      {editor && mode === 'edit' && (
+        <MobileBar
+          editor={editor}
+          commands={commands}
+          onRun={(command) => runCommand(command, editor)}
+        />
+      )}
+      <input
+        ref={imageInputRef}
+        type="file"
+        multiple
+        accept={IMAGE_ACCEPT}
+        className="hidden"
+        aria-hidden="true"
+        tabIndex={-1}
+        onChange={(event) => {
+          const files = Array.from(event.target.files ?? []);
+          event.target.value = '';
+          if (editor && files.length > 0) editor.chain().focus().insertImageFiles(files).run();
+        }}
+      />
+      {paletteOpen && (
+        <CommandPalette
+          commands={paletteCommands}
+          recent={recentRef.current}
+          platform={platform}
+          onRun={(command) => runCommand(command, editorRef.current)}
+          onClose={() => setPaletteOpen(false)}
+        />
+      )}
+      {dialog?.kind === 'link' && (
+        <LinkDialog
+          initialHref={dialog.href}
+          onSave={saveLink}
+          onCancel={() => {
+            setDialog(null);
+            editor?.commands.focus();
+          }}
+        />
+      )}
+      {dialog?.kind === 'math' && (
+        <MathDialog
+          kind={dialog.target.kind}
+          initialLatex={dialog.target.latex}
+          canDelete={dialog.target.pos !== null}
+          onSave={(latex) => saveMath(dialog.target, latex)}
+          onDelete={() => deleteMath(dialog.target)}
+          onCancel={() => {
+            setDialog(null);
+            editor?.commands.focus();
+          }}
+        />
+      )}
 
       {save.status === 'conflict' && save.conflict && (
         <ConflictDialog

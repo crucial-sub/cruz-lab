@@ -3,13 +3,16 @@
 // - 422 항목별 이유(issues)를 해당 칸 아래에 붙인다.
 // - 데스크톱은 오른쪽 320px 고정 패널, 좁은 화면은 오른쪽에서 나오는 시트다. 접을 수 있다.
 // - 시트와 어두운 덮개는 상단 바(48px) 아래에서 시작한다. 시트가 열려 있어도 발행·메뉴를 누를 수 있다.
-// - 개요·글자 수·읽기 시간은 PR-C(T5)가 더한다.
+// - 개요·글자 수·읽기 시간(Outline). 요약은 EditorApp이 300ms 디바운스해 넘긴다.
+// - 640px보다 좁은 화면(모바일, D12)에서는 발행 버튼이 이 시트 맨 위에 있다.
 
 import { useState } from 'react';
 import type { DraftMeta } from '@/editor/state/change';
 import { suggestSlug } from '@/editor/state/slug';
+import type { DocSummary } from '@/editor/state/summary';
 import type { EntryKind, EntryStatus } from '@/lib/entry-schema';
 import { CATEGORIES, MAX_TAGS, normalizeTag } from '@/lib/taxonomy';
+import { Outline } from './Outline';
 
 export interface MetaPanelProps {
   open: boolean;
@@ -22,6 +25,10 @@ export interface MetaPanelProps {
   issues: Record<string, string>;
   coverUploading: boolean;
   onCoverFile: (file: File) => void;
+  summary: DocSummary | null;
+  onJumpToHeading: (index: number) => void;
+  onPublish: () => void;
+  publishing: boolean;
 }
 
 const STATUS_LABELS: Record<EntryStatus, string> = {
@@ -113,6 +120,15 @@ export function MetaPanel(props: MetaPanelProps) {
         </div>
 
         <div className="space-y-5 px-4 py-4">
+          <button
+            type="button"
+            className="w-full rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white hover:bg-brand-hover disabled:opacity-50 sm:hidden"
+            onClick={props.onPublish}
+            disabled={props.publishing}
+          >
+            {props.publishing ? '발행 중…' : '발행'}
+          </button>
+
           {props.kind === 'note' && (
             <p className="rounded-md bg-bg-card px-3 py-2 text-xs text-text-secondary">
               노트는 제목·설명·카테고리가 선택입니다. 본문만 있으면 발행할 수 있습니다.
@@ -274,6 +290,12 @@ export function MetaPanel(props: MetaPanelProps) {
               </div>
             )}
           </Field>
+
+          {props.summary && (
+            <div className="border-t border-border pt-4">
+              <Outline summary={props.summary} onJump={props.onJumpToHeading} />
+            </div>
+          )}
         </div>
       </aside>
     </>

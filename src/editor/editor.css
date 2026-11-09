@@ -334,3 +334,55 @@
 .editor-chip-danger {
   color: #fca5a5;
 }
+
+/* ── 코드 블록 노드 뷰: 언어 선택 (T5) ── */
+.editor-code-block {
+  position: relative;
+  margin: 1.5rem 0;
+}
+.tiptap-body .editor-code-block > pre {
+  margin: 0;
+  padding-top: 2.25rem;
+}
+.editor-code-language {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 1;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0.375rem;
+  background: #2a2a2a;
+  color: #d1d5db;
+  font-size: 0.75rem;
+  padding: 0.1rem 0.35rem;
+}
+
+/* ── 임베드 노드 뷰 (T5) ── */
+.editor-embed {
+  margin: 1.5rem 0;
+}
+.tiptap-body .editor-embed .embed {
+  margin: 0;
+}
+.editor-embed-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+.editor-embed.is-selected .embed {
+  outline: 2px solid var(--ring-focus);
+  outline-offset: 2px;
+}
+/* 선택하지 않은 동안 iframe 위에 둔다. 누르면 노드가 선택된다 */
+.editor-embed-shield {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+}
+.editor-embed-invalid {
+  font-size: 0.85rem;
+  color: #fca5a5;
+}

@@ -1,0 +1,7 @@
+---
+// 옛 에디터 주소 /admin/edit?slug= (재건 3단계 D2 a, T7)
+// - 옛 에디터는 slug로 글을 열었다. 새 에디터는 /admin/edit/{id}다. 목록 /admin으로 301한다(Plan 2.3).
+export const prerender = false;
+
+return Astro.redirect('/admin', 301);
+---
