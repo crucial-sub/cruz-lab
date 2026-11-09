@@ -3,6 +3,8 @@
 // - 마크는 가장 길게 이어지는 것부터 감싼다(길이가 같으면 링크 > 기울임 > 굵게 > 취소선). 인라인 코드는 잎 노드다.
 // - 마크 안의 앞뒤 공백은 마크 밖으로 민다(` 굵게 ` → ` **굵게** `). 마크다운은 `** x **`를 강조로 읽지 않는다.
 // - 하드 브레이크는 `\`로 쓴다. 단락 끝, 제목 안, 표 셀 안에서는 `\`가 글자가 되거나 공백이 되므로 <br>로 쓴다.
+// - 블록(단락·제목·표 셀) 처음과 끝의 공백, 하드 브레이크 앞뒤의 공백은 지운다(4단계 D14). 브라우저가 그리지 않는 공백이다.
+//   남기면 mdast-util-to-markdown이 `&#x20;`로 쓴다. NBSP는 그려지므로 남긴다.
 // - 모르는 노드·마크는 오류다. 스키마가 만든 문서에는 모르는 것이 없다.
 
 import type { JSONContent } from '@tiptap/core';
@@ -52,7 +54,7 @@ function convertBlock(node: JSONContent): Md.RootContent | null {
   switch (node.type) {
     case 'paragraph': {
       const children = convertParagraphInlines(node.content ?? []);
-      // 빈 단락은 마크다운에 없다
+      // 빈 단락(공백만 있는 단락 포함)은 마크다운에 없다
       return children.length > 0 ? { type: 'paragraph', children } : null;
     }
     case 'heading':
@@ -60,7 +62,7 @@ function convertBlock(node: JSONContent): Md.RootContent | null {
         type: 'heading',
         depth: clampDepth(Number(node.attrs?.level ?? 1)),
         // ATX 제목은 한 줄이라 `\` 줄바꿈을 쓸 수 없다
-        children: convertInlines(node.content ?? [], 'html'),
+        children: trimBlockInlines(convertInlines(node.content ?? [], 'html')),
       };
     case 'horizontalRule':
       return { type: 'thematicBreak' };
@@ -180,10 +182,11 @@ function toAlign(value: unknown): Md.AlignType {
 function convertCellInlines(cell: JSONContent): Md.PhrasingContent[] {
   const result: Md.PhrasingContent[] = [];
   for (const block of cell.content ?? []) {
-    const inlines =
+    const inlines = trimBlockInlines(
       block.type === 'paragraph'
         ? convertInlines(block.content ?? [], 'html')
-        : [text(codeText(block))];
+        : [text(codeText(block))],
+    );
     if (inlines.length === 0) continue;
     if (result.length > 0) result.push(htmlBreak());
     result.push(...inlines);
@@ -191,17 +194,106 @@ function convertCellInlines(cell: JSONContent): Md.PhrasingContent[] {
   return result;
 }
 
+// ───────────── 블록 앞뒤 공백 (4단계 D14) ─────────────
+
+// 브라우저가 블록 처음·끝과 줄바꿈(<br>) 옆에서 지우는 공백. NBSP(U+00A0)는 그려지므로 넣지 않는다
+const COLLAPSIBLE_START = /^[ \t\n\r\f]+/;
+const COLLAPSIBLE_END = /[ \t\n\r\f]+$/;
+
+type Side = 'start' | 'end';
+
+// 자식 인라인을 갖는 노드 (마크와 링크)
+function phrasingParent(
+  node: Md.PhrasingContent,
+): (Md.Link | Md.Strong | Md.Emphasis | Md.Delete) | null {
+  return node.type === 'link' ||
+    node.type === 'strong' ||
+    node.type === 'emphasis' ||
+    node.type === 'delete'
+    ? node
+    : null;
+}
+
+function isBreak(node: Md.PhrasingContent): boolean {
+  return node.type === 'break' || (node.type === 'html' && node.value === '<br>');
+}
+
+// nodes의 한쪽 끝 글자의 공백을 지운다. 비게 된 글자 노드는 없앤다.
+// 마크·링크 안으로 들어간다. 글자가 아닌 잎(코드·이미지·수식·줄바꿈)을 만나면 멈춘다
+function trimEdge(nodes: Md.PhrasingContent[], side: Side): void {
+  while (nodes.length > 0) {
+    const index = side === 'start' ? 0 : nodes.length - 1;
+    const node = nodes[index];
+    if (node.type === 'text') {
+      node.value = node.value.replace(side === 'start' ? COLLAPSIBLE_START : COLLAPSIBLE_END, '');
+      if (node.value !== '') return;
+      nodes.splice(index, 1);
+      continue;
+    }
+    const parent = phrasingParent(node);
+    if (parent) {
+      trimEdge(parent.children, side);
+      // 공백만 있던 마크·링크는 비게 된다. 빈 링크는 보이지 않는 포커스 자리가 되고 다시 열면 사라지므로 지운다
+      if (parent.children.length === 0) {
+        nodes.splice(index, 1);
+        continue;
+      }
+    }
+    return;
+  }
+}
+
+// 하드 브레이크 바로 앞뒤의 공백을 지운다 (마크 안의 줄바꿈 포함)
+function trimAroundBreaks(nodes: Md.PhrasingContent[]): void {
+  for (const node of nodes) {
+    const parent = phrasingParent(node);
+    if (parent) trimAroundBreaks(parent.children);
+  }
+  for (let index = 0; index < nodes.length; index += 1) {
+    if (!isBreak(nodes[index])) continue;
+    // 앞쪽: 줄바꿈 바로 앞 노드들의 끝
+    const before = nodes.slice(0, index);
+    trimEdge(before, 'end');
+    // 뒤쪽: 줄바꿈 바로 뒤 노드들의 처음
+    const after = nodes.slice(index + 1);
+    trimEdge(after, 'start');
+    nodes.splice(0, nodes.length, ...before, nodes[index], ...after);
+    index = before.length;
+  }
+}
+
+// 블록 하나의 인라인: 줄바꿈 앞뒤와 처음·끝의 공백을 지운다
+function trimBlockInlines(nodes: Md.PhrasingContent[]): Md.PhrasingContent[] {
+  trimAroundBreaks(nodes);
+  trimEdge(nodes, 'start');
+  trimEdge(nodes, 'end');
+  return nodes;
+}
+
 // ───────────── 인라인 ─────────────
 
-// 단락의 인라인: 끝에 있는 하드 브레이크는 <br>로 바꾼다(`\` 뒤에 글이 없으면 글자가 된다)
+// 단락의 인라인
+// - 먼저 공백을 지운다(D14). 그 뒤 끝에 남은 하드 브레이크를 <br>로 바꾼다(`\` 뒤에 글이 없으면 글자가 된다).
+//   순서가 반대면 `a` + 줄바꿈 + 공백에서 공백만 지워져 끝 줄바꿈이 `\`로 남는다(4단계 리뷰 중요 1).
 function convertParagraphInlines(nodes: ReadonlyArray<JSONContent>): Md.PhrasingContent[] {
-  const result = convertInlines(nodes, 'backslash');
-  let index = result.length - 1;
-  while (index >= 0 && result[index].type === 'break') {
-    result[index] = htmlBreak();
-    index -= 1;
-  }
+  const result = trimBlockInlines(convertInlines(nodes, 'backslash'));
+  convertTrailingBreaks(result);
   return result;
+}
+
+// 끝의 하드 브레이크를 <br>로 바꾼다. 마크 안의 끝 브레이크도 바꾼다(`**a\` + 줄바꿈 + `**`는 강조가 깨진다)
+function convertTrailingBreaks(nodes: Md.PhrasingContent[]): void {
+  for (let index = nodes.length - 1; index >= 0; index -= 1) {
+    const node = nodes[index];
+    if (node.type === 'break') {
+      nodes[index] = htmlBreak();
+      continue;
+    }
+    if (isBreak(node)) continue;
+    const parent = phrasingParent(node);
+    if (parent) convertTrailingBreaks(parent.children);
+    return;
+  }
 }
 
 function convertInlines(

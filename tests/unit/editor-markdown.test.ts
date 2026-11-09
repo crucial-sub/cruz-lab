@@ -5,7 +5,7 @@ import { getSchema, type JSONContent } from '@tiptap/core';
 import { describe, expect, it } from 'vitest';
 import { createEditorExtensions } from '@/editor/extensions';
 import { docToMarkdown, markdownToDoc } from '@/editor/markdown';
-import { normalizeForCompare } from '@/lib/content/markdown';
+import { markdownToHtml, normalizeForCompare } from '@/lib/content/markdown';
 
 const FIXTURE_DIR = join(process.cwd(), 'tests/fixtures/markdown');
 const fixtures = readdirSync(FIXTURE_DIR)
@@ -29,8 +29,8 @@ function first(doc: JSONContent): JSONContent {
 }
 
 describe('fixture 왕복 (렌더 결과 동일, 안정성, 스키마)', () => {
-  it('fixture가 10개 있다', () => {
-    expect(fixtures.length).toBe(10);
+  it('fixture가 12개 있다 (4단계 D14 표기 옵션 2개 포함)', () => {
+    expect(fixtures.length).toBe(12);
   });
 
   for (const fixture of fixtures) {
@@ -442,5 +442,189 @@ describe('리뷰 지적 수정 (PR-A 6.1)', () => {
     const reopened = markdownToDoc(md).doc;
     expect(docToMarkdown(reopened)).toBe(md);
     expect(reopened.content?.[0]?.attrs).toMatchObject({ spread: true });
+  });
+});
+
+// ───────────── 4단계 D14: 변환기 표기 옵션 2건 (3단계 작업 문서 8절 9·11) ─────────────
+
+const readFixture = (name: string) => readFileSync(join(FIXTURE_DIR, name), 'utf8');
+const t = (text: string, marks?: JSONContent['marks']): JSONContent =>
+  marks ? { type: 'text', text, marks } : { type: 'text', text };
+const p = (...content: JSONContent[]): JSONContent => ({ type: 'paragraph', content });
+const cell = (type: 'tableHeader' | 'tableCell', ...paragraphs: JSONContent[]): JSONContent => ({
+  type,
+  content: paragraphs,
+});
+
+describe('표기 옵션 1: 블록 앞뒤 공백 (D14)', () => {
+  // 에디터에서 낱말 뒤에 스페이스를 친 채 자동저장한 문서
+  const typedDoc: JSONContent = {
+    type: 'doc',
+    content: [
+      p(t('끝에 공백을 친 단락이다. ')),
+      p(
+        t('  앞뒤 공백이 있던 단락에 '),
+        t('굵게', [{ type: 'bold' }]),
+        t('와 '),
+        t('링크', [{ type: 'link', attrs: { href: 'https://example.com' } }]),
+        t('가 있다.\t '),
+      ),
+      p(t('줄바꿈 앞뒤의 공백도 지운다. '), { type: 'hardBreak' }, t(' 다음 줄이다.')),
+      { type: 'heading', attrs: { level: 2 }, content: [t('제목 끝 공백 ')] },
+      {
+        type: 'table',
+        content: [
+          {
+            type: 'tableRow',
+            content: [cell('tableHeader', p(t('머리'))), cell('tableHeader', p(t('칸')))],
+          },
+          {
+            type: 'tableRow',
+            content: [
+              cell('tableCell', p(t(' 앞뒤 공백 '))),
+              // 표 셀은 단락 하나다. 줄바꿈은 하드 브레이크(<br>)다
+              cell('tableCell', p(t('셀 '), { type: 'hardBreak' }, t(' 둘째 줄'))),
+            ],
+          },
+        ],
+      },
+      {
+        type: 'bulletList',
+        content: [{ type: 'listItem', content: [p(t('목록 항목 끝 공백 '))] }],
+      },
+    ],
+  };
+
+  it('fixture edge-spaces.md와 같은 마크다운을 쓴다 (&#x20; 없음)', () => {
+    assertValidDoc(typedDoc);
+    const markdown = docToMarkdown(typedDoc);
+    expect(markdown).not.toContain('&#x');
+    expect(markdown).toBe(readFixture('edge-spaces.md'));
+  });
+
+  it('지운 공백은 렌더에 보이지 않는 공백이다 (다시 열면 같은 글자)', () => {
+    const reopened = markdownToDoc(docToMarkdown(typedDoc)).doc;
+    expect(first(reopened).content).toEqual([t('끝에 공백을 친 단락이다.')]);
+  });
+
+  it('링크 안의 블록 끝 공백도 지운다', () => {
+    const doc: JSONContent = {
+      type: 'doc',
+      content: [p(t(' 링크 ', [{ type: 'link', attrs: { href: 'https://example.com' } }]))],
+    };
+    expect(docToMarkdown(doc)).toBe('[링크](https://example.com)\n');
+  });
+
+  it('NBSP는 그려지므로 지우지 않는다', () => {
+    const doc: JSONContent = { type: 'doc', content: [p(t(' 가 '))] };
+    expect(docToMarkdown(doc)).toContain(' 가 ');
+  });
+
+  it('공백만 있는 단락은 빈 단락처럼 쓰지 않는다', () => {
+    const doc: JSONContent = { type: 'doc', content: [p(t('가')), p(t('   ')), p(t('나'))] };
+    expect(docToMarkdown(doc)).toBe('가\n\n나\n');
+  });
+
+  it('코드 마크 안의 공백은 그대로다 (CommonMark 인라인 코드 패딩)', () => {
+    const doc: JSONContent = { type: 'doc', content: [p(t(' a ', [{ type: 'code' }]))] };
+    const markdown = docToMarkdown(doc);
+    expect(markdown).toBe('`  a  `\n');
+    expect(first(markdownToDoc(markdown).doc).content?.[0]?.text).toBe(' a ');
+  });
+});
+
+describe('표기 옵션 2: 주소의 & (D14)', () => {
+  it('fixture url-ampersand.md는 왕복해도 글자 하나 바뀌지 않는다', () => {
+    const source = readFixture('url-ampersand.md');
+    expect(docToMarkdown(markdownToDoc(source).doc)).toBe(source);
+  });
+
+  it('Storage 주소의 &token=은 이스케이프하지 않는다', () => {
+    const url =
+      'https://firebasestorage.googleapis.com/v0/b/b/o/assets%2Fa%2Fmax.webp?alt=media&token=1-2';
+    const doc: JSONContent = {
+      type: 'doc',
+      content: [p({ type: 'image', attrs: { src: url, alt: '그림' } })],
+    };
+    const markdown = docToMarkdown(doc);
+    expect(markdown).toBe(`![그림](${url})\n`);
+    expect(markdown).not.toContain('\\&');
+    const image = first(markdownToDoc(markdown).doc).content?.[0];
+    expect(image?.attrs?.src).toBe(url);
+  });
+
+  it('다시 읽었을 때 주소가 같다 (공백·괄호·꺾쇠·문자 참조·백슬래시)', () => {
+    const urls = [
+      'https://e.com/a b/(c)?x=1&y=2',
+      'https://e.com/<z>',
+      'https://e.com/?a=1&amp;b=2&#38;c&#x26;d',
+      'https://e.com/a\\*b\\c',
+      'https://e.com/(x)',
+    ];
+    for (const href of urls) {
+      const doc: JSONContent = {
+        type: 'doc',
+        content: [p(t('링크', [{ type: 'link', attrs: { href } }]))],
+      };
+      const reopened = first(markdownToDoc(docToMarkdown(doc)).doc).content?.[0];
+      expect(reopened?.marks?.[0]?.attrs?.href).toBe(href);
+    }
+  });
+
+  it('자동 링크는 그대로 <주소>로 쓴다', () => {
+    const md = '<https://example.com/a?b=1&c=2>\n';
+    expect(docToMarkdown(markdownToDoc(md).doc)).toBe(md);
+  });
+});
+
+// ───────────── 4단계 PR-A 리뷰 지적 (작업 문서 6절) ─────────────
+
+describe('리뷰 지적: 단락 끝 줄바꿈과 공백 (중요 1, 경미 9·10)', () => {
+  const br = (marks?: JSONContent['marks']): JSONContent =>
+    marks ? { type: 'hardBreak', marks } : { type: 'hardBreak' };
+  const bold = [{ type: 'bold' }];
+  const link = [{ type: 'link', attrs: { href: 'https://example.com' } }];
+
+  // 다시 쓴 마크다운이 공개 렌더에서 글자 `\`·`&#xA;`를 보이지 않고, 두 번 왕복해도 같은지
+  function expectCleanAndStable(doc: JSONContent) {
+    assertValidDoc(doc);
+    const once = docToMarkdown(doc);
+    const html = markdownToHtml(once);
+    expect(html, once).not.toMatch(/\\<\/|&#xA;|&#x26;#xA;/);
+    const twice = docToMarkdown(markdownToDoc(once).doc);
+    expect(twice).toBe(once);
+    return once;
+  }
+
+  it('줄바꿈 뒤 공백으로 끝나는 단락은 끝 줄바꿈을 <br>로 쓴다', () => {
+    const markdown = expectCleanAndStable({ type: 'doc', content: [p(t('a'), br(), t(' '))] });
+    expect(markdown).toBe('a<br>\n');
+  });
+
+  it('목록·인용 안의 단락도 같다', () => {
+    expectCleanAndStable({
+      type: 'doc',
+      content: [
+        { type: 'bulletList', content: [{ type: 'listItem', content: [p(t('a'), br(), t(' '))] }] },
+        { type: 'blockquote', content: [p(t('b'), br(), t('  '))] },
+      ],
+    });
+  });
+
+  it('굵게 공백 뒤 줄바꿈도 같다', () => {
+    expectCleanAndStable({ type: 'doc', content: [p(t('a'), br(), t(' ', bold))] });
+  });
+
+  it('마크 안의 끝 줄바꿈도 <br>로 쓴다', () => {
+    const markdown = expectCleanAndStable({
+      type: 'doc',
+      content: [p(t('a', bold), br(bold))],
+    });
+    expect(markdown).not.toContain('\\');
+  });
+
+  it('공백만 있던 링크는 지운다 (빈 링크를 남기지 않는다)', () => {
+    const doc: JSONContent = { type: 'doc', content: [p(t('가'), t(' ', link))] };
+    expect(docToMarkdown(doc)).toBe('가\n');
   });
 });

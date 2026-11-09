@@ -703,7 +703,19 @@ Claude 판단으로 정한 것(승인 때 함께 확인): D7 요청 때 렌더 +
 
 ## 15. 구현과 다른 것 (구현 중 추가)
 
-(빈 절. 구현 세션이 Plan과 다르게 하거나 Plan이 정하지 않은 것을 판단하면 작업 문서 5절에 적고 여기에 요약한다.)
+구현 세션이 Plan과 다르게 하거나 Plan이 정하지 않은 것을 판단하면 [작업 문서](./2026-11-09-stage4-public-site.md) 5절에 적고 여기에 요약한다.
+
+**PR-A (T1·T2, 2026-11-09).** 작업 문서 5절 1~21.
+
+1. 언어 목록을 `src/lib/content/code-languages.ts`로 옮겼다(서버 하이라이터가 lowlight를 끌어오지 않게). `shiki/core` 등 `shiki` 패키지의 하위 경로로 가져온다(`@shikijs/*`는 pnpm에서 직접 가져올 수 없다).
+2. `MarkdownPostView.tsx`를 PR-A에서 지웠다(6.1은 T5). 의존성 삭제는 T5 그대로.
+3. 카테고리 링크는 PR-B까지 동의어 태그 주소다(`categoryPath()` 한 함수. PR-B가 `/blog/category/<key>`로 바꾼다).
+4. 파이프라인 출력에서 Tailwind 모양 클래스를 뺐다. 모양은 `prose.css`다. 표는 `div.table-scroll`(`role="region"`)로 감싼다. `renderMarkdown()`이 `{ html, toc, hasMath }`를 돌려준다.
+5. 렌더 캐시는 글 ID당 한 칸 `Map`(10분)이다. 자산 조회·블록 하이라이트가 실패해도 글은 그린다.
+6. 복사는 클립보드 API가 거부되면 `execCommand('copy')`로 한 번 더 한다. 제목 앵커는 터치 화면에서 숨기고 앞을 NBSP로 붙인다.
+7. 스크롤 스파이는 IntersectionObserver가 아니라 passive `scroll` + rAF다(멀리 건너뛰기·문서 끝).
+8. 타이포 스케일·본문 h1 크기·`@tailwindcss/typography` 제거는 PR-B(T3·T5) 몫으로 두었다. PR-A의 `prose.css`는 3단계 규칙 + 본문 1차 색 + 새 요소 규칙이다.
+9. 정규화 규칙 7(사용자 결정 2026-11-09): `normalizeForCompare`가 블록(단락·제목·목록 항목·표 칸) 처음·끝 공백을 지운다. 5절 대응표의 "`normalizeForCompare`는 바꾸지 않는다"와 다르다. 3단계 변환기가 `&#x20;`로 저장한 사용자 시험 초안 1편을 D14가 다시 쓰면 렌더는 같은데 비교가 달랐다. 운영 왕복 59/59.
 
 ## 부록 A. 계획 문서 6.1 요구(U1~U18)와 4단계 처리
 

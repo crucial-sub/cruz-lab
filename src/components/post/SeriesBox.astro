@@ -1,0 +1,169 @@
+---
+// 연재 상자 (재건 4단계 D16 3·7, D6 답의 연재 입구)
+// - variant="top": 제목 바로 아래. 연재 제목 링크, N/M, 이전 편·다음 편, "전체 N편 보기"(<details>로 연재 목차).
+//   모바일에서도 목차 <details>보다 위에 둔다(D6 답).
+// - variant="bottom": 글 끝. 연재 목차 전체를 펼쳐 보인다. 현재 글은 강조하고 링크가 아니다.
+import type { PublishedSeries } from '@/lib/content-posts';
+import { seriesPath } from '@/lib/public-paths';
+import { blogPath } from '@/lib/slug-lookup';
+
+interface Props {
+  series: PublishedSeries;
+  currentId: string;
+  variant: 'top' | 'bottom';
+}
+
+const { series, currentId, variant } = Astro.props;
+const index = series.posts.findIndex((post) => post.id === currentId);
+const total = series.posts.length;
+const previous = index > 0 ? series.posts[index - 1] : null;
+const next = index >= 0 && index < total - 1 ? series.posts[index + 1] : null;
+const headingId = `series-${variant}`;
+---
+
+<section class:list={['series-box', `series-box-${variant}`]} aria-labelledby={headingId}>
+  <p class="series-head">
+    <span class="series-label">연재</span>
+    <a id={headingId} class="series-title" href={seriesPath(series.key)}>{series.title}</a>
+    {
+      index >= 0 && (
+        <span class="series-count">
+          {index + 1}/{total}
+        </span>
+      )
+    }
+  </p>
+
+  {
+    variant === 'top' && (previous || next) && (
+      <ul class="series-neighbors">
+        {previous && (
+          <li>
+            <span class="series-neighbor-label">이전 편</span>
+            <a href={blogPath(previous.slug)}>{previous.title}</a>
+          </li>
+        )}
+        {next && (
+          <li>
+            <span class="series-neighbor-label">다음 편</span>
+            <a href={blogPath(next.slug)}>{next.title}</a>
+          </li>
+        )}
+      </ul>
+    )
+  }
+
+  {
+    variant === 'top' ? (
+      <details class="series-all">
+        <summary>전체 {total}편 보기</summary>
+        <ol class="series-list">
+          {series.posts.map((post) => (
+            <li>
+              {post.id === currentId ? (
+                <span aria-current="page">{post.title}</span>
+              ) : (
+                <a href={blogPath(post.slug)}>{post.title}</a>
+              )}
+            </li>
+          ))}
+        </ol>
+      </details>
+    ) : (
+      <ol class="series-list">
+        {series.posts.map((post) => (
+          <li>
+            {post.id === currentId ? (
+              <span aria-current="page">{post.title}</span>
+            ) : (
+              <a href={blogPath(post.slug)}>{post.title}</a>
+            )}
+          </li>
+        ))}
+      </ol>
+    )
+  }
+</section>
+
+<style>
+  .series-box {
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--bg-surface);
+    padding: 1rem 1.25rem;
+    font-size: 0.9375rem;
+  }
+  .series-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin: 0;
+  }
+  .series-label {
+    color: var(--brand);
+    font-size: 0.8125rem;
+    font-weight: 700;
+  }
+  .series-title {
+    color: var(--text-primary);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .series-title:hover {
+    color: var(--brand);
+  }
+  .series-count {
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+  .series-neighbors {
+    display: grid;
+    gap: 0.25rem;
+    margin: 0.75rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .series-neighbors li {
+    display: flex;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  .series-neighbor-label {
+    flex: none;
+    color: var(--text-secondary);
+  }
+  .series-neighbors a,
+  .series-list a {
+    color: var(--text-primary);
+    text-decoration: none;
+  }
+  .series-neighbors a:hover,
+  .series-list a:hover {
+    color: var(--brand);
+  }
+  .series-all {
+    margin-top: 0.75rem;
+  }
+  .series-all summary {
+    cursor: pointer;
+    color: var(--text-secondary);
+  }
+  .series-all summary:hover {
+    color: var(--text-primary);
+  }
+  .series-list {
+    margin: 0.75rem 0 0;
+    padding-left: 1.5rem;
+    display: grid;
+    gap: 0.25rem;
+  }
+  .series-list li::marker {
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+  .series-list [aria-current='page'] {
+    color: var(--brand);
+    font-weight: 600;
+  }
+</style>

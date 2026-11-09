@@ -1,0 +1,286 @@
+---
+// 글 상세 본문 (재건 4단계 D16)
+// 위에서 아래 순서:
+// 1. 머리줄: 카테고리 링크 · 발행일 · 수정일(마지막 발행일이 다른 날이면) · 읽기 시간
+// 2. 제목(h1) · 설명
+// 3. 연재 상자(연재 글일 때). 모바일에서도 목차보다 위(D6 답)
+// 4. 표지 이미지(cover.kind === 'image')
+// 5. 목차(1280px 미만은 본문 위 <details>, 이상은 오른쪽 sticky) + 본문(.prose)
+// 6. 태그 칩
+// 7. 이전·다음 글, 연재 글이면 그 아래 연재 목차 전체
+// - 본문 HTML은 공유 파이프라인 결과다(render-entry.ts). .prose 규칙은 src/styles/prose.css 한 파일이다.
+// - 보조 스크립트(post-scripts.ts)는 코드 복사·앵커 복사·목차 위치 표시만 한다. 없어도 글은 읽힌다.
+import '@/styles/prose.css';
+import '@/styles/shiki.css';
+import type { AdjacentPosts, PublishedSeries } from '@/lib/content-posts';
+import type { MarkdownRenderResult } from '@/lib/content/markdown';
+import { isVideoUrl } from '@/lib/content/safe-url';
+import { formatSeoulDate, isSameSeoulDate } from '@/lib/date-format';
+import { categoryPath, tagPath } from '@/lib/public-paths';
+import type { PublicEntry } from '@/lib/server/entries';
+import PrevNext from './PrevNext.astro';
+import SeriesBox from './SeriesBox.astro';
+import Toc from './Toc.astro';
+
+interface Props {
+  entry: PublicEntry;
+  rendered: MarkdownRenderResult;
+  adjacent: AdjacentPosts;
+  series: PublishedSeries | null;
+}
+
+const { entry, rendered, adjacent, series } = Astro.props;
+const { html, toc } = rendered;
+
+const published = formatSeoulDate(entry.publishedAt);
+const updated = isSameSeoulDate(entry.publishedAt, entry.lastPublishedAt)
+  ? null
+  : formatSeoulDate(entry.lastPublishedAt);
+const coverUrl = entry.cover.kind === 'image' ? entry.cover.url : null;
+---
+
+<article class:list={['post', toc.length > 0 && 'post-has-toc']} aria-labelledby="post-title">
+  <div class="post-main">
+    <header class="post-header">
+      <p class="post-meta">
+        {
+          entry.category && (
+            <a class="post-category" href={categoryPath(entry.category)}>
+              {entry.categoryLabel}
+            </a>
+          )
+        }
+        <time datetime={entry.publishedAt.toISOString()}>{published}</time>
+        {
+          updated && (
+            <span>
+              수정 <time datetime={entry.lastPublishedAt.toISOString()}>{updated}</time>
+            </span>
+          )
+        }
+        <span>{entry.readingTime}분</span>
+      </p>
+      <h1 id="post-title" class="post-title">{entry.title}</h1>
+      {entry.description && <p class="post-description">{entry.description}</p>}
+    </header>
+
+    {series && <SeriesBox series={series} currentId={entry.id} variant="top" />}
+
+    {
+      coverUrl && (
+        <figure class="post-cover">
+          {isVideoUrl(coverUrl) ? (
+            <video src={coverUrl} autoplay loop muted playsinline preload="metadata" />
+          ) : (
+            <img src={coverUrl} alt="" fetchpriority="high" decoding="async" />
+          )}
+        </figure>
+      )
+    }
+
+    {
+      toc.length > 0 && (
+        <details class="post-toc-inline">
+          <summary>목차</summary>
+          <nav aria-label="목차">
+            <Toc entries={toc} />
+          </nav>
+        </details>
+      )
+    }
+
+    <div
+      id="post-body"
+      class="post-body prose prose-lg max-w-none dark:prose-invert"
+      set:html={html}
+    />
+
+    {
+      entry.tags.length > 0 && (
+        <ul class="post-tags" aria-label="태그">
+          {entry.tags.map((tag) => (
+            <li>
+              <a href={tagPath(tag)}>#{tag}</a>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+
+    <footer class="post-footer">
+      <PrevNext previous={adjacent.previous} next={adjacent.next} />
+      {series && <SeriesBox series={series} currentId={entry.id} variant="bottom" />}
+    </footer>
+  </div>
+
+  {
+    toc.length > 0 && (
+      <aside class="post-toc-side">
+        <nav aria-label="목차">
+          <p class="post-toc-title">목차</p>
+          <Toc entries={toc} />
+        </nav>
+      </aside>
+    )
+  }
+
+  <p class="sr-only" role="status" aria-live="polite" data-post-status></p>
+</article>
+
+<script>
+  import { setupPostPage } from './post-scripts';
+  setupPostPage();
+</script>
+
+<style>
+  /* 본문 폭 68자(D10). ch는 이 요소의 글꼴 크기(17px) 기준이다 */
+  .post {
+    --measure: 68ch;
+    font-size: 1.0625rem;
+    max-width: var(--measure);
+    margin-inline: auto;
+    padding-block: 2rem 4rem;
+  }
+  .post-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    min-width: 0;
+  }
+  .post-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .post-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.75rem;
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .post-category {
+    color: var(--brand);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .post-category:hover {
+    color: var(--brand-hover);
+  }
+  .post-title {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: clamp(28px, 4vw, 40px);
+    font-weight: 800;
+    line-height: 1.25;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+  .post-description {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 1.0625rem;
+    line-height: 1.6;
+  }
+  .post-cover {
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+  }
+  .post-cover img,
+  .post-cover video {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .post-toc-inline {
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-surface);
+  }
+  .post-toc-inline summary {
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 0.9375rem;
+    font-weight: 600;
+  }
+  .post-toc-inline[open] summary {
+    margin-bottom: 0.5rem;
+  }
+  .post-body {
+    min-width: 0;
+  }
+  /* 본문 첫 요소와 마지막 요소의 바깥 여백은 위아래 간격(gap)과 겹친다 */
+  .post-body > :global(:first-child) {
+    margin-top: 0;
+  }
+  .post-body > :global(:last-child) {
+    margin-bottom: 0;
+  }
+  .post-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .post-tags a {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    text-decoration: none;
+    transition:
+      color 0.15s,
+      border-color 0.15s;
+  }
+  .post-tags a:hover {
+    border-color: var(--brand);
+    color: var(--brand);
+  }
+  .post-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border);
+  }
+  .post-toc-side {
+    display: none;
+  }
+
+  /* 1280px 이상: 본문 오른쪽에 목차를 고정한다. 목차가 없는 글은 한 열 그대로 가운데다 */
+  @media (min-width: 1280px) {
+    .post-has-toc {
+      display: grid;
+      grid-template-columns: minmax(0, var(--measure)) 240px;
+      column-gap: 2.5rem;
+      max-width: calc(var(--measure) + 240px + 2.5rem);
+    }
+    .post-toc-inline {
+      display: none;
+    }
+    .post-toc-side {
+      display: block;
+      position: sticky;
+      top: 6rem;
+      align-self: start;
+      max-height: calc(100vh - 8rem);
+      overflow-y: auto;
+    }
+    .post-toc-title {
+      margin: 0 0 0.5rem;
+      color: var(--text-secondary);
+      font-size: 0.8125rem;
+      font-weight: 700;
+    }
+  }
+</style>

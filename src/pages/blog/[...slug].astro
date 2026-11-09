@@ -1,208 +1,93 @@
 ---
+// 글 상세 /blog/<slug> (재건 4단계 D7·D11·D16)
+// - 조회: findPublishedEntryBySlug(메모 60초). 예전 slug와 다른 kind(노트·프로젝트 글)의 slug는 그 주소로 301.
+// - 본문: renderEntry(글 ID·발행본 번호로 메모리 캐시) → 공유 파이프라인(Shiki, 제목 id·목차, srcset).
+// - KaTeX CSS는 본문에 수식이 있을 때만 넣는다(D16). 코드 하이라이트는 외부 CSS 없이 shiki.css다(cdnjs 링크 없음).
+// - CDN: 글을 찾았을 때만 s-maxage=60, 태그 posts,post-<id>. 404는 저장하지 않는다.
+import katexCssUrl from 'katex/dist/katex.min.css?url';
+import PostArticle from '@/components/post/PostArticle.astro';
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import MarkdownPostView from '@/components/blog/MarkdownPostView';
-import { resolveContentPostBySlug } from '@/lib/content-posts';
+import {
+  getAdjacentPosts,
+  getPublishedSeriesByKey,
+  resolvePostPageBySlug,
+} from '@/lib/content-posts';
 import { POSTS_CACHE_TAG, postCacheTag, setPublicPageCache } from '@/lib/server/cache-headers';
-import { blogPath } from '@/lib/slug-lookup';
+import { renderEntry } from '@/lib/server/render-entry';
 
 export const prerender = false;
 
 const slug = Astro.params.slug || '';
-const lookup = await resolveContentPostBySlug(slug);
+const lookup = await resolvePostPageBySlug(slug);
 
-// 예전 slug면 새 주소로 301 (slugHistory, Plan 7.4)
-if (lookup && 'redirectTo' in lookup) {
-  const response = Astro.redirect(blogPath(lookup.redirectTo), 301);
+// 예전 slug(slugHistory) 또는 다른 kind의 slug면 그 주소로 301
+if (lookup?.type === 'redirect') {
+  const response = Astro.redirect(lookup.location, 301);
   setPublicPageCache(response.headers, [POSTS_CACHE_TAG, postCacheTag(lookup.id)]);
   return response;
 }
 
-const post = lookup?.post ?? null;
+const entry = lookup?.type === 'post' ? lookup.entry : null;
 
-if (!post) {
+const [rendered, adjacent, series] = entry
+  ? await Promise.all([
+      renderEntry(entry),
+      getAdjacentPosts(entry.id),
+      entry.series ? getPublishedSeriesByKey(entry.series.key) : Promise.resolve(null),
+    ])
+  : [null, null, null];
+
+if (!entry) {
   Astro.response.status = 404;
   // 404 응답은 기본적으로 404.astro로 대체되므로, 아래의 글 전용 안내 화면이 그대로 나가도록 재라우팅을 끈다
   Astro.response.headers.set('X-Astro-Reroute', 'no');
 } else {
   // 글을 찾은 경우에만 CDN 캐시를 건다. 404는 저장하지 않는다
-  setPublicPageCache(Astro.response.headers, [POSTS_CACHE_TAG, postCacheTag(post.id)]);
+  setPublicPageCache(Astro.response.headers, [POSTS_CACHE_TAG, postCacheTag(entry.id)]);
 }
 
-const title = post?.title || '포스트를 찾을 수 없습니다';
-const description = post?.description || '요청한 블로그 포스트를 찾을 수 없습니다.';
-const heroImage = post?.heroImage || undefined;
-const tags = post?.tags || [];
-const publishedTime = post ? new Date(post.pubDate).toISOString() : undefined;
+const title = entry?.title || '포스트를 찾을 수 없습니다';
+const description = entry?.description || '요청한 블로그 포스트를 찾을 수 없습니다.';
+const heroImage = entry?.cover.kind === 'image' ? entry.cover.url : undefined;
 ---
-
-<!-- highlight.js 테마 (코드 구문 강조) -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" />
 
 <BaseLayout
   title={title}
   description={description}
   image={heroImage}
   type="article"
-  publishedTime={publishedTime}
-  tags={tags}
+  publishedTime={entry?.publishedAt.toISOString()}
+  tags={entry?.tags ?? []}
 >
-  {post ? (
-    <MarkdownPostView post={post} />
-  ) : (
-    <div class="py-20 text-center">
-      <a
-        href="/blog"
-        class="group mb-8 inline-flex items-center gap-2 text-text-secondary transition-colors hover:text-brand"
-      >
-        <svg
-          class="h-4 w-4 transition-transform group-hover:-translate-x-1"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
+  {rendered?.hasMath && <link slot="head" rel="stylesheet" href={katexCssUrl} />}
+  {
+    entry && rendered && adjacent ? (
+      <PostArticle entry={entry} rendered={rendered} adjacent={adjacent} series={series} />
+    ) : (
+      <div class="py-20 text-center">
+        <a
+          href="/blog"
+          class="group mb-8 inline-flex items-center gap-2 text-text-secondary transition-colors hover:text-brand"
         >
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-        </svg>
-        블로그로 돌아가기
-      </a>
-      <h1 class="text-3xl font-bold text-text-primary">포스트를 찾을 수 없습니다.</h1>
-      <p class="mt-4 text-text-secondary">삭제되었거나 아직 발행되지 않은 글일 수 있습니다.</p>
-    </div>
-  )}
+          <svg
+            class="h-4 w-4 transition-transform group-hover:-translate-x-1"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+          블로그로 돌아가기
+        </a>
+        <h1 class="text-3xl font-bold text-text-primary">포스트를 찾을 수 없습니다.</h1>
+        <p class="mt-4 text-text-secondary">삭제되었거나 아직 발행되지 않은 글일 수 있습니다.</p>
+      </div>
+    )
+  }
 </BaseLayout>
-
-<style is:global>
-  .prose {
-    color: var(--text-primary);
-  }
-
-  .prose h1 {
-    font-size: 2.25rem;
-    font-weight: 700;
-    margin-top: 2rem;
-    margin-bottom: 1rem;
-    color: var(--text-primary);
-  }
-
-  .prose h2 {
-    font-size: 1.75rem;
-    font-weight: 600;
-    margin-top: 2rem;
-    margin-bottom: 0.75rem;
-    color: var(--text-primary);
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 0.5rem;
-  }
-
-  .prose h3 {
-    font-size: 1.375rem;
-    font-weight: 600;
-    margin-top: 1.5rem;
-    margin-bottom: 0.5rem;
-    color: var(--text-primary);
-  }
-
-  .prose h4 {
-    font-size: 1.125rem;
-    font-weight: 600;
-    margin-top: 1.25rem;
-    margin-bottom: 0.5rem;
-    color: var(--text-primary);
-  }
-
-  .prose p {
-    margin: 1rem 0;
-    line-height: 1.8;
-    color: var(--text-secondary);
-  }
-
-  .prose ul,
-  .prose ol {
-    padding-left: 1.5rem;
-    margin: 1rem 0;
-  }
-
-  .prose li {
-    margin: 0.5rem 0;
-    color: var(--text-secondary);
-  }
-
-  .prose blockquote {
-    border-left: 4px solid var(--brand);
-    padding-left: 1rem;
-    margin: 1.5rem 0;
-    color: var(--text-secondary);
-    font-style: italic;
-    background: var(--bg-card);
-    padding: 1rem;
-    border-radius: 0 0.5rem 0.5rem 0;
-  }
-
-  .prose pre {
-    background-color: #1e1e1e;
-    color: #e5e7eb;
-    border-radius: 0.5rem;
-    padding: 1rem;
-    overflow-x: auto;
-    margin: 1.5rem 0;
-  }
-
-  .prose code {
-    font-family: 'Fira Code', 'JetBrains Mono', Consolas, monospace;
-    font-size: 0.875rem;
-  }
-
-  .prose pre code {
-    background: transparent;
-    padding: 0;
-  }
-
-  .prose img,
-  .prose video {
-    max-width: 100%;
-    border-radius: 0.5rem;
-    margin: 1.5rem 0;
-  }
-
-  .prose a {
-    color: var(--brand);
-    text-decoration: underline;
-  }
-
-  .prose a:hover {
-    color: var(--brand);
-    opacity: 0.8;
-  }
-
-  .prose hr {
-    border: none;
-    border-top: 1px solid var(--border);
-    margin: 2.5rem 0;
-  }
-
-  .prose strong {
-    font-weight: 700;
-    color: var(--text-primary);
-  }
-
-  .prose em {
-    font-style: italic;
-  }
-
-  .prose table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 1.5rem 0;
-  }
-
-  .prose th,
-  .prose td {
-    border: 1px solid var(--border);
-    padding: 0.75rem;
-    text-align: left;
-  }
-
-  .prose th {
-    background: var(--bg-card);
-    font-weight: 600;
-  }
-</style>
