@@ -1,7 +1,8 @@
-// 글 목록 화면 도우미 (재건 4단계 D11·D17)
+// 글 목록 화면 도우미 (재건 4단계 D11·D17·D19)
 // - /blog, /blog/category/<key>, /blog/tag/<tag>, 홈이 쓴다. 순수 함수만 둔다(Firestore를 읽지 않는다).
 // - 카테고리 탭: 발행 글이 있는 카테고리만. 글 수 많은 순, 같으면 taxonomy 순서(D17).
 // - 태그 칩: 발행 글에 쓰인 태그. 글 수 많은 순, 같으면 이름순.
+// - 대표 카드: 목록의 첫 글(최신 글). 나머지를 연도 묶음으로 나눈다(D19).
 // - 행 묶음: 날짜 내림차순 한 줄기를 서울 연도로 나눈다. 연도가 바뀌는 첫 행 앞에 머리가 온다.
 // - 연재 배지: "Pintos 2/5". N은 그 연재의 발행 글 중 순서다(연재 상자 N/M과 같다).
 
@@ -93,6 +94,15 @@ export function buildSeriesBadges(seriesList: readonly ListSeries[]): Map<string
     });
   }
   return result;
+}
+
+// 대표 카드와 나머지 (D19 매거진형)
+// - 입력은 최신 발행순이다. 첫 글이 대표 카드(최신 글)이고 나머지가 행이다. 글이 없으면 대표도 없다.
+export function splitFeatured<T extends ListPost>(
+  posts: readonly T[],
+): { featured: T | null; rest: T[] } {
+  if (posts.length === 0) return { featured: null, rest: [] };
+  return { featured: posts[0], rest: posts.slice(1) };
 }
 
 // 연도 묶음 (입력 순서를 지킨다. 입력은 최신 발행순이다)

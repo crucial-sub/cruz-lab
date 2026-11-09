@@ -86,6 +86,11 @@ async function get(urlPath) {
   return { res, body };
 }
 const rowsOf = (html) => (html.match(/<li[^>]*\sdata-post-row/g) ?? []).length;
+// D19 매거진형: 대표 카드(최신 글) 수, 연도 묶음(section) 수, 대표 카드의 글 주소
+const featuredOf = (html) => (html.match(/<li[^>]*\sdata-featured/g) ?? []).length;
+const yearGroupsOf = (html) => (html.match(/<section[^>]*\sdata-year-group/g) ?? []).length;
+const featuredHrefOf = (html) =>
+  html.match(/<li[^>]*\sdata-featured[\s\S]*?<a href="([^"]+)"/)?.[1] ?? '';
 const islandsOf = (html) => (html.match(/<astro-island/g) ?? []).length;
 const ogImageOf = (html) => html.match(/<meta property="og:image" content="([^"]+)"/)?.[1] ?? '';
 const hasTag = (res, tag) => (res.headers.get('vercel-cache-tag') ?? '').split(',').includes(tag);
@@ -144,6 +149,13 @@ const blogBytes = Buffer.byteLength(blog.body);
 check(blog.res.status === 200, `/blog ${blog.res.status}`);
 check(blogBytes <= 100 * 1024, `/blog HTML ${blogBytes}바이트`);
 check(rowsOf(blog.body) === posts.length, `/blog 행 ${rowsOf(blog.body)} != ${posts.length}`);
+// D19: 대표 카드는 1개이고 최신 글이다. 나머지 글은 연도 묶음에 있다
+check(featuredOf(blog.body) === 1, `/blog 대표 카드 ${featuredOf(blog.body)}개`);
+check(
+  featuredHrefOf(blog.body) === encodeURI(`/blog/${posts[0].published.slug}`),
+  `/blog 대표 카드 주소 ${featuredHrefOf(blog.body)}`,
+);
+check(yearGroupsOf(blog.body) >= 1, `/blog 연도 묶음 ${yearGroupsOf(blog.body)}개`);
 check(islandsOf(blog.body) === 0, '/blog astro-island');
 const tabNav = blog.body.match(/<nav class="category-tabs"[\s\S]*?<\/nav>/)?.[0] ?? '';
 const tabs = [
@@ -192,6 +204,7 @@ for (const category of CATEGORIES) {
       `/blog/category/${category.key} ${res.status} 행 ${rowsOf(body)} != ${expected}`,
     );
     check(islandsOf(body) === 0, `/blog/category/${category.key} astro-island`);
+    check(featuredOf(body) === 1, `/blog/category/${category.key} 대표 카드 ${featuredOf(body)}개`);
   } else {
     check(res.status === 404, `/blog/category/${category.key}(글 없음) ${res.status}`);
   }
@@ -210,6 +223,10 @@ for (const [tag, count] of tagCounts) {
     res.status === 200 && rowsOf(body) === count,
     `/blog/tag/${tag} ${res.status} 행 ${rowsOf(body)} != ${count}`,
   );
+  // D19: 대표 카드 1개. 글이 1편이면 연도 묶음이 없다(대표만)
+  check(featuredOf(body) === 1, `/blog/tag/${tag} 대표 카드 ${featuredOf(body)}개`);
+  if (count === 1)
+    check(yearGroupsOf(body) === 0, `/blog/tag/${tag} 연도 묶음 ${yearGroupsOf(body)}개(글 1편)`);
 }
 
 // 4. 노트

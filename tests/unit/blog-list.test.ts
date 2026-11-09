@@ -1,4 +1,4 @@
-// 글 목록 도우미·목록 검색·노트 발췌·날짜 표기 테스트 (재건 4단계 D2·D11·D12·D17)
+// 글 목록 도우미·목록 검색·노트 발췌·날짜 표기 테스트 (재건 4단계 D2·D11·D12·D17·D19)
 import { describe, expect, it } from 'vitest';
 import {
   buildCategoryTabs,
@@ -6,6 +6,7 @@ import {
   buildTagChips,
   groupByYear,
   searchTextFor,
+  splitFeatured,
   type ListPost,
 } from '@/lib/blog-list';
 import { firstLineExcerpt } from '@/lib/content/excerpt';
@@ -92,6 +93,17 @@ describe('groupByYear', () => {
       [2026, ['a', 'b']],
       [2025, ['c', 'd']],
     ]);
+  });
+});
+
+describe('splitFeatured (D19)', () => {
+  it('첫 글(최신 글)이 대표이고 나머지가 행이다. 글이 없으면 대표도 없다', () => {
+    const posts = [post('a', 'ai', []), post('b', 'os', []), post('c', 'os', [])];
+    const { featured, rest } = splitFeatured(posts);
+    expect(featured?.id).toBe('a');
+    expect(rest.map((p) => p.id)).toEqual(['b', 'c']);
+    expect(splitFeatured([])).toEqual({ featured: null, rest: [] });
+    expect(splitFeatured([posts[0]])).toEqual({ featured: posts[0], rest: [] });
   });
 });
 
