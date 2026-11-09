@@ -717,7 +717,7 @@ Claude 판단으로 정한 것(승인 때 함께 확인): D7 요청 때 렌더 +
 8. 타이포 스케일·본문 h1 크기·`@tailwindcss/typography` 제거는 PR-B(T3·T5) 몫으로 두었다. PR-A의 `prose.css`는 3단계 규칙 + 본문 1차 색 + 새 요소 규칙이다.
 9. 정규화 규칙 7(사용자 결정 2026-11-09): `normalizeForCompare`가 블록(단락·제목·목록 항목·표 칸) 처음·끝 공백을 지운다. 5절 대응표의 "`normalizeForCompare`는 바꾸지 않는다"와 다르다. 3단계 변환기가 `&#x20;`로 저장한 사용자 시험 초안 1편을 D14가 다시 쓰면 렌더는 같은데 비교가 달랐다. 운영 왕복 59/59.
 
-**PR-B (T3·T4·T5, 2026-11-10).** 작업 문서 5절 22~51(구현 20, 리뷰 뒤 10).
+**PR-B (T3·T4·T5, 2026-11-10, [PR #16](https://github.com/crucial-sub/cruz-lab/pull/16)).** 작업 문서 5절 22~51(구현 20, 리뷰 뒤 10).
 
 1. `/projects` 두 페이지의 아일랜드·Reveal을 PR-B에서 걷어냈다(`ProjectCard.astro`, `prose.css`). 데이터는 콘텐츠 컬렉션 그대로이고 T6은 데이터 출처만 바꾼다. `/about`의 프로젝트 4줄은 파일에 적었다(prerender가 Firestore를 읽지 않게).
 2. `BaseHead`는 `ogImage` 이름만 바꾸고 기본 이미지는 T7까지 프로필 사진이다(`/og/default.png`가 아직 없다).

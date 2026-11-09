@@ -3,15 +3,15 @@
 - 날짜: 2026-11-09 (PR-A 구현), 2026-11-10 (PR-B 구현)
 - Plan: [2026-11-09-stage4-public-site-plan.md](./2026-11-09-stage4-public-site-plan.md) (승인 2026-11-09, PR #14 병합 `b2583ed`)
 - 진행 기록: [계획 문서 11.9](./2026-11-06-blog-architecture-audit-2-problems-and-plan.md#119-4단계-구현-진행-기록-2026-11-09)
-- 브랜치: `stage4/a-renderer`(PR-A, [PR #15](https://github.com/crucial-sub/cruz-lab/pull/15), `rebuild`에 병합 `2b32907`), `stage4/b-pages`(PR-B, `2b32907`에서 생성). 대상은 `rebuild`다. PR-C `stage4/c-projects-og`, 문서 PR `stage4/docs`는 아직이다.
-- 상태: **PR-A(T1·T2) 병합. PR-B(T3·T4·T5) 구현·검증·리뷰 수정 끝(6.2).** 커밋·푸시·PR은 사용자 확인 뒤다.
+- 브랜치: `stage4/a-renderer`(PR-A, [PR #15](https://github.com/crucial-sub/cruz-lab/pull/15), `rebuild`에 병합 `2b32907`), `stage4/b-pages`(PR-B, `2b32907`에서 생성, [PR #16](https://github.com/crucial-sub/cruz-lab/pull/16)). 대상은 `rebuild`다. PR-C `stage4/c-projects-og`, 문서 PR `stage4/docs`는 아직이다.
+- 상태: **PR-A(T1·T2) 병합. PR-B(T3·T4·T5) 구현·검증·리뷰 수정 끝(6.2).** 사용자 승인(2026-11-10)으로 커밋 `25facf1`(코드)·`ad1765b`(문서), 푸시, [PR #16](https://github.com/crucial-sub/cruz-lab/pull/16)(대상 `rebuild`). 병합은 사용자 확인 뒤다.
 
 ## 1. 현재 상황
 
 | 항목 | 상태 |
 |---|---|
 | PR-A (T1 공유 파이프라인, T2 글 상세) | 끝. [PR #15](https://github.com/crucial-sub/cruz-lab/pull/15) `rebuild` 병합(`2b32907`). 테스트 504, 왕복 59/59, 공개 스모크 322/0, 글 상세 점검 378/0. 리뷰 치명 0·중요 1·경미 12(6.1). 태그 `rebuild-pre-stage4`(`b2583ed`) |
-| PR-B (T3 토큰·레이아웃, T4 페이지, T5 React 삭제) | 구현·검증·리뷰 수정 끝(2026-11-10). 브랜치 `stage4/b-pages`(`origin/rebuild` `2b32907`에서 생성). 204파일(글꼴 subset·라이선스 93개 포함). 글꼴·lockfile을 빼면 108파일, +3,871·−4,190줄(문서 포함). 테스트 526(+22), `tsc` **0**, lint·빌드 통과, 운영 왕복 59/59, 2단계 공개 스모크 324/0, PR-B 공개 점검 602/0, 공개 페이지 `astro-island` 0, 브라우저 확인(4.10). 리뷰 치명 0·중요 3·경미 15 → 중요 3·경미 10 고침(6.2). 커밋 전 |
+| PR-B (T3 토큰·레이아웃, T4 페이지, T5 React 삭제) | 구현·검증·리뷰 수정 끝(2026-11-10). 브랜치 `stage4/b-pages`(`origin/rebuild` `2b32907`에서 생성). 204파일(글꼴 subset·라이선스 93개 포함). 글꼴·lockfile을 빼면 108파일, +3,871·−4,190줄(문서 포함). 테스트 526(+22), `tsc` **0**, lint·빌드 통과, 운영 왕복 59/59, 2단계 공개 스모크 324/0, PR-B 공개 점검 602/0, 공개 페이지 `astro-island` 0, 브라우저 확인(4.10). 리뷰 치명 0·중요 3·경미 15 → 중요 3·경미 10 고침(6.2). 커밋 `25facf1`·`ad1765b`, [PR #16](https://github.com/crucial-sub/cruz-lab/pull/16)(대상 `rebuild`). 병합은 사용자 확인 뒤 |
 | PR-C (T6·T7·T8), 문서 PR (T9) | 아직. PR-B 병합 뒤 새 세션(7절) |
 | 외부 변경 | 없음 |
 | 운영 데이터 | PR-A는 읽기만 했다. PR-B는 사용자 승인(2026-11-10)으로 시험 노트 1편(`PqVMdc6m0mTvrsEOrAgt`, slug `note-20261110-0054`)을 만들어 발행하고 확인 뒤 지웠다(4.11). 남은 것: `publishLog` 2건(발행·삭제, 승인한 대로). `entries` 59(공개 post 54, 초안 5: 에세이 1편 + 사용자 시험 초안 4편)로 처음과 같다. 사용자 시험 초안은 건드리지 않았다 |
@@ -425,11 +425,11 @@ PR-B(T3·T4·T5, 2026-11-10)에서 판단한 것:
 
 ## 7. 다음 작업
 
-**끝난 것.** PR-A(T1·T2) 병합(`2b32907`). PR-B(T3·T4·T5) 구현·검증·리뷰 수정(1~6절). PR-B는 커밋 전이다.
+**끝난 것.** PR-A(T1·T2) 병합(`2b32907`). PR-B(T3·T4·T5) 구현·검증·리뷰 수정(1~6절), 시험 노트 확인(4.11), 커밋·푸시·[PR #16](https://github.com/crucial-sub/cruz-lab/pull/16).
 
 **다음 것.**
 
-1. ~~사용자 확인~~ 끝: 시험 노트는 확인하고 지웠다(4.11). 커밋·푸시·PR(대상 `rebuild`)은 사용자 승인(2026-11-10).
+1. 남은 것: [PR #16](https://github.com/crucial-sub/cruz-lab/pull/16) 병합(사용자 확인 뒤). 시험 노트는 확인하고 지웠다(4.11).
 2. (T8) 미리보기에서 `curl -i <미리보기>/blog/tag/no-such`로 SSR 404의 본문·헤더를 본다(5절 31, 리뷰 중요 3의 운영 확인).
 3. PR-B 병합 뒤 `rebuild` 미리보기에서 글 상세 콜드 TTFB(D7 뒤집는 조건 1.5초)와 Lighthouse(CDN 포함)를 잰다. 로컬 값은 4.9.
 4. PR-C(T6·T7·T8)는 새 세션이다. PR-B에서 넘기는 것:
