@@ -11,10 +11,10 @@
 |---|---|
 | PR-A (T1 변환기·파이프라인, T2 왕복 검사) | 끝. 커밋 `44a41d6`(코드)·`ee31798`(문서), [PR #9](https://github.com/crucial-sub/cruz-lab/pull/9)(대상 `rebuild`). 사용자 승인으로 병합했다(2026-11-09, merge commit `4010bd0`). 되돌리기 기준 태그 `rebuild-pre-stage3`(`4bc465b`). 원격 브랜치 `stage3/a-markdown`은 남아 있다(삭제는 사용자 확인 뒤) |
 | PR-B (T3 에디터 페이지, T4 이미지, T6 보기 모드, T8 퍼지) | 구현·검증·리뷰 끝(2026-11-09). 브랜치 `stage3/b-editor`. 처음에는 `stage3/a-markdown`(`13a0825`) 위에서 시작했고, PR #9 병합 뒤 `rebuild` 끝 `4010bd0` 위로 옮겼다(8절 1). 테스트 290, `tsc` 9(새 오류 0), 빌드 통과, 왕복 55/55, API 스모크 104/104. 리뷰(6.2) 치명 1·중요 10을 고쳤다. 브라우저 시나리오(8.4의 PR-B 몫 15개) 통과(4.5). 시험 데이터 0. 사용자 승인(2026-11-09)으로 커밋 `dfe1220`(코드)·`2df00d6`(문서), 푸시, [PR #10](https://github.com/crucial-sub/cruz-lab/pull/10)(대상 `rebuild`). 병합은 사용자 확인 뒤 |
-| PR-C (T5 명령·모바일, T7 최소 목록·삭제) | 시작 전 |
-| T9 (E2 버킷 CORS, 브라우저 확인, 미리보기 확인) | E2는 PR-B에서 했다(사용자 승인, 3절). 브라우저 확인 중 PR-B 몫도 PR-B에서 했다. 남은 것: 시나리오 7·14·17·18(T5), 미리보기 확인 8.5 |
+| PR-C (T5 명령·키맵·슬래시·팔레트·툴바·입력 규칙·임베드·수식·모바일·개요, T7 최소 목록·301·옛 화면 삭제) | 구현·검증·리뷰 끝(2026-11-09). 브랜치 `stage3/c-commands`(`origin/rebuild` `03698b5` = PR #10 병합 커밋에서 생성). 테스트 398(+108), `tsc` 9 → **1**(TextReveal만), lint·빌드 통과, 왕복 55/55, API 스모크 104/104. 리뷰(6.3) 치명 0·중요 4·경미 11을 고쳤다(중요 4는 사용자 결정). 브라우저 시나리오 7·14·17·18 통과(4.6), 미리보기 확인 8.5 끝(4.7). 시험 데이터 0. 사용자 승인(2026-11-09)으로 커밋 `ff8b7b4`(코드)·`07381f8`(문서), 푸시, [PR #11](https://github.com/crucial-sub/cruz-lab/pull/11)(대상 `rebuild`). 병합은 사용자 확인 뒤 |
+| T9 (E2 버킷 CORS, 브라우저 확인, 미리보기 확인) | 모두 끝. E2는 PR-B(3절). 시나리오 19개 중 15개는 PR-B(4.5), 7·14·17·18은 PR-C(4.6). 미리보기 확인 8.5는 PR-C(4.7) |
 | 외부 변경 | E2 버킷 CORS(2026-11-09 08:07 KST 무렵, 사용자 승인). Plan 값에 `http://localhost:4322`를 더했다(3절) |
-| 운영 데이터 | 기존 글은 읽기만 했다. 시험 글 2편·시험 자산 2개·publishLog 6줄을 만들었다가 모두 지웠다. 끝 상태: `entries` 55, `publishLog` 0, `entryTombstones` 0, 새 자산 0, Storage `assets/` 0(4.5) |
+| 운영 데이터 | 기존 글은 읽기만 했다. PR-B: 시험 글 2편·시험 자산 2개·publishLog 6줄을 만들었다가 모두 지웠다(4.5). PR-C: 시험 글 3편(localhost 2, 미리보기 1)·시험 자산 1개·publishLog 5줄을 만들었다가 모두 지웠다(4.6·4.7). 끝 상태: `entries` 55, `publishLog` 0, `entryTombstones` 0, `assets` 130(기존 그대로), Storage `assets/` 0 |
 
 ## 2. 한 일
 
@@ -93,7 +93,43 @@
 
 ### 2.6 T8: 퍼지 방식 (PR-B)
 
-`src/lib/server/cdn-purge.ts`: `post-<id>`는 `dangerouslyDeleteByTag`, `posts`는 `invalidateByTag`(D7). 로컬은 `skipped` 그대로. 단위 테스트(`cdn-purge.test.ts`)가 `@vercel/functions`를 가짜로 바꿔 두 호출을 확인한다. 미리보기 확인(8.5)은 PR-C의 T9에서.
+`src/lib/server/cdn-purge.ts`: `post-<id>`는 `dangerouslyDeleteByTag`, `posts`는 `invalidateByTag`(D7). 로컬은 `skipped` 그대로. 단위 테스트(`cdn-purge.test.ts`)가 `@vercel/functions`를 가짜로 바꿔 두 호출을 확인한다. 미리보기 확인(8.5)은 4.7.
+
+### 2.7 T5: 명령, 입력 규칙, 임베드·수식 입력, 모바일, 개요 (PR-C)
+
+| 파일 | 내용 |
+|---|---|
+| `src/editor/commands/registry.ts` | 명령 41개(`createCommands(actions)`). D9 인터페이스 + `scope`(editor·page)·`isAvailable`·`inToolbar`(5절 55). 키 문자열은 이 파일에만 있다(부록 B). 화면 동작(이미지 고르기, 링크·수식 창, 모드, 저장, 발행, 패널, 팔레트)은 주입한 `actions`가 한다 |
+| `src/editor/commands/keymap.ts` | 순수 함수: `detectPlatform`, `normalizeKey`(표준 형태), `formatKey`(`⌘⇧2` / `Ctrl+Shift+2`), `applyKeymapOverrides`, `findKeyConflicts`, `usesModAlt`, `shortcutEntries`. `overrides`는 3단계에서 빈 객체다 |
+| `src/editor/commands/filter.ts` | 순수 함수: `filterCommands`(제목·id, 공백·`-` 무시, 시작 > 포함, 최근 사용 순), `recordRecent`·`readRecent`·`writeRecent`(`localStorage` `cruz-lab:editor-recent`) |
+| `src/editor/commands/shortcuts.ts` | `stripCommandKeys`(Tiptap 확장의 명령 키 제거, 구조 키는 유지, 스키마 불변), `RegistryShortcuts`(에디터 범위 키 → `addKeyboardShortcuts`), `createPageKeyHandler`·`createPageKeyListener`(페이지 범위 키 → 창 `keydown`, prosemirror `keydownHandler` 재사용, 조합 중·처리됨·자동 반복 무시) |
+| `src/editor/commands/slash.ts`, `SlashMenu.tsx`, `CommandList.tsx`, `CommandPalette.tsx` | 슬래시 메뉴(`@tiptap/suggestion` + `ReactRenderer`. 코드 안 금지, `isAvailable` 거름, 최대 12개), 공용 목록(아이콘·이름·키 표기), 팔레트(`Mod+K`. 편집 모드면 그 자리에서 쓸 수 있는 명령, 아니면 페이지 범위만) |
+| `src/editor/extensions/input-rules.ts` | 더한 입력 규칙: 인용 첫 줄 `[!note] `(tip·warning) → 콜아웃, 글머리 항목 첫머리 `[ ] `·`[x] ` → 그 항목만 체크 목록, 빈 단락 `$$`+공백·Enter → 수식 입력 창. 임베드: 빈 단락에 지원 주소 붙여넣기, 지원 주소만 있는 단락 끝 Enter → 임베드 노드(`embedOfTextblock`, `embedPasteTransaction`). DOM 없이 돈다 |
+| `src/editor/state/summary.ts` | 순수 함수: `extractOutline`(문서 순서, 중첩 포함), `countCharacters`(코드 포인트), `summarizeDoc`(읽기 시간은 서버와 같은 `calculateReadingTime`) |
+| `src/editor/ui/Toolbar.tsx` | 데스크톱(768px 이상) 툴바. block·mark·insert 묶음, 묶음 사이 구분선, `isAvailable`로 숨김(표 명령은 표 안에서만), `useEditorState` 문자열 선택자로 활성 표시 |
+| `src/editor/ui/MobileBar.tsx` | 768px 미만, 에디터 포커스 중 키보드 위 고정(D12 7버튼: 굵게·제목 순환·목록·인용·이미지·되돌리기·메타). `window.visualViewport`의 `height`·`offsetTop`. `keyboardInset` 순수 함수 |
+| `src/editor/ui/Outline.tsx` | 개요(제목 트리, 누르면 이동)·글자 수(공백 포함·제외)·읽기 시간. 메타 패널 아래 |
+| `src/editor/ui/CodeBlockView.tsx` | 코드 블록 노드 뷰: 언어 `select`(`CODE_LANGUAGES` 20종 + 모르는 기존 값 유지) |
+| `src/editor/ui/EmbedNodeView.tsx` | 임베드 노드 뷰: 제공자·주소·삭제 줄 + 16:9 iframe(`detectEmbed` 주소만, sandbox·referrerpolicy). 선택 전에는 투명 막(누르면 선택) |
+| `src/editor/ui/Dialogs.tsx` | `LinkDialog`(주소. 비우면 풀기. `safeUrl` 검사), `MathDialog`(LaTeX textarea + KaTeX 미리보기. Mod+Enter 저장. 기존 노드는 삭제 버튼) |
+| `src/editor/ui/EditorApp.tsx` | 레지스트리 생성·`runCommand`(최근 사용 기록), 페이지 키 리스너, 요약 300ms 디바운스(편집·소스 모두), 링크·수식 저장(수식은 `pos` 검증), 이미지 고르기(`<input type=file>`), 개요 이동, 팔레트·모바일 바·툴바 연결, 발행 재진입 방지 |
+| `src/editor/ui/editor-extensions.ts` | 화면용 묶음: 스키마의 image·codeBlock·embed·Mathematics를 같은 자리에서 노드 뷰·클릭 편집 판으로 바꿔 끼우고(`stripCommandKeys` 적용), 업로드·입력 규칙·단축키·슬래시·Placeholder를 더한다. 스키마는 같다(테스트로 고정) |
+| `src/editor/ui/TopBar.tsx`, `MetaPanel.tsx` | ⋯ 메뉴에 "명령 팔레트". 640px 미만에서는 발행 버튼이 메타 시트 맨 위(D12). 패널 아래 개요 |
+| `src/editor/ui/class-names.ts` | `classNames`(조건부 클래스. 5절 51의 규칙을 공용 함수로) |
+| `src/editor/editor.css` | 코드 블록 언어 select, 임베드 노드 뷰 |
+| `tests/unit/editor-{keymap,command-filter,summary,commands,shortcuts,input-rules}.test.ts`, `tests/unit/helpers/headless-editor.ts` | 108개. 헤드리스 도우미: `makeHeadlessEditor`(DOM 없음 + 상태 플러그인), `typeText`(입력 규칙 플러그인의 `handleTextInput` 직접 호출), `pressKey`(가짜 keydown을 플러그인 순서대로) |
+
+### 2.8 T7: 최소 목록, 옛 주소 301, 삭제 (PR-C)
+
+| 파일 | 내용 |
+|---|---|
+| `src/layouts/AdminPage.astro` | 관리자 화면 공통 틀(전체 화면, `global.css`, 테마 초기화, noindex). 최소 목록과 에디터 페이지가 쓴다 |
+| `src/pages/admin/index.astro` | 최소 목록(D2 a). 서버 렌더, React 없음. 상태 탭(`?status=`)과 수, 제목·종류·상태·발행 뒤 변경·수정일(서울 시각), 에디터 링크. "새 글"·"새 노트"는 **POST 폼**(5절 68). 로그아웃은 `DELETE /api/admin/session` |
+| `src/pages/admin/posts/new.astro` | POST만 받는다. GET은 `/admin`으로 302. Origin 검사(403). `createEntry(kind)` → 303 |
+| `src/pages/admin/posts/index.astro`, `src/pages/admin/edit/index.astro` | 옛 주소 `/admin/posts`, `/admin/edit?slug=` → `/admin` 301 |
+| 지움(2,468줄) | `src/components/admin/{PostList,AdminDashboard,AdminLayout,AdminGuard}.tsx`, `src/hooks/useAdminAuth.ts`, `src/lib/{markdown-publish,editor-drafts,publish-status,publish-verification,publish-feedback}.ts`, `docs/cms-rebuild-tracker.md`, `docs/editor-engine-evaluation.md`, `scripts/evaluate-markdown-pipeline.mjs`, `fixtures/editor-roundtrip-stress.md`. 지우기 전 grep: 서로끼리와 `README.md`(5절 72)만 참조했다 |
+| 의존성 | 지움: `@codemirror/*` 4개, `@lezer/highlight`, `@uiw/react-codemirror`, `browser-image-compression`, `remark-breaks`, 스크립트 `editor:evaluate`. 더한 것 없음 |
+| `tsc --noEmit` | 9 → 1(`TextReveal`, 4단계에서 지운다) |
 
 ## 3. 외부 변경
 
@@ -120,6 +156,8 @@ E2(버킷 CORS)를 넣었다(2026-11-09, 사용자 승인). 명령: `node --env-
 | `pnpm build` | 통과 | 통과 | 통과. 에디터 청크 `EditorApp.*.js` **1,721 KB(gzip 526 KB)**(리뷰 수정 전 1,711 KB). 아래 4.4 |
 | 왕복 검사 | — | 55/55 | 55/55(구현 뒤, 시험 데이터 정리 뒤 두 번. 중간 실행은 빈 시험 글이 있어 56/56) |
 | API 스모크 | — | — | 104/104(4.3) |
+
+PR-C(2026-11-09): `pnpm lint` 통과. `pnpm test` **398**(+108: 순수 함수 30, 레지스트리·단축키·입력 규칙 61, 리뷰 수정 17). `tsc --noEmit` **1**(`TextReveal`만. Plan 8.1의 기준 9 → 1). `pnpm build` 통과. 에디터 청크 `EditorApp` **1,795,133바이트(gzip 547,952)**(4.4). 왕복 검사 55/55(구현 뒤, 시험 데이터 정리 뒤). API 스모크 104/104(4.3).
 
 ### 4.5 브라우저 확인 (PR-B, localhost:4322, 사용자 로그인)
 
@@ -162,6 +200,48 @@ PR-A 끝(`stage3/a-markdown`)과 PR-B를 같은 방법으로 빌드해 `dist/cli
 
 에디터 청크가 큰 이유: lowlight `common`(highlight.js 약 40개 언어), KaTeX, remark·rehype 파이프라인(미리보기·변환기), Tiptap. Plan 8.1은 "기록만, 목표 없음"이다. 줄이는 방법(언어·KaTeX 동적 import)은 8절 열린 질문 4.
 
+PR-C(2026-11-09). `origin/rebuild`(`03698b5`)와 PR-C를 같은 방법으로 빌드해 비교했다.
+
+| 구분 | 결과 |
+|---|---|
+| 공개 페이지 청크(BlogCard, BlogPostList, InteractiveHero, ProjectCard, ScrollProgress, SkillsSection, TextReveal, ThemeToggle, TiltCard, proxy, use-spring, index, ContactSection)와 공유 React 런타임 `client`(175,550바이트) | 크기 모두 같다 |
+| 에디터 청크 `EditorApp` | 1,720,672 → **1,795,133바이트**(gzip 547,952). +73 KB: 명령·메뉴·팔레트·대화상자·lucide 아이콘 41개·`@tiptap/suggestion` |
+| 지워진 청크 | `AdminDashboard`(11,163), `AdminLayout`(5,272), `PostList`(14,493) |
+| `AdminLogin` | 1,836 → 158,401. 지운 화면이 함께 쓰던 `firebase-auth-client` 청크(157,765)가 유일한 사용자인 로그인 섬에 합쳐졌다. 합계는 같다. 로그인 페이지만 내려받는다 |
+
+### 4.6 브라우저 확인 (PR-C, localhost:4323, 사용자 로그인)
+
+시험 글 2편(`xN7EurdVHSPmY2HY7xqG`, `0AV4axjDpz2XkIj6Zt0u`)을 "새 글" POST 폼으로 만들어 썼다. 기존 글은 열기만 했다. 둘 다 끝에 지웠다.
+
+| # | 시나리오 | 결과 |
+|---|---|---|
+| 1·2 (다시) | 기존 글 「큐」 열기 → 팔레트 열고 닫기, 개요 이동, 390px 전환 → 4초 이상 | 통과. `draft.version` 1, `updatedAt` 2026-03-31T11:47:11.502Z 그대로(API와 Admin SDK로 전후 확인). 툴바 19개, 코드 블록 언어 select 2개(`python`), 개요 6개 이상, "글자 4,826자 · 공백 제외 3,637자 · 6분 읽기" |
+| 7 | 입력 규칙 `## `, `> `, ```` ```js ````, `- [ ] `, 슬래시 `/콜아웃`, 한글 문장 + `**굵게**`, `$$ ` | 통과. 저장된 마크다운: `## 제목 시험` / `> 인용 한 줄` / ```` ```js\nconst a = 1\n``` ```` / `- [ ] 할 일` / `> [!note]\n> 메모 글` / `한글 문장과 **굵게** 조사를 붙여` / `$$\nx^2\n$$`. 방법은 아래 참고 |
+| 7 | `Mod+K` 팔레트, `Mod+Shift+2`(맥 키 결정 전 ⌘⇧2), 슬래시 `/표` | 통과. 팔레트 31개(키 표기 `⌘⇧2`…), Esc로 닫힘. ⌘⇧2 → 제목 2. `/표` → 메뉴 1개 → Enter → 머리 행 있는 3×3 표, `/표` 글자 삭제 |
+| 17 | 빈 단락에 YouTube 주소 붙여넣기, 다른 사이트 주소 붙여넣기, CodeSandbox 주소 입력 뒤 Enter | 통과. YouTube → 임베드 노드(iframe `youtube-nocookie.com/embed/dQw4w9WgXcQ`), `example.com` → 링크 그대로, CodeSandbox → 임베드(`codesandbox.io/embed/abc123`). 저장된 마크다운 `https://youtu.be/…` / `<https://example.com/a>` / `https://codesandbox.io/s/abc123`(주소 한 줄씩). 미리보기도 iframe 2개 |
+| 18 | 툴바 "수식 블록" → 창에 `E = mc^2` 저장 | 통과. 창 안 KaTeX 미리보기, 편집 영역 `[data-type=block-math] .katex`, 저장 `$$\nE = mc^2\n$$`, 미리보기 `.katex` 2개, 소스 모드에 `$$`, 새로고침 뒤 같음. 수식을 누르면 창에 `E = mc^2`와 삭제 버튼 |
+| 14 | 390×844 | 통과. 상단 바 발행 버튼 숨김, 툴바 숨김, 포커스하면 모바일 바(굵게·제목 바꾸기·글머리 목록·인용·이미지·되돌리기·메타 패널, 화면 아래 0px), 메타 시트 맨 위에 발행 버튼. 글자 입력 → "저장됨" v6 |
+| 13 (다시) | 삭제 | 통과. ⋯ → 삭제 → "삭제" → "정말 삭제" → `/admin`, API 404 |
+| T7 | 최소 목록, 옛 주소 | 통과. `/admin` 탭 "전체 55 · 초안 1 · 발행됨 54 · 숨김 0", 55행. 로그인 없이 `/admin/posts`·`/admin/edit?slug=`·`/admin/posts/new`는 미들웨어가 먼저 302 로그인. 로그인 뒤 `/admin/posts` → `/admin`. 새 글 폼 `method=post`, 쿠키 없는 POST는 302 로그인 |
+
+참고:
+
+- **시나리오 7의 입력 방법.** 앱 브라우저 도구의 `type`은 입력 규칙을 일으키지 않는다(공유 노트). 사용자 키보드 입력은 두 번 시도했지만 글자가 시험 글에 들어오지 않았다(원인 모름. 패널 포커스로 추정). 대신 페이지 안에서 `document.execCommand('insertText', false, 글자)`를 한 글자씩 불렀다. 이 경로는 실제 DOM 변경 → ProseMirror `DOMObserver` → `handleTextInput`으로 들어가, 브라우저에서 키를 칠 때와 같은 입력 규칙 코드가 돈다. Enter·⌘↩·⌘⇧2·⌘K는 실제 키 이벤트(`key` 도구)다. 한글은 완성 글자로 넣었다. IME 조합 중 동작은 헤드리스·코드 검토로만 확인했다(리뷰 6.3 "확인한 것").
+- 임베드·이미지 드롭은 PR-B와 같이 합성 이벤트(`ClipboardEvent`, `DragEvent` + `DataTransfer`)다.
+
+### 4.7 `rebuild` 미리보기 확인 (8.5, 2026-11-09, 사용자 승인·로그인)
+
+미리보기 주소 `cruz-lab-git-rebuild-crucialsubs-projects.vercel.app`(PR-B 코드, `03698b5`). 시험 글 `SbOBchxXpumSI4aSCtSd`(slug `prc-preview-check-20261109`).
+
+| 단계 | 결과 |
+|---|---|
+| 1. 새 글 → 본문 → 이미지 1장 드롭 → 발행 | 통과. 미리보기 origin에서 Storage PUT → finalize까지 됐다(E2 CORS). 자산 `4z00qUwzEGucI6AAXNKd`(w480·w960·w1200). 발행 토스트 "발행됨 · 공개 페이지 보기" |
+| 2. 글 주소 첫 요청 | `x-vercel-cache: MISS`, 새 내용(제목·본문·이미지). 두 번째 `HIT`. `/blog` 첫 `MISS`(이 edge에 캐시가 없었다) → 두 번째 `HIT`, 새 글 제목 있음 |
+| 3. 본문 수정 → 다시 발행 → 글 주소 첫 요청 | **`x-vercel-cache: REVALIDATED`**, 새 내용(수정한 문장 있음). 두 번째 `HIT`. `/blog`는 `STALE`(D7대로 `invalidateByTag`) |
+| 4. 삭제 → 남은 데이터 | 삭제 2회 확인 → `/admin`. API 404, 공개 주소 404. publishLog 3줄(publish 2·delete 1)과 고아 자산 1개(문서 + Storage 파일 3개)를 Admin SDK로 지웠다(지정한 ID만). 백업 커밋은 Plan 8.5대로 다음 예약 실행이 정리한다 |
+
+D7의 목표("발행 직후 글 주소 첫 요청이 새 내용")는 맞다. 다만 Plan 8.5 2가 예상한 헤더 값 `MISS`와 달리, 기존 캐시가 있던 주소의 재발행 뒤 첫 요청은 `REVALIDATED`였다(8절 12).
+
 ### 4.2 왕복 검사 보고서 요약 (T2)
 
 | 항목 | 값 |
@@ -183,6 +263,8 @@ PR-A 끝(`stage3/a-markdown`)과 PR-B를 같은 방법으로 빌드해 `dist/cli
 PR-A는 API를 바꾸지 않는다. PR-B는 읽기 전용 `GET /api/admin/assets/{id}`를 더하고 `cdn-purge.ts`만 바꿨다(로컬 `skipped`).
 
 결과(2026-11-09 08:07 KST, 사용자 승인): `pnpm smoke:api -- --base http://localhost:4322` → **검사 104건, 실패 0건.** 목록 수 `{"draft":2,"published":54,"hidden":0}`(초안 2는 기존 에세이 1편과 8절 6의 빈 시험 글). 스모크는 자기 시험 데이터를 지운다. 실행 뒤 `publishLog` 0, 새 자산 0, Storage `assets/` 0을 확인했다.
+
+PR-C(2026-11-09 15:49 KST, 사용자 승인): `pnpm smoke:api -- --base http://localhost:4323` → **검사 104건, 실패 0건**(실행 ID 20261109064917). 목록 수 `{"draft":2,"published":54,"hidden":0}`(초안 2는 기존 에세이 1편과 4.6의 시험 글). PR-C는 API를 바꾸지 않는다. 개발 서버는 4323이다(4321·4322는 다른 checkout의 서버가 쓰고 있었다).
 
 ## 5. Plan과 다르게 하거나 Plan이 정하지 않은 것
 
@@ -255,6 +337,28 @@ PR-B에서 판단한 것:
 53. **연재 key 칸이 좁아지던 것을 고쳤다.** 입력 칸 공통 클래스의 `w-full`이 순서 칸의 `w-16`을 이겨 key 칸이 눌렸다. 폭을 뺀 공통 클래스(`fieldClass`)를 따로 둔다.
 54. **이미지 대체 텍스트·캡션 칸은 값이 바뀔 때만 반영한다.** 기존 글의 이미지를 선택했다가 포커스를 옮겨도 문서를 건드리지 않는다(D1 b).
 
+PR-C에서 판단한 것:
+
+55. **D9 인터페이스에 세 칸을 더했다.** `scope`(`editor` | `page`): 페이지 범위 명령(저장·발행·모드·패널·팔레트)은 에디터 밖(소스·미리보기 모드, 제목 칸)에서도 키가 돌아야 한다. `isAvailable`: 그 자리에서 쓸 수 있는지(표 명령은 표 안에서만, 넣기 명령은 코드 블록·표 셀 밖에서만). 슬래시·팔레트·툴바가 같은 판정으로 거른다. `inToolbar`: 툴바에 그릴지(기본은 block·mark·insert 전부. 단락·제목 순환·콜아웃 팁·주의는 뺀다).
+56. **키는 두 길로 받는다.** 에디터 범위는 Tiptap `addKeyboardShortcuts`(`RegistryShortcuts`, 우선순위 200), 페이지 범위는 창 `keydown`(prosemirror의 `keydownHandler`를 그대로 써서 판정 규칙이 같다). 둘은 겹치지 않는다(테스트). Tiptap 확장이 스스로 거는 명령 키(`Mod-Alt-1`, `Mod-Shift-s`, `Mod-b`, `Mod-Enter` 등)는 `stripCommandKeys`가 뺀다. Enter·Tab·Backspace·Shift-Enter 같은 구조 키는 남긴다. 스키마는 바뀌지 않는다(테스트).
+57. **Plan 4.1에 없는 파일.** `commands/filter.ts`·`slash.ts`·`CommandPalette.tsx`(4.1의 `SlashMenu`·`CommandPalette`·`CommandList`를 나눔), `extensions/input-rules.ts`(더한 입력 규칙과 임베드 붙여넣기), `state/summary.ts`(개요·글자 수), `ui/CodeBlockView.tsx`·`EmbedNodeView.tsx`·`class-names.ts`, `layouts/AdminPage.astro`, `pages/admin/edit/index.astro`(옛 `?slug=` 주소 301). 4.1의 `ConflictDialog.tsx`·`OfflineRestoreDialog.tsx`는 PR-B의 `Dialogs.tsx` 안에 있다.
+58. **콜아웃·체크 목록 입력 규칙은 두 단계다.** `> `(StarterKit) 뒤 `[!note] `를 치면 그 인용이 콜아웃이 된다. `- `(StarterKit) 뒤 `[ ] `를 치면 **그 항목만** 체크 목록이 된다(리뷰 6.3 중요 2). 떼어 낸 앞뒤 글머리 목록은 마크다운에서 다른 글머리 문자(`-`·`*`)로 쓰여 다시 열어도 둘로 남는다. Tiptap 기본 규칙 `[ ] `(단락에서)도 그대로 돈다.
+59. **수식 입력은 대화상자다.** 빈 단락의 `$$`+공백(또는 Enter)이 창을 연다. 글자 중간의 `$$`는 건드리지 않는다. 표 셀 안에서는 열지 않는다. Tiptap 기본 규칙(`$$x$$` → 인라인, `$$$x$$$` → 블록)은 남아 있다. 창은 KaTeX 미리보기(`throwOnError: false`)를 보이고 `Mod+Enter`로 저장한다. 수식 노드를 누르면 같은 창이 열린다(고치기·삭제). 인라인 수식의 줄바꿈은 공백으로 바꾼다(`$…$` 안의 줄바꿈은 수식을 끊는다). 저장할 때 창을 열 때의 자리에 같은 수식이 있는지 확인한다(리뷰 6.3 경미 7).
+60. **임베드는 세 길로 만든다.** 빈 단락에 지원 주소 하나를 붙여넣기(`handlePaste`), 지원 주소만 있는 단락 끝에서 Enter, 소스 모드·기존 글의 주소 한 줄(변환기). 다른 주소는 Link 확장의 붙여넣기(링크)에 맡긴다. 노드 뷰는 iframe 위에 선택 전 투명 막을 둔다(누르면 노드 선택, 한 번 더 누르면 재생).
+61. **슬래시 메뉴는 `@tiptap/suggestion` + `ReactRenderer`다.** `/` 뒤 글자로 `title`·`id`를 거른다(공백·`-` 무시. `/제목2`가 "제목 2"를 찾는다). 코드 블록·인라인 코드 안에서는 열지 않는다. `isAvailable`로 거른다. 최대 12개. 최근 사용 순은 `localStorage` `cruz-lab:editor-recent`(8개). 목록이 비면 방향키를 받지 않는다(리뷰 6.3 경미 11).
+62. **팔레트는 모드에 따라 목록이 다르다.** 편집 모드면 그 자리에서 쓸 수 있는 명령 전부, 소스·미리보기 모드면 페이지 범위 명령만. Enter는 수식 키 없이 눌렀을 때만 고른다(Mod+Shift+Enter 발행 키와 겹치지 않게. 대화상자도 같다, 리뷰 6.3 경미 10).
+63. **툴바 활성 표시는 `useEditorState` 문자열 선택자다.** 명령마다 "쓸 수 있음·활성" 두 글자를 이어 붙인 문자열이 바뀔 때만 다시 그린다. `EditorApp`은 키 입력마다 다시 그리지 않는다(2.2 #5).
+64. **모바일 기준은 두 폭이다.** 768px 미만: 툴바 숨김, 포커스 중 모바일 바(D12 7버튼). 640px 미만: 상단 바의 발행 버튼을 숨기고 메타 시트 맨 위에 둔다(D12 "발행 버튼은 메타 시트 안"). 모바일 바는 `pointerdown`·`mousedown` 기본 동작을 막아 포커스(화면 키보드)를 지킨다. iOS Safari 확인은 하지 않았다(8절 13).
+65. **개요 항목은 문서 안 제목 순번으로 찾아간다.** 요약은 편집 300ms 디바운스(D13). 소스 모드에서도 글자를 디바운스 파싱해 요약을 갱신한다(리뷰 6.3 경미 8). 소스·미리보기 모드에서 개요를 누르면 편집 모드로 바꾼 뒤 이동한다. 좁은 화면에서는 시트를 닫는다.
+66. **코드 블록 언어는 노드 뷰의 `select`다.** 목록은 `CODE_LANGUAGES` 20종. 목록에 없는 기존 값(`js` 등)은 항목으로 보여 유지한다. 하이라이트는 lowlight 장식이 그대로 맡는다.
+67. **관리자 화면 틀 `AdminPage.astro`를 뽑았다.** 에디터 페이지의 `<html>`·테마 초기화를 최소 목록과 같이 쓴다. 최소 목록은 `listEntriesForAdmin({ status })`를 직접 부르고 서울 시각으로 보인다. 글 수에 상한이 없다(55편. 5단계가 다시 만든다).
+68. **`/admin/posts/new`는 POST 폼만 받는다(Plan D2 a의 GET과 다름. 사용자 결정 2026-11-09, 8절 3).** 세션 쿠키가 `SameSite=Lax`라 다른 사이트의 링크(GET)로는 빈 초안이 생기지 않는다. 쓰기 요청은 Origin도 같아야 한다(403). 만들면 303으로 에디터에 간다. GET은 `/admin`으로 302.
+69. **옛 주소 301은 페이지 파일에서 한다.** `posts/index.astro`·`edit/index.astro`가 `Astro.redirect('/admin', 301)`. 로그인 없으면 미들웨어가 먼저 302 로그인으로 보낸다(관리자 경로 규칙).
+70. **맥에서 제목 2·3·4와 단락 키는 `⌃⇧2/3/4/0`이다(Plan 부록 B의 `Mod+Shift`와 다름. 사용자 결정 2026-11-09).** macOS의 `⌘⇧3`·`⌘⇧4`는 스크린샷 키라 브라우저에 오지 않는다(리뷰 6.3 중요 4). 그 밖 OS는 Plan 그대로 `Ctrl+Shift+숫자`. `keys.mac`·`keys.other`가 처음으로 다른 값을 갖는다. 팔레트·툴바 표기는 플랫폼대로다.
+71. **리뷰 6.3 뒤 고친 동작.** 발행은 진행 중 재진입을 막고 페이지 키는 자동 반복(`event.repeat`)을 버린다(중요 1). 넣기 명령(이미지·표·구분선·수식)은 코드 블록 안에서, 블록 노드는 표 셀 안에서도 쓸 수 없다(중요 3). 링크 넣기는 `safeUrl` 검사를 먼저 한다(경미 5). 임베드 `renderHTML`의 판정 실패 주소는 링크가 아니라 글자다(경미 13, 5절 22를 코드에 맞췄다). `HardBreak`의 `Mod-Enter`를 뺐다(경미 12. `Shift-Enter`는 남는다. 코드 블록 나가기 `Mod-Enter`는 core 키맵이라 남는다).
+72. **`README.md`의 옛 CMS 설명(CodeMirror, `markdown-publish.ts`, `editor-drafts.ts`)은 고치지 않았다.** Plan 6.1 밖이다. 문서 PR(T10)에서 고친다.
+73. **이미지 주소의 `&`가 마크다운에 `\&`로 쓰인다.** mdast-util-to-markdown이 링크 목적지의 `&`를 이스케이프한다(`?alt=media\&token=…`). CommonMark는 목적지 안의 `\&`를 `&`로 읽어 렌더는 같다(4.7에서 공개 페이지 이미지 확인). 백업 저장소에서 주소를 복사하면 `\`가 붙는다. PR-A 변환기의 동작이고 PR-C에서 바꾸지 않았다(8절 11).
+
 알려진 한계(고치지 않음):
 
 - **겹친 마크의 바깥·안 순서.** ProseMirror 마크는 순서가 없다. `**[링크](u)**`와 `[**링크**](u)`, `**_x_**`와 `_**x**_`는 같은 문서가 된다. 변환기는 동률일 때 링크 > 기울임 > 굵게 > 취소선으로 쓴다. 기존 55편은 이 순서로 모두 통과했다(4.2 집계 2건 포함). 새로 쓰는 글에서는 저자가 순서를 고를 수 없고, 렌더 차이는 CSS(`prose a`·`strong` 굵기)에 달렸다.
@@ -265,6 +369,11 @@ PR-B에서 판단한 것:
 - **(PR-B) 소스 모드를 떠나는 시점에 따라 표기가 다르다.** 소스에서 고친 글자가 저장된 뒤(또는 저장 중) 편집 모드로 오면 소스 원문을 유지한다. 저장 예약만 있고 아직 보내지 않았으면 편집 모드 표기(정규화)로 저장한다. 렌더는 같다(리뷰 경미 17).
 - **(PR-B) 오피스 앱에서 복사하면 텍스트 대신 이미지가 올라갈 수 있다.** 클립보드에 HTML과 PNG가 같이 오면 파일을 우선한다(리뷰 경미 21, 추측). 써 보고 바꾼다.
 - **(PR-B) 대화상자에 포커스 가두기가 없다.** Esc로 닫는 것만 있다(리뷰 경미 22). 5단계 관리자 앱의 공통 대화상자에서 다룬다.
+- **(PR-C) Tiptap 기본 입력 규칙 `---`는 표 셀 안에서 표를 가른다.** PR-C 전부터 있던 동작이다(리뷰 6.3 중요 3의 재현 중 발견). 레지스트리의 구분선 명령은 셀 안에서 막았다. 입력 규칙은 StarterKit 것이라 두었다. 되돌리기로 복구한다.
+- **(PR-C) `Mod+Shift+M`(보기 모드 순환)은 Chrome의 프로필 메뉴 키와 같다.** 페이지가 `preventDefault`하므로 에디터 페이지에서는 모드 순환이 먼저 돈다. 다른 브라우저는 확인하지 않았다.
+- **(PR-C) 한글 IME 조합 중 동작은 브라우저에서 직접 확인하지 않았다.** Tiptap의 입력 규칙은 조합 중 돌지 않고, 팔레트·대화상자·페이지 키는 `isComposing`을 본다(리뷰 6.3 "확인한 것"). 4.6의 한글 입력은 완성 글자 삽입이다.
+- **(PR-C) 임베드 iframe은 노드를 선택해야 재생한다.** 선택 전 투명 막이 클릭을 받는다. 편집 중 실수로 재생되는 것을 막는 대신 한 번 더 눌러야 한다.
+- **(PR-C) 사용자 키맵 덮어쓰기는 빈 객체다.** `applyKeymapOverrides`·`findKeyConflicts`는 있지만 저장·설정 화면은 5단계다(D9).
 
 ## 6. 리뷰 결과
 
@@ -327,18 +436,43 @@ PR-B에서 판단한 것:
 
 리뷰어가 확인한 것: 열 때 `setContent(emitUpdate: false)` 안의 trailingNode·fixTables·autolink 트랜잭션은 update를 내지 않는다(헤드리스 재현). 모드 전환과 메타 패널만으로 저장하지 않는다. API 본문·409·422 해석이 서버와 맞다. 자산 GET은 미들웨어와 `withAdminApi`를 거치고 no-store다. XHR PUT은 `Content-Type`만 보내고 쿠키를 보내지 않는다. cdn-purge는 D7과 같다.
 
+### 6.3 PR-C
+
+새 리뷰어(별도 에이전트, 읽기 전용, 2026-11-09)가 커밋 전 작업 트리를 검토했다. 헤드리스 Tiptap으로 재현했다. 치명 0, 중요 4, 경미 11건이었다. 중요 1~3과 경미 5·7·8·9·10·11·12·13은 실패하는 테스트를 먼저 쓰거나(17개) 코드를 고쳤다. 중요 4는 사용자 결정으로 닫았다.
+
+| 지적 | 처리 |
+|---|---|
+| 중요 1: 키·팔레트로 발행하면 재진입·자동 반복으로 두 번 이상 돈다(revision·publishLog·퍼지·백업이 중복) | 고침. `publishingRef`로 재진입을 막고, 창 키 리스너가 `event.repeat`를 버린다(`createPageKeyListener`, 테스트) |
+| 중요 2: `- [ ] ` 규칙이 목록 전체를 체크 목록으로 바꾼다 | 고침(5절 58). `liftListItem`을 먼저 하고 글자를 지운다(prosemirror `liftOutOfList`는 `tr.mapping`으로 위치를 검사해, 앞선 단계가 있으면 실패한다). 항목 여러 개 테스트 2개 |
+| 중요 3: 이미지·표·구분선·수식 명령과 `$$` 규칙이 표 셀·코드 블록을 둘로 가른다 | 고침(5절 55·71). `isAvailable`(코드 블록 밖, 블록 노드는 표 밖)과 `$$` 규칙의 셀 검사. 테스트 9개. Tiptap 기본 `---` 규칙은 알려진 한계 |
+| 중요 4: 맥 `⌘⇧3`·`⌘⇧4`는 스크린샷 키라 제목 3·4 키가 오지 않는다(Plan 결정) | 사용자 결정(2026-11-09): 맥은 `⌃⇧2/3/4/0`(5절 70) |
+| 경미 5: 링크 넣기 경로가 `javascript:` 주소를 거르지 않는다 | 고침. `safeUrl` 검사 뒤 넣는다 |
+| 경미 6: 모바일 바가 `mousedown`에서 포커스를 잃을 수 있다(추측) | 고침. `mousedown`도 막는다 |
+| 경미 7: 수식 창이 열 때의 `pos`를 그대로 써 다른 노드를 고칠 수 있다 | 고침(5절 59). 저장 때 같은 자리·같은 수식인지 확인한다 |
+| 경미 8: 소스 모드에서 개요가 낡아 다른 제목으로 간다 | 고침(5절 65). 소스 글자도 디바운스 요약한다 |
+| 경미 9: "지금 저장"의 `blocked` 문구가 업로드가 아닐 때도 업로드를 말한다 | 고침. 문구를 "업로드 중이거나 입력이 이어지고 있다"로 바꿨다 |
+| 경미 10: 대화상자·팔레트의 Enter가 `Mod+Shift+Enter` 발행과 겹친다 | 고침(5절 62). 수식 키 없는 Enter만 받고 `preventDefault`한다 |
+| 경미 11: 슬래시 결과가 없을 때 방향키가 막힌다 | 고침(5절 61) |
+| 경미 12: `HardBreak`의 `Mod-Enter`가 레지스트리 밖에 남는다 | 고침(5절 71). 테스트 |
+| 경미 13: 임베드 `renderHTML`이 판정 실패 주소를 링크로 그린다(5절 22와 다름), 낡은 주석 | 고침(5절 71). 테스트 |
+| 경미 14: 문서가 PR-C를 따라오지 않았다(1절, 5절, README) | 이 문서를 갱신했다. README는 5절 72 |
+| 경미 15: 테스트 빈틈(화면용 스키마 비교, 페이지 키 래퍼, 항목 여러 개 체크 규칙, 표·코드 안 넣기 명령 등) | 화면용 스키마 비교·페이지 키 리스너·체크 규칙·넣기 명령·`Mod-Enter`·임베드 renderHTML 테스트를 더했다. 슬래시 플러그인 자체(코드 안 금지·범위 삭제)와 `saveLink`·`saveMath`·`jumpToHeading`은 브라우저 확인(4.6)으로 대신했다 |
+
+리뷰어가 확인한 것: 화면용 확장 묶음의 스키마가 기본 스키마와 같다(노드 22·마크 5의 순서·속성·content·group·excludes). `stripCommandKeys`가 `Mod-Alt-0~6`, `Mod-Alt-c`, `Mod-Shift-s·b`, `Mod-b·i·e`, 목록 3종, undo 키 5개를 빼고 구조 키는 남긴다. 명령 키 문자열은 registry 밖에 없다. 에디터 범위 키와 페이지 범위 키는 겹치지 않는다. 열기만 하면 저장하지 않는다(D1 b. PR-C 확장에 `appendTransaction`이 없고 노드 뷰가 열 때 속성을 바꾸지 않는다). 한글 IME: Tiptap `run`은 조합 중 돌지 않고, 팔레트·링크 창·페이지 키는 `isComposing`을 본다. 임베드 iframe 주소는 `detectEmbed` 결과(허용 호스트 2개)뿐이다. KaTeX는 `throwOnError: false`, `trust` 기본 false. 최소 목록은 Astro가 이스케이프하고 미들웨어가 세션을 검사한다. 지운 파일의 참조가 없다. 부록 B 키·슬래시 이름, D12 버튼 7개, D13 300ms 디바운스가 맞고 14절의 미룬 기능은 들어가지 않았다.
+
 ## 7. 다음 작업
 
 1. ~~[PR #9](https://github.com/crucial-sub/cruz-lab/pull/9) 병합~~ 끝(2026-11-09, `4010bd0`). `stage3/b-editor`의 기준을 `4010bd0`으로 옮겼다.
 2. PR-B 마무리: 리뷰·수정, 브라우저 시나리오 15개, E2, API 스모크, 시험 데이터 0, PR #9 병합 뒤 기준 이동(`4010bd0`)까지 끝났다(2026-11-09). 커밋 `dfe1220`(코드)·`2df00d6`(문서), 푸시, [PR #10](https://github.com/crucial-sub/cruz-lab/pull/10)(대상 `rebuild`)까지 했다. 남은 것: PR #10 병합(사용자 확인).
-3. PR-C: T5 명령 레지스트리·키맵·슬래시·팔레트·툴바·모바일·개요, T7 최소 목록·옛 화면 삭제·`tsc` 재집계. T9 미리보기 확인(8.5, D7 헤더). 브랜치 `stage3/c-commands`.
-4. 문서 PR: 이 문서 마무리, 진행 기록 11.7, Plan 14절 드래그 핸들 상기.
+3. ~~PR-C~~ 구현·검증·리뷰 끝(2026-11-09, 4.6·4.7·6.3). 커밋 `ff8b7b4`(코드)·`07381f8`(문서), 푸시, [PR #11](https://github.com/crucial-sub/cruz-lab/pull/11)(대상 `rebuild`)까지 했다. 남은 것: PR #11 병합(사용자 확인).
+4. 문서 PR(T10): 이 문서 마무리, 진행 기록 11.7, Plan 15절, `README.md`의 옛 CMS 설명 교체(5절 72), 드래그 핸들 상기(Plan 14절) 답 기록. 새 세션에서 한다(전역 7번 규칙).
+5. `rebuild` 미리보기에서 사용자가 실제 키보드로 입력 규칙·슬래시·단축키를 한 번 써 본다(4.6은 `execCommand` 경로다). 맥 키 `⌃⇧2/3/4/0`이 손에 맞는지도 그때 본다.
 
 ## 8. 열린 질문
 
 1. ~~PR-B는 PR-A가 `rebuild`에 병합된 뒤 `rebuild`에서 가지를 치는가, 아니면 `stage3/a-markdown` 위에 쌓는가.~~ 닫음: PR-A 병합 뒤 `rebuild`로 리베이스한다. PR-B 세션 시작 때(2026-11-09) PR #9가 아직 열려 있어 `stage3/a-markdown`(`13a0825`) 위에서 시작했다. 사용자 답으로 PR #9를 병합했다(merge commit `4010bd0`). `4010bd0`의 트리가 `13a0825`와 같아(파일 차이 0) 커밋 전 작업 트리를 그대로 두고 기준만 `4010bd0`으로 옮겼다. PR-B의 PR 대상은 `rebuild`다.
 2. ~~기울임 표기를 Plan 4.2의 `_`가 아니라 `*`로 쓰는 것(5절 11).~~ 사용자가 이 상태로 진행을 승인했다(2026-11-09).
-3. `/admin/posts/new`는 GET으로 빈 초안을 만든다(D2 a 설명 그대로). 세션 쿠키가 `SameSite=Lax`라 다른 사이트의 링크를 눌러도 쿠키가 붙어 빈 초안이 생길 수 있다(내용은 비어 있고 지우면 된다). 옛 대시보드의 "새 글" 링크도 이 주소다. 실제로 2026-11-09 브라우저 확인 중 빈 글 1편이 생겼다(6절). PR-C의 T7이 최소 목록을 만들 때 POST 폼으로 바꿀지 정한다.
+3. ~~`/admin/posts/new`의 GET 생성~~ 닫음: 사용자 결정(2026-11-09)으로 POST 폼으로 바꿨다(5절 68). GET은 `/admin`으로 보낸다.
 4. 에디터 청크 1,711 KB(gzip 523 KB). lowlight `common`을 쓰는 언어만 동적으로 가져오거나 KaTeX를 수식이 있을 때만 가져오면 줄 수 있다. 관리자만 쓰는 페이지라 급하지 않다. 5단계 Plan에서 다시 본다.
 5. 저장 실패 상태(`error`)에서는 새 입력이 상태를 바꾸지 않는다(멈춘 채 "다시 시도"를 기다린다). 입력을 계속하면 내용은 에디터에 있고, 다시 시도하면 최신 내용을 보낸다. 사용자가 써 보고 자동 재시도가 더 나으면 바꾼다. 메타 검사 실패와 blob 주소는 멈추지 않는다(다음 입력에서 다시 본다).
 6. ~~브라우저 확인 중 생긴 빈 시험 글 `qoRxy9TjMCrBmNAWuw1c`~~ 이 글을 시나리오 3~13의 시험 글로 쓰고 지웠다. 왕복 검사는 다시 55/55다.
@@ -346,3 +480,6 @@ PR-B에서 판단한 것:
 8. 공개 페이지 `MarkdownPostView.tsx`의 영상 판정은 `endsWith`라 쿼리 붙은 영상 주소를 `<img>`로 그린다. 3단계는 공개 렌더를 바꾸지 않는다. 4단계에서 공유 파이프라인으로 바꾸면 함께 고쳐진다. 그 전에 새 영상을 올려 발행하면 `rebuild` 미리보기의 공개 페이지에서 깨져 보인다. 같은 이유로 공개 페이지는 원시 HTML의 iframe을 그대로 그린다(미리보기는 지운다, 5절 42).
 9. 단락 앞뒤의 공백이 `&#x20;`로 저장된다. 입력 중 자동저장 때 단락 끝에 공백이 있으면(낱말 뒤 스페이스) 변환기가 공백을 문자 참조로 쓴다(PR-A 변환기, mdast-util-to-markdown 규칙). 렌더는 같지만 백업 저장소에서 읽기 불편하다. 단락 끝 공백을 지우면 렌더가 같으므로 변환기에서 지울지 PR-C 또는 문서 PR에서 정한다.
 10. 초안 버리기 뒤에도 `hasUnpublishedChanges`가 참이다. 서버는 버전으로 판정한다(`draft.version != published.fromDraftVersion`, 2단계 D4). 초안 버리기는 버전을 올리므로 내용이 발행본과 같아도 "발행 뒤 변경 있음"이 보인다. 2단계 API 정의라 3단계에서는 바꾸지 않는다. 5단계 목록 설계 때 다시 본다.
+11. 이미지 주소의 `&`가 마크다운에 `\&`로 쓰인다(5절 73). 렌더는 같다. 백업 저장소 가독성 문제다. 9와 함께 변환기 표기 옵션을 정할 때 본다(문서 PR 또는 4단계).
+12. 재발행 뒤 글 주소 첫 요청의 `x-vercel-cache`가 `MISS`가 아니라 `REVALIDATED`였다(4.7). 내용은 새 것이라 D7의 목표는 맞다. `dangerouslyDeleteByTag` 뒤 Vercel이 보고하는 값이 환경에 따라 다를 수 있다. 운영(main) 병합 뒤 실제 글 재발행 때 한 번 더 본다.
+13. 모바일 바의 `visualViewport` 위치는 앱 브라우저(데스크톱 Chromium, 화면 키보드 없음)에서만 확인했다. iOS Safari에서 흔들리면 D12대로 하단 고정으로 떨어뜨린다. 사용자 iPhone으로 `rebuild` 미리보기를 써 볼 때 본다.

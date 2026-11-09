@@ -1,10 +1,11 @@
 // 상단 바 (재건 3단계 D13, M9)
 // - 왼쪽 "← 목록", 가운데 저장 상태, 오른쪽 발행 버튼과 ⋯ 메뉴.
-// - 메뉴: 보기 모드(편집·소스·미리보기), 공개 페이지 보기, 숨기기/다시 보이기, 초안 버리기, 삭제, 기기 이름, 테마, 로그아웃.
-//   명령 레지스트리·단축키는 PR-C(T5)가 더한다. 여기서는 버튼만 둔다.
+// - 메뉴: 보기 모드(편집·소스·미리보기), 명령 팔레트, 공개 페이지 보기, 숨기기/다시 보이기, 초안 버리기, 삭제, 기기 이름, 테마, 로그아웃.
+// - 640px보다 좁은 화면(모바일, D12)에서는 발행 버튼이 메타 시트 안에 있다. 상단 바에는 저장 상태만 남는다.
 
 import { useEffect, useRef, useState } from 'react';
 import type { EntryStatus } from '@/lib/entry-schema';
+import { classNames } from './class-names';
 
 export type ViewMode = 'edit' | 'source' | 'preview';
 
@@ -26,6 +27,7 @@ export interface TopBarProps {
   onLogout: () => void;
   panelOpen: boolean;
   onTogglePanel: () => void;
+  onOpenPalette: () => void;
 }
 
 const MODE_LABELS: Record<ViewMode, string> = { edit: '편집', source: '소스', preview: '미리보기' };
@@ -59,9 +61,13 @@ export function TopBar(props: TopBarProps) {
 
   const item = (label: string, onClick: () => void, danger = false) => (
     <button
+      key={label}
       type="button"
       role="menuitem"
-      className={`block w-full px-3 py-2 text-left text-sm hover:bg-bg-card ${danger ? 'text-red-400' : 'text-text-primary'}`}
+      className={classNames(
+        'block w-full px-3 py-2 text-left text-sm hover:bg-bg-card',
+        danger ? 'text-red-400' : 'text-text-primary',
+      )}
       onClick={() => {
         setMenuOpen(false);
         onClick();
@@ -81,7 +87,7 @@ export function TopBar(props: TopBarProps) {
       </span>
 
       <div
-        className={`min-w-0 flex-1 truncate text-center text-sm ${toneClass}`}
+        className={classNames('min-w-0 flex-1 truncate text-center text-sm', toneClass)}
         aria-live="polite"
       >
         {props.statusText}
@@ -103,7 +109,12 @@ export function TopBar(props: TopBarProps) {
             type="button"
             role="tab"
             aria-selected={props.mode === mode}
-            className={`px-2.5 py-1 ${props.mode === mode ? 'bg-bg-card text-text-primary' : 'text-text-secondary hover:text-text-primary'}`}
+            className={classNames(
+              'px-2.5 py-1',
+              props.mode === mode
+                ? 'bg-bg-card text-text-primary'
+                : 'text-text-secondary hover:text-text-primary',
+            )}
             onClick={() => props.onModeChange(mode)}
           >
             {MODE_LABELS[mode]}
@@ -123,7 +134,7 @@ export function TopBar(props: TopBarProps) {
 
       <button
         type="button"
-        className="rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-hover disabled:opacity-50"
+        className="hidden rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-hover disabled:opacity-50 sm:inline-block"
         onClick={props.onPublish}
         disabled={props.publishing}
       >
@@ -155,6 +166,7 @@ export function TopBar(props: TopBarProps) {
               )}
               <hr className="my-1 border-border" />
             </div>
+            {item('명령 팔레트', props.onOpenPalette)}
             {props.publicUrl &&
               item('공개 페이지 보기', () =>
                 window.open(props.publicUrl ?? '', '_blank', 'noopener'),

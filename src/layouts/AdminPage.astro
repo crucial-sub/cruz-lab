@@ -1,0 +1,40 @@
+---
+// 관리자 화면 틀 (재건 3단계 D13, T7)
+// - 사이트 헤더·푸터 없는 전체 화면. 최소 목록(/admin)과 에디터(/admin/edit/[id])가 같이 쓴다.
+// - global.css의 토큰과 html.light 전환을 그대로 쓴다(M10). 테마 초기화 규칙은 BaseHead.astro와 같다.
+// - 검색 엔진에 싣지 않는다(noindex). 페이지 CSS는 각 페이지가 가져온다.
+import '@/styles/global.css';
+
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex" />
+    <title>{title}</title>
+    <link rel="icon" href="/favicon.svg" />
+    <!-- 그려지기 전에 html.light/dark를 정한다 -->
+    <script is:inline>
+      (() => {
+        try {
+          const saved = localStorage.getItem('theme');
+          const prefers = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const isDark = saved ? saved === 'dark' : prefers;
+          const root = document.documentElement;
+          root.classList.toggle('dark', isDark);
+          root.classList.toggle('light', !isDark);
+        } catch {}
+      })();
+    </script>
+  </head>
+  <body class="bg-bg-app text-text-primary antialiased">
+    <slot />
+  </body>
+</html>

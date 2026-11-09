@@ -1,24 +1,7 @@
 ---
+// 옛 관리자 글 목록 주소 (재건 3단계 D2 a, T7)
+// - 옛 PostList 화면은 지웠다. 최소 목록 /admin으로 301한다. 외부에 공개된 주소가 아니다(Plan 2.3).
 export const prerender = false;
 
-import BaseLayout from '@/layouts/BaseLayout.astro';
-import PostList from '@/components/admin/PostList';
-import { getPublishedContentPosts } from '@/lib/content-posts';
-
-const initialPosts = (await getPublishedContentPosts()).map((post) => ({
-  id: post.slug,
-  title: post.title,
-  description: post.description,
-  status: 'published' as const,
-  tags: post.tags,
-  slug: post.slug,
-  createdAt: post.pubDate,
-  updatedDate: post.updatedDate,
-  readingTime: post.readingTime,
-  pubDate: post.pubDate,
-}));
+return Astro.redirect('/admin', 301);
 ---
-
-<BaseLayout title="포스트 관리 - Cruz Lab Admin">
-  <PostList client:only="react" initialPosts={initialPosts} />
-</BaseLayout>

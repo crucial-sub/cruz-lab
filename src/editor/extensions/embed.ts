@@ -1,7 +1,7 @@
 // 임베드 노드 (재건 3단계 D3·D10)
 // - 속성 provider·url. atom 블록이다. 마크다운은 지원 주소 한 줄(remark-embed.ts와 같은 규칙).
 // - 주소 판정은 lib/content/embed-url.ts의 detectEmbed 하나다. 허용 호스트 밖은 노드를 만들지 않는다.
-// - 노드 뷰(React iframe)와 붙여넣기 규칙은 T5에서 더한다. 여기서는 스키마와 renderHTML만 둔다.
+// - 노드 뷰(React iframe)는 ui/EmbedNodeView.tsx, 붙여넣기·Enter 규칙은 extensions/input-rules.ts다. 여기는 스키마와 renderHTML(복사·getHTML용)이다.
 
 import { mergeAttributes, Node } from '@tiptap/core';
 import {
@@ -59,7 +59,8 @@ export const Embed = Node.create({
       'data-embed-url': attrs.url,
       class: `embed embed-${attrs.provider}`,
     });
-    if (!info) return ['div', wrapper, ['a', { href: attrs.url }, attrs.url]];
+    // 판정에 실패한 주소(JSON이 바뀐 경우)는 링크가 아니라 글자다(작업 문서 5절 22)
+    if (!info) return ['div', wrapper, ['span', {}, attrs.url]];
     return [
       'div',
       wrapper,
