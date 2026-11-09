@@ -4,7 +4,7 @@
 - Plan: [2026-11-08-stage3-editor-plan.md](./2026-11-08-stage3-editor-plan.md) (승인 2026-11-08, PR #8 병합)
 - 진행 기록: [계획 문서 11.7](./2026-11-06-blog-architecture-audit-2-problems-and-plan.md#117-3단계-구현-진행-기록-2026-11-09)
 - 브랜치: `stage3/a-markdown`(PR-A), `stage3/b-editor`(PR-B), `stage3/c-commands`(PR-C), `stage3/docs`(T10 문서 PR). 대상은 모두 `rebuild`다.
-- 상태: **3단계 끝(2026-11-09).** T1~T9를 구현·검증하고 PR-A·PR-B를 `rebuild`에 병합했다. PR-C [PR #11](https://github.com/crucial-sub/cruz-lab/pull/11)도 사용자 답으로 병합했다(`cb2180f`). T10 문서 [PR #12](https://github.com/crucial-sub/cruz-lab/pull/12)의 병합은 사용자 확인 뒤다. 다음은 4단계 Plan이다(7절).
+- 상태: **3단계 끝(2026-11-09).** T1~T9를 구현·검증하고 PR-A·PR-B를 `rebuild`에 병합했다. PR-C [PR #11](https://github.com/crucial-sub/cruz-lab/pull/11)도 사용자 답으로 병합했다(`cb2180f`). T10 문서 [PR #12](https://github.com/crucial-sub/cruz-lab/pull/12)도 사용자 답으로 병합했다(`b13926d`). 사용 피드백 보완(2.10·2.11)은 브랜치 `stage3/editor-feedback`의 PR이다. 다음은 4단계 Plan이다(7절).
 
 ## 1. 현재 상황
 
@@ -13,7 +13,7 @@
 | PR-A (T1 변환기·파이프라인, T2 왕복 검사) | 끝. 커밋 `44a41d6`(코드)·`ee31798`(문서), [PR #9](https://github.com/crucial-sub/cruz-lab/pull/9)(대상 `rebuild`). 사용자 승인으로 병합했다(2026-11-09, merge commit `4010bd0`). 되돌리기 기준 태그 `rebuild-pre-stage3`(`4bc465b`). 원격 브랜치 `stage3/a-markdown`은 남아 있다(삭제는 사용자 확인 뒤) |
 | PR-B (T3 에디터 페이지, T4 이미지, T6 보기 모드, T8 퍼지) | 구현·검증·리뷰 끝(2026-11-09). 브랜치 `stage3/b-editor`. 처음에는 `stage3/a-markdown`(`13a0825`) 위에서 시작했고, PR #9 병합 뒤 `rebuild` 끝 `4010bd0` 위로 옮겼다(8절 1). 테스트 290, `tsc` 9(새 오류 0), 빌드 통과, 왕복 55/55, API 스모크 104/104. 리뷰(6.2) 치명 1·중요 10을 고쳤다. 브라우저 시나리오(8.4의 PR-B 몫 15개) 통과(4.5). 시험 데이터 0. 사용자 승인(2026-11-09)으로 커밋 `dfe1220`(코드)·`2df00d6`(문서), 푸시, [PR #10](https://github.com/crucial-sub/cruz-lab/pull/10)(대상 `rebuild`). 사용자가 병합했다(2026-11-09, merge commit `03698b5`). 원격 브랜치 `stage3/b-editor`는 남아 있다(삭제는 사용자 확인 뒤) |
 | PR-C (T5 명령·키맵·슬래시·팔레트·툴바·입력 규칙·임베드·수식·모바일·개요, T7 최소 목록·301·옛 화면 삭제) | 구현·검증·리뷰 끝(2026-11-09). 브랜치 `stage3/c-commands`(`origin/rebuild` `03698b5` = PR #10 병합 커밋에서 생성). 테스트 398(+108), `tsc` 9 → **1**(TextReveal만), lint·빌드 통과, 왕복 55/55, API 스모크 104/104. 리뷰(6.3) 치명 0·중요 4·경미 11을 고쳤다(중요 4는 사용자 결정). 브라우저 시나리오 7·14·17·18 통과(4.6), 미리보기 확인 8.5 끝(4.7). 시험 데이터 0. 사용자 승인(2026-11-09)으로 커밋 `ff8b7b4`(코드)·`07381f8`(문서), 푸시, [PR #11](https://github.com/crucial-sub/cruz-lab/pull/11)(대상 `rebuild`). PR 링크 커밋 `c5a5cce`. 사용자 답으로 병합했다(2026-11-09, merge commit `cb2180f`). 원격 브랜치 `stage3/c-commands`는 남아 있다(삭제는 사용자 확인 뒤) |
-| T10 (문서 PR) | 끝(2026-11-09, 2.9). 브랜치 `stage3/docs`(`origin/stage3/c-commands` `c5a5cce` 위에서 시작. PR #11 병합 뒤 기준을 `rebuild` 끝 `cb2180f`로 옮겼다. 트리 차이 0, 8절 1과 같은 방식). 이 문서, 감사 문서 11절·11.7·8.3, Plan 14절, `README.md`만 바꿨다. 코드 변경 0. `pnpm lint` 통과, `pnpm test` 398(그대로). 사용자 승인(2026-11-09)으로 커밋 `b3aaa83`, 푸시, [PR #12](https://github.com/crucial-sub/cruz-lab/pull/12)(대상 `rebuild`). 병합은 사용자 확인 뒤 |
+| T10 (문서 PR) | 끝(2026-11-09, 2.9). 브랜치 `stage3/docs`(`origin/stage3/c-commands` `c5a5cce` 위에서 시작. PR #11 병합 뒤 기준을 `rebuild` 끝 `cb2180f`로 옮겼다. 트리 차이 0, 8절 1과 같은 방식). 이 문서, 감사 문서 11절·11.7·8.3, Plan 14절, `README.md`만 바꿨다. 코드 변경 0. `pnpm lint` 통과, `pnpm test` 398(그대로). 사용자 승인(2026-11-09)으로 커밋 `b3aaa83`·`4b2a96f`, 푸시, [PR #12](https://github.com/crucial-sub/cruz-lab/pull/12)(대상 `rebuild`). 사용자 답으로 병합했다(2026-11-09, merge commit `b13926d`) |
 | T9 (E2 버킷 CORS, 브라우저 확인, 미리보기 확인) | 모두 끝. E2는 PR-B(3절). 시나리오 19개 중 15개는 PR-B(4.5), 7·14·17·18은 PR-C(4.6). 미리보기 확인 8.5는 PR-C(4.7) |
 | 외부 변경 | E2 버킷 CORS(2026-11-09 08:07 KST 무렵, 사용자 승인). Plan 값에 `http://localhost:4322`를 더했다(3절) |
 | 운영 데이터 | 기존 글은 읽기만 했다. PR-B: 시험 글 2편·시험 자산 2개·publishLog 6줄을 만들었다가 모두 지웠다(4.5). PR-C: 시험 글 3편(localhost 2, 미리보기 1)·시험 자산 1개·publishLog 5줄을 만들었다가 모두 지웠다(4.6·4.7). 끝 상태: `entries` 55, `publishLog` 0, `entryTombstones` 0, `assets` 130(기존 그대로), Storage `assets/` 0 |
@@ -145,6 +145,44 @@
 | `README.md` | 옛 CMS 설명(CodeMirror 6, `src/components/editor/**`, `editor-drafts.ts`, `markdown-publish.ts`, React island 대시보드·포스트 목록·시리즈 편집기)을 지금 구조(`src/editor/` Tiptap 3.33.0, `/admin` 최소 목록, `/admin/edit/[id]`, 서버 초안 자동저장 + IndexedDB 보관함 1칸)로 바꿨다(5절 72). 경로는 `git ls-files src/editor src/pages/admin`과 `package.json`으로 확인했다. 디렉터리 구조 블록과 핵심 구현 표의 없어진 경로(`PostSearch.tsx`, `src/hooks`)도 지금 파일로 바꿨다 |
 
 하지 않은 것: `PUBLISHING.md`의 "지금 상태 (2단계 끝)" 절과 `README.md`의 환경 변수 절(`GITHUB_TOKEN`만 있고 `ADMIN_UID`·`BACKUP_DISPATCH_TOKEN`이 없다)·"범위" 절의 GitHub 보상 흐름 문장은 옛 상태다. 이 PR의 범위(옛 CMS 설명) 밖이라 두었다. 8절 14.
+
+### 2.10 사용 피드백 보완: 코드 표시 (2026-11-09)
+
+사용자가 새 에디터를 써 보고 두 가지를 요청했다. 브랜치 `stage3/editor-feedback`(처음에는 `stage3/docs` `4b2a96f` 위. PR #12 병합 뒤 `rebuild` `b13926d` 위로 옮겼다. 트리 차이 0).
+
+| 요청 | 원인 | 고친 것 |
+|---|---|---|
+| 인라인 코드가 "작은 흰 글자"라 코드로 보이지 않는다. 빨간 글자 + 둥근 배경을 원한다 | 편집 영역은 Tailwind typography `dark:prose-invert`의 기본값(흰 글자, 굵기 600)을 그대로 썼다. `editor.css`에는 글꼴·크기 규칙만 있었다 | `.prose :not(pre) > code`: 빨간 글자, 옅은 빨간 배경, 1px 테두리, 반경 6px, 0.85em, 굵기 500. 다크 `#ff7b72`, 라이트 `#cf222e` |
+| 코드 블록이 언어를 골라도 흰 글자뿐이다. VS Code처럼 색을 원한다 | lowlight는 `hljs-*` 클래스를 붙이지만 에디터 페이지에 색 규칙이 없었다. 공개 글 페이지는 cdnjs `github-dark`를 따로 불러오고, 에디터 페이지는 불러오지 않았다(`editor.css`의 옛 주석 "공개 페이지 테마를 그대로 쓴다"는 틀렸다) | highlight.js `github-dark.css`·`github.css`(BSD-3-Clause)의 색을 변수(`--hl-*`)로 옮겼다. 다크는 GitHub Dark, `html.light`는 GitHub Light. 코드 블록 배경·글자·테두리와 언어 선택 칩도 변수다. 편집 영역과 미리보기가 같은 규칙이다 |
+| (발견) 코드 블록 안 키워드 밑에 맞춤법 검사 점선이 생긴다 | 브라우저 맞춤법 검사가 코드에도 돈다 | `CodeBlockView`의 `<pre spellCheck={false}>` |
+
+파일: `src/editor/editor.css`(코드 색 토큰, 인라인 코드, 구문 강조), `src/editor/ui/CodeBlockView.tsx`(맞춤법 검사 끔).
+
+색 선택 근거: 4단계 Plan D8이 공개 페이지 하이라이트를 Shiki `github-dark-default`·`github-light-default`로 정한다. 같은 GitHub 계열이라 4단계 뒤에도 편집 화면과 공개 페이지의 코드 색이 비슷하다.
+
+확인(localhost:4324, 기존 글 「03. CSS Variables 조절하기」 열기만, 저장 없음. `draft.version` 1·`updatedAt` 2026-03-31 그대로): 인라인 코드 `rgb(255,123,114)`·배경 `rgba(255,123,114,0.1)`·반경 6px. 코드 블록 배경 `#0d1117`, `keyword` 빨강, `title function_` 보라, `comment` 회색, `string` 하늘색. 라이트 전환 시 인라인 `#cf222e`, 블록 `#f6f8fa`. 미리보기 모드도 같은 값. 콘솔 오류 0. `spellcheck="false"`. `pnpm lint` 통과, `pnpm test` 398. 빌드는 2.11 끝에 함께 돌렸다(사용자가 개발 서버를 쓰는 동안에는 미뤘다).
+
+남은 차이: 공개 글 페이지(`MarkdownPostView.tsx`)의 인라인 코드는 아직 흰 글자 + 카드 배경이고, 코드 블록은 라이트 테마에서도 `github-dark`다. 4단계가 `.prose`를 한 파일로 합칠 때 이 토큰을 쓴다(7절 다음 것 1).
+
+### 2.11 사용 피드백 보완: 단어·줄 선택, Esc 선택 풀기, 인라인 코드 Enter 탈출 (2026-11-09)
+
+사용자 요청 네 가지. 같은 브랜치 `stage3/editor-feedback`.
+
+| 요청 | 판단·구현 |
+|---|---|
+| (필수) 커서에 가장 가까운 단어를 고르는 단축키. 고른 뒤 굵게·기울임을 바로 입힌다 | 명령 `select-word`(단어·줄 선택), 키 `Mod+D`(맥 `⌘D`, 그 밖 `Ctrl+D`). 커서가 단어 안이나 끝에 붙어 있으면 그 단어, 밖이면 거리가 가까운 단어(같으면 앞 단어). 단어 글자는 문자·숫자·결합 기호·밑줄이다. 공백·문장 부호·점·하이픈·괄호·이미지·수식은 단어를 나눈다. 찾는 범위는 커서가 있는 블록 하나다 |
+| 두 번 눌렀을 때: VS Code처럼 같은 글자 다중 선택인가, 선택 풀기인가 | **둘 다 하지 않는다. 한 단계씩 넓힌다(단어 → 줄 → 블록).** 이유: (1) ProseMirror는 선택 범위를 하나만 가진다. 여러 곳에 동시에 입력하려면 선택 모델을 새로 만들어야 한다(실험 수준, 한글 IME와 충돌 위험). (2) 같은 글자 여러 곳 고치기는 찾기·바꾸기(Plan 14절, 5단계)가 더 안전하다. 바꿀 곳을 하나씩 보며 고를 수 있다. (3) 선택 풀기는 방향키로 이미 되고, Esc도 따로 넣었다(아래 행). 두 번째 누름을 선택 풀기에 쓰면 키를 낭비한다. (4) "넓히기"는 JetBrains Extend Selection·VS Code Expand Selection과 같은 익숙한 방식이다 |
+| 줄 전체 선택 단축키를 따로 둘지 | **따로 두지 않는다. `Mod+D` 두 번이 줄 선택이다.** 줄은 단락 하나, 또는 줄바꿈(`Shift+Enter`)·코드 블록 안의 한 줄이다. 줄바꿈이 있는 단락과 코드 블록은 세 번째 누름에서 블록 전체를 고른다. 더 넓힐 수 없으면 그대로다. VS Code의 줄 선택 키 `Mod+L`은 브라우저 주소창 키라 쓰지 않는다 |
+| (후속) Esc로 선택이 풀리지 않는다. 방향키만 된다 | 명령 `collapse-selection`(선택 풀기), 키 `Escape`. 선택이 있으면 풀고 커서를 선택이 끝난 자리(head)에 둔다. `Mod+D`로 고른 단어면 그 단어 바로 뒤라 이어서 칠 수 있다. 이미지·임베드 같은 노드 선택은 그 바로 뒤 커서다. 선택이 없으면 Esc를 받지 않는다(슬래시 메뉴는 선택 없이 열리므로 그때 Esc는 지금처럼 메뉴를 닫는다). 팔레트·대화상자는 에디터 밖에서 Esc를 받아 영향이 없다. Obsidian(CodeMirror `simplifySelection`)·VS Code와 같은 동작이다. 처음 답에서 "Esc로 이미 된다"고 쓴 것은 확인하지 않은 틀린 말이었다 |
+| 인라인 코드 안에서 Enter를 누르면 새 줄도 인라인 코드다. Enter로 빠져나오고 싶다 | 원인: Tiptap의 단락 나누기(`splitBlock`·`splitListItem`)는 `keepOnSplit`이 참인 마크를 새 줄로 넘긴다. Code 마크의 기본값이 참이다. `EditorCode`에 `keepOnSplit: false`를 줬다. 굵게·기울임 같은 다른 마크는 그대로 넘어간다. 스키마는 바뀌지 않는다 |
+
+`Mod+D`는 넓힐 것이 없어도 키를 받는다. 받지 않으면 브라우저가 북마크 창을 연다. 명령 팔레트에 "단어·줄 선택 ⌘D"로 나온다. 슬래시·툴바·모바일 바에는 넣지 않았다. 선택 풀기는 팔레트에도 넣지 않았다(팔레트 안의 Esc는 팔레트를 닫는다). 참고: ProseMirror는 에디터 안의 Esc를 항상 기본 동작 없이 처리한다(`captureKeyDown`). 선택 풀기 명령이 받지 않아도 Esc가 브라우저로 새지 않는다.
+
+파일: `src/editor/commands/select-word.ts`(새 파일, 순수 함수 `findWordRange`·`nextSelectionRange`·`collapsedSelection`), `src/editor/commands/registry.ts`(명령 2개, 부록 B 밖), `src/editor/extensions/index.ts`(`keepOnSplit: false`), `tests/unit/editor-select-word.test.ts`(24개), `tests/unit/editor-commands.test.ts`(기대 키 2줄).
+
+TDD: 테스트를 먼저 썼다. Enter 테스트 3개는 고치기 전 코드에서 실패했다(증상 재현). 확인(localhost:4324, 기존 글 「03. CSS Variables 조절하기」, 선택만 바꿈, 저장 없음. `draft.version` 1 그대로): 단락에서 1회 「실시간으로」, 2회 줄 전체, 3회 그대로. 코드 블록에서 1회 `suffix`, 2회 그 줄, 3회 블록 전체(8줄). 세 번 모두 키 기본 동작을 막았다. 팔레트에 "단어·줄 선택⌘D". Esc 선택 풀기: 「실시간으로」를 고른 뒤 Esc → 선택이 비고 커서가 그 단어 바로 뒤. 콘솔 오류 0. Enter 탈출은 글을 바꿔야 해서 브라우저에서 하지 않고 단위 테스트(실제 Tiptap 키 처리, 단락·굵게+코드·목록 항목)로 대신했다. `pnpm lint` 통과, `pnpm test` 422(+24), `tsc` 1(`TextReveal`, 그대로). `pnpm build` 통과(개발 서버를 멈춘 뒤). 에디터 청크 `EditorApp` 1,797,947바이트(gzip 548,887). PR-C 끝(1,795,133, gzip 547,952)보다 약 2.8 KB 크다.
+
+남은 것: 실제 키보드의 `⌘D`가 Chrome 북마크 창을 열지 않는지는 사용자가 확인한다(합성 이벤트로는 브라우저 단축키를 시험할 수 없다).
 
 ## 3. 외부 변경
 
@@ -388,6 +426,12 @@ PR-C에서 판단한 것:
 - **(PR-C) `Mod+Shift+M`(보기 모드 순환)은 Chrome의 프로필 메뉴 키와 같다.** 페이지가 `preventDefault`하므로 에디터 페이지에서는 모드 순환이 먼저 돈다. 다른 브라우저는 확인하지 않았다.
 - **(PR-C) 한글 IME 조합 중 동작은 브라우저에서 직접 확인하지 않았다.** Tiptap의 입력 규칙은 조합 중 돌지 않고, 팔레트·대화상자·페이지 키는 `isComposing`을 본다(리뷰 6.3 "확인한 것"). 4.6의 한글 입력은 완성 글자 삽입이다.
 - **(PR-C) 임베드 iframe은 노드를 선택해야 재생한다.** 선택 전 투명 막이 클릭을 받는다. 편집 중 실수로 재생되는 것을 막는 대신 한 번 더 눌러야 한다.
+사용 피드백 뒤 판단(2026-11-09, 2.10·2.11):
+
+74. **코드 색은 `editor.css`의 토큰이다.** 편집 영역·미리보기의 인라인 코드(빨간 글자·둥근 배경)와 코드 블록 구문 강조(GitHub 다크·라이트)는 공개 글 페이지와 다르다. 머리 주석의 "공개 글 페이지와 같은 `.prose`"에서 코드만 예외다. 4단계가 `.prose`를 합칠 때 이 토큰을 쓴다.
+75. **`Mod+D` 단어·줄 선택은 부록 B 밖의 명령이다(사용자 요청).** 두 번째 누름은 VS Code식 다중 선택이 아니라 넓히기다(2.11의 이유). 다중 고치기는 찾기·바꾸기(Plan 14절)와 함께 5단계 Plan에서 본다. 선택 풀기 `Escape`도 부록 B 밖의 명령이다(선택이 없으면 받지 않는다).
+76. **인라인 코드 마크는 Enter로 넘어가지 않는다(`keepOnSplit: false`).** 다른 마크는 넘어간다.
+
 - **(PR-C) 사용자 키맵 덮어쓰기는 빈 객체다.** `applyKeymapOverrides`·`findKeyConflicts`는 있지만 저장·설정 화면은 5단계다(D9).
 
 ## 6. 리뷰 결과
@@ -484,15 +528,16 @@ PR-C에서 판단한 것:
 1. PR-A(T1·T2) [PR #9](https://github.com/crucial-sub/cruz-lab/pull/9) `rebuild` 병합(`4010bd0`). 되돌리기 기준 태그 `rebuild-pre-stage3`(`4bc465b`).
 2. PR-B(T3·T4·T6·T8) [PR #10](https://github.com/crucial-sub/cruz-lab/pull/10) `rebuild` 병합(`03698b5`). 외부 변경 E2(버킷 CORS, 3절).
 3. PR-C(T5·T7·T9) 구현·검증·리뷰 끝. 커밋 `ff8b7b4`(코드)·`07381f8`(문서)·`c5a5cce`(PR 링크), [PR #11](https://github.com/crucial-sub/cruz-lab/pull/11) `rebuild` 병합(사용자 답, 2026-11-09, `cb2180f`).
-4. T10 문서 PR(2.9). 브랜치 `stage3/docs`(기준 `cb2180f`). 사용자 승인(2026-11-09)으로 커밋 `b3aaa83`, 푸시, [PR #12](https://github.com/crucial-sub/cruz-lab/pull/12)(대상 `rebuild`). 병합은 사용자 확인 뒤.
+4. T10 문서 PR(2.9). 브랜치 `stage3/docs`(기준 `cb2180f`). 커밋 `b3aaa83`·`4b2a96f`, [PR #12](https://github.com/crucial-sub/cruz-lab/pull/12) `rebuild` 병합(사용자 답, 2026-11-09, `b13926d`).
 5. 검증 끝 상태: lint 통과, 테스트 398, `tsc` 1(`TextReveal`), 빌드 통과, 왕복 55/55, API 스모크 104/104, 브라우저 시나리오 19개, 미리보기 확인 8.5. 시험 데이터 0(1절 "운영 데이터").
+6. 사용 피드백 보완(2.10·2.11): 인라인 코드 빨간 글자·둥근 배경, 코드 블록 GitHub 테마 구문 강조, 코드 블록 맞춤법 검사 끔, 단어·줄 선택 `Mod+D`, Esc 선택 풀기, 인라인 코드 끝 Enter 탈출. 브랜치 `stage3/editor-feedback`(기준 `b13926d`). 사용자 승인(2026-11-09)으로 커밋·푸시·PR(대상 `rebuild`). 병합은 사용자 확인 뒤.
 
 **다음 것.**
 
-1. 4단계 Plan(공개 페이지 렌더 교체). 새 세션에서 한다. 먼저 읽을 것: 3단계 작업 문서 5절·8절, 감사 문서 8.3·8.4의 4단계 행. 4단계가 3단계에서 이어받는 것: 공유 파이프라인 `src/lib/content/markdown.ts`(`markdownToHtml`), 콜아웃·임베드 remark 플러그인과 수식(remark-math·rehype-katex), 영상 판정 `isVideoUrl`(`safe-url.ts`), 원시 HTML 안전 처리 `rehype-strip-unsafe.ts`. 공개 페이지 `MarkdownPostView.tsx`(react-markdown)를 이 파이프라인으로 바꾸면 8절 8이 함께 닫힌다. 미룬 기능 중 4단계 몫은 이미지 임의 px 폭·정렬과 링크 카드다(Plan 14절).
-2. ~~[PR #11](https://github.com/crucial-sub/cruz-lab/pull/11) 병합~~ 끝(2026-11-09, `cb2180f`). `stage3/docs`의 기준을 `cb2180f`로 옮겼다. 남은 것: T10 문서 [PR #12](https://github.com/crucial-sub/cruz-lab/pull/12) 병합(사용자 확인 뒤).
+1. 4단계 Plan(공개 페이지 렌더 교체). 새 세션에서 한다. 먼저 읽을 것: 3단계 작업 문서 5절·8절, 감사 문서 8.3·8.4의 4단계 행. 4단계가 3단계에서 이어받는 것: 공유 파이프라인 `src/lib/content/markdown.ts`(`markdownToHtml`), 콜아웃·임베드 remark 플러그인과 수식(remark-math·rehype-katex), 영상 판정 `isVideoUrl`(`safe-url.ts`), 원시 HTML 안전 처리 `rehype-strip-unsafe.ts`. 공개 페이지 `MarkdownPostView.tsx`(react-markdown)를 이 파이프라인으로 바꾸면 8절 8이 함께 닫힌다. 미룬 기능 중 4단계 몫은 이미지 임의 px 폭·정렬과 링크 카드다(Plan 14절). 인라인 코드·코드 블록 색은 `src/editor/editor.css`의 "코드 색 토큰"이다(2.10). 공개 페이지 `.prose`를 합칠 때 이 토큰을 쓴다.
+2. ~~[PR #11](https://github.com/crucial-sub/cruz-lab/pull/11) 병합~~ 끝(2026-11-09, `cb2180f`). `stage3/docs`의 기준을 `cb2180f`로 옮겼다. T10 문서 [PR #12](https://github.com/crucial-sub/cruz-lab/pull/12)도 병합했다(`b13926d`). 남은 것: 사용 피드백 보완 PR(`stage3/editor-feedback`) 병합(사용자 확인 뒤).
 3. 사용자가 `rebuild` 미리보기에서 실제 키보드로 입력 규칙·슬래시·단축키를 한 번 써 본다(4.6은 `execCommand` 경로다). 맥 키 `⌃⇧2/3/4/0`이 손에 맞는지도 그때 본다. iPhone으로 모바일 바도 본다(8절 13).
-4. 원격의 병합 끝난 브랜치 삭제(사용자 확인 뒤): `stage3/plan`, `stage3/a-markdown`, `stage3/b-editor`, `stage3/c-commands`. 문서 PR 병합 뒤 `stage3/docs`도. 2단계 브랜치는 이미 없다(2026-11-09 `git branch -r` 확인).
+4. 원격의 병합 끝난 브랜치 삭제(사용자 확인 뒤): `stage3/plan`, `stage3/a-markdown`, `stage3/b-editor`, `stage3/c-commands`, `stage3/docs`. 사용 피드백 PR 병합 뒤 `stage3/editor-feedback`도. 2단계 브랜치는 이미 없다(2026-11-09 `git branch -r` 확인).
 5. 드래그 핸들 상기: 사용자 답(2026-11-09) "써 본 뒤 정한다". 5단계 Plan 때 다시 묻는다(Plan 14절).
 
 **열린 질문.** 8절에 있다. 4단계로 넘기는 것은 8·9·11, 5단계로 넘기는 것은 4·5·7·10·13, 운영 병합 뒤 보는 것은 12다. 닫은 것은 취소선이다.

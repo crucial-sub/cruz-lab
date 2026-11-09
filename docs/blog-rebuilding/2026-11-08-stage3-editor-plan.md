@@ -642,7 +642,7 @@ Claude 판단으로 정한 것(승인 때 함께 확인): D4 remark 기반 자�
 | 드래그 핸들(블록을 잡아 끌어 순서 바꾸기) | UX 가치를 지금 판단하기 어렵다. 노션에는 있고 옵시디언 기본에는 없다 | 3단계 에디터를 실제로 써 본 뒤(3단계 작업 문서 쓸 때), 늦어도 5단계 Plan. **2026-11-09 사용자 답: 써 본 뒤 정한다. 5단계 Plan 때 다시 묻는다** | 반나절. `@tiptap/extension-drag-handle-react` |
 | 이미지 임의 px 폭과 정렬(가운데·좌우) | 마크다운 표준 문법이 없다. HTML 속성이나 비표준 문법이 필요하다. 사용자: "굉장히 좋은 기능, 나중에 반드시" | 4단계 공개 렌더러 설계 때(원시 HTML 허용 여부를 그때 정한다) | 1~2일. 변환기·렌더러·에디터 메뉴 |
 | 링크 카드(아무 주소나 제목·설명·이미지 카드) | 상대 사이트에서 정보를 가져오는 서버 API와 저장·갱신 규칙이 필요하다 | 4단계 공개 렌더러 설계 때 | 1~2일 |
-| 찾기·바꾸기 | 브라우저 찾기와 소스 모드로 대신한다 | 5단계 Plan | 반나절~1일 |
+| 찾기·바꾸기 | 브라우저 찾기와 소스 모드로 대신한다. 2026-11-09 사용자가 VS Code `Cmd+D`식 같은 글자 다중 선택을 물었다. 단일 선택 넓히기(`Mod+D`: 단어 → 줄 → 블록)만 넣었다(작업 문서 2.11). 같은 글자 여러 곳 고치기는 이 항목과 함께 본다 | 5단계 Plan | 반나절~1일 |
 | 키맵 저장(`settings/editor`)과 설정 화면 | 설정 화면은 5단계 관리자 앱 몫 | 5단계 Plan(확정) | 1일 |
 
 ## 부록 A. 기존 55편의 마크다운 문법 조사표
@@ -706,3 +706,5 @@ Claude 판단으로 정한 것(승인 때 함께 확인): D4 remark 기반 자�
 PR-B(2026-11-09): `posts/new.astro` 새 흐름을 PR-B에서(T7 일부), 브라우저용 주소 파서 `asset-url.ts`, 업로드 상태 속성 3개(`rendered: false`), 변경 판정 기준(열기 직후 `docToMarkdown`), 소스 모드 저장은 editorJson null, 테마 전환 메뉴, Placeholder. 리뷰 뒤: 저장 컨트롤러 클래스(`state/save-controller.ts`, 4.1에 없음), 공유 파이프라인의 원시 HTML 안전 처리(`rehype-strip-unsafe.ts`), editorJson이 Firestore 깊이 한도를 넘으면 null(D5 형식은 그대로), blob 주소 3겹 차단, 업로드 결과 재적용, 발행 전 저장 결과 확인, 저장 전 서버 규칙 검사, 영상 판정 `isVideoUrl`. 외부 변경 E2에 `http://localhost:4322`를 더했다(사용자 결정). 상세는 작업 문서 5절 24~54.
 
 PR-C(2026-11-09): D9 인터페이스에 `scope`·`isAvailable`·`inToolbar` 추가, 키는 두 길(에디터 범위 Tiptap 키맵 + 페이지 범위 창 keydown), Tiptap 기본 명령 키 제거(`stripCommandKeys`), 4.1에 없는 파일(`commands/filter.ts`·`slash.ts`, `extensions/input-rules.ts`, `state/summary.ts`, `ui/CodeBlockView`·`EmbedNodeView`·`class-names`, `layouts/AdminPage.astro`, `pages/admin/edit/index.astro`), 콜아웃·체크 항목 입력 규칙은 두 단계(`> ` 뒤 `[!note] `, `- ` 뒤 `[ ] `는 그 항목만), 수식 입력은 대화상자(`$$`+공백), 임베드 붙여넣기·Enter, 모바일 두 폭(768·640px), 코드 블록 언어 select. **사용자 결정 2건: `/admin/posts/new`는 POST 폼(D2 a의 GET과 다름), 맥의 제목 2·3·4·단락 키는 `⌃⇧2/3/4/0`(부록 B의 `Mod+Shift`와 다름. `⌘⇧3/4`는 macOS 스크린샷 키).** 리뷰 뒤: 발행 재진입 방지, 넣기 명령의 `isAvailable`(코드 블록·표 셀), 링크 `safeUrl`, 수식 `pos` 검증, `HardBreak` `Mod-Enter` 제거. 8.5 결과: 재발행 뒤 첫 요청은 `MISS`가 아니라 `REVALIDATED`(내용은 새 것). 상세는 작업 문서 5절 55~73, 4.6·4.7, 6.3.
+
+사용 피드백(2026-11-09, 사용자가 새 에디터를 써 본 뒤): 인라인 코드 빨간 글자·둥근 배경, 코드 블록 GitHub 테마 구문 강조와 맞춤법 검사 끔, 부록 B 밖 명령 `Mod+D` 단어·줄 선택(두 번째는 넓히기)과 `Escape` 선택 풀기, 인라인 코드 `keepOnSplit: false`. 상세는 작업 문서 2.10·2.11, 5절 74~76.
