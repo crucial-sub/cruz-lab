@@ -17,18 +17,19 @@
 | 문제        | 정적 블로그에서 글 작성, 이미지 업로드, 커밋, 배포 확인이 계속 끊겨 운영 부담이 컸습니다.                           |
 | 해결        | 브라우저 CMS, Firebase Storage 업로드, Firestore direct publish, GitHub markdown 백업을 하나의 흐름으로 묶었습니다. |
 | 공개 화면   | Astro 기반 블로그, 프로젝트, 시리즈 페이지로 콘텐츠 읽기 흐름을 구성했습니다.                                       |
-| 관리자 화면 | React island로 대시보드, 포스트 목록, CodeMirror 에디터, 시리즈 편집기를 구성했습니다.                              |
+| 관리자 화면 | 서버 렌더 최소 목록(`/admin`)과 Tiptap 3.33.0 에디터(`/admin/edit/[id]`)로 구성했습니다. 초안은 서버에 자동저장합니다. |
 | 추가 실험   | 프로젝트 문서와 이력서를 로컬 read-only MCP 서버로 감싸 에이전트가 읽을 수 있는 문서 경계를 설계했습니다.           |
 
 ## 핵심 구현
 
 | 영역             | 구현 내용                                                                                                | 관련 코드                                                                                                                               |
 | ---------------- | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| 브라우저 CMS     | CodeMirror 6 기반 마크다운 에디터, localStorage 초안, 1.5초 디바운스 자동 저장, markdown import/export   | `src/components/editor/FullScreenEditor.tsx`, `src/components/editor/CodeMirrorEditor.tsx`, `src/lib/editor-drafts.ts`                  |
-| 이미지 업로드    | 드래그 앤 드롭/붙여넣기 이미지 처리, Canvas 리사이즈, Firebase Storage 업로드, 진행 상태 표시            | `src/components/editor/media-upload-client.ts`, `src/components/editor/UploadProgress.tsx`                                              |
+| 에디터           | Tiptap 3.33.0 WYSIWYG, 마크다운 변환기(ProseMirror JSON ↔ markdown 왕복), 명령 레지스트리(단축키·슬래시 메뉴·명령 팔레트·툴바·모바일 바가 한 목록), 보기 모드 3종(편집·소스·미리보기), 서버 초안 자동저장(2초 디바운스, 버전 충돌 409 처리, 오프라인은 IndexedDB 보관함 1칸) | `src/editor/ui/EditorApp.tsx`, `src/editor/markdown/`, `src/editor/commands/registry.ts`, `src/editor/state/save-controller.ts`, `src/editor/state/offline-store.ts` |
+| 이미지 업로드    | 드래그 앤 드롭/붙여넣기 이미지 처리, SHA-256 중복 검사, 서명 URL로 Firebase Storage 직접 업로드, 진행 상태 표시, 크기 선택(w480·w960·최대)   | `src/editor/upload/upload-client.ts`, `src/editor/upload/paste-drop.ts`, `src/editor/ui/ImageNodeView.tsx`                              |
+| 마크다운 파이프라인 | remark·rehype 기반 `markdownToHtml`(GFM, KaTeX 수식, `> [!note]` 콜아웃, YouTube·CodeSandbox 임베드, 코드 하이라이트, 원시 HTML 안전 처리). 에디터 미리보기가 씁니다. 공개 페이지는 4단계에서 이 파이프라인으로 바꿉니다 | `src/lib/content/markdown.ts`, `src/lib/content/remark-callout.ts`, `src/lib/content/remark-embed.ts`, `src/lib/content/rehype-strip-unsafe.ts` |
 | 출간 API         | 세션 쿠키 인증, 서버 초안과 버전 충돌 검사, 발행·숨김·삭제, CDN 캐시 태그 퍼지, 이미지 webp 변형          | `src/middleware.ts`, `src/lib/server/admin-entries.ts`, `src/lib/server/admin-assets.ts`, `src/pages/api/admin/posts/`                 |
 | 공개 블로그      | Firestore `entries`의 발행본 조회, markdown 렌더링, 태그/검색/연재 페이지 구성                           | `src/lib/server/entries.ts`, `src/lib/content-posts.ts`, `src/pages/blog/index.astro`, `src/pages/blog/[...slug].astro`                |
-| 접근성/읽기 경험 | skip link, `aria-current`, `aria-live`, View Transitions, `prefers-reduced-motion`, 네트워크 상태 토스트 | `src/layouts/BaseLayout.astro`, `src/layouts/components/Header.astro`, `src/components/islands/PostSearch.tsx`, `src/styles/global.css` |
+| 접근성/읽기 경험 | skip link, `aria-current`, View Transitions, `prefers-reduced-motion`, 글 목록 검색·태그 필터                | `src/layouts/BaseLayout.astro`, `src/layouts/components/Header.astro`, `src/components/blog/BlogPostList.tsx`, `src/styles/global.css` |
 | Knowledge MCP    | 허용된 markdown 문서만 읽는 로컬 stdio MCP 서버, tools/resources/prompts 분리                            | `tools/cruz-lab-knowledge-mcp/server.mjs`                                                                                               |
 
 ## 출간 흐름
@@ -51,7 +52,7 @@
 | 영역          | 역할                                                                                                      |
 | ------------- | --------------------------------------------------------------------------------------------------------- |
 | Public pages  | Astro 기반 블로그, 프로젝트, 시리즈 페이지입니다. 발행 포스트는 Firestore에서 읽습니다.                   |
-| Admin UI      | React island로 구성된 관리자 대시보드, 포스트 목록, CodeMirror 에디터, 시리즈 편집기입니다.               |
+| Admin UI      | 서버 렌더 최소 목록 `/admin`(상태 탭, 새 글·새 노트 POST 폼)과 Tiptap 에디터 `/admin/edit/[id]`(React, `client:only`)입니다. 5단계에서 React 관리자 앱으로 다시 만듭니다. |
 | Astro API     | 세션 인증, 초안 저장, 발행·숨김·삭제, 이미지 업로드·변형·정리를 처리합니다.                               |
 | Firebase      | Auth는 관리자 확인에, Firestore는 글(`entries`)과 자산 기록 저장에, Storage는 이미지/영상 저장에 사용합니다. |
 | GitHub backup | 비공개 저장소의 GitHub Action이 모든 글을 마크다운과 JSON으로 남깁니다.                                   |
@@ -65,7 +66,7 @@
 
 ### Astro와 React 역할 분리
 
-공개 페이지는 콘텐츠를 읽는 화면이므로 Astro 페이지와 서버 라우트 중심으로 구성했습니다. 반대로 관리자 화면은 에디터, 초안, 업로드, 출간 모달, 시리즈 정렬처럼 상태 변화가 많아 React island로 분리했습니다.
+공개 페이지는 콘텐츠를 읽는 화면이므로 Astro 페이지와 서버 라우트 중심으로 구성했습니다. 반대로 에디터는 편집 상태, 자동저장, 업로드 진행처럼 상태 변화가 많아 React island(`client:only`)로 분리했습니다. 관리자 목록은 서버 렌더입니다.
 
 ### MCP 서버는 작게 제한
 
@@ -78,8 +79,8 @@
 | Framework            | Astro 5, React 19                                              |
 | Language             | TypeScript                                                     |
 | Styling              | Tailwind CSS, Framer Motion                                    |
-| Editor               | CodeMirror 6                                                   |
-| Content              | Markdown/MDX, Astro Content Collections, Firestore             |
+| Editor               | Tiptap 3.33.0 (ProseMirror), lowlight, KaTeX                   |
+| Content              | Markdown(unified remark·rehype)/MDX, Astro Content Collections, Firestore |
 | Auth / Data / Assets | Firebase Auth, Firestore, Firebase Storage, Firebase Admin SDK |
 | Deploy               | Vercel adapter                                                 |
 | MCP                  | `@modelcontextprotocol/sdk`, Node.js stdio server              |
@@ -90,24 +91,37 @@
 src/
   pages/
     blog/                 # 공개 블로그 페이지
-    admin/                # 관리자 화면
-    api/admin/            # 출간, 삭제, 검증, 시리즈 관리 API
+    admin/                # 관리자: 최소 목록(index), 에디터(edit/[id]), 로그인, 옛 주소 301
+    api/admin/            # 세션, 초안 저장·발행·숨김·삭제, 자산 업로드·변형·정리 API
     projects/             # 프로젝트 상세 페이지
     series/               # 시리즈 페이지
+  editor/                 # Tiptap 에디터 패키지
+    commands/             # 명령 레지스트리, 키맵, 슬래시 메뉴, 명령 팔레트
+    extensions/           # 스키마(콜아웃·임베드·수식 포함), 입력 규칙
+    markdown/             # ProseMirror JSON ↔ markdown 변환기
+    state/                # 저장 컨트롤러, 자동저장 상태, 오프라인 보관함
+    ui/                   # EditorApp, 툴바, 모바일 바, 노드 뷰, 대화상자
+    upload/               # 이미지 업로드 클라이언트, 드롭·붙여넣기
   components/
-    editor/               # CodeMirror CMS 에디터
-    admin/                # 관리자 대시보드와 목록
-    islands/              # React island UI
+    admin/                # 관리자 로그인
+    blog/                 # 글 목록, 본문 렌더
+    islands/              # 공개 페이지 React island UI
+  layouts/                # BaseLayout(공개), AdminPage(관리자)
   lib/
-    server/               # Firestore, GitHub, Firebase Admin 서버 유틸
-    markdown-publish.ts   # markdown import/export와 출간 직렬화
+    content/              # 공유 마크다운 파이프라인(markdown.ts), 콜아웃·임베드 플러그인
+    server/               # Firestore, Firebase Admin, 세션, CDN 퍼지, 백업 알림 서버 유틸
   content/projects/       # 프로젝트 메타 문서와 프로젝트 포스트
+
+scripts/
+  smoke/                  # API, 공개 페이지, 마크다운 왕복 검사
+  migrate/                # 2단계 마이그레이션과 되돌리기
+  ops/                    # 버킷 CORS
 
 tools/
   cruz-lab-knowledge-mcp/ # read-only MCP 서버
 
 data/
-  post-archive/           # CMS 출간 markdown 백업
+  post-archive/           # 옛 CMS 출간 markdown 사본
 ```
 
 ## 로컬 실행
@@ -121,6 +135,7 @@ pnpm dev
 pnpm build
 pnpm preview
 pnpm lint
+pnpm test
 pnpm mcp:knowledge
 ```
 
