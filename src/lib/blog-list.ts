@@ -1,0 +1,115 @@
+// 글 목록 화면 도우미 (재건 4단계 D11·D17)
+// - /blog, /blog/category/<key>, /blog/tag/<tag>, 홈이 쓴다. 순수 함수만 둔다(Firestore를 읽지 않는다).
+// - 카테고리 탭: 발행 글이 있는 카테고리만. 글 수 많은 순, 같으면 taxonomy 순서(D17).
+// - 태그 칩: 발행 글에 쓰인 태그. 글 수 많은 순, 같으면 이름순.
+// - 행 묶음: 날짜 내림차순 한 줄기를 서울 연도로 나눈다. 연도가 바뀌는 첫 행 앞에 머리가 온다.
+// - 연재 배지: "Pintos 2/5". N은 그 연재의 발행 글 중 순서다(연재 상자 N/M과 같다).
+
+import type { SeriesRef } from './entry-schema.ts';
+import { seoulYear } from './date-format.ts';
+import { categoryPath, tagPath } from './public-paths.ts';
+import { normalizeSearchText } from './search-filter.ts';
+import { CATEGORIES, type CategoryKey } from './taxonomy.ts';
+
+// 목록이 쓰는 글 값 (content-posts.ts의 ContentPost와 모양이 맞는다)
+export interface ListPost {
+  id: string;
+  title: string;
+  description: string;
+  slug: string;
+  tags: string[];
+  category: CategoryKey | null;
+  categoryLabel: string;
+  series: SeriesRef | null;
+  pubDate: Date;
+  readingTime: number;
+}
+
+// 목록이 쓰는 연재 값 (content-posts.ts의 PublishedSeries와 모양이 맞는다)
+export interface ListSeries {
+  key: string;
+  title: string;
+  posts: Array<{ id: string }>; // 연재 순서대로
+}
+
+export interface CategoryTab {
+  key: CategoryKey;
+  label: string;
+  count: number;
+  href: string;
+}
+
+export interface TagChip {
+  tag: string;
+  count: number;
+  href: string;
+}
+
+export interface SeriesBadge {
+  title: string;
+  position: number; // 1부터
+  total: number;
+}
+
+export interface YearGroup<T extends ListPost = ListPost> {
+  year: number;
+  posts: T[];
+}
+
+// 카테고리 탭 (전체 탭은 화면이 따로 그린다)
+export function buildCategoryTabs(posts: readonly ListPost[]): CategoryTab[] {
+  const counts = new Map<CategoryKey, number>();
+  for (const post of posts) {
+    if (post.category) counts.set(post.category, (counts.get(post.category) ?? 0) + 1);
+  }
+  return CATEGORIES.map((category, order) => ({
+    key: category.key as CategoryKey,
+    label: category.label as string,
+    count: counts.get(category.key) ?? 0,
+    order,
+  }))
+    .filter((tab) => tab.count > 0)
+    .sort((a, b) => b.count - a.count || a.order - b.order)
+    .map(({ key, label, count }) => ({ key, label, count, href: categoryPath(key) }));
+}
+
+// 태그 칩
+export function buildTagChips(posts: readonly ListPost[]): TagChip[] {
+  const counts = new Map<string, number>();
+  for (const post of posts) {
+    for (const tag of post.tags) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko'))
+    .map(([tag, count]) => ({ tag, count, href: tagPath(tag) }));
+}
+
+// 글 ID → 연재 배지
+export function buildSeriesBadges(seriesList: readonly ListSeries[]): Map<string, SeriesBadge> {
+  const result = new Map<string, SeriesBadge>();
+  for (const series of seriesList) {
+    series.posts.forEach((post, index) => {
+      result.set(post.id, { title: series.title, position: index + 1, total: series.posts.length });
+    });
+  }
+  return result;
+}
+
+// 연도 묶음 (입력 순서를 지킨다. 입력은 최신 발행순이다)
+export function groupByYear<T extends ListPost>(posts: readonly T[]): YearGroup<T>[] {
+  const groups: YearGroup<T>[] = [];
+  for (const post of posts) {
+    const year = seoulYear(post.pubDate);
+    const last = groups.at(-1);
+    if (last && last.year === year) last.posts.push(post);
+    else groups.push({ year, posts: [post] });
+  }
+  return groups;
+}
+
+// 행의 검색 대상 글: 제목 · 설명 · 태그 · 카테고리 이름(D2)과 카테고리 key(주소에 보이는 값, 예: os)
+export function searchTextFor(post: ListPost): string {
+  return normalizeSearchText(
+    [post.title, post.description, ...post.tags, post.categoryLabel, post.category ?? ''].join(' '),
+  );
+}

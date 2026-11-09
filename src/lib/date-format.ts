@@ -17,3 +17,13 @@ export function formatSeoulDate(date: Date): string {
 export function isSameSeoulDate(a: Date, b: Date): boolean {
   return formatSeoulDate(a) === formatSeoulDate(b);
 }
+
+// 날짜 → '11.09' (서울, 글 목록 행. 연도는 묶음 머리에 쓴다)
+export function formatSeoulMonthDay(date: Date): string {
+  return formatSeoulDate(date).slice(5).replace('-', '.');
+}
+
+// 날짜 → 서울 연도 (예: 2026)
+export function seoulYear(date: Date): number {
+  return Number(formatSeoulDate(date).slice(0, 4));
+}

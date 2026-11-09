@@ -1,32 +1,40 @@
 ---
 // 이전·다음 글 (재건 4단계 D16 7)
 // - 발행순으로 이웃한 같은 kind의 글. 이전 글은 바로 전에 발행한 글, 다음 글은 바로 뒤에 발행한 글이다.
+// - 노트 상세(4단계 D12)는 kind="note"로 부른다. 주소는 /notes/<slug>, 이름은 "노트"다.
 import type { ContentPost } from '@/lib/content-posts';
+import { formatSeoulDate } from '@/lib/date-format';
+import { notePath } from '@/lib/public-paths';
 import { blogPath } from '@/lib/slug-lookup';
 
 interface Props {
   previous: ContentPost | null;
   next: ContentPost | null;
+  kind?: 'post' | 'note';
 }
 
-const { previous, next } = Astro.props;
+const { previous, next, kind = 'post' } = Astro.props;
+const noun = kind === 'note' ? '노트' : '글';
+const pathOf = (post: ContentPost) => (kind === 'note' ? notePath(post.slug) : blogPath(post.slug));
+// 제목 없는 노트는 날짜로 부른다
+const titleOf = (post: ContentPost) => post.title || `노트 · ${formatSeoulDate(post.pubDate)}`;
 ---
 
 {
   (previous || next) && (
-    <nav class="prev-next" aria-label="이전 글과 다음 글">
+    <nav class="prev-next" aria-label={`이전 ${noun}과 다음 ${noun}`}>
       {previous ? (
-        <a class="prev-next-link" href={blogPath(previous.slug)} rel="prev">
-          <span class="prev-next-label">← 이전 글</span>
-          <span class="prev-next-title">{previous.title}</span>
+        <a class="prev-next-link" href={pathOf(previous)} rel="prev">
+          <span class="prev-next-label">← 이전 {noun}</span>
+          <span class="prev-next-title">{titleOf(previous)}</span>
         </a>
       ) : (
         <span />
       )}
       {next ? (
-        <a class="prev-next-link prev-next-link-next" href={blogPath(next.slug)} rel="next">
-          <span class="prev-next-label">다음 글 →</span>
-          <span class="prev-next-title">{next.title}</span>
+        <a class="prev-next-link prev-next-link-next" href={pathOf(next)} rel="next">
+          <span class="prev-next-label">다음 {noun} →</span>
+          <span class="prev-next-title">{titleOf(next)}</span>
         </a>
       ) : (
         <span />

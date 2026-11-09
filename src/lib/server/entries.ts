@@ -104,6 +104,20 @@ function toSummary(docSnap: QueryDocumentSnapshot<DocumentData>): PublicEntrySum
   };
 }
 
+// 문서 → 본문이 있는 공개 글. 발행본이 없거나 깨졌으면 null
+function toPublicEntry(docSnap: QueryDocumentSnapshot<DocumentData>): PublicEntry | null {
+  const summary = toSummary(docSnap);
+  if (!summary) return null;
+  const published = docSnap.data().published;
+  const markdown = published?.markdown;
+  const revision = published?.revision;
+  return {
+    ...summary,
+    markdown: typeof markdown === 'string' ? markdown : '',
+    revision: typeof revision === 'number' ? revision : 0,
+  };
+}
+
 // 발행된 모든 글 (모든 kind). 최신 발행순
 // - 홈, 블로그, 태그, 연재, RSS, 사이트맵이 한 요청에서 여러 번 부르므로 메모리 캐시로 한 번만 조회한다.
 export async function listPublishedEntries(): Promise<PublicEntrySummary[]> {
@@ -116,6 +130,23 @@ export async function listPublishedEntries(): Promise<PublicEntrySummary[]> {
     return snapshot.docs
       .map(toSummary)
       .filter((entry): entry is PublicEntrySummary => entry !== null)
+      .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
+  });
+}
+
+// 발행된 노트와 본문 (재건 4단계 D12). 최신 발행순
+// - /notes는 노트 본문을 목록에 그대로 그린다. 그래서 목록 조회(본문 제외)와 따로 읽는다.
+// - 등호 조건 둘(status, kind)만 쓴다. 정렬은 메모리에서 한다(복합 색인이 필요 없다).
+export async function listPublishedNoteEntries(): Promise<PublicEntry[]> {
+  return memoize(`${ENTRIES_MEMO_PREFIX}notes`, async () => {
+    const snapshot = await getServerDb()
+      .collection(ENTRIES_COLLECTION)
+      .where('status', '==', 'published')
+      .where('kind', '==', 'note')
+      .get();
+    return snapshot.docs
+      .map(toPublicEntry)
+      .filter((entry): entry is PublicEntry => entry !== null)
       .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
   });
 }
@@ -134,18 +165,8 @@ export async function findPublishedEntryBySlug(slug: string): Promise<PublicSlug
     const db = getServerDb();
     const direct = await db.collection(ENTRIES_COLLECTION).where('published.slug', '==', slug).get();
     const directItems = direct.docs.flatMap((docSnap) => {
-      const summary = toSummary(docSnap);
-      if (!summary) return [];
-      const published = docSnap.data().published;
-      const markdown = published?.markdown;
-      const revision = published?.revision;
-      return [
-        {
-          ...summary,
-          markdown: typeof markdown === 'string' ? markdown : '',
-          revision: typeof revision === 'number' ? revision : 0,
-        },
-      ];
+      const entry = toPublicEntry(docSnap);
+      return entry ? [entry] : [];
     });
 
     // 리다이렉트 후보는 본문이 필요 없다(빈 문자열로 둔다)

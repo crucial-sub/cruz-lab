@@ -1,115 +1,91 @@
 ---
+// 프로젝트 목록 /projects (prerender, 콘텐츠 컬렉션)
+// - 프로젝트 4개를 order 순으로 카드(코드 커버)로 보인다. featured 구분은 없다(4개 모두 featured다, D17).
+// - 4단계 PR-B: React 아일랜드(ProjectCard.tsx)와 Reveal을 ProjectCard.astro로 바꿨다. 데이터는 그대로다.
+//   4단계 PR-C(T6)가 데이터를 entries(seriesMeta.project)로 옮긴다(D1).
 export const prerender = true;
 
-import Reveal from '@/components/Reveal.astro';
-import ProjectCard from '@/components/islands/ProjectCard';
+import ProjectCard from '@/components/projects/ProjectCard.astro';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { getProjectHref, getProjectMetas, getProjectSlug } from '@/lib/project-posts';
 import { getCollection } from 'astro:content';
 
 const title = 'Projects';
-const description = 'Cruz의 프로젝트 포트폴리오 - 프론트엔드, 시스템 프로그래밍, 협업 도구 등';
+const description = 'Cruz의 프로젝트와 그 과정의 기록';
 
-const allProjectEntries = await getCollection('projects');
-const allProjects = getProjectMetas(allProjectEntries);
-
-// order 필드로 정렬 (낮은 순서가 먼저)
-const sortedProjects = allProjects.sort((a, b) => a.data.order - b.data.order);
-
-// Featured 프로젝트와 일반 프로젝트 분리
-const featuredProjects = sortedProjects.filter((p) => p.data.featured);
-const otherProjects = sortedProjects.filter((p) => !p.data.featured);
+const entries = await getCollection('projects');
+// getProjectMetas가 order 순으로 정렬한다
+const projects = getProjectMetas(entries);
 ---
 
 <BaseLayout title={title} description={description}>
-  <div class="py-8">
-    <!-- 페이지 헤더 -->
-    <Reveal>
-      <div class="mb-12 text-center">
-        <h1 class="mb-4 text-4xl font-extrabold md:text-5xl">
-          <span class="text-brand">Projects</span>
-        </h1>
-        <p class="mx-auto max-w-2xl text-lg text-text-secondary">
-          Cruz Lab의 프로젝트 경험을 소개합니다.
-        </p>
-      </div>
-    </Reveal>
-
-    <!-- Featured 프로젝트 섹션 -->
+  <section class="projects" aria-labelledby="projects-title">
+    <header class="projects-head">
+      <h1 id="projects-title">{title}</h1>
+      <p>{description}</p>
+    </header>
     {
-      featuredProjects.length > 0 && (
-        <Reveal delay={0.1}>
-          <section class="mb-16">
-            <h2 class="mb-6 flex items-center gap-2 text-2xl font-bold">
-              <span class="text-brand">Featured</span>
-              <span class="rounded-full bg-brand/10 px-3 py-1 text-sm font-medium text-brand">
-                {featuredProjects.length}
-              </span>
-            </h2>
-            <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {featuredProjects.map((project, index) => (
+      projects.length === 0 ? (
+        <p class="projects-empty">아직 등록된 프로젝트가 없습니다.</p>
+      ) : (
+        <ul class="projects-grid">
+          {projects.map((project) => {
+            const key = getProjectSlug(project);
+            return (
+              <li>
                 <ProjectCard
-                  client:visible
                   title={project.data.title}
                   description={project.data.description}
-                  image={project.data.image.src}
-                  tags={project.data.tags}
+                  href={getProjectHref(entries, key)}
                   tech={project.data.tech}
+                  coverKey={key}
+                  coverDate={project.data.startDate ?? new Date()}
                   github={project.data.github}
                   demo={project.data.demo}
-                  slug={getProjectSlug(project)}
-                  href={getProjectHref(allProjectEntries, getProjectSlug(project))}
-                  featured={project.data.featured}
-                  index={index}
                 />
-              ))}
-            </div>
-          </section>
-        </Reveal>
+              </li>
+            );
+          })}
+        </ul>
       )
     }
-
-    <!-- 다른 프로젝트 섹션 -->
-    {
-      otherProjects.length > 0 && (
-        <Reveal delay={0.2}>
-          <section>
-            <h2 class="mb-6 flex items-center gap-2 text-2xl font-bold">
-              <span>Other Projects</span>
-              <span class="rounded-full bg-bg-secondary px-3 py-1 text-sm font-medium text-text-secondary">
-                {otherProjects.length}
-              </span>
-            </h2>
-            <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {otherProjects.map((project, index) => (
-                <ProjectCard
-                  client:visible
-                  title={project.data.title}
-                  description={project.data.description}
-                  image={project.data.image.src}
-                  tags={project.data.tags}
-                  tech={project.data.tech}
-                  github={project.data.github}
-                  demo={project.data.demo}
-                  slug={getProjectSlug(project)}
-                  href={getProjectHref(allProjectEntries, getProjectSlug(project))}
-                  featured={project.data.featured}
-                  index={index}
-                />
-              ))}
-            </div>
-          </section>
-        </Reveal>
-      )
-    }
-
-    <!-- 프로젝트가 없을 경우 -->
-    {
-      sortedProjects.length === 0 && (
-        <div class="py-16 text-center">
-          <p class="text-lg text-text-secondary">아직 등록된 프로젝트가 없습니다.</p>
-        </div>
-      )
-    }
-  </div>
+  </section>
 </BaseLayout>
+
+<style>
+  .projects {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+  }
+  .projects-head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  h1 {
+    margin: 0;
+    font-size: var(--text-3xl);
+    font-weight: 800;
+    line-height: var(--leading-heading);
+  }
+  .projects-head p,
+  .projects-empty {
+    margin: 0;
+    color: var(--text-secondary);
+  }
+  .projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+    gap: 1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .projects-grid > li {
+    display: flex;
+  }
+  .projects-grid > li > :global(*) {
+    flex: 1;
+  }
+</style>

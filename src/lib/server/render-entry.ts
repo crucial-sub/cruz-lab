@@ -4,6 +4,7 @@
 //   자산 문서(srcset)가 바뀌는 경우를 위해 10분이 지나면 다시 그린다.
 // - 캐시는 글 ID마다 최신 번호 하나만 가진다. 그래서 메모리는 발행 글 수에 묶인다.
 // - CDN이 응답을 60초 저장하므로(cache-headers.ts) 같은 인스턴스가 같은 글을 다시 그리는 일은 드물다.
+// - /notes 스트림은 id 접두사(idPrefix)를 붙여 그린다. 접두사가 다르면 다른 칸이다(노트 상세와 스트림이 한 칸씩).
 
 import { extractStoragePaths, assetIdFromAssetPath } from '@/lib/asset-url';
 import { getSiteHighlighter } from '@/lib/content/highlighter';
@@ -48,29 +49,39 @@ async function loadAssets(ids: string[]) {
   }
 }
 
+export interface RenderEntryOptions {
+  // 문서 안 id 접두사 (한 페이지에 본문 여러 개를 그릴 때)
+  idPrefix?: string;
+}
+
 // 실제 렌더: 자산 조회 → 공유 파이프라인(Shiki + srcset)
-async function renderNow(entry: RenderableEntry): Promise<MarkdownRenderResult> {
+async function renderNow(entry: RenderableEntry, options: RenderEntryOptions): Promise<MarkdownRenderResult> {
   const bucket = getStorageBucketName();
   const ids = assetIdsInMarkdown(entry.markdown, bucket);
   const byId = await loadAssets(ids);
   return renderMarkdown(entry.markdown, {
     highlighter: getSiteHighlighter(),
     assets: { byId, bucket },
+    idPrefix: options.idPrefix,
   });
 }
 
-// 글 본문 → { html, toc, hasMath }. 같은 글·같은 발행본이면 메모리 결과를 쓴다
-export function renderEntry(entry: RenderableEntry): Promise<MarkdownRenderResult> {
+// 글 본문 → { html, toc, hasMath }. 같은 글·같은 발행본(·같은 접두사)이면 메모리 결과를 쓴다
+export function renderEntry(
+  entry: RenderableEntry,
+  options: RenderEntryOptions = {},
+): Promise<MarkdownRenderResult> {
+  const key = options.idPrefix ? `${entry.id}\u0000${options.idPrefix}` : entry.id;
   const now = Date.now();
-  const hit = cache.get(entry.id);
+  const hit = cache.get(key);
   if (hit && hit.revision === entry.revision && hit.expiresAt > now) return hit.promise;
 
-  const promise = renderNow(entry).catch((error: unknown) => {
+  const promise = renderNow(entry, options).catch((error: unknown) => {
     // 실패한 결과는 남기지 않는다. 다음 요청이 다시 그린다
-    if (cache.get(entry.id)?.promise === promise) cache.delete(entry.id);
+    if (cache.get(key)?.promise === promise) cache.delete(key);
     throw error;
   });
-  cache.set(entry.id, { revision: entry.revision, expiresAt: now + RENDER_CACHE_TTL_MS, promise });
+  cache.set(key, { revision: entry.revision, expiresAt: now + RENDER_CACHE_TTL_MS, promise });
   return promise;
 }
 

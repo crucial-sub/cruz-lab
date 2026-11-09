@@ -227,7 +227,12 @@ export function reservesSlug(status: EntryStatus): boolean {
   return status === 'published' || status === 'hidden';
 }
 
-// 공개 주소를 만든다. 2단계에서는 post만 공개 페이지가 있다(D4)
+// 공개 주소를 만든다 (인코딩하지 않은 경로)
+// - post: /blog/<slug> (2단계 D4)
+// - note: /notes/<slug> (4단계 D12)
+// - project: 아직 없다. 4단계 PR-C(T6)가 /projects/<key>/<slug>를 더한다(D1)
 export function publicPathFor(kind: EntryKind, slug: string): string | null {
-  return kind === 'post' ? `/blog/${slug}` : null;
+  if (kind === 'post') return `/blog/${slug}`;
+  if (kind === 'note') return `/notes/${slug}`;
+  return null;
 }

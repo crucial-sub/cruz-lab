@@ -65,7 +65,7 @@ export function PreviewMode({ markdown }: { markdown: string }) {
   // 관리자 본인의 글이다. 공유 파이프라인이 원시 HTML을 안전 처리한다(rehype-strip-unsafe)
   return (
     <div
-      className="prose prose-lg max-w-none dark:prose-invert"
+      className="prose"
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );

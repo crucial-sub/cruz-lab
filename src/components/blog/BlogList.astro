@@ -1,0 +1,165 @@
+---
+// 글 목록 화면 (재건 4단계 D2·D6·D11·D17)
+// - /blog, /blog/category/<key>, /blog/tag/<tag>가 같이 쓴다. 페이지는 제목·설명·거른 글만 다르게 넘긴다.
+// 위에서 아래 순서:
+// 1. 제목 · 설명 1줄 · "연재 N개 보기 →"(D6 답의 연재 입구 1, 첫 화면)
+// 2. 카테고리 탭(전체 + 발행 글이 있는 카테고리, 글 수)
+// 3. 태그 칩 + 검색창(D2)
+// 4. 결과 수
+// 5. 행 목록(연도 묶음, 최신 발행순). 페이지 나누기는 없다(54편)
+// - 탭·칩의 글 수는 전체 발행 글 기준이다. 행은 이 페이지의 글(posts)만이다.
+import {
+  buildCategoryTabs,
+  buildSeriesBadges,
+  buildTagChips,
+  groupByYear,
+  type ListPost,
+  type ListSeries,
+} from '@/lib/blog-list';
+import type { CategoryKey } from '@/lib/taxonomy';
+import CategoryTabs from './CategoryTabs.astro';
+import PostRow from './PostRow.astro';
+import SearchFilter from './SearchFilter.astro';
+import TagChips from './TagChips.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  allPosts: ListPost[]; // 탭·칩 글 수 기준(전체 발행 글)
+  posts: ListPost[]; // 이 페이지의 행
+  seriesList: ListSeries[];
+  currentCategory: CategoryKey | 'all' | null;
+  currentTag?: string | null;
+}
+
+const {
+  title,
+  description,
+  allPosts,
+  posts,
+  seriesList,
+  currentCategory,
+  currentTag = null,
+} = Astro.props;
+
+const tabs = buildCategoryTabs(allPosts);
+const chips = buildTagChips(allPosts);
+const badges = buildSeriesBadges(seriesList);
+const groups = groupByYear(posts);
+---
+
+<section class="blog-list" aria-labelledby="blog-list-title">
+  <header class="blog-list-head">
+    <h1 id="blog-list-title">{title}</h1>
+    <p class="blog-list-desc">{description}</p>
+    {
+      seriesList.length > 0 && (
+        <a class="blog-list-series" href="/series">
+          연재 {seriesList.length}개 보기 →
+        </a>
+      )
+    }
+  </header>
+
+  <CategoryTabs tabs={tabs} total={allPosts.length} current={currentCategory} />
+
+  <div class="blog-list-filters">
+    <TagChips chips={chips} current={currentTag} />
+    <SearchFilter total={posts.length} />
+  </div>
+
+  <p class="blog-list-count" data-result-count aria-live="polite">{posts.length}편</p>
+
+  <div class="blog-list-rows" data-post-list>
+    {
+      groups.map((group) => (
+        <section class="year-group" data-year-group aria-label={`${group.year}년`}>
+          <h2 class="year-head">{group.year}</h2>
+          <ol class="post-rows">
+            {group.posts.map((post) => (
+              <PostRow post={post} badge={badges.get(post.id)} />
+            ))}
+          </ol>
+        </section>
+      ))
+    }
+    <p class="blog-list-empty" data-result-empty hidden>검색 결과가 없습니다.</p>
+  </div>
+</section>
+
+<style>
+  .blog-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .blog-list-head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  h1 {
+    margin: 0;
+    font-size: var(--text-3xl);
+    font-weight: 800;
+    line-height: var(--leading-heading);
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+  .blog-list-desc {
+    margin: 0;
+    color: var(--text-secondary);
+  }
+  .blog-list-series {
+    align-self: flex-start;
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+  .blog-list-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem 1.5rem;
+  }
+  .blog-list-filters > :global(.tag-chips) {
+    flex: 1 1 24rem;
+  }
+  .blog-list-count {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+  }
+  .blog-list-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  .year-group[hidden],
+  .blog-list-empty[hidden] {
+    display: none;
+  }
+  .year-head {
+    margin: 0 0 0.25rem;
+    padding: 0 0.5rem 0.5rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .post-rows {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .blog-list-empty {
+    margin: 0;
+    padding: 2rem 0;
+    color: var(--text-secondary);
+    text-align: center;
+  }
+</style>

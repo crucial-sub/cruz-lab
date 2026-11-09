@@ -1,0 +1,163 @@
+---
+// 연재 상세 /series/<key> (재건 4단계 D11·D17)
+// - 주소의 값은 연재 key다(2단계). /series/wesbos 같은 옛 주소는 미들웨어가 301로 보낸다.
+// - 제목 · 설명 · N편 · 총 읽기 시간 · 번호 매긴 글 목록(제목·날짜·읽기 시간). "시작하기" 버튼은 없다(첫 글이 첫 줄이다).
+// - 없는 연재는 404다(3단계까지는 /404로 302). 안내 화면을 직접 그리고 CDN에 저장하지 않는다.
+import NotFound from '@/components/NotFound.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getPublishedSeriesByKey } from '@/lib/content-posts';
+import { formatSeoulDate } from '@/lib/date-format';
+import { setPublicPageCache } from '@/lib/server/cache-headers';
+import { markNotFound } from '@/lib/server/not-found';
+import { blogPath } from '@/lib/slug-lookup';
+
+export const prerender = false;
+
+const key = Astro.params.key ?? '';
+const series = key ? await getPublishedSeriesByKey(key) : null;
+
+if (series) {
+  // 연재를 찾은 경우에만 CDN 캐시를 건다
+  setPublicPageCache(Astro.response.headers);
+} else {
+  markNotFound(Astro.response);
+}
+
+const posts = series?.posts ?? [];
+const title = series ? `${series.title} · 연재` : '페이지를 찾을 수 없습니다';
+const description = series
+  ? series.description || `${series.title} 연재`
+  : '요청한 연재를 찾을 수 없습니다.';
+---
+
+<BaseLayout title={title} description={description} noindex={!series}>
+  {!series && <NotFound message="없는 연재입니다." />}
+  {
+    series && (
+      <section class="series-detail" aria-labelledby="series-title">
+        <header class="series-detail-head">
+          <a class="series-back" href="/series">
+            ← 연재 목록
+          </a>
+          <h1 id="series-title">{series.title}</h1>
+          {series.description && <p class="series-detail-desc">{series.description}</p>}
+          <p class="series-detail-meta">
+            <span>{posts.length}편</span>
+            <span>읽는 시간 합계 {series.totalReadingTime}분</span>
+          </p>
+        </header>
+
+        <ol class="series-posts">
+          {posts.map((post, index) => (
+            <li class="series-post">
+              <span class="series-post-no" aria-hidden="true">
+                {index + 1}
+              </span>
+              <div class="series-post-main">
+                <h2 class="series-post-title">
+                  <a href={blogPath(post.slug)}>{post.title}</a>
+                </h2>
+                <p class="series-post-meta">
+                  <time datetime={post.pubDate.toISOString()}>{formatSeoulDate(post.pubDate)}</time>
+                  <span>{post.readingTime}분</span>
+                </p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
+    )
+  }
+</BaseLayout>
+
+<style>
+  .series-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+  }
+  .series-detail-head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .series-back {
+    align-self: flex-start;
+    font-size: var(--text-sm);
+  }
+  h1 {
+    margin: 0;
+    font-size: var(--text-3xl);
+    font-weight: 800;
+    line-height: var(--leading-heading);
+    word-break: keep-all;
+  }
+  .series-detail-desc {
+    margin: 0;
+    color: var(--text-secondary);
+  }
+  .series-detail-meta,
+  .series-post-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.75rem;
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+  }
+  .series-posts {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--border);
+  }
+  .series-post {
+    position: relative;
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr);
+    gap: 0.75rem;
+    padding: 1rem 0.5rem;
+    border-bottom: 1px solid var(--border);
+    transition: var(--transition-colors);
+  }
+  .series-post:hover {
+    background: var(--bg-surface);
+  }
+  .series-post-no {
+    color: var(--brand);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.6;
+  }
+  .series-post-title {
+    margin: 0 0 0.25rem;
+    font-size: var(--text-base);
+    font-weight: 600;
+    line-height: 1.45;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+  .series-post-title a {
+    color: var(--text-primary);
+    text-decoration: none;
+  }
+  .series-post-title a::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+  .series-post-title a:focus-visible {
+    outline: none;
+  }
+  /* 포커스 표시는 전체를 덮는 가상 요소에 그린다(:has()가 없는 브라우저에서도 보인다) */
+  .series-post-title a:focus-visible::after {
+    outline: 2px solid var(--ring-focus);
+    outline-offset: 2px;
+    border-radius: 0;
+  }
+  .series-post:hover .series-post-title a {
+    color: var(--brand);
+  }
+</style>

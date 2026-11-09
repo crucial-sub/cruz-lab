@@ -1,7 +1,11 @@
 ---
+// 프로젝트 글 (prerender, 콘텐츠 컬렉션)
+// - 4단계 PR-C(T6)가 entries(kind project)로 옮기고 글 상세 컴포넌트로 다시 쓴다(D1).
+// - 4단계 PR-B는 React 아일랜드 삭제에 맞춰 Reveal(스크롤 페이드인)을 걷어내고, 본문 모양을 prose.css로 바꿨다
+//   (@tailwindcss/typography 삭제). 화면 구성은 그대로다.
 export const prerender = true;
 
-import Reveal from '@/components/Reveal.astro';
+import '@/styles/prose.css';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import {
   getProjectMeta,
@@ -60,11 +64,10 @@ const showPartNav = projectPosts.length > 1;
 <BaseLayout
   title={`${post.data.title} | ${projectTitle}`}
   description={post.data.description}
-  image={image?.src}
+  ogImage={image?.src}
   tags={tags}
 >
   <article class="py-8">
-    <Reveal>
       <div class="mb-8 flex flex-wrap items-center gap-3 text-sm text-text-secondary">
         <a
           href="/projects"
@@ -78,9 +81,6 @@ const showPartNav = projectPosts.length > 1;
         <span class="text-text-muted">/</span>
         <span class="text-text-primary">{projectTitle}</span>
       </div>
-    </Reveal>
-
-    <Reveal delay={0.1}>
       <section class="mb-10 border-b border-border pb-8">
         <div class="mb-4 flex flex-wrap items-center gap-3">
           <span class="rounded-full border border-brand/25 bg-brand/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">
@@ -124,15 +124,9 @@ const showPartNav = projectPosts.length > 1;
           )
         }
       </section>
-    </Reveal>
-
-    <Reveal delay={0.2}>
-      <section class="prose prose-lg max-w-none">
+      <section class="prose">
         <Content />
       </section>
-    </Reveal>
-
-    <Reveal delay={0.3}>
       <section class="mt-14 grid gap-4 border-t border-border pt-10 md:grid-cols-2">
         {
           previousPost ? (
@@ -202,6 +196,5 @@ const showPartNav = projectPosts.length > 1;
           )
         }
       </section>
-    </Reveal>
   </article>
 </BaseLayout>

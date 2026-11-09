@@ -1,110 +1,138 @@
 ---
-export const prerender = false;
-
+// 연재 목록 /series (재건 4단계 D6·D17, U15)
+// - 연재 한 줄씩: 제목 · 설명 · N편 · 마지막 발행일. 이모지 제목은 없다.
+// - 헤더 메뉴에는 없다(D6 답). 입구는 /blog의 "연재 N개 보기", 태그 칩, 글 상세 연재 상자, 푸터다.
+// - 연재 데이터는 entries의 published.series로 모은다(2단계). 가장 최근에 글이 발행된 연재가 먼저다.
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import Reveal from '@/components/Reveal.astro';
-import TextReveal from '@/components/islands/TextReveal';
 import { getPublishedSeriesList } from '@/lib/content-posts';
+import { formatSeoulDate } from '@/lib/date-format';
+import { seriesPath } from '@/lib/public-paths';
 import { setPublicPageCache } from '@/lib/server/cache-headers';
 
-const title = 'Series';
-const description = '시리즈로 정리된 심도있는 학습 기록';
+export const prerender = false;
 
-// 연재 목록 (재건 2단계: entries의 published.series.key로 모은다. 커버는 없다)
-// - 화면 재설계는 4단계다.
-const seriesWithReadingTime = await getPublishedSeriesList();
+const seriesList = await getPublishedSeriesList();
 
 // CDN이 60초 동안 이 응답을 저장하게 한다
 setPublicPageCache(Astro.response.headers);
+
+const title = '연재';
+const description = '여러 편으로 이어지는 글 묶음';
 ---
 
 <BaseLayout title={title} description={description}>
-  <div class="py-8">
-    <!-- 페이지 헤더 -->
-    <Reveal>
-      <div class="mb-12 text-center">
-        <h1 class="mb-4 text-4xl font-extrabold md:text-5xl">
-          <TextReveal client:visible text="Series" type="chars" staggerChildren={0.08} />
-        </h1>
-        <p class="mx-auto max-w-2xl text-lg text-text-secondary">
-          연관된 포스트들을 시리즈로 묶어 체계적으로 학습하세요.
+  <section class="series-index" aria-labelledby="series-index-title">
+    <header class="series-index-head">
+      <h1 id="series-index-title">{title}</h1>
+      <p>{description}</p>
+    </header>
+
+    {
+      seriesList.length === 0 ? (
+        <p class="series-empty">
+          아직 연재가 없습니다. <a href="/blog">모든 글 보기 →</a>
         </p>
-      </div>
-    </Reveal>
-
-    <!-- 시리즈가 없을 때 -->
-    {
-      seriesWithReadingTime.length === 0 && (
-        <Reveal delay={0.2}>
-          <div class="flex flex-col items-center justify-center py-20 text-center">
-            <div class="mb-6 rounded-full bg-bg-card p-8">
-              <svg
-                class="h-16 w-16 text-text-secondary"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width={1.5}
-                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                />
-              </svg>
-            </div>
-            <h3 class="mb-2 text-xl font-semibold text-text-primary">
-              아직 작성된 시리즈가 없습니다
-            </h3>
-            <p class="mb-6 max-w-md text-text-secondary">
-              곧 새로운 시리즈가 올라올 예정입니다.
-            </p>
-            <a
-              href="/blog"
-              class="inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-3 font-medium text-white transition-all hover:brightness-110"
-            >
-              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-              블로그 글 보기
-            </a>
-          </div>
-        </Reveal>
+      ) : (
+        <ul class="series-list">
+          {seriesList.map((series) => (
+            <li class="series-item">
+              <h2 class="series-item-title">
+                <a href={seriesPath(series.key)}>{series.title}</a>
+              </h2>
+              {series.description && <p class="series-item-desc">{series.description}</p>}
+              <p class="series-item-meta">
+                <span>{series.posts.length}편</span>
+                <span>
+                  마지막 발행 <time datetime={series.updatedAt.toISOString()}>{formatSeoulDate(series.updatedAt)}</time>
+                </span>
+              </p>
+            </li>
+          ))}
+        </ul>
       )
     }
-
-    <!-- 시리즈 그리드 -->
-    {
-      seriesWithReadingTime.length > 0 && (
-        <Reveal delay={0.2}>
-          <div class="mb-6 text-sm text-text-secondary">
-            총 {seriesWithReadingTime.length}개의 시리즈
-          </div>
-          <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {seriesWithReadingTime.map((series) => (
-              <a
-                href={`/series/${series.key}`}
-                class="group flex h-full flex-col rounded-2xl border border-border bg-bg-surface p-6 transition-all hover:border-brand hover:shadow-lg hover:shadow-brand/10"
-              >
-                <h2 class="mb-2 text-xl font-bold text-text-primary transition-colors group-hover:text-brand">
-                  📚 {series.title}
-                </h2>
-                {series.description && (
-                  <p class="mb-4 line-clamp-2 text-sm text-text-secondary">{series.description}</p>
-                )}
-                <div class="mt-auto flex items-center gap-4 text-sm text-text-secondary">
-                  <span>{series.posts.length}개 포스트</span>
-                  <span>약 {series.totalReadingTime}분</span>
-                </div>
-              </a>
-            ))}
-          </div>
-        </Reveal>
-      )
-    }
-  </div>
+  </section>
 </BaseLayout>
+
+<style>
+  .series-index {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+  }
+  .series-index-head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  h1 {
+    margin: 0;
+    font-size: var(--text-3xl);
+    font-weight: 800;
+    line-height: var(--leading-heading);
+  }
+  .series-index-head p,
+  .series-empty {
+    margin: 0;
+    color: var(--text-secondary);
+  }
+  .series-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--border);
+  }
+  .series-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 1.125rem 0.5rem;
+    border-bottom: 1px solid var(--border);
+    transition: var(--transition-colors);
+  }
+  .series-item:hover {
+    background: var(--bg-surface);
+  }
+  .series-item-title {
+    margin: 0;
+    font-size: var(--text-lg);
+    font-weight: 700;
+    line-height: var(--leading-heading);
+  }
+  .series-item-title a {
+    color: var(--text-primary);
+    text-decoration: none;
+  }
+  .series-item-title a::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+  .series-item-title a:focus-visible {
+    outline: none;
+  }
+  /* 포커스 표시는 전체를 덮는 가상 요소에 그린다(:has()가 없는 브라우저에서도 보인다) */
+  .series-item-title a:focus-visible::after {
+    outline: 2px solid var(--ring-focus);
+    outline-offset: 2px;
+    border-radius: 0;
+  }
+  .series-item:hover .series-item-title a {
+    color: var(--brand);
+  }
+  .series-item-desc {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+  }
+  .series-item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.75rem;
+    margin: 0.25rem 0 0;
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

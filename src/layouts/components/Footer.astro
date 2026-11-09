@@ -1,7 +1,70 @@
 ---
-const today = new Date();
+// 사이트 푸터 (재건 4단계 D6·D10)
+// - 왼쪽 저작권, 오른쪽 링크: 연재 · RSS(글) · 노트 RSS · GitHub · 이메일 · 사이트맵 · About.
+// - "연재"는 헤더에 없는 /series의 입구 중 하나다(D6 답의 연재 입구 4곳 중 4번).
+const year = new Date().getFullYear();
+
+const LINKS = [
+  { href: '/series', label: '연재' },
+  { href: '/rss.xml', label: 'RSS' },
+  { href: '/notes/rss.xml', label: '노트 RSS' },
+  { href: 'https://github.com/crucial-sub', label: 'GitHub', external: true },
+  { href: 'mailto:jssub940@gmail.com', label: '이메일' },
+  { href: '/sitemap-index.xml', label: '사이트맵' },
+  { href: '/about', label: 'About' },
+];
 ---
 
-<footer class="container py-8 text-sm text-text-secondary">
-  © {today.getFullYear()} Cruz. All rights reserved.
+<footer class="site-footer">
+  <div class="container site-footer-inner">
+    <p class="site-copy">© {year} Cruz</p>
+    <nav aria-label="사이트 링크">
+      <ul class="site-footer-links">
+        {
+          LINKS.map((link) => (
+            <li>
+              <a href={link.href} {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
+                {link.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+  </div>
 </footer>
+
+<style>
+  .site-footer {
+    border-top: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+  }
+  .site-footer-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1.5rem;
+    padding-block: 1.5rem;
+  }
+  .site-copy {
+    margin: 0;
+  }
+  .site-footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .site-footer-links a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: var(--transition-colors);
+  }
+  .site-footer-links a:hover {
+    color: var(--text-primary);
+  }
+</style>

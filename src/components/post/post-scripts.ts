@@ -3,15 +3,15 @@
 // - 제목 앵커: 누르면 그 제목으로 가고(기본 동작) 주소를 클립보드에 넣는다.
 // - 목차 스크롤 스파이: 화면 위쪽 기준선(120px)을 지난 마지막 제목의 목차 항목에 aria-current="location"을 둔다.
 // - JS가 없어도 글은 읽힌다. 복사 버튼은 숨은 채이고, 앵커와 목차는 보통 링크다.
-// - 4단계 PR-A 동안은 ClientRouter(ViewTransitions)가 남아 있다. 페이지를 바꿔도 이 모듈은 다시 돌지 않으므로
-//   astro:page-load에서 다시 붙인다. 문서 단위 클릭 처리는 한 번만 붙인다(PR-B가 ClientRouter를 지운다).
+// - 4단계 PR-B에서 ClientRouter를 지웠다. 페이지를 옮기면 문서가 새로 열리므로 이 모듈은 페이지마다 한 번 돈다.
+//   (PR-A 동안의 astro:page-load 재연결은 지웠다.)
 
 const COPIED_MS = 2000;
 // 이 줄(화면 위에서 px)을 지난 제목을 "현재"로 본다
 const SPY_OFFSET_PX = 120;
 
 let documentBound = false;
-// 지금 붙어 있는 스크롤 스파이를 떼는 함수 (페이지가 바뀌면 다시 붙인다)
+// 지금 붙어 있는 스크롤 스파이를 떼는 함수 (두 번 붙이지 않게)
 let stopScrollSpy: (() => void) | null = null;
 
 // 화면 읽기 프로그램에 알린다 (글 상세의 role="status" 요소)
@@ -159,6 +159,4 @@ function enhance() {
 export function setupPostPage() {
   bindDocument();
   enhance();
-  // ClientRouter가 페이지를 바꾼 뒤에도 다시 붙인다 (PR-B에서 ClientRouter를 지우면 이 이벤트는 오지 않는다)
-  document.addEventListener('astro:page-load', enhance);
 }

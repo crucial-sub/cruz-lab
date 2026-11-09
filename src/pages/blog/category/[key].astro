@@ -1,0 +1,54 @@
+---
+// 카테고리 목록 /blog/category/<key> (재건 4단계 D11·D17)
+// - 카테고리 key는 taxonomy.ts의 값이다(os, react-native …). 표시 이름은 getCategoryLabel.
+// - 모르는 key와 발행 글이 없는 카테고리(지금은 회고)는 404다. 안내 화면을 직접 그리고 CDN에 저장하지 않는다.
+// - 카테고리와 같은 뜻의 태그 주소(/blog/tag/javascript 등)는 미들웨어가 이 주소로 301한다.
+import BlogList from '@/components/blog/BlogList.astro';
+import NotFound from '@/components/NotFound.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getPublishedContentPosts, getPublishedSeriesList } from '@/lib/content-posts';
+import { setPublicPageCache } from '@/lib/server/cache-headers';
+import { markNotFound } from '@/lib/server/not-found';
+import { getCategoryLabel, isCategoryKey } from '@/lib/taxonomy';
+
+export const prerender = false;
+
+const key = Astro.params.key ?? '';
+const [allPosts, seriesList] = await Promise.all([
+  getPublishedContentPosts(),
+  getPublishedSeriesList(),
+]);
+const category = isCategoryKey(key) ? key : null;
+const posts = category ? allPosts.filter((post) => post.category === category) : [];
+
+const found = category !== null && posts.length > 0;
+if (found) {
+  // CDN이 60초 동안 이 응답을 저장하게 한다
+  setPublicPageCache(Astro.response.headers);
+} else {
+  markNotFound(Astro.response);
+}
+
+const label = category ? getCategoryLabel(category) : '';
+const title = found ? label : '페이지를 찾을 수 없습니다';
+const description = found
+  ? `${label} 카테고리의 글 ${posts.length}편`
+  : '요청한 카테고리를 찾을 수 없습니다.';
+---
+
+<BaseLayout title={found ? `${title} · Blog` : title} description={description} noindex={!found}>
+  {
+    found && category ? (
+      <BlogList
+        title={title}
+        description={description}
+        allPosts={allPosts}
+        posts={posts}
+        seriesList={seriesList}
+        currentCategory={category}
+      />
+    ) : (
+      <NotFound message="없는 카테고리이거나 아직 글이 없는 카테고리입니다." />
+    )
+  }
+</BaseLayout>

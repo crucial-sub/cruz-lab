@@ -473,7 +473,7 @@ export default function EditorApp({ entryId }: { entryId: string }) {
       content: '',
       editorProps: {
         attributes: {
-          class: 'tiptap-body prose prose-lg max-w-none focus:outline-none dark:prose-invert',
+          class: 'tiptap-body prose focus:outline-none',
         },
       },
       onUpdate: ({ editor: instance }) => handleUpdateRef.current(instance),
@@ -736,7 +736,8 @@ export default function EditorApp({ entryId }: { entryId: string }) {
           label: '공개 페이지 보기',
         });
       } else {
-        showToast('success', `발행됨 · 노트는 아직 공개 주소가 없습니다(4단계)${suffix}`);
+        // 공개 주소가 없는 kind(지금은 project, 4단계 PR-C가 더한다)
+        showToast('success', `발행됨 · 이 종류는 아직 공개 주소가 없습니다${suffix}`);
       }
       await refreshEntry();
     } catch (error) {

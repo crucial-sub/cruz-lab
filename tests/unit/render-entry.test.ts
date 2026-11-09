@@ -83,4 +83,15 @@ describe('renderEntry', () => {
     expect(result.html).toContain('class="shiki');
     expect(result.hasMath).toBe(true);
   });
+
+  it('id 접두사가 다르면 따로 그리고 따로 둔다 (/notes 스트림과 노트 상세)', async () => {
+    const entry = { id: 'n1', revision: 1, markdown: '## 제목' };
+    const plain = await renderEntry(entry);
+    const prefixed = await renderEntry(entry, { idPrefix: 'n-n1-' });
+    expect(plain.html).toContain('id="제목"');
+    expect(prefixed.html).toContain('id="n-n1-제목"');
+    expect(await renderEntry(entry)).toBe(plain);
+    expect(await renderEntry(entry, { idPrefix: 'n-n1-' })).toBe(prefixed);
+  });
 });
+
