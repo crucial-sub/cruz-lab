@@ -4,7 +4,8 @@
 // - 결과 수를 고친다. 묶음(연도)의 행이 모두 숨으면 묶음 머리도 숨긴다. 0이면 "결과 없음"을 보인다.
 // - 주소의 ?q=를 처음에 읽는다. 입력하면 ?q=를 고친다(history.replaceState. 새 방문 기록은 만들지 않는다).
 // - JS가 없으면 검색창을 숨긴다(data-js-only). 목록은 모두 보인다.
-// - 같은 페이지의 [data-post-list] 하나를 대상으로 한다.
+// - 같은 페이지의 [data-post-list] 하나를 대상으로 한다. 대표 카드(FeaturedPost)도 data-post-row라 함께 거른다(D19).
+// - 자리는 목록 머리의 오른쪽이다(D19. 640px 미만은 설명 아래 전체 폭). 폭은 BlogList가 정한다.
 interface Props {
   total: number;
 }
@@ -88,7 +89,7 @@ const { total } = Astro.props;
 <style>
   .search-filter {
     position: relative;
-    flex: 1 1 14rem;
+    width: 100%;
     max-width: 22rem;
   }
   .search-icon {

@@ -1,0 +1,167 @@
+---
+// 목록 맨 위 대표 카드 (재건 4단계 D19 매거진형)
+// - 이 목록의 최신 글 1편이다. 데이터에 "대표 글" 칸은 없다(필요해지면 뒤에 넣는다).
+// - 넓은 카드: 코드 커버(왼쪽 40%) + "최신 글" · 카테고리 · 날짜 · 읽기 시간 · 제목 22px · 설명 전부 · "읽기 →".
+//   640px 미만은 세로형(커버 16:9 위, 글 아래).
+// - 카드 전체를 누를 수 있다. 링크는 제목 하나이고, 가상 요소로 카드 전체를 덮는다(링크 이름 = 제목, 5절 33).
+//   "읽기 →"는 장식 글자다(링크 안의 링크를 만들지 않는다).
+// - <li data-post-row data-search>: 행과 같은 속성이라 검색 필터가 함께 거르고 스모크가 함께 센다.
+// - 제목은 h2다(연도 머리 h2와 같은 단계. 대표 카드는 연도 묶음 밖에 있다. 행 제목은 h3).
+import { searchTextFor, type ListPost, type SeriesBadge } from '@/lib/blog-list';
+import { formatSeoulDate } from '@/lib/date-format';
+import { blogPath } from '@/lib/slug-lookup';
+import PostCover from './PostCover.astro';
+
+interface Props {
+  post: ListPost;
+  badge?: SeriesBadge;
+}
+
+const { post, badge } = Astro.props;
+---
+
+<li class="post-featured" data-post-row data-featured data-search={searchTextFor(post)}>
+  <div class="post-featured-cover">
+    <PostCover
+      categoryLabel={post.categoryLabel}
+      tags={post.tags}
+      slug={post.slug}
+      date={post.pubDate}
+    />
+  </div>
+  <div class="post-featured-body">
+    <p class="post-featured-kicker">최신 글</p>
+    <p class="post-featured-meta">
+      {post.categoryLabel && <span>{post.categoryLabel}</span>}
+      <time datetime={post.pubDate.toISOString()}>{formatSeoulDate(post.pubDate)}</time>
+      <span>{post.readingTime}분</span>
+      {
+        badge && (
+          <span>
+            {badge.title} {badge.position}/{badge.total}
+          </span>
+        )
+      }
+    </p>
+    <h2 class="post-featured-title">
+      <a href={blogPath(post.slug)}>{post.title}</a>
+    </h2>
+    {post.description && <p class="post-featured-desc">{post.description}</p>}
+    <p class="post-featured-more" aria-hidden="true">읽기 →</p>
+  </div>
+</li>
+
+<style is:global>
+  /* 전역 스타일(is:global): PostRow와 같은 이유(HTML 크기). 클래스 이름은 post-featured-* 로만 쓴다 */
+  .post-featured {
+    position: relative;
+    display: grid;
+    grid-template-columns: 2fr 3fr;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--bg-surface);
+    transition: var(--transition-colors);
+  }
+  .post-featured[hidden] {
+    display: none;
+  }
+  .post-featured:hover,
+  .post-featured:focus-within {
+    border-color: var(--brand);
+  }
+  .post-featured-cover {
+    min-height: 220px;
+  }
+  .post-featured-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.5rem;
+    min-width: 0;
+    padding: 1.5rem 1.75rem;
+  }
+  .post-featured-kicker {
+    margin: 0;
+    color: var(--brand);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .post-featured-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.5rem;
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+  }
+  .post-featured-meta span:not(:last-child)::after,
+  .post-featured-meta time:not(:last-child)::after {
+    content: '·';
+    margin-left: 0.5rem;
+  }
+  .post-featured-title {
+    margin: 0;
+    font-size: var(--text-xl);
+    font-weight: 800;
+    line-height: 1.25;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+  .post-featured-title a {
+    color: var(--text-primary);
+    text-decoration: none;
+  }
+  /* 카드 전체를 덮는 누를 자리 */
+  .post-featured-title a::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+  .post-featured-title a:focus-visible {
+    outline: none;
+  }
+  /* 포커스 표시는 전체를 덮는 가상 요소에 그린다. 카드는 overflow: hidden이라 안쪽(-2px)에 그린다 */
+  .post-featured-title a:focus-visible::after {
+    outline: 2px solid var(--ring-focus);
+    outline-offset: -2px;
+    border-radius: var(--radius-lg);
+  }
+  .post-featured:hover .post-featured-title a {
+    color: var(--brand);
+  }
+  .post-featured-desc {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    line-height: 1.6;
+  }
+  .post-featured-more {
+    margin: 0.25rem 0 0;
+    color: var(--brand);
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+
+  /* 640px 미만: 세로형 (커버 16:9 위, 글 아래) */
+  @media (max-width: 639.98px) {
+    .post-featured {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .post-featured-cover {
+      aspect-ratio: 16 / 9;
+      min-height: 0;
+    }
+    .post-featured-body {
+      padding: 1rem 1.125rem 1.25rem;
+    }
+    .post-featured-title {
+      font-size: var(--text-lg);
+    }
+  }
+</style>

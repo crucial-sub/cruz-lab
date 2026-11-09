@@ -1,8 +1,11 @@
 ---
-// 코드로 그리는 글 커버 (재건 4단계 D9·D17, U14)
+// 코드로 그리는 글 커버 (재건 4단계 D9·D17·D19, U14)
 // - 3단계까지의 PostCover.tsx(서버 전용 React)를 옮겼다. 색·블롭·격자 계산은 post-cover.ts 그대로다.
 //   OG 이미지(4단계 PR-C, D13)도 같은 함수를 쓴다.
 // - 이미지 요청이 없다: 메시 그라디언트 + 필름 노이즈 + 기울어진 격자 + 큰 카테고리 글자.
+// - 색·블롭 위치는 CSS 변수로 넘긴다. 그라디언트 식은 스타일시트에 한 번만 있다
+//   (목록 54편이 모두 커버를 가지므로 HTML 크기를 줄인다. D19).
+// - variant: card(홈 카드·대표 카드 기본) · thumb(목록 행의 작은 커버: 스탬프 없음, 글자 작음).
 // - 모션은 없다(6.3). 카드 hover는 테두리 색만 바뀐다(PostCard).
 // - 장식이라 화면 읽기 프로그램에는 숨긴다. 글 제목은 카드가 따로 보인다.
 import { formatSeoulDate } from '@/lib/date-format';
@@ -13,71 +16,100 @@ interface Props {
   tags: string[];
   slug: string;
   date: Date;
+  variant?: 'card' | 'thumb';
 }
 
-const { categoryLabel, tags, slug, date } = Astro.props;
+const { categoryLabel, tags, slug, date, variant = 'card' } = Astro.props;
 const { label, palette, blobPositions, angle } = getCoverTheme(categoryLabel, tags, slug);
 
-// 블롭 3개를 radial-gradient로 겹쳐 메시 그라디언트를 만든다
-const mesh = blobPositions
-  .map(
-    (blob, i) =>
-      `radial-gradient(circle at ${blob.x}% ${blob.y}%, ${palette.blobs[i]}cc 0%, ${palette.blobs[i]}00 ${blob.r}%)`,
-  )
-  .join(', ');
+// 색·블롭 위치·격자 기울기를 CSS 변수로 넘긴다 (그라디언트 식은 아래 <style>에 있다)
+const vars = [
+  `--cv-base:${palette.base}`,
+  `--cv-ink:${palette.ink}`,
+  // 블롭 색은 투명도 cc(80%)를 붙인 8자리 hex다. CSS에 color-mix()를 쓰지 않아 옛 브라우저에서도 그라디언트가 그려진다
+  ...palette.blobs.map((color, i) => `--cv-c${i + 1}:${color}cc`),
+  ...blobPositions.map(
+    (blob, i) => `--cv-x${i + 1}:${blob.x}%;--cv-y${i + 1}:${blob.y}%;--cv-r${i + 1}:${blob.r}%`,
+  ),
+  `--cv-angle:${angle}deg`,
+].join(';');
 
 // 왼쪽 위 표시: 'cruz-lab / 2025.12' (서울 기준 연·월)
-const stamp = formatSeoulDate(date).slice(0, 7).replace('-', '.');
+const stamp = variant === 'card' ? formatSeoulDate(date).slice(0, 7).replace('-', '.') : '';
 // 라벨이 길면 글자 크기를 줄인다
 const labelSize =
-  label.length > 12 ? 'cover-label-sm' : label.length > 7 ? 'cover-label-md' : 'cover-label-lg';
+  label.length > 12
+    ? 'code-cover-label-sm'
+    : label.length > 7
+      ? 'code-cover-label-md'
+      : 'code-cover-label-lg';
 ---
 
-<div class="cover" style={`background-color: ${palette.base}`} aria-hidden="true">
-  <div class="cover-mesh" style={`background-image: ${mesh}`}></div>
-  <div class="cover-grid" style={`transform: rotate(${angle}deg)`}></div>
-  <div class="cover-noise"></div>
-  <div class="cover-shade"></div>
-  <span class="cover-stamp">cruz-lab / {stamp}</span>
-  <span class:list={['cover-label', labelSize]} style={`color: ${palette.ink}`}>{label}</span>
+<div class:list={['code-cover', `code-cover-${variant}`]} style={vars} aria-hidden="true">
+  <div class="code-cover-mesh"></div>
+  <div class="code-cover-grid"></div>
+  <div class="code-cover-noise"></div>
+  <div class="code-cover-shade"></div>
+  {variant === 'card' && <span class="code-cover-stamp">cruz-lab / {stamp}</span>}
+  <span class:list={['code-cover-label', labelSize]}>{label}</span>
 </div>
 
-<style>
-  .cover {
+<style is:global>
+  /* 전역 스타일(is:global): 목록 54편이 모두 이 컴포넌트를 쓴다. 스코프 스타일이면 요소마다 data-astro-cid 속성이 붙어 /blog HTML이 약 20 KB 커진다(D19, Plan 8.2의 100 KB 한도). 클래스 이름은 code-cover-* 로만 쓴다(일반적인 cover는 피한다) */
+  .code-cover {
     position: relative;
     width: 100%;
     height: 100%;
     overflow: hidden;
+    background-color: var(--cv-base);
   }
-  .cover-mesh,
-  .cover-grid,
-  .cover-noise,
-  .cover-shade {
+  .code-cover-mesh,
+  .code-cover-grid,
+  .code-cover-noise,
+  .code-cover-shade {
     position: absolute;
   }
-  .cover-mesh {
+  /* 블롭 3개를 radial-gradient로 겹친 메시 그라디언트 (색·위치는 CSS 변수) */
+  .code-cover-mesh {
     inset: -15%;
+    background-image:
+      radial-gradient(
+        circle at var(--cv-x1) var(--cv-y1),
+        var(--cv-c1) 0%,
+        transparent var(--cv-r1)
+      ),
+      radial-gradient(
+        circle at var(--cv-x2) var(--cv-y2),
+        var(--cv-c2) 0%,
+        transparent var(--cv-r2)
+      ),
+      radial-gradient(
+        circle at var(--cv-x3) var(--cv-y3),
+        var(--cv-c3) 0%,
+        transparent var(--cv-r3)
+      );
   }
   /* 기울어진 격자 (가장자리로 갈수록 흐려진다) */
-  .cover-grid {
+  .code-cover-grid {
     inset: -30%;
     opacity: 0.18;
     background-image:
       linear-gradient(rgba(255, 255, 255, 0.5) 1px, transparent 1px),
       linear-gradient(90deg, rgba(255, 255, 255, 0.5) 1px, transparent 1px);
     background-size: 28px 28px;
+    transform: rotate(var(--cv-angle));
     mask-image: radial-gradient(ellipse at 70% 30%, black 10%, transparent 60%);
     -webkit-mask-image: radial-gradient(ellipse at 70% 30%, black 10%, transparent 60%);
   }
   /* 필름 노이즈 (SVG feTurbulence) */
-  .cover-noise {
+  .code-cover-noise {
     inset: 0;
     opacity: 0.4;
     mix-blend-mode: overlay;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
   /* 아래쪽을 어둡게 해 글자를 읽기 쉽게 한다 */
-  .cover-shade {
+  .code-cover-shade {
     inset: 0;
     background: linear-gradient(
       to top,
@@ -86,7 +118,7 @@ const labelSize =
       rgba(0, 0, 0, 0.1)
     );
   }
-  .cover-stamp {
+  .code-cover-stamp {
     position: absolute;
     top: 1rem;
     left: 1rem;
@@ -96,23 +128,44 @@ const labelSize =
     letter-spacing: 0.18em;
     text-transform: uppercase;
   }
-  .cover-label {
+  .code-cover-label {
     position: absolute;
     right: 1.25rem;
     bottom: 1.25rem;
     left: 1.25rem;
+    color: var(--cv-ink);
     font-weight: 800;
     line-height: 0.9;
     letter-spacing: -0.04em;
     text-shadow: 0 2px 24px rgba(0, 0, 0, 0.25);
   }
-  .cover-label-lg {
+  .code-cover-label-lg {
     font-size: 3rem;
   }
-  .cover-label-md {
+  .code-cover-label-md {
     font-size: 2.25rem;
   }
-  .cover-label-sm {
+  .code-cover-label-sm {
     font-size: 1.875rem;
+  }
+
+  /* 목록 행의 작은 커버 (128×72 / 모바일 80×80): 격자를 촘촘하게, 글자를 작게 */
+  .code-cover-thumb .code-cover-grid {
+    background-size: 16px 16px;
+  }
+  .code-cover-thumb .code-cover-label {
+    right: 0.375rem;
+    bottom: 0.375rem;
+    left: 0.375rem;
+    font-size: 15px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    overflow-wrap: anywhere;
+  }
+  /* 640px 미만(80×80): 긴 라벨("React Native", "컴퓨터구조")이 들어가게 글자를 줄인다 */
+  @media (max-width: 639.98px) {
+    .code-cover-thumb .code-cover-label {
+      font-size: 13px;
+    }
   }
 </style>

@@ -714,14 +714,16 @@ main에는 긴급 수정만 넣는다. main에 긴급 수정을 넣으면 main�
 10. PR-C 검증: lint, 테스트 573(+47), `tsc` 0, 빌드, 왕복 69/69, 공개 점검 871/0 + 2단계 324/0, API 스모크 105/105(낡은 기대값 3개 고침), 옛 프로젝트 페이지 8편과 본문 글자 같음, JS 끈 확인 7쪽, 브라우저(프로젝트 글 1280·390px, 에디터 열기만), Lighthouse 로컬 기록, 번들(공개 `astro-island` 0). 리뷰 치명 0·중요 4·경미 10 → 중요 4·경미 9 고침. Plan과 다른 판단 33건(52~84). 사용자 결정: `tools/cruz-lab-knowledge-mcp`가 읽는 폴더를 Plan대로 지운다(5절 58).
 11. PR-C [PR #17](https://github.com/crucial-sub/cruz-lab/pull/17) 병합(`34df87f`, 사용자 답 2026-11-10). 브랜치 미리보기에서 OG(Vercel 함수, resvg·글꼴 동작)·프로젝트 화면, 병합 뒤 `rebuild` 미리보기에서 시험 글·노트로 Plan 8.5(발행 첫 요청, 재발행 OG 새 제목·퍼지, 노트 화면·RSS·OG, 삭제 뒤 남은 데이터 0)를 확인했다. OG 첫 요청이 11초대다(작업 문서 8절 6). 작업 문서 4.17.
 12. T9 문서 PR(2026-11-10, 새 세션): 브랜치 `stage4/docs`(`34df87f`에서 생성, 미리보기 기록 커밋 `ea1fb8e` 위). 작업 문서 마무리(머리, 1절, 2.10, 7절 5단계 인계 형태, 8절), 이 표와 11.9, 11.3의 6, 8.3의 5단계 행, Plan 머리·14절·15절. 3단계 T10(PR #12)과 비교해 빠진 것을 더했다. 11.3에서 4단계 몫(2·3·5·6)이 빠지지 않았음을 확인했다. `README.md`·`PUBLISHING.md`·`.env.example`은 고치지 않았다(D5). 코드 변경 0. 작업 문서 2.10. 사용자 승인(2026-11-10)으로 커밋 `1ef8148`, 푸시, [PR #18](https://github.com/crucial-sub/cruz-lab/pull/18)(대상 `rebuild`).
+13. **PR-D(D19 목록 매거진형, 2026-11-10, 브랜치 `stage4/d-blog-list`, `2ca985d`에서 시작, PR-C 병합 `34df87f`로 fast-forward).** 사용자의 친구(첫 방문자)가 PR-B 목록을 "딱딱하다, 뭘 읽을지 감이 안 온다"고 해 UX 분석([2026-11-10-blog-list-ux.md](./2026-11-10-blog-list-ux.md), 시각 문서 visual-plans/2026-11-10-cruz-lab-blog-list-ux.html)을 하고 사용자 결정 D19(Plan 13절)로 D17·U10을 뒤집었다: 대표 카드(최신 글) + 작은 코드 커버 행, 토글 없음, 모바일도 같음, 검색은 제목 오른쪽, 태그는 "태그 N개" `<details>` 뒤. 커버 팔레트를 카테고리 표로 배정(9개 카테고리 4색 → 10색). 검증: lint·`tsc` 0·테스트, 빌드, 스모크·공개 점검, 빌드 `/blog` HTML 90,181바이트(전역 스타일 전 110,851), 브라우저 1280·390·360 라이트·다크, JS 끔. 리뷰 치명 0·중요 3·경미 11 → 중요 3·경미 10 고침. 사용자 승인(2026-11-10)으로 커밋 `19a1420`(코드)·`0949275`(문서), 푸시, [PR #19](https://github.com/crucial-sub/cruz-lab/pull/19)(대상 `rebuild`). 작업 문서 2.11·4.18·5절 85~97·6.4.
 
-**4단계는 끝났다.** T9 문서 [PR #18](https://github.com/crucial-sub/cruz-lab/pull/18)의 병합은 사용자 확인 뒤다.
+**4단계는 끝났다.** T9 문서 [PR #18](https://github.com/crucial-sub/cruz-lab/pull/18) 병합(`67299d1`). 그 뒤 첫 방문자 피드백으로 PR-D(13, [PR #19](https://github.com/crucial-sub/cruz-lab/pull/19))가 더해졌다. 병합은 사용자 확인 뒤다.
 
 **다음 것.**
 
 1. 5단계 Plan(관리자 앱). 새 세션에서 한다(전역 7번 규칙). 먼저 읽을 것: 4단계 작업 문서 7절(5단계 Plan이 읽을 목록과 이어받는 사실), 8.3의 5단계 행, 이 절 11.3, 4단계 Plan 14절(상기 목록). 이미지 세부 조절은 묻지 않고 범위에 넣는다.
-2. ~~문서 PR(T9)~~ 끝(12). 남은 것: T9 문서 [PR #18](https://github.com/crucial-sub/cruz-lab/pull/18) 병합(사용자 확인 뒤).
-3. 원격의 병합 끝난 브랜치 삭제(사용자 확인 뒤): `stage4/plan`, `stage4/a-renderer`, `stage4/b-pages`, `stage4/c-projects-og`. 문서 PR 병합 뒤 `stage4/docs`도. 3단계 브랜치 6개(11.8 다음 것 3)도 아직 원격에 있다.
+2. ~~문서 PR(T9)~~ 병합됨(`67299d1`).
+2-1. PR-D [PR #19](https://github.com/crucial-sub/cruz-lab/pull/19) 병합(사용자 확인 뒤). 병합 뒤 `rebuild` 미리보기에서 `/blog`·HTML 크기·OG 색 확인(작업 문서 7절 3-1).
+3. 원격의 병합 끝난 브랜치 삭제(사용자 확인 뒤): `stage4/plan`, `stage4/a-renderer`, `stage4/b-pages`, `stage4/c-projects-og`. `stage4/docs`. PR-D 병합 뒤 `stage4/d-blog-list`도. 3단계 브랜치 6개(11.8 다음 것 3)도 아직 원격에 있다.
 
 **열린 질문.**
 
