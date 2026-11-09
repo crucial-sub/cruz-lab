@@ -3,14 +3,14 @@
 - 날짜: 2026-11-09 (PR-A 구현)
 - Plan: [2026-11-09-stage4-public-site-plan.md](./2026-11-09-stage4-public-site-plan.md) (승인 2026-11-09, PR #14 병합 `b2583ed`)
 - 진행 기록: [계획 문서 11.9](./2026-11-06-blog-architecture-audit-2-problems-and-plan.md#119-4단계-구현-진행-기록-2026-11-09)
-- 브랜치: `stage4/a-renderer`(PR-A). 대상은 `rebuild`다. PR-B `stage4/b-pages`, PR-C `stage4/c-projects-og`, 문서 PR `stage4/docs`는 아직이다.
-- 상태: **PR-A(T1·T2) 구현·검증·리뷰 끝.** 리뷰(6절) 치명 0·중요 1·경미 12 중 중요 1과 경미 10건을 고쳤다. 사용자 결정(2026-11-09): 정규화 규칙 7 추가(5절 21), 커밋·푸시·PR, PR을 열 때 태그 `rebuild-pre-stage4`.
+- 브랜치: `stage4/a-renderer`(PR-A, [PR #15](https://github.com/crucial-sub/cruz-lab/pull/15)). 대상은 `rebuild`다. PR-B `stage4/b-pages`, PR-C `stage4/c-projects-og`, 문서 PR `stage4/docs`는 아직이다.
+- 상태: **PR-A(T1·T2) 구현·검증·리뷰 끝.** 리뷰(6절) 치명 0·중요 1·경미 12 중 중요 1과 경미 10건을 고쳤다. 사용자 결정(2026-11-09): 정규화 규칙 7 추가(5절 21), 커밋·푸시·PR, PR을 열 때 태그 `rebuild-pre-stage4`. 커밋 `15d7d9b`(코드)·`f98c58a`(문서), [PR #15](https://github.com/crucial-sub/cruz-lab/pull/15)(대상 `rebuild`), 태그 `rebuild-pre-stage4`(`b2583ed`) 푸시. 병합은 사용자 확인 뒤다.
 
 ## 1. 현재 상황
 
 | 항목 | 상태 |
 |---|---|
-| PR-A (T1 공유 파이프라인, T2 글 상세) | 구현·검증·리뷰 끝(2026-11-09). 브랜치 `stage4/a-renderer`(`origin/rebuild` `b2583ed` = PR #14 병합 커밋에서 생성). 테스트 504(+82), `tsc` 1(`TextReveal`, 그대로), lint·빌드 통과, 덤프 왕복 55/55, 운영 왕복 59/59(규칙 7 뒤), 공개 스모크 322/0, 글 상세 점검 378/0, 브라우저 확인(4.5). 리뷰 치명 0·중요 1·경미 12(6절). 사용자 승인으로 커밋·푸시·PR(7절) |
+| PR-A (T1 공유 파이프라인, T2 글 상세) | 구현·검증·리뷰 끝(2026-11-09). 브랜치 `stage4/a-renderer`(`origin/rebuild` `b2583ed` = PR #14 병합 커밋에서 생성). 테스트 504(+82), `tsc` 1(`TextReveal`, 그대로), lint·빌드 통과, 덤프 왕복 55/55, 운영 왕복 59/59(규칙 7 뒤), 공개 스모크 322/0, 글 상세 점검 378/0, 브라우저 확인(4.5). 리뷰 치명 0·중요 1·경미 12(6절). 사용자 승인으로 커밋 `15d7d9b`(코드)·`f98c58a`(문서), 푸시, [PR #15](https://github.com/crucial-sub/cruz-lab/pull/15)(대상 `rebuild`). 태그 `rebuild-pre-stage4`(`b2583ed`). 병합은 사용자 확인 뒤 |
 | PR-B (T3·T4·T5) | 아직. PR-A 병합 뒤 새 세션(7절) |
 | PR-C (T6·T7·T8), 문서 PR (T9) | 아직 |
 | 외부 변경 | 없음 |
@@ -176,7 +176,7 @@
 
 **다음 것.**
 
-1. 사용자 승인(2026-11-09)으로 PR-A 커밋·푸시·PR(대상 `rebuild`), PR 링크 커밋, 태그 `rebuild-pre-stage4`(`b2583ed`) 푸시. PR 병합은 사용자 확인 뒤다.
+1. 사용자 승인(2026-11-09)으로 PR-A 커밋(`15d7d9b`·`f98c58a`)·푸시·[PR #15](https://github.com/crucial-sub/cruz-lab/pull/15)(대상 `rebuild`), PR 링크 커밋, 태그 `rebuild-pre-stage4`(`b2583ed`) 푸시. 남은 것: PR #15 병합(사용자 확인 뒤).
 2. PR-A 병합 뒤 `rebuild` 미리보기에서 글 상세 콜드 TTFB를 잰다(D7 뒤집는 조건 1.5초). 쿼리 붙은 영상 주소의 실제 발행 확인은 T8(8.5)에서 한다.
 3. PR-B(T3·T4·T5)는 새 세션이다. PR-A에서 넘기는 것:
    - `src/lib/public-paths.ts` `categoryPath()`를 `/blog/category/<key>`로 바꾼다(5절 3).
