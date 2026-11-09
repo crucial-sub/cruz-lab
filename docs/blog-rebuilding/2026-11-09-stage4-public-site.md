@@ -427,7 +427,18 @@ localhost:4326에서 관리자 화면으로 노트 1편을 만들어 발행하�
 | SSR 404(작업 문서 7절 2, PR-B 리뷰 중요 3의 운영 확인) | `/blog/tag/no-such`·`/blog/category/no-such`·`/series/no-such`·`/notes/no-such` 모두 404, 본문에 안내 화면(`not-found-title`)과 `noindex`, `Cache-Control: public, max-age=0, must-revalidate`(Vercel 기본, `s-maxage` 없음), 캐시 태그 없음, `x-vercel-cache: MISS`. `/404.html`을 다시 받지 않고 페이지가 직접 그린다 |
 | 글 상세 콜드 TTFB(D7 뒤집는 조건 1.5초) | 「UserProgram - 시스템 콜 동작 흐름」 쿼리를 붙여 CDN을 건너뛴 요청: 첫 요청 1,444 ms(한동안 요청이 없던 함수, 콜드로 보인다), 이어서 315·124 ms. 조건 안이지만 가깝다(8절 4) |
 
-PR-C 확인(OG·프로젝트 글·시험 글)은 아래 표에 이어서 적는다.
+PR-C 브랜치 미리보기(`cruz-lab-git-stage4-c-projects-og-crucialsubs-projects.vercel.app`, PR #17 첫 배포, 2026-11-10). 같은 방법(페이지 안 `fetch`)이다. 데이터 쓰기는 없다.
+
+| 확인 | 결과 |
+|---|---|
+| OG가 Vercel 함수에서 그려지는가(리뷰 경미 14) | 그려진다. `/og/<글 ID>.png` 200·`image/png`·1200×630(글 「큐(Queue)」, 가장 긴 제목, 프로젝트 글). resvg linux 바이너리와 `includeFiles` 글꼴이 동작한다. `/og/default.png`는 정적 파일(396,180바이트) |
+| OG 그리기 시간 | 새 배포 뒤 첫 요청 11.7초(함수 콜드 + satori·resvg 첫 import·글꼴 읽기), 그 뒤 다른 글 0.67~0.79초. 같은 주소 두 번째 요청은 `x-vercel-cache: HIT` 0.24초(CDN 저장 확인). 첫 요청 시간은 8절 6 |
+| OG 응답 헤더 | 브라우저가 받는 `Cache-Control`은 `public, max-age=0`(Vercel이 `s-maxage`·캐시 태그를 CDN에서 쓰고 뺀다). 없는 ID와 한글 ID(없는 글)는 404 `text/plain`, Vercel 기본 `must-revalidate`(저장 안 함) |
+| `/projects/**` | `/projects` 200·아일랜드 0. 프로젝트 글 2편 200, Part 탭 2·3, 본문 이미지 모두 `assets/`, og:image `/og/<글 ID>.png`. `/projects/llm-yatcha` 리다이렉트, `/blog/llm-yatcha` 리다이렉트. `/projects/nope`·`/projects/cruz-lab/nope` 404·안내 화면 |
+| 사이트맵·OG 메타 | `sitemap-posts.xml`에 프로젝트 글 8. 홈·`/projects`·404의 og:image는 `/og/default.png`, 글 상세는 `/og/<글 ID>.png`. og:image는 사이트 주소(`www.cruzlab.dev`) 기준이다(`Astro.site`, 미리보기에서도 같다) |
+| 페이지 시간(참고) | 프로젝트 글 첫 요청 2.15초(콜드), 그다음 0.25초. 글 상세 1.18초 |
+
+남은 것(사용자 결정 2026-11-10): PR-C 병합 뒤 `rebuild` 미리보기에서 사용자가 관리자로 로그인하면 시험 글 1편(코드·콜아웃·이미지 1장)·시험 노트 1편으로 Plan 8.5의 1·2·3·5를 한다. Lighthouse(CDN 포함)는 미리보기의 로그인 보호 때문에 CLI로 재지 못했다(로컬 값은 4.16).
 
 ## 5. Plan과 다르게 하거나 Plan이 정하지 않은 것
 
@@ -626,3 +637,4 @@ PR-C(T6·T7·T8, 2026-11-10)에서 판단한 것:
 3. 실제 브라우저(Chrome·Safari)의 클립보드 API 경로 확인(PR-A에서 넘어옴). 이 앱 브라우저는 권한이 거부돼 대체 경로만 확인했다.
 4. 글 상세 콜드 TTFB가 1.44초로 D7 뒤집는 조건(1.5초)에 가깝다(4.17, 한 번 잼). 5단계 Plan을 쓸 때 몇 번 더 재서 미리 계산(Plan 14절)을 다시 볼지 정한다.
 5. `tools/cruz-lab-knowledge-mcp`의 프로젝트 기능(5절 58): Firestore를 읽게 바꿀지 5단계 Plan에서 묻는다.
+6. OG 첫 요청이 콜드면 11.7초였다(4.17). 소셜 크롤러가 발행 직후 첫 요청에서 시간 초과할 수 있다. 줄이는 방법 후보: 발행 응답 뒤 백그라운드(`waitUntil`)로 `/og/<id>.png`를 한 번 받아 CDN을 데운다, resvg를 wasm으로 바꿔 잰다. 5단계 Plan에서 정한다.
