@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<!-- 재건 4단계 Plan의 시각 문서 소스.
+     원본 Plan: docs/blog-rebuilding/2026-11-09-stage4-public-site-plan.md
+     렌더: node <visual-explainer>/plan/render.mjs 이 파일 -o 2026-11-09-cruz-lab-stage4-plan.html --root <저장소> -->
+<html lang="ko">
+<head>
+<title>재건 4단계 공개 사이트</title>
+<style>
+  /* 좁은 화면에서 claims 수 · 도구 줄이 한 줄을 넘지 않게 한다 (렌더러 기본은 nowrap) */
+  @media (max-width: 480px) {
+    .plan-col { grid-template-columns: minmax(0, 1fr) !important; }
+    .plan-meta { flex-wrap: wrap; min-width: 0; }
+    .plan-meta, .plan-meta * { white-space: normal; }
+    .done { overflow-x: auto; }
+    .done td, .done th { overflow-wrap: anywhere; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">Plan · cruz-lab · 재건 4단계 · 승인 2026-11-09</p>
+  <h1>공개 사이트가 React 없이 글을 그린다</h1>
+  <p class="lead">공개 페이지의 React 19개 파일 2,504줄을 Astro와 작은 <code>&lt;script&gt;</code> 3개로 바꾼다. 글 본문은 3단계 공유 파이프라인이 그리고 <b>목차 · 코드 복사 · 연재 · 이전다음</b>이 붙는다. 노트가 공개되고, 프로젝트 글은 <code>entries</code>로 옮기며, OG 이미지는 코드로 만든다.</p>
+  <ve-files>
+    + src/lib/content/highlighter.ts            # Shiki 세밀 번들 · 언어 20 · 테마 2 · 별칭 2
+    + src/lib/content/rehype-shiki.ts           # 코드 색 + 언어 라벨 · 복사 버튼 틀
+    + src/lib/content/rehype-headings.ts        # 제목 id · 목차
+    + src/lib/content/rehype-assets.ts          # 새 자산만 srcset · width · height
+    + src/lib/server/render-entry.ts            # 요청 때 렌더 · 메모 캐시(id · revision)
+    + src/lib/server/og-image.ts                # satori + resvg 템플릿
+    + src/lib/public-paths.ts                   # 카테고리 · 태그 · 노트 · OG 주소 함수
+    + src/styles/prose.css                      # 공개 글 · 에디터 공용 (복사본 2곳을 합친다)
+    + src/pages/about.astro                     # 1화면 + 이력서 PDF
+    + src/pages/notes/index.astro               # 노트 스트림
+    + src/pages/notes/[slug].astro              # 노트 1편
+    + src/pages/notes/rss.xml.ts                # 노트 RSS
+    + src/pages/blog/category/[key].astro       # 카테고리 10개
+    + src/pages/og/[id].png.ts                  # OG 이미지 (요청 때)
+    + src/pages/og/default.png.ts               # 기본 OG (prerender)
+    + src/components/post/PostArticle.astro     # 글 상세 (Toc · SeriesBox · PrevNext 포함)
+    + src/components/blog/PostRow.astro         # 목록 행 (PostCard · PostCover · SearchFilter 함께)
+    + scripts/migrate/stage4-projects.mjs       # D1 a: 프로젝트 글 8편 · 이미지 10개 (dry-run · 실행 · 되돌리기)
+    + scripts/smoke/stage4-public.mjs           # 2단계 공개 점검 확장
+    ~ src/lib/content/markdown.ts               # markdownToHtml(md, { highlighter, assets })
+    ~ src/editor/markdown/from-doc.ts           # 표기 옵션 2건: 블록 앞뒤 공백 · 주소 &amp;
+    ~ src/pages/blog/[...slug].astro            # 글 상세 재작성 · cdnjs 링크 제거
+    ~ src/pages/index.astro                     # 홈: 한 줄 소개 + 최신 글 + 노트
+    ~ src/pages/blog/index.astro                # 서버 렌더 행 목록
+    ~ src/pages/blog/tag/[tag].astro            # 같은 목록 컴포넌트
+    ~ src/pages/series/index.astro              # 3개 한 줄씩 (상세는 [slug] → [key])
+    ~ src/pages/projects/index.astro            # D1 a: entries에서 읽는다
+    ~ src/layouts/BaseLayout.astro              # ClientRouter 제거
+    ~ src/layouts/components/BaseHead.astro     # ogImage · 글꼴 preload
+    ~ src/layouts/components/Header.astro       # 한 줄 헤더
+    ~ src/layouts/components/Footer.astro       # 링크
+    ~ src/pages/404.astro                       # 링크 4개
+    ~ src/styles/global.css                     # 토큰 · 타이포 스케일 · 글꼴 subset
+    ~ src/lib/entry-rules.ts                    # publicPathFor(note · project) · project 발행 규칙
+    ~ src/lib/redirects.ts                      # 동의어 태그 → 카테고리 301
+    ~ package.json                              # - framer-motion · react-markdown · rehype-highlight · @tailwindcss/typography · @astrojs/mdx   + shiki · satori · @resvg/resvg-js · github-slugger
+    - src/components/islands/InteractiveHero.tsx   # 아일랜드 16개 1,683줄 전부
+    - src/components/blog/BlogPostList.tsx      # 560줄
+    - src/components/blog/MarkdownPostView.tsx  # react-markdown 172줄
+    - src/components/blog/PostCover.tsx         # .astro로 다시 쓴다
+    - src/components/ExperienceList.astro       # 내용은 /about으로
+    - src/components/PostsPreview.astro
+    - src/components/ProjectsPreview.astro
+    - src/components/Reveal.astro               # 모션은 상태 변화에만
+    - src/content.config.ts                     # D1 a: 콘텐츠 컬렉션 삭제 (src/content/projects 12개 파일 함께)
+  </ve-files>
+  <ve-revision v="2">
+    <li>D1~D6 답(2026-11-09): 프로젝트 글은 옮긴다 · 검색은 /blog 필터만 · 이미지 세부 조절은 5단계에 반드시 · 링크 카드는 미룬다 · README·PUBLISHING·.env.example은 재건 끝 main 병합 직전에 한 번 · 헤더는 Blog · Notes · Projects · About.</li>
+    <li>바로잡음: 공개 글 54편(에세이 1편은 초안), 공개 카테고리 9개. 글이 없는 카테고리는 탭을 숨기고 404.</li>
+    <li>더함: 헤더 실측(a 372px · b 427px, 390px 폭), 380px 미만 간격 12px, 연재 입구 4곳, 연재 배지는 링크 아님.</li>
+    <li>기준 이동: PR #12·#13 병합 뒤 rebuild 끝 4357218 위로 옮겼다(테스트 422). PR #13의 에디터 코드 색 토큰(--code-*)을 prose.css로 옮겨 공개 페이지도 같은 인라인 코드·코드 블록 바탕을 쓴다.</li>
+  </ve-revision>
+  <ve-why>
+    <ve-quote via="계획 문서 6.3" from="전수조사" at="2026-11-06">"포트폴리오 랜딩에 블로그가 붙은 사이트"에서 "글이 주인인 사이트에 소개가 붙은 구조"로 바꾼다. 타이포그래피와 여백으로 위계를 만들고, 모션은 상태 변화에만 쓴다.</ve-quote>
+    <ve-quote via="계획 문서 4.3" from="전수조사" at="2026-11-06">공개 페이지 전부: Astro. 인터랙션은 CSS와 작은 &lt;script&gt;(테마, 목차 스크롤, 코드 복사). React 아일랜드 0~2개</ve-quote>
+    <ve-quote via="계획 문서 9절" from="전수조사" at="2026-11-06">JS 비활성화로 홈·목록·글 상세가 전부 읽힘. /blog/ HTML 100 KB 이하. Lighthouse 모바일 성능 90 이상.</ve-quote>
+    <ve-quote via="계획 문서 10.2" from="전수조사" at="2026-11-06">노트(kind: 'note')를 공개 스트림으로 둔다. 짧고 거친 기록을 그날 올린다. 홈과 /notes에 보인다.</ve-quote>
+    <ve-quote via="3단계 Plan 14절" from="사용자" at="2026-11-08">이미지 임의 px 폭과 정렬: 굉장히 좋은 기능, 나중에 반드시</ve-quote>
+  </ve-why>
+</header>
+
+<figure class="hero">
+  <ve-flow label="공개 페이지는 Astro 서버 렌더가 되고 React 아일랜드 19개 파일은 사라진다. 페이지는 entries를 읽는다. 글 상세는 3단계 공유 파이프라인이 Shiki로 그린 HTML과 목차를 받는다. 글 상세의 og:image는 새 엔드포인트 /og/<id>.png를 가리킨다. 프로젝트 글은 이전 스크립트가 저장소 파일을 읽어 entries에 kind project로 쓴다.">
+    <ve-node id="react" at="1 1" sub="2,504줄 삭제" gone claim="1">React 19개 파일</ve-node>
+    <ve-node id="pages" at="2 1" sub="홈 · 목록 · 노트 · about" key new claim="1 3">Astro 공개 페이지</ve-node>
+    <ve-node id="og" at="3 1" sub="satori · 코드 커버" new claim="5">/og/&lt;id&gt;.png</ve-node>
+    <ve-node id="files" at="1 3" sub="글 8 · 이미지 10" gone claim="4" data-if="project=a">프로젝트 파일</ve-node>
+    <ve-node id="coll" at="1 3" sub="그대로 · 이전은 5단계" data-if="project=b">프로젝트 파일 유지</ve-node>
+    <ve-node id="entries" at="2 2" sub="post · note · project" shape="db" claim="3 4">entries</ve-node>
+    <ve-node id="detail" at="3 2" sub="목차 · 복사 · 연재" claim="2">글 상세</ve-node>
+    <ve-node id="script" at="2 3" sub="dry-run → 실행" new claim="4" data-if="project=a">이전 스크립트</ve-node>
+    <ve-node id="pipeline" at="3 3" sub="markdownToHtml · Shiki" claim="2">공유 파이프라인</ve-node>
+    <ve-edge from="react" to="pages" gone claim="1"/>
+    <ve-edge from="entries" to="pages" claim="1 3" label="목록 읽기"/>
+    <ve-edge from="entries" to="detail" claim="2" label="slug 조회"/>
+    <ve-edge from="pipeline" to="detail" hot claim="2" label="HTML · 목차"/>
+    <ve-edge from="detail" to="og" new claim="5" label="og:image"/>
+    <ve-edge from="files" to="script" claim="4" label="읽기" data-if="project=a"/>
+    <ve-edge from="script" to="entries" new claim="4" label="kind project 8편" data-if="project=a"/>
+  </ve-flow>
+  <figcaption><span class="fig-n">Fig. 1</span>React가 하던 일을 Astro 서버 렌더가 맡고, 글 본문은 에디터와 같은 파이프라인이 그린다.</figcaption>
+</figure>
+
+<ve-plan>
+
+  <ve-claim rev="2" check="JS를 끈 브라우저에서 홈 · /blog · 글 상세 · /notes · /about가 읽힌다. 공개 HTML에 astro-island 0개, React 런타임 청크 참조 0. /blog HTML 100 KB 이하. tsc --noEmit 0.">
+    <p>공개 페이지는 React 없이 그려지고, JS를 꺼도 전부 읽힌다.</p>
+    <ve-mock w="460" label="/blog · 카테고리 탭 + 태그 칩 + 검색 + 행 목록 (D17)">
+      <style>
+        .nav{display:flex;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid currentColor;font-size:12px}
+        .nav b{margin-right:auto;font-size:14px}
+        .tabs{display:flex;gap:6px;padding:10px 12px 4px;font-size:11px;overflow:hidden;white-space:nowrap}
+        .tabs span{padding:3px 8px;border:1px solid currentColor;border-radius:999px;opacity:.75}
+        .tabs .on{opacity:1;font-weight:700}
+        .chips{display:flex;gap:6px;padding:4px 12px 8px;font-size:11px;flex-wrap:wrap;opacity:.8}
+        .search{margin:0 12px 8px;padding:5px 8px;border:1px solid currentColor;border-radius:6px;font-size:11px;opacity:.7}
+        .post{display:grid;grid-template-columns:44px 1fr auto;gap:8px;padding:7px 12px;border-top:1px solid currentColor;font-size:12px;align-items:baseline}
+        .post .d{font-family:ui-monospace,monospace;font-size:11px;opacity:.7}
+        .post .t b{display:block}
+        .post .t span{font-size:11px;opacity:.7}
+        .post .r{font-size:11px;opacity:.7}
+        .yr{padding:6px 12px 0;font-size:11px;opacity:.6}
+      </style>
+      <div class="ui">
+        <div class="nav" data-pin="1"><b>Cruz</b><span>Blog</span><span>Notes</span><span data-if="menu=b">Series</span><span>Projects</span><span>About</span><span class="btn">테마</span></div>
+        <div class="tabs"><span class="on">전체 54</span><span>JavaScript 23</span><span>운영체제 8</span><span>알고리즘 5</span><span>자료구조 5</span><span>React Native 4</span><span>…</span></div>
+        <div class="chips"><span>#크래프톤-정글 23</span><span>#pintos 5</span><span>#csapp 4</span><span>#proxy-lab 2</span><span>…</span></div>
+        <div class="search" data-pin="2">제목 · 설명 · 태그로 거르기<span data-if="search=b"> · 모든 페이지에서 / 또는 ⌘K</span></div>
+        <div class="yr">2026</div>
+        <div class="post"><span class="d">04.05</span><span class="t"><b>MCP를 문서로만 보면 놓치는 것들</b><span>tool · resource · prompt 경계를 Figma MCP 경험으로 정리</span></span><span class="r">AI · 7분</span></div>
+        <div class="yr">2025</div>
+        <div class="post"><span class="d">12.18</span><span class="t"><b>Array 메서드 1탄</b><span>wesbos30 연재 12/30</span></span><span class="r">JavaScript · 4분</span></div>
+        <div class="post"><span class="d">12.18</span><span class="t"><b>Threads - Alarm Clock 구현</b><span>pintos 연재 2/5</span></span><span class="r">운영체제 · 9분</span></div>
+        <div class="ft muted small">행 54개 · 커버 없음 · 서버 렌더 · 페이지네이션 없음</div>
+      </div>
+      <ve-pin n="1">헤더는 한 줄이다. 알약 <code>fixed</code> 메뉴와 React <code>ThemeToggle</code>이 사라진다. 메뉴 구성은 아래 결정.</ve-pin>
+      <ve-pin n="2">서버가 55행을 모두 그리고 <code>&lt;script&gt;</code> 하나가 숨긴다. JS가 없으면 입력창을 숨기고 전체 목록을 보인다.</ve-pin>
+    </ve-mock>
+    <ve-ask id="menu" q="헤더 메뉴에 Series를 둘까요? (D6)">
+      <ve-opt value="a" default note="연재 3개. /blog와 글 상세에서 들어간다">Blog · Notes · Projects · About</ve-opt>
+      <ve-opt value="b" note="메뉴 5개">Blog · Notes · Series · Projects · About</ve-opt>
+    </ve-ask>
+    <ve-ask id="search" q="검색은 /blog 안 필터만으로 충분한가요? (D2)">
+      <ve-opt value="a" default note="script 1개 약 60줄. 제목 · 설명 · 태그 · 카테고리">/blog 안 필터만</ve-opt>
+      <ve-opt value="b" new="2" note="&lt;dialog&gt; + /search.json 인덱스(본문 제외). React 없음">필터 + 전역 검색 팔레트(/ · ⌘K)</ve-opt>
+    </ve-ask>
+
+    <ve-claim>
+      <p>아일랜드마다 대체가 정해져 있다. 대부분은 "삭제, 대체 없음"이다.</p>
+      <ve-calls title="React 제거와 대체 (D9)">
+<script type="text/plain">
+- InteractiveHero · TypeWriter · CursorFollower · ScrollProgress · TextReveal   -- 삭제. 대체 없음 (U1 · U2 · U4)
+- TiltCard · GlowCard · MagneticButton · RippleButton                          -- 삭제. hover 1단계만 (U5)
+- ExpCard · ExperienceList.astro · SkillsSection · SkillCard · ContactSection   -- 삭제. 내용은 /about으로 (U6 · U7)
+~ ThemeToggle.tsx → ThemeToggle.astro + <script>                                @ src/layouts/components/Header.astro
+~ BlogCard · PostsPreview · ProjectsPreview → PostCard.astro · PostRow.astro · ProjectCard.astro
+~ PostCover.tsx → PostCover.astro                                               -- post-cover.ts(순수 함수)는 그대로. OG 템플릿도 같이 쓴다
+~ BlogPostList → 서버 렌더 행 + SearchFilter.astro                              -- 그리드/리스트 · 정렬 4종 · 태그 패널은 없앤다 (U9)
+~ MarkdownPostView → PostArticle.astro + markdownToHtml                         -- 클레임 2
+- Reveal.astro · <ViewTransitions />                                            -- 모션은 상태 변화에만. CSS @view-transition { navigation: auto }
+~ @astrojs/react는 남긴다                                                       -- /admin/login과 에디터가 쓴다. 공개 페이지 client: 디렉티브 0
+</script>
+      </ve-calls>
+    </ve-claim>
+
+    <ve-claim>
+      <p>알약 메뉴와 React 테마 토글이 있던 헤더가 한 줄 <code>&lt;header&gt;</code>가 된다.</p>
+      <ve-code src="src/layouts/components/Header.astro" lines="40-48" hl="40">
+        <ve-pin line="40">화면 상단 중앙의 <code>fixed</code> 알약이다(U8). 모바일에서 로고를 덮는다. 로고 · 메뉴 · 테마 · GitHub를 한 줄에 둔다. 푸터에는 RSS(글 · 노트) · GitHub · 이메일 · 사이트맵 · about 링크를 둔다(U16).</ve-pin>
+      </ve-code>
+    </ve-claim>
+
+    <ve-claim evidence="inferred">
+      <p>토큰은 유지하고 타이포 스케일·본문 폭·글꼴 전달을 다시 정한다.</p>
+      <ve-code title="src/styles/global.css · sketch (D10, 부록 B)" lang="css">
+<script type="text/plain">
+:root {
+  /* 색 토큰은 그대로 (브랜드 #10b981, 다크 기본). 라이트 --text-secondary만 #475569로 */
+  --container: 960px;          /* 지금 992px */
+  --measure: 68ch;             /* 글 본문 폭. 지금 896px */
+  --text-base: 17px; --leading-body: 1.75; --leading-heading: 1.25;
+  --text-xs: 12px; --text-sm: 14px; --text-lg: 19px; --text-xl: 22px;
+  --text-2xl: 27px; --text-3xl: 34px; --text-4xl: 42px;
+}
+/* 글꼴: PretendardVariable.woff2 2,057 KB 1파일 → dynamic subset(유니코드 범위 분할, unicode-range) */
+/* .prose는 prose.css 한 파일. [...slug].astro와 editor.css의 복사본 130줄 × 2를 합친다 */
+/* @tailwindcss/typography와 typography 설정은 지운다 */
+</script>
+      </ve-code>
+      <p class="muted">글꼴 전송량이 줄어드는 폭은 재지 않았다. 구현 때 전·후를 재서 작업 문서에 적는다(11절).</p>
+    </ve-claim>
+  </ve-claim>
+
+  <ve-claim check="stage4-public: 글마다 목차 항목 수 = h2·h3 수, figure.code-block 수 = 펜스 코드 수, .katex가 있는 글에만 KaTeX CSS. 콜아웃·임베드·수식·쿼리 붙은 영상 주소 시험 글이 공개 페이지에 그려진다. 왕복 검사 55/55. 미리보기 글 상세 콜드 TTFB 기록.">
+    <p>글 본문은 3단계 파이프라인이 그리고, 목차·코드 복사·연재·이전다음이 붙는다.</p>
+    <ve-mock w="470" label="/blog/&lt;slug&gt; · 1280px (D16)">
+      <style>
+        .wrap{display:grid;grid-template-columns:1fr 112px;gap:10px;padding:10px 12px}
+        .meta{font-size:11px;opacity:.7}
+        .h1{font-size:17px;font-weight:800;line-height:1.25;margin:4px 0}
+        .ser{border:1px solid currentColor;border-radius:6px;padding:5px 8px;font-size:11px;margin:6px 0}
+        .body{font-size:12px;line-height:1.6}
+        .body h2{font-size:13px;margin:8px 0 2px}
+        .code{border:1px solid currentColor;border-radius:6px;margin:6px 0;font-size:11px}
+        .code .ch{display:flex;justify-content:space-between;padding:3px 8px;border-bottom:1px solid currentColor;opacity:.8}
+        .code pre{margin:0;padding:6px 8px;font-family:ui-monospace,monospace;font-size:10.5px}
+        .toc{font-size:10.5px;opacity:.8;border-left:1px solid currentColor;padding-left:8px;align-self:start;position:sticky;top:0}
+        .toc div{padding:2px 0}
+        .toc .on{opacity:1;font-weight:700}
+        .toc .sub{padding-left:8px}
+        .pn{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px 12px;border-top:1px solid currentColor;font-size:11px}
+      </style>
+      <div class="ui">
+        <div class="wrap">
+          <div>
+            <div class="meta">운영체제 · 2025.12.18 · 수정 2026.11.09 · 9분</div>
+            <div class="h1">Threads - Alarm Clock 구현</div>
+            <div class="ser" data-pin="1">연재 <b>Pintos</b> · 2/5 · ← Threads 시작하기 · Priority Scheduling →</div>
+            <div class="body">
+              <h2 id="x">busy waiting이 문제다</h2>
+              <p>Pintos의 <code>timer_sleep</code>은 깨울 시각까지 CPU를 돈다. …</p>
+              <div class="code" data-pin="2"><div class="ch"><span>c · timer.c</span><span>복사</span></div><pre>void timer_sleep (int64_t ticks) {
+  thread_sleep (start + ticks);
+}</pre></div>
+            </div>
+          </div>
+          <div class="toc" data-pin="3"><div>목차</div><div class="on">busy waiting이 문제다</div><div class="sub">sleep_list</div><div>깨우기</div><div class="sub">인터럽트</div></div>
+        </div>
+        <div class="pn"><span>← 이전 글<br><b>Threads - 핀토스 시작하기</b></span><span style="text-align:right">다음 글 →<br><b>Priority Scheduling과 Donation</b></span></div>
+      </div>
+      <ve-pin n="1">연재 글이면 연재 제목 · N/M · 이전 편 · 다음 편. 글 끝에 연재 목차 전체. 프로젝트 글은 Part 탭.</ve-pin>
+      <ve-pin n="2">코드 블록 틀: 언어 라벨 + 복사 버튼. Shiki 듀얼 테마(github-light/dark-default). 복사는 글 상세 <code>&lt;script&gt;</code> 하나가 이벤트 위임으로 한다.</ve-pin>
+      <ve-pin n="3">1280px 이상에서 오른쪽 sticky 목차(h2 · h3, 현재 항목 강조). 그 아래 폭에서는 본문 위 <code>&lt;details&gt;</code>. 모든 글에 h2나 h3가 있다(1.1).</ve-pin>
+    </ve-mock>
+    <ve-ask id="imgwidth" q="이미지 임의 px 폭·정렬을 4단계에 넣을까요? (D3, 3단계 Plan 14절 상기)">
+      <ve-opt value="a" default note="렌더러는 원시 &lt;img width&gt;를 통과시켜 길을 열어 둔다. 5단계 Plan에서 다시 묻는다">미룬다</ve-opt>
+      <ve-opt value="b" changed="3" note="원시 HTML 표기(GitHub 관례) · 변환기 · 이미지 메뉴. 1~2일">4단계에 넣는다</ve-opt>
+    </ve-ask>
+    <ve-ask id="linkcard" q="링크 카드를 4단계에 넣을까요? (D4, 3단계 Plan 14절 상기)">
+      <ve-opt value="a" default note="임베드가 아닌 주소 한 줄은 지금처럼 링크. 5단계 Plan에서 다시 묻는다">미룬다</ve-opt>
+      <ve-opt value="b" new="2" changed="1" note="발행 때 OG 메타 읽기 · linkCards 컬렉션 · 카드 렌더. 1~2일">4단계에 넣는다</ve-opt>
+    </ve-ask>
+
+    <ve-claim>
+      <p>공개 페이지의 react-markdown을 지우고 미리보기와 같은 <code>markdownToHtml</code>을 부른다.</p>
+      <ve-code src="src/components/blog/MarkdownPostView.tsx" lines="113-119" hl="115 119">
+        <ve-pin line="115">공개 페이지만 쓰는 두 번째 렌더 경로다. 콜아웃 · 임베드 · 수식 · 원시 HTML 안전 처리가 없다.</ve-pin>
+        <ve-pin line="119">영상 판정이 <code>endsWith</code>라 쿼리가 붙은 Firebase 영상 주소를 <code>&lt;img&gt;</code>로 그린다(3단계 작업 문서 8절 8). 파이프라인의 <code>isVideoUrl</code>이 대신한다.</ve-pin>
+      </ve-code>
+    </ve-claim>
+
+    <ve-claim>
+      <p>하이라이트는 rehype-highlight 자리에 주입받은 Shiki highlighter가 들어간다(D8).</p>
+      <ve-code src="src/lib/content/markdown.ts" lines="174-191" hl="185">
+        <ve-pin line="185">이 줄이 <code>rehypeShiki(options.highlighter)</code>와 <code>rehypeHeadings</code> · <code>rehypeAssets(options.assets)</code>로 바뀐다. 서버는 모듈 초기화 때 highlighter를 1회 만든다. 에디터 미리보기는 첫 진입 때 <code>import()</code>한다. highlighter가 없으면 민무늬라 왕복 검사는 영향이 없다. Shiki 3.12.2는 astro의 의존성으로 이미 있고 20개 언어가 모두 있다. 별칭 <code>objectivec → objective-c</code>, <code>nasm → asm</code>.</ve-pin>
+      </ve-code>
+    </ve-claim>
+
+    <ve-claim>
+      <p>본문은 요청 때 렌더하고 메모리 캐시와 CDN이 받친다. 미리 계산해 저장하지 않는다(D7).</p>
+      <ve-calls title="renderEntry · sketch">
+<script type="text/plain">
++ **renderEntry**(entry)                              @ src/lib/server/render-entry.ts
++   memoize(`render:${id}:${revision}`, …)           -- 같은 인스턴스는 1회. CDN s-maxage=60 + 태그 posts,post-<id>
++     assetIdFromUrl(…) ×N → getAssetsByIds(ids)     @ src/lib/server/entries.ts     -- 새 자산만. legacy 130개는 variants null
++     markdownToHtml(markdown, { highlighter, assets })
++     → { html, toc, hasMath }                       -- hasMath면 KaTeX CSS <link>만 더한다
+~ purgePublicCache(id)                               @ src/lib/server/cdn-purge.ts:21   -- 바꾸지 않는다. OG도 post-<id> 태그를 가진다
+? published.html · toc 저장                          -- 하지 않는다. 미리보기 콜드 TTFB > 1.5초면 5단계 Plan에서 다시 본다
+</script>
+      </ve-calls>
+    </ve-claim>
+
+    <ve-claim check="fixture 2개(끝 공백 단락, &amp;가 있는 주소) + 왕복 55/55 + 두 번 왕복 안정성.">
+      <p>변환기가 단락 앞뒤 공백을 지우고, 주소의 <code>&amp;</code>를 이스케이프하지 않는다(D14).</p>
+      <ve-code title="src/editor/markdown/from-doc.ts · sketch (3단계 8절 9 · 11)" lang="ts">
+<script type="text/plain">
+// 9. 블록(단락 · 제목 · 셀 · 항목) 텍스트의 처음 · 끝 공백을 지운다 → `&#x20;`이 사라진다
+//    브라우저는 블록의 처음 · 끝 공백을 그리지 않는다(정규화 규칙 3 · 6과 같은 근거)
+// 11. image · link 핸들러를 덮어써 목적지를 그대로 쓴다 → `\&`가 사라진다
+//     목적지에 공백 · ( ) < > 가 있으면 <…>로 감싼다(CommonMark 목적지 규칙)
+//     CommonMark는 목적지 안의 `\&`와 `&`를 같은 글자로 읽는다(3단계 5절 73에서 확인)
+// 기존 글은 다시 쓰지 않는다. 그 글을 다음에 고칠 때 반영된다(3단계 D1 b)
+</script>
+      </ve-code>
+    </ve-claim>
+  </ve-claim>
+
+  <ve-claim rev="2" check="글이 있는 카테고리 9개 주소가 200이고 글 수 합이 발행 글 수(54)다. /blog/tag/javascript → 301 → /blog/category/javascript 200. 시험 노트 발행 → 토스트의 '공개 페이지 보기'가 /notes/&lt;slug&gt;를 연다. /blog/&lt;노트 slug&gt; → 301. 사이트맵에 카테고리 · 노트 · about.">
+    <p>노트가 <code>/notes</code>에 공개되고, 카테고리 주소와 301 규칙이 생긴다.</p>
+    <ve-calls title="공개 주소 (D11 · D12)">
+<script type="text/plain">
+~ /                                 -- 홈: 한 줄 소개 + 최신 글 3(코드 커버) + 최신 노트 3 (0편이면 숨김)
+~ /blog                             -- 목록 전체. 탭 "전체"
++ /blog/category/<key>              -- 카테고리 10개. 같은 목록 컴포넌트
+~ /blog/tag/<tag>                   -- 태그 12개. 없는 태그는 404
++ /blog/tag/<카테고리 동의어> → 301 → /blog/category/<key>     @ src/lib/redirects.ts   -- 2단계 Plan 7.4의 열린 항목
+~ /blog/<slug>                      -- 글. 노트 · 프로젝트 글의 slug면 그 kind 주소로 301 (slug 공간이 하나)
++ /notes · /notes/<slug> · /notes/rss.xml     -- 스트림(본문 인라인) · 영구 주소 · 별도 RSS. /rss.xml은 글만
+~ /series · /series/<key>           -- 3개 한 줄씩. 이모지 · "시작하기" 버튼 없음. [slug].astro → [key].astro
++ /about                            -- prerender. 1화면 + 이력서 PDF
++ /og/<id>.png · /og/default.png    -- 클레임 5
+~ /sitemap-posts.xml                -- 카테고리 10 · 노트 · 프로젝트 글 · about 추가
+</script>
+    </ve-calls>
+
+    <ve-claim>
+      <p>동의어 태그 규칙은 태그 정규화 규칙 바로 뒤에 한 줄로 들어간다.</p>
+      <ve-code src="src/lib/redirects.ts" lines="35-45" hl="40-44">
+        <ve-pin line="40"><code>categoryForSynonymTag(normalized)</code>가 카테고리를 주면 <code>/blog/category/&lt;key&gt;</code>로 301. 지금은 <code>[tag].astro</code>가 그 카테고리의 글을 200으로 보인다(2단계 임시).</ve-pin>
+      </ve-code>
+    </ve-claim>
+
+    <ve-claim>
+      <p>발행 토스트의 "공개 페이지 보기"가 노트에서도 열린다.</p>
+      <ve-code src="src/lib/entry-rules.ts" lines="231-233" hl="232">
+        <ve-pin line="232"><code>note → /notes/&lt;slug&gt;</code>, <code>project → /projects/&lt;series.key&gt;/&lt;slug&gt;</code>(D1 a)를 더한다. API 계약은 그대로다. 3단계 "노트는 아직 공개 주소가 없습니다(4단계)" 문구가 사라진다.</ve-pin>
+      </ve-code>
+    </ve-claim>
+  </ve-claim>
+
+  <ve-claim check="dry-run 보고서(글마다 바뀐 주소) → 사용자 확인 → 실행. /projects/&lt;key&gt;/&lt;slug&gt; 8개 200, 이미지 주소가 assets/. 옛 정적 페이지와 본문 텍스트 같음. 왕복 검사 63/63. 되돌리기 스크립트로 0으로 돌아간다.">
+    <p>프로젝트 글 8편이 <code>entries</code>로 옮겨지고 <code>/projects</code>가 그것을 읽는다.</p>
+    <ve-calls title="stage4-projects.mjs · sketch (D1 a)">
+<script type="text/plain">
++ **migrateProjects**({ dryRun })                     @ scripts/migrate/stage4-projects.mjs
++   src/content/projects/<p>/project.md ×4            -- seriesMeta/<p>: { title, description, project: { longDescription, tags, tech, github, demo, featured, order, startDate, endDate } }
++   src/content/projects/<p>/<slug>.md ×8             -- entries/project-<p>-<slug>: kind project · published · series { key: <p>, order: Part } · category null · tags []
++   이미지 10개 (png 6 · webp 4)                        -- 2단계 자산 API 흐름(Node): sha256 → upload-url → PUT → finalize → 본문 주소 교체 · usedBy
++   revisions 1개 · 보고서(바뀐 주소 목록)                -- 2단계 마이그레이션과 같은 틀. 문서 ID 고정이라 멱등
+-   content.config.ts · project-posts.ts · src/content/projects · src/assets/img/projects(12 MB) · mdx 통합   -- 스모크 통과 뒤
++ **--rollback**                                       -- 지정 ID 8편 · revisions · 자산 10개 · seriesMeta.project 칸 삭제. 운영은 콘텐츠 컬렉션이라 영향 0
+</script>
+    </ve-calls>
+    <ve-ask id="project" q="프로젝트 글을 4단계에서 entries로 옮길까요? (D1, 2단계 D11이 미룬 일)">
+      <ve-opt value="a" default new="4" deleted="16" note="스크립트 · 발행 규칙 · /projects 재작성. 1일. 에디터로 고칠 수 있다">옮긴다</ve-opt>
+      <ve-opt value="b" removes="4.1 4.2" note="/projects 화면만 새 컴포넌트로. 데이터 이전은 5단계. 반나절">화면만 다시 만든다</ve-opt>
+    </ve-ask>
+
+    <ve-claim>
+      <p>발행 규칙에 project가 생긴다: 제목·설명·slug·본문·연재 필수, 카테고리 선택.</p>
+      <ve-code src="src/lib/entry-rules.ts" lines="125-140" hl="136">
+        <ve-pin line="136"><code>isNote</code> 분기 옆에 <code>isProject</code>를 더한다. post · note 규칙은 그대로다(<code>entry-rules.test.ts</code>가 지킨다). <code>CREATABLE_KINDS</code>는 그대로 post · note(새 프로젝트 만들기는 5단계).</ve-pin>
+      </ve-code>
+    </ve-claim>
+
+    <ve-claim>
+      <p>프로젝트 카드와 글은 연재 데이터를 다른 보기로 그린다. 커버는 코드 커버다.</p>
+      <ve-code title="src/pages/projects · sketch" lang="ts">
+<script type="text/plain">
+/projects                    getPublishedProjects(): seriesMeta 중 project 칸이 있는 것, order순 → ProjectCard.astro(코드 커버 · 제목 · 설명 · 기술 · GitHub · Demo)
+/projects/<key>              첫 글로 302 (지금과 같다)
+/projects/<key>/<slug>       PostArticle.astro(클레임 2와 같은 컴포넌트) + PartTabs + 이전 · 다음 Part
+// 표지 4개 중 2개가 svg(placeholder.svg · stocklab.svg)라 자산 규칙이 받지 않는다 → 커버 이미지는 저장하지 않는다(U14 커버 통일)
+// 주소는 지금 /projects/<project>/<slug>와 같다. 리다이렉트가 필요 없다
+</script>
+      </ve-code>
+    </ve-claim>
+  </ve-claim>
+
+  <ve-claim check="/og/&lt;id&gt;.png 200 · image/png · 1200×630(PNG 헤더). 제목을 고쳐 재발행하면 첫 요청에 새 제목. /og/default.png 200. 55편 제목 · 설명의 글자가 서브셋 안에 있다.">
+    <p>글마다 OG 이미지를 코드로 만들고, 카드 커버와 같은 모양으로 공유된다.</p>
+    <ve-mock w="460" label="/og/&lt;id&gt;.png · 1200×630 (D13)">
+      <style>
+        .og{position:relative;aspect-ratio:1200/630;background:#04120e;color:#d1fae5;overflow:hidden;border-radius:6px}
+        .og .mesh{position:absolute;inset:-15%;background:radial-gradient(circle at 20% 30%,#10b98188 0,#10b98100 50%),radial-gradient(circle at 80% 70%,#0ea5e988 0,#0ea5e900 50%)}
+        .og .cat{position:absolute;left:18px;top:14px;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;opacity:.8}
+        .og .title{position:absolute;left:18px;right:18px;top:38%;transform:translateY(-50%);font-size:22px;font-weight:800;line-height:1.2;text-shadow:0 2px 20px rgba(0,0,0,.3)}
+        .og .desc{position:absolute;left:18px;right:18px;bottom:34px;font-size:11px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .og .ft{position:absolute;left:18px;right:18px;bottom:12px;display:flex;justify-content:space-between;font-family:ui-monospace,monospace;font-size:10px;opacity:.75}
+      </style>
+      <div class="ui">
+        <div class="og">
+          <div class="mesh"></div>
+          <div class="cat" data-pin="1">운영체제 · pintos 2/5</div>
+          <div class="title" data-pin="2">Threads - Alarm Clock 구현</div>
+          <div class="desc">busy waiting으로 구현된 timer_sleep을 sleep_list로 고친다</div>
+          <div class="ft"><span>2025.12.18</span><span>cruzlab.dev</span></div>
+        </div>
+        <div class="ft muted small">satori(객체 트리 → SVG) → resvg(→ PNG). Pretendard Bold 서브셋 OTF 약 500 KB. s-maxage=86400 · 태그 posts,post-&lt;id&gt;</div>
+      </div>
+      <ve-pin n="1">팔레트 · 블롭 · 격자는 <code>post-cover.ts</code>의 함수 그대로다. 카드 커버와 같은 디자인(U14). 표지 이미지(heroImage)는 OG에 쓰지 않는다.</ve-pin>
+      <ve-pin n="2">제목 2줄까지. 24자 이하 64px, 그 밖 52px(1.1: 중앙 18자, 최대 54자). 노트는 "노트" 라벨 + 첫 줄. 홈 · 목록 · about은 <code>/og/default.png</code>(prerender).</ve-pin>
+    </ve-mock>
+
+    <ve-claim evidence="inferred" check="rebuild 미리보기에서 /og/&lt;id&gt;.png가 200이다.">
+      <p><code>@resvg/resvg-js</code>의 리눅스 네이티브 바이너리가 Vercel 함수에서 돈다.</p>
+      <ve-calls title="/og/[id].png.ts · sketch">
+<script type="text/plain">
++ GET /og/<id>.png                                    @ src/pages/og/[id].png.ts
++   entries/<id> (published만. 아니면 404)
++   const { default: satori } = await import('satori')          -- 엔드포인트 안에서만 로드. 다른 페이지 콜드 스타트에 들어가지 않는다
++   const { Resvg } = await import('@resvg/resvg-js')           -- 안 되면 @resvg/resvg-wasm (5줄)
++   readFile(Pretendard-Bold.subset.otf)                        -- 어댑터 includeFiles. satori는 woff2를 받지 않는다
++   → Response(png, { 'Cache-Control': 's-maxage=86400, stale-while-revalidate=604800', 'Vercel-Cache-Tag': 'posts,post-<id>' })
+</script>
+      </ve-calls>
+      <p class="muted">확인하지 못한 것: resvg-js 바이너리의 Vercel 호환과 서브셋 글꼴 크기. 둘 다 PR-C의 미리보기 확인(8.5)에서 처음 본다.</p>
+    </ve-claim>
+
+    <ve-claim>
+      <p>재발행하면 글 상세와 OG 이미지가 같은 태그로 함께 비워진다.</p>
+      <ve-code src="src/lib/server/cdn-purge.ts" lines="21-27" hl="26">
+        <ve-pin line="26">3단계 D7 그대로다. OG 응답이 <code>post-&lt;id&gt;</code> 태그를 가지므로 이 호출이 이미지도 지운다. 퍼지 코드는 바꾸지 않는다.</ve-pin>
+      </ve-code>
+    </ve-claim>
+  </ve-claim>
+
+  <ve-claim aux="shared">
+    <p>공유: 파이프라인 옵션 하나, <code>prose.css</code> 하나, 주소 함수 하나.</p>
+    <ve-code title="공유 조각 · sketch" lang="ts">
+<script type="text/plain">
+markdownToHtml(md, { highlighter?, assets? })     // src/lib/content/markdown.ts   서버 · 에디터 미리보기 · 테스트가 같이 부른다. 옵션 없이도 돈다
+src/styles/prose.css                              // 공개 글 · 노트 · 프로젝트 글 · 에디터 편집 영역 · 미리보기. 콜아웃 · 임베드 · 코드 틀 · 수식 · 표 · 이미지
+src/lib/public-paths.ts                           // 카테고리 · 태그 · 노트 · 프로젝트 · OG 주소. 페이지 · 사이트맵 · redirects · publicPathFor가 같이 쓴다
+src/lib/post-cover.ts                             // 그대로. PostCover.astro와 OG 템플릿이 같은 팔레트를 쓴다
+// PR-A: T1 · T2(파이프라인 · 글 상세)   PR-B: T3 · T4 · T5(토큰 · 페이지 · React 삭제)   PR-C: T6 · T7 · T8(프로젝트 · OG · 검증)   문서 PR: T9
+// PR-A 병합 전 태그 rebuild-pre-stage4
+</script>
+    </ve-code>
+  </ve-claim>
+
+  <ve-claim aux="scope" rev="2">
+    <p>바꾸지 않는 것: 데이터 스키마(더하기만), API 계약, 규칙, 글 주소.</p>
+    <ul>
+      <li>2단계 API 계약과 Firestore · Storage 규칙, 인덱스, 환경 변수, Vercel 설정, 버킷 CORS를 바꾸지 않는다. 데이터는 더하기만 한다(프로젝트 8편 · 자산 10개 · <code>seriesMeta.project</code> 칸).</li>
+      <li>글 주소 <code>/blog/&lt;slug&gt;</code>, 연재 리다이렉트 2개, 프로젝트 주소는 그대로다.</li>
+      <li>기존 글 본문을 일괄 변환하지 않는다. 표기 옵션(D14)은 다음에 그 글을 고칠 때 반영된다.</li>
+      <li>본문 HTML · 목차를 발행 때 미리 계산하지 않는다(D7). 댓글 · 크로스포스팅 · <code>/lab</code> · 404 최신 글은 하지 않는다.</li>
+      <li>관리자 앱 · 헤더 "쓰기" 진입점 · 드래그 핸들 · 찾기 · 바꾸기 · 키맵 저장은 5단계다. 옛 <code>posts</code> · <code>series</code> 삭제는 main 병합 뒤다.</li>
+      <li>에디터는 변환기 표기 옵션 2건과 미리보기 하이라이트 교체만 바뀐다.</li>
+    </ul>
+    <ve-ask id="docs" q="README · PUBLISHING의 2단계 끝 상태 절은 언제 고칠까요? (D5, 3단계 8절 14)">
+      <ve-opt value="end" default note="설명 문서는 모든 작업이 끝난 뒤 한 번. 4단계는 README 이미지 이동만">재건 끝, main 병합 직전에 한 번</ve-opt>
+      <ve-opt value="a" changed="2" note="4단계 끝 상태로 한 번에 고친다. 구조 · 환경 변수 절도 함께">4단계 마지막 작업(T9)에 넣는다</ve-opt>
+      <ve-opt value="b" note="3단계 끝 상태로 고치고 4단계 끝에 또 고친다">지금 별도 문서 PR</ve-opt>
+      <ve-opt value="c" note="그대로 둔다">5단계로 미룬다</ve-opt>
+    </ve-ask>
+  </ve-claim>
+
+</ve-plan>
+
+</body>
+</html>
