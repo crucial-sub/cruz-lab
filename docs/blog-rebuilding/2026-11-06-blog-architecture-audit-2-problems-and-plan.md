@@ -712,10 +712,12 @@ main에는 긴급 수정만 넣는다. main에 긴급 수정을 넣으면 main�
 8. PR-B [PR #16](https://github.com/crucial-sub/cruz-lab/pull/16) 병합(`2ca985d`). 미리보기에서 SSR 404(안내 화면 직접, 캐시 없음)와 글 상세 콜드 TTFB 1.44초를 확인했다(작업 문서 4.17).
 9. PR-C(T6·T7·T8, 2026-11-10, 브랜치 `stage4/c-projects-og`, `2ca985d`에서 생성): 프로젝트 글 이전 스크립트(`scripts/migrate/stage4-projects.mjs`, 시험 실행 → 사용자 승인 → 실행, 멱등, 기록 기반 되돌리기), 운영 이전 실행(entries project 8·자산 10·seriesMeta 4), `/projects/**` SSR(글 상세 컴포넌트 + Part 탭), project 발행 규칙·공개 주소, 콘텐츠 컬렉션·`@astrojs/mdx`·프로젝트 이미지 삭제, README 미리보기 이미지 이동. OG(`/og/<id>.png`·`/og/default.png`, satori + resvg, Pretendard Bold 서브셋 391 KB). 점검 `scripts/smoke/stage4-public.mjs`. 작업 문서 2.7~2.9.
 10. PR-C 검증: lint, 테스트 573(+47), `tsc` 0, 빌드, 왕복 69/69, 공개 점검 871/0 + 2단계 324/0, API 스모크 105/105(낡은 기대값 3개 고침), 옛 프로젝트 페이지 8편과 본문 글자 같음, JS 끈 확인 7쪽, 브라우저(프로젝트 글 1280·390px, 에디터 열기만), Lighthouse 로컬 기록, 번들(공개 `astro-island` 0). 리뷰 치명 0·중요 4·경미 10 → 중요 4·경미 9 고침. Plan과 다른 판단 33건(52~84). 사용자 결정: `tools/cruz-lab-knowledge-mcp`가 읽는 폴더를 Plan대로 지운다(5절 58).
+11. **PR-D(D19 목록 매거진형, 2026-11-10, 브랜치 `stage4/d-blog-list`, `2ca985d`에서 시작, PR-C 병합 `34df87f`로 fast-forward).** 사용자의 친구(첫 방문자)가 PR-B 목록을 "딱딱하다, 뭘 읽을지 감이 안 온다"고 해 UX 분석([2026-11-10-blog-list-ux.md](./2026-11-10-blog-list-ux.md), 시각 문서 visual-plans/2026-11-10-cruz-lab-blog-list-ux.html)을 하고 사용자 결정 D19(Plan 13절)로 D17·U10을 뒤집었다: 대표 카드(최신 글) + 작은 코드 커버 행, 토글 없음, 모바일도 같음, 검색은 제목 오른쪽, 태그는 "태그 N개" `<details>` 뒤. 커버 팔레트를 카테고리 표로 배정(9개 카테고리 4색 → 10색). 검증: lint·`tsc` 0·테스트, 빌드, 스모크·공개 점검, 빌드 `/blog` HTML 90,181바이트(전역 스타일 전 110,851), 브라우저 1280·390·360 라이트·다크, JS 끔. 리뷰 치명 0·중요 3·경미 11 → 중요 3·경미 10 고침. 작업 문서 2.10·4.18·5절 85~97·6.4.
 
 **다음 것.**
 
-1. PR-C 커밋(`81b7be9` 코드, `3857b95` 문서)·푸시·[PR #17](https://github.com/crucial-sub/cruz-lab/pull/17)(대상 `rebuild`, 사용자 승인 2026-11-10). 남은 것: 병합(사용자 확인 뒤).
+1. ~~PR-C 커밋·푸시·PR #17~~ 병합됨(`34df87f`).
+1-1. PR-D 커밋·푸시·PR(대상 `rebuild`, 사용자 확인 뒤). 리뷰어 검토 결과는 작업 문서 6.4.
 2. 미리보기 확인(Plan 8.5, 사용자 결정 2026-11-10): 브랜치 미리보기에서 공개 화면·OG(resvg·글꼴·시간). PR-C 병합 뒤 `rebuild` 미리보기에서 사용자 관리자 로그인 → 시험 글·노트 발행·재발행 → 확인 → 삭제.
 3. 문서 PR(T9)은 새 세션이다(작업 문서 7절).
 
