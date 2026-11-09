@@ -4,12 +4,11 @@
 // - JS가 없으면 JS로만 동작하는 요소(data-js-only: 테마 버튼, 목록 검색창)를 숨긴다(noscript 안의 스타일).
 // - 글꼴: Pretendard dynamic subset 중 첫 화면에 거의 늘 나오는 범위만 preload한다(PRELOAD_FONT_SUBSETS).
 //   JetBrains Mono는 preload하지 않는다(코드가 있는 글에서만 쓴다).
-// - OG 이미지: ogImage(절대 주소 또는 사이트 기준 경로). 없으면 기본 이미지.
-//   기본 이미지는 4단계 PR-C(T7)가 /og/default.png로 바꾼다. 그때까지는 프로필 사진이다.
+// - OG 이미지: ogImage(절대 주소 또는 사이트 기준 경로). 글·노트·프로젝트 글은 /og/<글 ID>.png를 넘긴다.
+//   없으면 기본 카드 /og/default.png(빌드 때 그린 정적 파일)다(4단계 D13). 표지 이미지는 OG에 쓰지 않는다.
 // - 페이지별 head 요소(글 상세의 KaTeX CSS 등)는 BaseLayout의 head 슬롯이다(이 컴포넌트 바로 뒤).
 import Favicon from '@/assets/img/favicon.svg';
-import DefaultOGImage from '@/assets/img/profile.png';
-import { SITE_DESCRIPTION, SITE_TITLE } from '@/lib/public-paths';
+import { DEFAULT_OG_IMAGE_PATH, SITE_DESCRIPTION, SITE_TITLE } from '@/lib/public-paths';
 
 interface Props {
   title?: string;
@@ -35,7 +34,7 @@ const {
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 
 // OG 이미지 주소 (절대 주소가 필요하다)
-const ogImageURL = new URL(ogImage ?? DefaultOGImage.src, Astro.site).toString();
+const ogImageURL = new URL(ogImage ?? DEFAULT_OG_IMAGE_PATH, Astro.site).toString();
 
 // 전체 제목 (페이지 제목 + 사이트 이름)
 const fullTitle = title === SITE_TITLE ? title : `${title} | ${SITE_TITLE}`;

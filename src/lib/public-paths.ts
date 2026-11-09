@@ -33,3 +33,22 @@ export function seriesPath(key: string): string {
 export function notePath(slug: string): string {
   return encodeURI(publicPathFor('note', slug) ?? `/notes/${slug}`);
 }
+
+// 프로젝트 목록 (4단계 D1·D17)
+export const PROJECTS_INDEX_PATH = '/projects';
+
+// 프로젝트 하나의 주소. 첫 Part로 302한다
+export function projectPath(key: string): string {
+  return `/projects/${encodeURIComponent(key)}`;
+}
+
+// 프로젝트 글 주소 (D1). 규칙은 publicPathFor('project')와 같다
+export function projectPostPath(key: string, slug: string): string {
+  return encodeURI(publicPathFor('project', slug, { key }) ?? `/projects/${key}/${slug}`);
+}
+
+// OG 이미지 주소 (D13). 글·노트·프로젝트 글은 글 ID, 그 밖은 기본 이미지
+export const DEFAULT_OG_IMAGE_PATH = '/og/default.png';
+export function ogImagePath(entryId: string): string {
+  return `/og/${encodeURIComponent(entryId)}.png`;
+}

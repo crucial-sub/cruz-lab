@@ -1,200 +1,80 @@
 ---
-// 프로젝트 글 (prerender, 콘텐츠 컬렉션)
-// - 4단계 PR-C(T6)가 entries(kind project)로 옮기고 글 상세 컴포넌트로 다시 쓴다(D1).
-// - 4단계 PR-B는 React 아일랜드 삭제에 맞춰 Reveal(스크롤 페이드인)을 걷어내고, 본문 모양을 prose.css로 바꿨다
-//   (@tailwindcss/typography 삭제). 화면 구성은 그대로다.
-export const prerender = true;
-
-import '@/styles/prose.css';
+// 프로젝트 글 /projects/<key>/<slug> (재건 4단계 D1·D16·D17, SSR)
+// - 데이터: entries(kind project). 연재 key가 프로젝트 key다. 프로젝트 정보는 seriesMeta/<key>.project.
+// - 글 상세와 같은 PostArticle(kind="project")이다: 목차·코드 복사·Shiki·제목 앵커를 함께 얻는다.
+//   연재 상자 자리에 Part 탭, 글 끝에 이전·다음 Part.
+// - 예전 slug, 다른 kind의 slug, 프로젝트를 옮긴 글은 바른 주소로 301(slug 공간이 하나다).
+// - CDN: 글을 찾았을 때만 s-maxage=60, 태그 posts,post-<id>. 없으면 안내 화면을 직접 그리고(404) 저장하지 않는다.
+import katexCssUrl from 'katex/dist/katex.min.css?url';
+import NotFound from '@/components/NotFound.astro';
+import PostArticle from '@/components/post/PostArticle.astro';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import {
-  getProjectMeta,
-  getProjectMetas,
-  getProjectPostSlug,
-  getProjectPosts,
-  getProjectSlug,
-  getPublishedProjectPosts,
-} from '@/lib/project-posts';
-import { getCollection, render } from 'astro:content';
+  getAdjacentParts,
+  getPublishedProjectByKey,
+  resolveProjectPageBySlug,
+} from '@/lib/content-posts';
+import { ogImagePath } from '@/lib/public-paths';
+import { POSTS_CACHE_TAG, postCacheTag, setPublicPageCache } from '@/lib/server/cache-headers';
+import { markNotFound } from '@/lib/server/not-found';
+import { renderEntry } from '@/lib/server/render-entry';
 
-export async function getStaticPaths() {
-  const entries = await getCollection('projects');
-  const projectMap = new Map(getProjectMetas(entries).map((project) => [getProjectSlug(project), project]));
+export const prerender = false;
 
-  return getPublishedProjectPosts(entries)
-    .map((post) => {
-      const project = projectMap.get(post.data.project);
+const projectKey = Astro.params.project ?? '';
+const slug = Astro.params.slug ?? '';
+const lookup = await resolveProjectPageBySlug(projectKey, slug);
 
-      if (!project) {
-        return null;
-      }
-
-      return {
-        params: {
-          project: post.data.project,
-          slug: getProjectPostSlug(post),
-        },
-        props: {
-          project,
-          post,
-        },
-      };
-    })
-    .filter(Boolean);
+if (lookup?.type === 'redirect') {
+  const response = Astro.redirect(lookup.location, 301);
+  setPublicPageCache(response.headers, [POSTS_CACHE_TAG, postCacheTag(lookup.id)]);
+  return response;
 }
 
-const { project, post } = Astro.props;
-const { Content } = await render(post);
-const projectSlug = getProjectSlug(project);
-const entries = await getCollection('projects');
-const currentProject = getProjectMeta(entries, projectSlug) ?? project;
-const projectPosts = getProjectPosts(entries, projectSlug);
+const found = lookup?.type === 'post' ? lookup.entry : null;
+const [rendered, project] = found
+  ? await Promise.all([renderEntry(found), getPublishedProjectByKey(projectKey)])
+  : [null, null];
+// 프로젝트 정보(seriesMeta.project)가 없으면 프로젝트 글로 보이지 않는다(/projects 목록에도 없다)
+const entry = found && project ? found : null;
 
-const currentIndex = projectPosts.findIndex((entry) => entry.id === post.id);
-const previousPost = currentIndex > 0 ? projectPosts[currentIndex - 1] : null;
-const nextPost =
-  currentIndex >= 0 && currentIndex < projectPosts.length - 1 ? projectPosts[currentIndex + 1] : null;
+if (entry) {
+  setPublicPageCache(Astro.response.headers, [POSTS_CACHE_TAG, postCacheTag(entry.id)]);
+} else {
+  markNotFound(Astro.response);
+}
 
-const { title: projectTitle, description: projectDescription, image, tags } = currentProject.data;
-
-const chapterTitle = post.data.chapterLabel || `Part ${post.data.order}`;
-const showPartNav = projectPosts.length > 1;
+const adjacent = entry && project ? getAdjacentParts(project, entry.id) : null;
+const title =
+  entry && project ? `${entry.title} | ${project.title}` : '프로젝트 글을 찾을 수 없습니다';
+const description = entry?.description || '요청한 프로젝트 글을 찾을 수 없습니다.';
 ---
 
 <BaseLayout
-  title={`${post.data.title} | ${projectTitle}`}
-  description={post.data.description}
-  ogImage={image?.src}
-  tags={tags}
+  title={title}
+  description={description}
+  ogImage={entry ? ogImagePath(entry.id) : undefined}
+  type={entry ? 'article' : 'website'}
+  publishedTime={entry?.publishedAt.toISOString()}
+  tags={project?.meta.tags ?? []}
+  noindex={!entry}
 >
-  <article class="py-8">
-      <div class="mb-8 flex flex-wrap items-center gap-3 text-sm text-text-secondary">
-        <a
-          href="/projects"
-          class="group inline-flex items-center gap-2 transition-colors hover:text-brand"
-        >
-          <svg class="h-4 w-4 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-          </svg>
-          프로젝트 목록
-        </a>
-        <span class="text-text-muted">/</span>
-        <span class="text-text-primary">{projectTitle}</span>
-      </div>
-      <section class="mb-10 border-b border-border pb-8">
-        <div class="mb-4 flex flex-wrap items-center gap-3">
-          <span class="rounded-full border border-brand/25 bg-brand/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">
-            {chapterTitle}
-          </span>
-          <span class="text-sm text-text-secondary">
-            {projectTitle} · {currentIndex + 1}/{projectPosts.length}
-          </span>
-        </div>
-
-        <div class="max-w-4xl">
-          <h1 class="text-4xl font-extrabold md:text-5xl">{post.data.title}</h1>
-          <p class="mt-4 text-lg leading-8 text-text-secondary">
-            {post.data.description}
-          </p>
-        </div>
-
-        {
-          showPartNav && (
-            <nav class="mt-6 flex flex-wrap gap-2">
-              {projectPosts.map((entry) => {
-                const isActive = entry.id === post.id;
-                return (
-                  <a
-                    href={`/projects/${projectSlug}/${getProjectPostSlug(entry)}`}
-                    class:list={[
-                      'inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-300',
-                      isActive
-                        ? 'border-brand/40 bg-brand/10 text-brand'
-                        : 'border-border bg-bg-surface text-text-secondary hover:border-brand/30 hover:text-brand',
-                    ]}
-                  >
-                    <span>{entry.data.chapterLabel || `Part ${entry.data.order}`}</span>
-                    <span class:list={[isActive ? 'text-text-primary' : 'text-text-secondary']}>
-                      {entry.data.title}
-                    </span>
-                  </a>
-                );
-              })}
-            </nav>
-          )
-        }
-      </section>
-      <section class="prose">
-        <Content />
-      </section>
-      <section class="mt-14 grid gap-4 border-t border-border pt-10 md:grid-cols-2">
-        {
-          previousPost ? (
-            <a
-              href={`/projects/${projectSlug}/${getProjectPostSlug(previousPost)}`}
-              class="group rounded-[24px] border border-border bg-bg-surface px-5 py-5 transition-all duration-300 hover:border-brand/30 hover:bg-brand/5"
-            >
-              <p class="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">이전 기록</p>
-              <p class="mt-3 text-sm font-semibold text-brand">
-                {previousPost.data.chapterLabel || `Part ${previousPost.data.order}`}
-              </p>
-              <h2 class="mt-2 text-lg font-semibold text-text-primary transition-colors group-hover:text-brand">
-                {previousPost.data.title}
-              </h2>
-              <p class="mt-2 text-sm leading-6 text-text-secondary">
-                {previousPost.data.description}
-              </p>
-            </a>
-          ) : (
-            <a
-              href="/projects"
-              class="group rounded-[24px] border border-border bg-bg-surface px-5 py-5 transition-all duration-300 hover:border-brand/30 hover:bg-brand/5"
-            >
-              <p class="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">프로젝트 목록</p>
-              <p class="mt-3 text-sm font-semibold text-brand">Back to Projects</p>
-              <h2 class="mt-2 text-lg font-semibold text-text-primary transition-colors group-hover:text-brand">
-                {projectTitle}
-              </h2>
-              <p class="mt-2 text-sm leading-6 text-text-secondary">
-                {projectDescription}
-              </p>
-            </a>
-          )
-        }
-
-        {
-          nextPost ? (
-            <a
-              href={`/projects/${projectSlug}/${getProjectPostSlug(nextPost)}`}
-              class="group rounded-[24px] border border-border bg-bg-surface px-5 py-5 transition-all duration-300 hover:border-brand/30 hover:bg-brand/5"
-            >
-              <p class="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">다음 기록</p>
-              <p class="mt-3 text-sm font-semibold text-brand">
-                {nextPost.data.chapterLabel || `Part ${nextPost.data.order}`}
-              </p>
-              <h2 class="mt-2 text-lg font-semibold text-text-primary transition-colors group-hover:text-brand">
-                {nextPost.data.title}
-              </h2>
-              <p class="mt-2 text-sm leading-6 text-text-secondary">
-                {nextPost.data.description}
-              </p>
-            </a>
-          ) : (
-            <a
-              href="/projects"
-              class="group rounded-[24px] border border-border bg-bg-surface px-5 py-5 transition-all duration-300 hover:border-brand/30 hover:bg-brand/5"
-            >
-              <p class="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">프로젝트 목록</p>
-              <p class="mt-3 text-sm font-semibold text-brand">Back to Projects</p>
-              <h2 class="mt-2 text-lg font-semibold text-text-primary transition-colors group-hover:text-brand">
-                다른 프로젝트 보기
-              </h2>
-              <p class="mt-2 text-sm leading-6 text-text-secondary">
-                현재 글을 다 읽었다면 다른 프로젝트 기록으로 바로 이동할 수 있다.
-              </p>
-            </a>
-          )
-        }
-      </section>
-  </article>
+  {rendered?.hasMath && <link slot="head" rel="stylesheet" href={katexCssUrl} />}
+  {
+    entry && rendered && adjacent && project ? (
+      <PostArticle
+        entry={entry}
+        rendered={rendered}
+        adjacent={adjacent}
+        series={null}
+        kind="project"
+        project={project}
+      />
+    ) : (
+      <NotFound
+        title="프로젝트 글을 찾을 수 없습니다"
+        message="삭제되었거나 아직 발행되지 않은 글일 수 있습니다."
+      />
+    )
+  }
 </BaseLayout>

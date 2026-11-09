@@ -1,10 +1,10 @@
 # 재건 4단계 작업 문서: 공개 사이트
 
-- 날짜: 2026-11-09 (PR-A 구현), 2026-11-10 (PR-B 구현)
+- 날짜: 2026-11-09 (PR-A 구현), 2026-11-10 (PR-B 구현, PR-C 구현)
 - Plan: [2026-11-09-stage4-public-site-plan.md](./2026-11-09-stage4-public-site-plan.md) (승인 2026-11-09, PR #14 병합 `b2583ed`)
 - 진행 기록: [계획 문서 11.9](./2026-11-06-blog-architecture-audit-2-problems-and-plan.md#119-4단계-구현-진행-기록-2026-11-09)
-- 브랜치: `stage4/a-renderer`(PR-A, [PR #15](https://github.com/crucial-sub/cruz-lab/pull/15), `rebuild`에 병합 `2b32907`), `stage4/b-pages`(PR-B, `2b32907`에서 생성, [PR #16](https://github.com/crucial-sub/cruz-lab/pull/16)). 대상은 `rebuild`다. PR-C `stage4/c-projects-og`, 문서 PR `stage4/docs`는 아직이다.
-- 상태: **PR-A(T1·T2) 병합. PR-B(T3·T4·T5) 구현·검증·리뷰 수정 끝(6.2).** 사용자 승인(2026-11-10)으로 커밋 `25facf1`(코드)·`ad1765b`(문서), 푸시, [PR #16](https://github.com/crucial-sub/cruz-lab/pull/16)(대상 `rebuild`). 병합은 사용자 확인 뒤다.
+- 브랜치: `stage4/a-renderer`(PR-A, [PR #15](https://github.com/crucial-sub/cruz-lab/pull/15), `rebuild`에 병합 `2b32907`), `stage4/b-pages`(PR-B, [PR #16](https://github.com/crucial-sub/cruz-lab/pull/16), `rebuild`에 병합 `2ca985d`), `stage4/c-projects-og`(PR-C, `origin/rebuild` `2ca985d`에서 생성, [PR #17](https://github.com/crucial-sub/cruz-lab/pull/17)). 대상은 `rebuild`다. 문서 PR `stage4/docs`는 아직이다.
+- 상태: **PR-A(T1·T2)·PR-B(T3·T4·T5) 병합. PR-C(T6·T7·T8) 구현·검증·리뷰 수정 끝(4.12~4.17, 6.3).** 프로젝트 글 이전은 사용자 승인(2026-11-10)으로 실행했다(4.13). 사용자 승인(2026-11-10)으로 커밋 `81b7be9`(코드)·`3857b95`(문서), 푸시, [PR #17](https://github.com/crucial-sub/cruz-lab/pull/17)(대상 `rebuild`). 미리보기 확인(Plan 8.5)은 4.17에 이어 적는다. 병합은 사용자 확인 뒤다.
 
 ## 1. 현재 상황
 
@@ -12,9 +12,10 @@
 |---|---|
 | PR-A (T1 공유 파이프라인, T2 글 상세) | 끝. [PR #15](https://github.com/crucial-sub/cruz-lab/pull/15) `rebuild` 병합(`2b32907`). 테스트 504, 왕복 59/59, 공개 스모크 322/0, 글 상세 점검 378/0. 리뷰 치명 0·중요 1·경미 12(6.1). 태그 `rebuild-pre-stage4`(`b2583ed`) |
 | PR-B (T3 토큰·레이아웃, T4 페이지, T5 React 삭제) | 구현·검증·리뷰 수정 끝(2026-11-10). 브랜치 `stage4/b-pages`(`origin/rebuild` `2b32907`에서 생성). 204파일(글꼴 subset·라이선스 93개 포함). 글꼴·lockfile을 빼면 108파일, +3,871·−4,190줄(문서 포함). 테스트 526(+22), `tsc` **0**, lint·빌드 통과, 운영 왕복 59/59, 2단계 공개 스모크 324/0, PR-B 공개 점검 602/0, 공개 페이지 `astro-island` 0, 브라우저 확인(4.10). 리뷰 치명 0·중요 3·경미 15 → 중요 3·경미 10 고침(6.2). 커밋 `25facf1`·`ad1765b`, [PR #16](https://github.com/crucial-sub/cruz-lab/pull/16)(대상 `rebuild`). 병합은 사용자 확인 뒤 |
-| PR-C (T6·T7·T8), 문서 PR (T9) | 아직. PR-B 병합 뒤 새 세션(7절) |
-| 외부 변경 | 없음 |
-| 운영 데이터 | PR-A는 읽기만 했다. PR-B는 사용자 승인(2026-11-10)으로 시험 노트 1편(`PqVMdc6m0mTvrsEOrAgt`, slug `note-20261110-0054`)을 만들어 발행하고 확인 뒤 지웠다(4.11). 남은 것: `publishLog` 2건(발행·삭제, 승인한 대로). `entries` 59(공개 post 54, 초안 5: 에세이 1편 + 사용자 시험 초안 4편)로 처음과 같다. 사용자 시험 초안은 건드리지 않았다 |
+| PR-C (T6 프로젝트 이전, T7 OG, T8 검증) | 구현·검증 끝(2026-11-10). 브랜치 `stage4/c-projects-og`(`origin/rebuild` `2ca985d`에서 생성). 테스트 573(+47), `tsc` 0, lint·빌드 통과, 운영 왕복 69/69, 공개 점검(`stage4-public.mjs`) 871/0 + 2단계 324/0, 옛 프로젝트 페이지 8편과 본문 글자 같음, JS 끈 확인 7쪽, 브라우저(Plan 8.3의 8, 390px). API 스모크 105/105. 리뷰 치명 0·중요 4·경미 10 → 중요 4·경미 9 고침(6.3). 커밋 `81b7be9`·`3857b95`, [PR #17](https://github.com/crucial-sub/cruz-lab/pull/17). 미리보기 확인(8.5)은 4.17 |
+| 문서 PR (T9) | 아직. 새 세션(7절) |
+| 외부 변경 | 없음(규칙·인덱스·환경 변수·Vercel·버킷 CORS) |
+| 운영 데이터 | PR-A는 읽기만 했다. PR-B는 사용자 승인(2026-11-10)으로 시험 노트 1편을 만들어 발행하고 확인 뒤 지웠다(4.11, `publishLog` 2건 남음). PR-C는 사용자 승인(2026-11-10)으로 프로젝트 글을 옮겼다: `entries` kind project 8편(+`revisions` 8), `seriesMeta` 새 문서 4개(`project` 칸), 새 자산 10개(Storage `assets/<id>/` 변형). 지금 `entries` 69(공개 post 54, project 8, 사용자 초안 7: post 6·note 1. PR-B 끝 59에서 사용자가 초안 2편을 더 만들었다), `assets` 141, `seriesMeta` 7, `publishLog` 2. 사용자 초안은 건드리지 않았다 |
 
 ## 2. 한 일
 
@@ -129,6 +130,53 @@
 | `content-posts.ts` | `getAllContentTags`와 `ContentPost`의 안 쓰는 칸 4개 삭제(5절 50) |
 | `PostRow`·`PostCard`·`ProjectCard`·`series/*` | 포커스 표시를 `a:focus-visible::after`로(5절 33) |
 | `sitemap-posts.xml.ts` | 홈·목록 페이지 4개를 뺐다(`sitemap-0.xml`에 있다)(5절 35) |
+
+### 2.7 T6: 프로젝트 글 이전 (PR-C, D1 a)
+
+| 파일 | 내용 |
+|---|---|
+| `src/lib/migrate/project-to-entry.ts` | 새 파일. 순수 함수. frontmatter 읽기(이 저장소 파일이 쓰는 모양만 받고 그 밖은 오류), `project.md` → seriesMeta 값, 글 → entries 문서(kind project, 카테고리·태그 없음, 연재 = { 프로젝트 key, Part }, 코드 커버, 문서 ID `project-<key>-<slug>`), 본문 이미지 상대 경로 찾기·바꾸기(코드 안은 건드리지 않음), 내부 링크 모으기, 원본 해시(.md + 이미지 SHA-256), 재동기화 판정(`decideProjectSync`: create·update·skip·conflict·skip-deleted-in-rebuild) |
+| `scripts/migrate/stage4-projects.mjs` | 새 파일. 시험 실행(기본, 읽기만) → 보고서 → `--apply --base <개발 서버>`(덤프 → 이미지를 2단계 자산 API로 올림 → entries·revisions·seriesMeta 쓰기 → 자산 usedBy → 다시 읽어 검사). 실제 실행은 덤프 폴더에 되돌리기 기록 `migration.json`(새로 올린 자산, 새로 만든 seriesMeta)을 남긴다. `--rollback [--manifest <기록>]`(시험 실행) · `--rollback --apply --manifest <기록>`(덤프 뒤 글 → 자산·seriesMeta 문서 → Storage 순서로 지움. 기록에 있는 것만 지우고 에디터로 고친 글은 뺌, 5절 74). 원본 ID·slug 겹침 검사, 갱신의 문서 시각 전제 조건, 빠진 이미지 usedBy 정리(5절 75~77). `--source-root`로 원본 checkout을 고른다(5절 54) |
+| `scripts/migrate/lib/admin.mjs` | `ChunkedBatch`에 `update` 연산(자산 usedBy, 되돌리기의 칸 삭제) |
+| `src/lib/entry-schema.ts` | `projectSourceSchema`·`entryDocSchema.projectSource`(선택, 5절 52), `projectMetaSchema`·`seriesMetaSchema.project`(선택). project 발행본은 연재가 있어야 한다 |
+| `src/lib/entry-rules.ts` | `checkPublishable` project 규칙(제목·설명·slug·본문·연재 필수, 카테고리 선택). `publicPathFor(kind, slug, series)` → project는 `/projects/<key>/<slug>`(5절 63) |
+| `src/lib/server/admin-entries.ts`, `src/pages/api/admin/posts/[id]/publish.ts`, `src/editor/ui/EditorApp.tsx`, `MetaPanel.tsx` | 삭제 때 `projectSource` 글도 `entryTombstones`(5절 78). 발행 결과에 `series`. 발행 토스트·상단 "공개 페이지"가 프로젝트 주소를 연다. 메타 패널에 프로젝트 글 안내 한 줄 |
+| `src/lib/server/entries.ts` | `listSeriesMeta()`가 `project` 칸을 읽는다(스키마에 안 맞으면 없는 것). slug 조회의 리다이렉트 결과에 `series`. `getPublishedEntryById()`(OG용, 5절 68) |
+| `src/lib/content-posts.ts` | `resolveProjectPageBySlug(key, slug)`(다른 프로젝트 key·다른 kind·예전 slug는 301), `getPublishedProjects()`(project 칸 + 발행 Part가 있는 연재, order 순), `getPublishedProjectByKey()`, `getAdjacentParts()`. 다른 kind의 주소에 연재를 넘긴다 |
+| `src/lib/public-paths.ts` | `PROJECTS_INDEX_PATH`, `projectPath`, `projectPostPath`, `DEFAULT_OG_IMAGE_PATH`, `ogImagePath` |
+| `src/pages/projects/index.astro`, `[project]/index.astro`, `[project]/[slug].astro` | SSR로 다시 썼다. 목록은 `ProjectCard.astro`(PR-B) 그대로, 데이터만 entries. `/projects/<key>`는 첫 Part로 302, 없으면 안내 화면 404. 글은 `PostArticle kind="project"` + Part 탭 + 이전·다음 Part. 캐시 `posts` / `posts,post-<id>`(5절 61) |
+| `src/components/post/PartTabs.astro` | 새 파일. 연재 상자 자리. "프로젝트 · 이름 · N/M" + Part 탭(링크, 현재 `aria-current="page"`). Part가 1편이면 탭이 없다 |
+| `src/components/post/PostArticle.astro`, `PrevNext.astro` | kind `project`: 머리줄 카테고리 자리에 프로젝트 이름(→ `/projects`), Part 탭, 이전·다음은 같은 프로젝트의 Part 순서. `PrevNext`의 이름표 "이전·다음 X"(5절 72) |
+| `src/pages/sitemap-posts.xml.ts` | 프로젝트 글 8편(3단계까지는 prerender라 `sitemap-0.xml`에 있었다) |
+| `scripts/smoke/stage2-public.mjs` | 발행 프로젝트 글의 `/blog/<slug>`는 404가 아니라 301이다 |
+| `scripts/smoke/stage2-api.mjs` | 낡은 기대값 3개(목록의 글 ID, 노트 주소)를 고쳤다(5절 84) |
+| `scripts/migrate/stage2-entries.mjs` | seriesMeta를 덮을 때 `project` 칸을 남긴다(5절 79) |
+| 지움 | `src/content/projects/**`(12), `src/content.config.ts`, `src/lib/project-posts.ts`, `src/assets/img/projects/**`(16, 약 12 MB), 의존성 `@astrojs/mdx`(`astro.config.mjs`의 `mdx()`). grep: 가져오는 곳 없음. 저장소의 `tools/cruz-lab-knowledge-mcp`는 이 폴더를 읽는다(사용자 결정, 5절 58) |
+| `.github/readme/cruz-lab-preview.png`, `README.md` | README 첫 화면 이미지를 옮기고 그 경로 한 줄만 고쳤다(D5) |
+| 테스트 | `project-to-entry.test.ts` 25(리뷰 뒤 원본 겹침·되돌리기 계획 포함), `content-posts.test.ts` +6(프로젝트 301·404, 프로젝트 상세, 프로젝트 목록·Part 이웃, `/series`에 안 들어감, 주소 함수), `entry-rules.test.ts` +3(project 발행 규칙, 주소) |
+
+### 2.8 T7: OG 이미지 (PR-C, D13)
+
+| 파일 | 내용 |
+|---|---|
+| `package.json` | `satori` 0.63.2, `@resvg/resvg-js` 2.6.2, `subset-font` 2.9.0(dev). 모두 정확한 버전 |
+| `src/assets/fonts/og/Pretendard-Bold.subset.otf`, `LICENSE.txt` | npm `pretendard@1.3.9`의 `dist/public/static/Pretendard-Bold.otf`(1,576,660바이트)를 서브셋으로 줄였다: 391,128바이트, 2,704글자(5절 66). SIL OFL 1.1 라이선스 동봉. 원본은 저장소에 두지 않는다 |
+| `scripts/ops/og-font-subset.mjs`, `scripts/ops/lib/font-cmap.mjs` | 서브셋 만들기(`--source`)와 검사(인자 없음). 기본 범위 + 지금 entries 모든 글(초안 포함)의 제목·설명·노트 첫 줄 + seriesMeta 제목 + 카테고리 이름 + 템플릿 글자. 서브셋 밖 글자를 글 ID와 함께 보고한다. cmap 판독기는 의존성 없이 직접 썼다(5절 67) |
+| `src/lib/og-template.ts` | 새 파일. 순수 함수. 1200×630 카드 트리(satori 객체): `post-cover.ts`의 팔레트·블롭·격자(기울이지 않음, 5절 64) + 아래 그늘, 왼쪽 위 라벨, 가운데 제목(최대 2줄, 24자 이하 64px·그 밖 52px), 아래 설명 1줄·날짜·`cruzlab.dev`. 글·노트·프로젝트 글 → 카드 값(`ogInputForEntry`), 기본 카드. 글자 정리 `ogText`(NFC, 그림으로 보이는 이모지 제거, 5절 65·80), OG ID 검사 `isOgEntryId`(5절 81) |
+| `src/lib/server/og-image.ts` | 새 파일. satori·resvg를 처음 그릴 때 `import()`. 글꼴은 `process.cwd()` 기준 같은 경로로 한 번 읽는다(실패는 기억하지 않음). 캐시 값 `s-maxage=86400, stale-while-revalidate=604800` |
+| `src/pages/og/[id].png.ts` | SSR. ID 형식 검사 → 발행본 읽기(메모 없음, 5절 82) → PNG. 태그 `posts,post-<id>`. 없으면 404(텍스트, 캐시 없음, `X-Astro-Reroute: no`) |
+| `src/pages/og/default.png.ts` | prerender. 빌드 때 그린 정적 파일(434,184바이트) |
+| `astro.config.mjs` | 어댑터 `includeFiles`에 서브셋 글꼴(함수 폴더 `src/assets/fonts/og/`에 실린다. 빌드로 확인) |
+| `src/layouts/components/BaseHead.astro` | `ogImage` 기본값 `/og/default.png`(프로필 사진 import 삭제) |
+| `src/pages/blog/[...slug].astro`, `notes/[slug].astro`, `projects/[project]/[slug].astro` | `ogImage` = `/og/<글 ID>.png`. 표지 이미지는 OG에 쓰지 않는다 |
+| 테스트 | `og-template.test.ts` 13(기호 보존·OG ID 포함, 글자 크기 단계, 글자 정리, 트리 글자·줄 수, 날짜·주소, 글·노트·프로젝트 카드 값, 서울 날짜, 실제 PNG 1200×630) |
+
+### 2.9 T8: 검증 도구 (PR-C)
+
+| 파일 | 내용 |
+|---|---|
+| `scripts/smoke/stage4-public.mjs` | 새 파일. PR-A 글 상세 점검과 PR-B 공개 점검(공유 노트)을 합쳐 상대 경로로 옮겼다. Plan 8.2의 1~10 + 프로젝트(카드 수·순서, Part마다 200·제목·이미지 `assets/`·Part 탭·캐시 태그·og:image, `/projects/<key>` 302, `/blog/<slug>` 301, 없는 Part 404) + OG(글 3·노트 1·프로젝트 글 1: PNG 1200×630·태그·Cache-Control, 기본, 없는 ID 404, 목록 페이지 og:image) + SSR 404 6종 + 사이트맵 중복. `--project-baseline`으로 옛 정적 페이지 본문 글자 비교. 끝에 `stage2-public.mjs`를 돌린다 |
+| `package.json` | `smoke:stage4` |
 
 ## 3. 외부 변경
 
@@ -307,6 +355,91 @@ localhost:4326에서 관리자 화면으로 노트 1편을 만들어 발행하�
 | 삭제 | 에디터 메뉴 → 삭제 → 정말 삭제. 관리자 목록 전체 59 |
 | 남은 데이터(Admin SDK 읽기) | 문서 없음, `revisions` 0, `entryTombstones` 0(이관 글이 아니라 쓰지 않음), 자산 131(처음과 같음), `publishLog` 2(발행·삭제). `/notes/<slug>` 404, `/notes` "아직 노트가 없습니다", 홈 노트 구역 없음 |
 
+### 4.12 자동 검사 (PR-C, 2026-11-10)
+
+| 항목 | 결과 |
+|---|---|
+| `pnpm lint` | 통과 |
+| `pnpm test` | 573 통과(38 파일). PR-B 526 + 47(`project-to-entry` 25, `og-template` 13, `content-posts` +6, `entry-rules` +3. 리뷰 뒤 6개: 원본 겹침 1, 되돌리기 계획 3, 기호 보존 1, OG ID 1) |
+| `tsc --noEmit` | 0(새 worktree는 `pnpm astro sync` 먼저. 콘텐츠 컬렉션을 지운 뒤 `.astro/content*`를 지우고 다시 돌렸다) |
+| `pnpm build` | 통과. 경고는 기존 2개(500 KB 넘는 청크, 로컬 Node 24 → Vercel Node 22). `/og/default.png`가 prerender로 나온다(434,184바이트). 함수 폴더에 `src/assets/fonts/og/Pretendard-Bold.subset.otf`가 실린다. resvg 네이티브 바이너리는 로컬 플랫폼(darwin-arm64) 것이 추적된다. Vercel은 linux 것을 설치한다(미리보기에서 확인, 4.17) |
+| `pnpm smoke:api`(사용자 승인 2026-11-10, 개발 서버 4327) | 처음 104건 중 실패 3: 목록에서 글 ID를 찾음, 노트 `publicUrl` null 기대, `/blog/<노트>` 404 기대. 모두 PR-B가 바꾼 화면·노트 주소(D12)에 맞지 않는 낡은 기대값이다(PR-B는 이 스모크를 돌리지 않았다). 기대값을 고친 뒤 105/105(노트 `/notes/<slug>` 200 검사 1건 추가, 5절 84). 두 번 모두 끝에 시험 글·노트·자산·`publishLog`를 지웠다. 뒤 확인(Admin SDK): entries 69, assets 141, Storage `assets/` 37, `publishLog` 2, `entryTombstones` 0(처음과 같음) |
+| 2단계 재동기화 시험 실행(`stage2-entries.mjs`, 읽기만) | skip 55, exclude 1, 삭제 후보 0, seriesMeta 쓰기 0. 프로젝트 글은 판정 대상이 아니다(5절 52·79) |
+| 번들(Plan 8.1, 공유 노트 `bundle-compare.mjs`, 빌드 결과) | 공개 페이지 12쪽 모두 `astro-island` 0. 프로젝트 글은 글 상세와 같이 `post-scripts` 하나(2,407바이트, gzip 1,194). `/projects` 21,774바이트(PR-B 21,600), 프로젝트 글 27,431바이트(PR-B prerender 20,291, 목차·Part 탭·코드 틀이 늘었다). React 청크는 `/admin/login`만 참조한다. `_astro` 파일 106 → 81(콘텐츠 컬렉션 이미지·mdx 삭제) |
+
+### 4.13 프로젝트 글 이전 실행 (사용자 승인 2026-11-10)
+
+| 단계 | 결과 |
+|---|---|
+| 시험 실행 | 프로젝트 4, 글 8(create 8), 이미지 10(png 7, 움직이는 webp 3: 290·174·238프레임), 오류 0, 경고 1(아래). 보고서는 세션 공유 노트 `stage4-pr-c-dry-run-report.md` |
+| 경고 | 「Cruz Lab 문서를 에이전트가 읽게 만들기」 본문의 `/blog/why-everyone-talks-about-mcp`가 발행 글이 아니다. 운영(main)에서도 404다(이전과 무관). 그대로 두었다 |
+| 실제 실행 | `--apply --base http://localhost:4327`. 덤프 `~/projects/cruz-lab-backups/20261110-011920-stage4-projects`(entries 61, seriesMeta 3, assets 131, publishLog 2). 이미지 10개 새로 올림(최대 변형: png는 2040~2400px webp 30~98 KB, 움직이는 webp는 800px 469~1,283 KB). 쓴 문서 30(entries 8, revisions 8, seriesMeta 4, 자산 usedBy 10). 다시 읽기: kind project 8(표지 8), 스키마 실패 0, 자산 10 모두 ready·usedBy 1, seriesMeta project 칸 4/4 |
+| 멱등 | 다시 시험 실행: skip 8, seriesMeta 4 모두 "같음", 쓸 것 0 |
+| 되돌리기 시험 실행 | 리뷰 뒤 다시: `--manifest …/migration.json`이면 entries 8, 자산 10(문서 + Storage), seriesMeta 문서 4. 기록 없이면 entries 8, 자산은 usedBy만 10, seriesMeta는 `project` 칸만 4. 다른 데이터는 고르지 않는다(실행하지 않았다) |
+| 병합 직전 재실행 흐름 | 원본을 지운 뒤 시험 실행은 "원본 폴더 없음"으로 멈춘다(의도). `--source-root ~/projects/cruz-lab`(주 checkout, 원본 있음)을 주면 skip 8, 오류 0 |
+| 왕복 검사(운영) | `pnpm smoke:roundtrip` 69/69(project 8 포함, 5절 57) |
+| 옛 페이지 비교 | 이전 전에 옛 정적 페이지 8편 HTML을 받아 두었다(개발 서버 4327, 세션 공유 노트). 새 페이지 본문과 글자가 모두 같다(4.14) |
+
+### 4.14 공개 점검 (PR-C, 빌드 결과 localhost:4391, 읽기만)
+
+빌드 결과를 Vercel처럼 함수 폴더(`.vercel/output/functions/_render.func`)를 작업 폴더로 두고 띄웠다(공유 노트 `serve-build.mjs`). OG 글꼴을 `process.cwd()` 기준으로 읽는지 보려는 것이다.
+
+| 검사 | 결과 |
+|---|---|
+| `scripts/smoke/stage4-public.mjs --static … --project-baseline …` | 리뷰 수정 뒤 빌드로 점검 871건, 실패 0(처음 846/0, 리뷰 뒤 이미지 수·본문 추출·열어 본 글 수 검사를 더했다). 응답 129개. 글 54편 목차 = h2·h3(합 519, 프로젝트 글 포함), 코드 틀 = 펜스(합 294), KaTeX 링크 3편, `/blog` 67,001바이트·행 54. 프로젝트 4개 카드 순서(LLM Yatcha · Stock Lab · Cruz Lab · Jungle Tetris), Part 8편 200·제목·이미지 모두 `assets/`·Part 탭 수·캐시 태그·og:image, `/projects/<key>` 302 → 첫 Part, `/blog/<프로젝트 slug>` 301, 없는 Part 404. OG 글 3·프로젝트 글 1: 200·`image/png`·1200×630·태그 `posts,post-<id>`·`s-maxage=86400`. `/og/default.png` 200, 없는 ID 404(캐시 없음). 목록 페이지·`/about`의 og:image는 `/og/default.png`. 사이트맵에 프로젝트 글 8, `sitemap-0.xml`에 `/about/`·`/projects/`(옛 prerender 프로젝트 글 주소 없음). SSR 404 6종(카테고리·태그·연재·노트·프로젝트·Part) 상태·안내 화면·캐시 없음·`noindex`. 옛 프로젝트 페이지 8편과 본문 글자 같음. 발행 노트가 0편이라 노트 OG는 확인하지 못했다(4.17) |
+| OG 그리기 시간(리뷰 뒤, 빌드 결과) | 0.38~0.58초가 대부분, 가끔 1.0~3.8초(첫 요청·로컬 흔들림). 고치기 전 1.6~5.0초 |
+| 처음 실패 2건(검사식 문제, 고침) | 옛 Shiki가 코드 토큰을 다르게 나눠 태그를 공백으로 바꾸면 글자가 벌어졌다(토큰 경계는 붙인다). `sitemap-0.xml`의 주소는 끝 빗금이 붙는다(`/about/`) |
+| `scripts/smoke/stage2-public.mjs`(끝에 함께) | 324/0. 공개 post 54, 그 밖 7 |
+| 개발 서버(4327) 주소 | `/projects` 200, `/projects/cruz-lab` 302, `/projects/nope`·`/projects/cruz-lab/nope` 404, `/blog/llm-yatcha`·`/notes/llm-yatcha` 301 → `/projects/llm-yatcha/llm-yatcha`, `/projects/stock-lab/cruz-lab-operating-cms` 301 → `/projects/cruz-lab/…` |
+| OG 그림(눈으로) | 「큐(Queue)」, 가장 긴 제목(54자, 2줄), 가장 긴 설명(83자, 1줄 "…"), 💡 설명(빠짐), 프로젝트 글(「Cruz Lab · Part 1」), 기본 카드. 한글·영문 모두 그려지고 빈 칸 없음 |
+| OG 글꼴 서브셋 검사 | `scripts/ops/og-font-subset.mjs`: entries 69·seriesMeta 7의 글자 408 + 고정 78, 서브셋 밖 0. 보고서는 세션 공유 노트 `stage4-pr-c-og-font-report.md` |
+
+### 4.15 브라우저 확인 (PR-C, 앱 브라우저, 개발 서버 4327 / JS 끈 확인은 빌드 결과 4391)
+
+| # | 시나리오 | 결과 |
+|---|---|---|
+| 8 | 프로젝트 글 열기(1280px) | `/projects` 카드 4(코드 커버, order 순). 「운영해보니 읽는 흐름이 더 중요했다」: 머리줄 "Cruz Lab · 2026-04-08 · 수정 2026-04-21 · 3분", Part 탭 3(현재 Part 2 `aria-current="page"`), 오른쪽 목차, 헤더 Projects `aria-current="true"`. 「내 블로그를 운영 가능한 제품으로 바꾼 과정」: 이미지 4개가 새 자산 주소(`assets/<id>/w2400.webp`, 움직이는 webp `w800.webp`)로 뜨고 `width`·`height`·`srcset`이 있다, 이전·다음은 "다음 Part → Part 2 · …"만(첫 Part), 이름표 "이전·다음 Part" |
+| 4 | 390px | 프로젝트 글 순서 머리 → Part 상자 → 목차 `<details>` → 본문, Part 탭 줄바꿈(오른쪽 끝 306~346px), 가로 넘침 0. `/projects` 카드 4, 넘침 0 |
+| — | 관리자 목록·에디터(열기만) | `/admin` 전체 69, 프로젝트 글 8편이 "프로젝트"로 보인다. 「내 블로그를 운영 가능한 제품으로 바꾼 과정」을 에디터로 열면 본문·이미지·메타 패널(카테고리 없음, 연재 `cruz-lab`·순서 1, 프로젝트 글 안내 한 줄)이 보이고 상태 "발행됨". 저장 없음: 초안 버전 1, 수정 시각 2026-04-21 그대로(Admin SDK 읽기) |
+| 1 | JS 끄고(CDP, 390×844, 다크·라이트) 홈·`/blog`·글 상세·`/notes`·`/about`·`/projects`·프로젝트 글 | 7쪽 × 2 모두 읽힌다. 테마는 시스템 설정(다크 `#0e0f12`, 라이트 `#f8fafc`·글자 `#0f172a`), 검색창·테마 버튼·복사 버튼 숨김, 가로 넘침 0 |
+
+### 4.16 Lighthouse (PR-C, 로컬 빌드 결과, 모바일, Plan 8.4)
+
+측정 방법은 5절 41과 같다(빌드 결과 + gzip 프록시 localhost:4393, Lighthouse 12.8.2, 시뮬레이션 조절, 3회 중앙값). 기록이지 통과 조건이 아니다. 측정하는 동안 리뷰어 에이전트가 테스트를 돌리고 있었다(CPU를 나눠 썼다).
+
+| 페이지 | 성능(3회) | FCP | LCP | TBT | CLS | 전송량 | 접근성 | PR-B(4.9) |
+|---|---|---|---|---|---|---|---|---|
+| 홈 | **87**(87·87·87) | 3.0초 | 3.3초 | 0 ms | 0 | 848 KiB | 100 | 86 |
+| `/blog` | **93**(93·93·93) | 2.4초 | 2.7초 | 0 ms | 0 | 765 KiB | 100 | 93 |
+| 글 상세(「UserProgram - 시스템 콜 동작 흐름」) | **72**(76·72·65) | 4.2초 | 4.5초 | 0 ms | 0.079 | 1,023 KiB | 100 | 76 |
+| `/about` | **90**(90·90·93) | 2.7초 | 3.0초 | 0 ms | 0 | 833 KiB | 100 | 90 |
+| 프로젝트 글(「기다림을 실시간 경험으로 바꾼 과정」) | **75**(78·72·75) | 4.1초 | 4.4초 | 0 ms | 0 | 1,108 KiB | 100 | (prerender 화면, 재지 않음) |
+
+- PR-C는 홈·`/blog`·`/about`·글 상세 화면을 바꾸지 않았다(OG 메타 주소만). 값은 PR-B와 같은 범위다. 글 상세의 3회 값이 65~76으로 흔들렸다(PR-B도 72~82).
+- 프로젝트 글은 글 상세와 같은 컴포넌트라 값도 비슷하다. LCP 요소는 본문 첫 화면의 글자다. 본문 이미지 2장은 `loading="lazy"`이고 새 자산이라 `width`·`height`가 있다(CLS 0).
+
+### 4.17 미리보기 확인 (Plan 8.5, 앱 브라우저)
+
+`rebuild` 미리보기(`cruz-lab-git-rebuild-crucialsubs-projects.vercel.app`, PR-B 병합 `2ca985d`까지)는 앱 브라우저가 Vercel에 로그인된 상태라 바로 열렸다. 요청은 페이지 안의 같은 출처 `fetch`(쿠키 포함, `cache: no-store`)로 했다.
+
+| 확인 | 결과 |
+|---|---|
+| SSR 404(작업 문서 7절 2, PR-B 리뷰 중요 3의 운영 확인) | `/blog/tag/no-such`·`/blog/category/no-such`·`/series/no-such`·`/notes/no-such` 모두 404, 본문에 안내 화면(`not-found-title`)과 `noindex`, `Cache-Control: public, max-age=0, must-revalidate`(Vercel 기본, `s-maxage` 없음), 캐시 태그 없음, `x-vercel-cache: MISS`. `/404.html`을 다시 받지 않고 페이지가 직접 그린다 |
+| 글 상세 콜드 TTFB(D7 뒤집는 조건 1.5초) | 「UserProgram - 시스템 콜 동작 흐름」 쿼리를 붙여 CDN을 건너뛴 요청: 첫 요청 1,444 ms(한동안 요청이 없던 함수, 콜드로 보인다), 이어서 315·124 ms. 조건 안이지만 가깝다(8절 4) |
+
+PR-C 브랜치 미리보기(`cruz-lab-git-stage4-c-projects-og-crucialsubs-projects.vercel.app`, PR #17 첫 배포, 2026-11-10). 같은 방법(페이지 안 `fetch`)이다. 데이터 쓰기는 없다.
+
+| 확인 | 결과 |
+|---|---|
+| OG가 Vercel 함수에서 그려지는가(리뷰 경미 14) | 그려진다. `/og/<글 ID>.png` 200·`image/png`·1200×630(글 「큐(Queue)」, 가장 긴 제목, 프로젝트 글). resvg linux 바이너리와 `includeFiles` 글꼴이 동작한다. `/og/default.png`는 정적 파일(396,180바이트) |
+| OG 그리기 시간 | 새 배포 뒤 첫 요청 11.7초(함수 콜드 + satori·resvg 첫 import·글꼴 읽기), 그 뒤 다른 글 0.67~0.79초. 같은 주소 두 번째 요청은 `x-vercel-cache: HIT` 0.24초(CDN 저장 확인). 첫 요청 시간은 8절 6 |
+| OG 응답 헤더 | 브라우저가 받는 `Cache-Control`은 `public, max-age=0`(Vercel이 `s-maxage`·캐시 태그를 CDN에서 쓰고 뺀다). 없는 ID와 한글 ID(없는 글)는 404 `text/plain`, Vercel 기본 `must-revalidate`(저장 안 함) |
+| `/projects/**` | `/projects` 200·아일랜드 0. 프로젝트 글 2편 200, Part 탭 2·3, 본문 이미지 모두 `assets/`, og:image `/og/<글 ID>.png`. `/projects/llm-yatcha` 리다이렉트, `/blog/llm-yatcha` 리다이렉트. `/projects/nope`·`/projects/cruz-lab/nope` 404·안내 화면 |
+| 사이트맵·OG 메타 | `sitemap-posts.xml`에 프로젝트 글 8. 홈·`/projects`·404의 og:image는 `/og/default.png`, 글 상세는 `/og/<글 ID>.png`. og:image는 사이트 주소(`www.cruzlab.dev`) 기준이다(`Astro.site`, 미리보기에서도 같다) |
+| 페이지 시간(참고) | 프로젝트 글 첫 요청 2.15초(콜드), 그다음 0.25초. 글 상세 1.18초 |
+
+남은 것(사용자 결정 2026-11-10): PR-C 병합 뒤 `rebuild` 미리보기에서 사용자가 관리자로 로그인하면 시험 글 1편(코드·콜아웃·이미지 1장)·시험 노트 1편으로 Plan 8.5의 1·2·3·5를 한다. Lighthouse(CDN 포함)는 미리보기의 로그인 보호 때문에 CLI로 재지 못했다(로컬 값은 4.16).
+
 ## 5. Plan과 다르게 하거나 Plan이 정하지 않은 것
 
 1. **언어 목록을 `src/lib/content/code-languages.ts`로 옮겼다.** Plan D8은 `CODE_LANGUAGES`(`src/editor/extensions/lowlight.ts`)를 그대로 쓰라고 했다. 그 파일을 서버 하이라이터가 가져오면 lowlight·highlight.js가 서버 번들에 들어간다. 목록만 옮기고 `lowlight.ts`가 다시 내보낸다. 목록은 하나다.
@@ -373,6 +506,45 @@ PR-B(T3·T4·T5, 2026-11-10)에서 판단한 것:
 50. **죽은 코드를 지웠다(6.2 경미 9).** `getAllContentTags()`, `ContentPost`의 `content`·`heroImage`·`heroVideo`·`isPublic` 칸(옛 React 카드가 썼다).
 51. **새 파일만 prettier로 정리했다.** 기존 파일은 원래 형식이 맞지 않던 것이 많아(PR-A 인계 노트 4) 손대지 않았다.
 
+PR-C(T6·T7·T8, 2026-11-10)에서 판단한 것:
+
+52. **이전 표지는 `legacy`가 아니라 새 칸 `projectSource`다(Plan 7절은 "`legacy` 표지처럼").** `legacy.postId`에 파일 경로를 넣으면 2단계 재동기화(`stage2-entries.mjs`)가 옛 `posts`에 없는 글로 보고 `delete-candidate`로 판정한다. main 병합 직전에 그 스크립트를 `--propagate-deletes`로 돌리면 프로젝트 글이 지워진다. 그래서 칸을 따로 둔다: `{ path, sourceHash, syncedDraftVersion, syncedRevision, syncedStatus, migratedAt }`. 스키마에 선택 칸으로 더했다(더하기만). 글 저장·발행은 `tx.update`로 칸 일부만 쓰므로 이 칸은 남는다.
+53. **에디터로 지운 프로젝트 글은 `publishLog`의 삭제 기록으로 알아본다.** 삭제 API는 `legacy`가 있는 글에만 `entryTombstones`를 쓴다. API를 바꾸지 않고, 스크립트가 `publishLog`에서 `entryId in [8개]`·`action == delete`를 읽어 `skip-deleted-in-rebuild`로 판정한다(되살리지 않는다).
+54. **원본 위치는 `--source-root`로 고른다. 날짜는 git 기록이다.** PR-C가 원본을 지우므로, main 병합 직전 재실행(D1 운영 규칙)은 main checkout을 준다. 원본에 날짜 칸이 없어 `publishedAt`은 파일의 첫 커밋, `lastPublishedAt`은 마지막 커밋 시각이다(`git log --follow`. 2025-12-16~2026-04-21). 원본 해시에는 본문 이미지의 SHA-256도 넣어 이미지만 바뀌어도 다시 옮긴다.
+55. **seriesMeta 4개는 새 문서다. 기간은 `YYYY-MM` 글자다.** Plan은 "`project` 칸을 더한다"였지만 프로젝트 key 문서가 없었다. 원본 값이 월까지라(`2025-12`) 날짜로 바꾸지 않는다. 카드 커버의 날짜는 그 달 1일(UTC)이다. 같은 key가 글 연재로 이미 있으면(project 칸 없음) 스크립트가 멈춘다.
+56. **`chapterLabel` 칸은 옮기지 않는다.** 원본 8편이 모두 "Part <order>"다. 화면이 order로 "Part N"을 만든다. 다른 값이면 스크립트가 멈춘다.
+57. **왕복 검사는 63이 아니라 69편이다.** PR-B가 끝난 뒤 사용자가 초안 2편(post 1·note 1)을 더 만들어 `entries`가 61이었다. 61 + 8 = 69/69 통과.
+58. **(사용자 결정 2026-11-10) `tools/cruz-lab-knowledge-mcp`가 읽는 `src/content/projects`를 Plan대로 지웠다.** Plan이 몰랐던 의존이다. 도구 코드는 고치지 않았다. 폴더가 없으면 `list_projects`·`get_project_context`·`cruzlab://projects`가 "폴더 없음" 오류를 낸다. `search_docs`는 나머지 범위(career 폴더)로 돈다. 도구 README 정리는 감사 문서 11.3 "main 병합 직전" 목록에 더했다. Firestore를 읽게 바꿀지는 5단계 Plan에서 다시 묻는다.
+59. **프로젝트 글 머리줄과 이웃.** 카테고리가 없으므로 머리줄 첫 칸은 프로젝트 이름(→ `/projects`)이다. 연재 상자 자리에 Part 탭(`PartTabs`)을 둔다(D16 3). 이전·다음은 발행순이 아니라 Part 순서다(D17 "이전·다음 Part"). 이름표는 "이전 Part"·"다음 Part"이고 제목 앞에 "Part N ·"를 붙인다.
+60. **프로젝트 정보가 없으면 보이지 않는다.** `seriesMeta.project`가 없거나 스키마에 맞지 않는 연재의 project 글은 404이고, 발행 Part가 없는 프로젝트는 목록에서 뺀다(`/projects/<key>`가 보낼 곳이 없다).
+61. **`/projects/**`는 모두 SSR이고 캐시 태그를 쓴다.** Plan D11 표는 이 칸이 비어 있었다. 목록·302는 `posts`, 글은 `posts,post-<id>`(글 상세와 같다). 발행·숨김·삭제 퍼지가 그대로 듣는다.
+62. **project 발행 규칙: 카테고리 선택, 연재 필수.** D1 표 그대로다. 저장 문서 검사(`entryDocSchema`)도 project 발행본에 연재가 없으면 오류로 본다. 지금 project를 새로 만드는 API는 없다(`CREATABLE_KINDS`는 post·note, 5단계).
+63. **`publicPathFor`가 세 번째 인자로 연재를 받는다.** project 주소에 프로젝트 key가 필요하다. 호출하는 곳 4곳(발행 API, 에디터, 상세 조회 2)이 모두 넘긴다. post·note는 연재와 상관없다(테스트).
+64. **OG 카드는 카드 커버에서 필름 노이즈를 빼고 격자를 기울이지 않는다.** satori는 SVG 필터 배경(feTurbulence)을 그리지 못한다. 기울인 격자에 가장자리 흐림(mask)을 씌우면 resvg가 한 장에 2.9~3.5초 걸렸다(리뷰 중요 4). 기울이지 않으면 0.43~0.46초다(같은 측정, mask는 그대로). 팔레트·블롭·격자(56px)·흐림·아래 그늘은 같다. 제목 54자(가장 긴 글)도 52px 2줄에 들어간다(확인). 설명은 1줄로 자르고 "…"를 붙인다.
+65. **OG 글자는 NFC로 맞추고 그림 문자를 뺀다(`ogText`).** 서브셋 검사에서 글 10편의 설명 맨 앞 💡와, 글 1편(「FlatList 활용하기(feat. 최적화)」)의 NFD 제목(분해된 자모)이 나왔다. 둘 다 글꼴에 없어 빈 칸이 된다. 서브셋 스크립트도 같은 규칙으로 센다. 지금 서브셋 밖 글자 0.
+66. **서브셋 범위와 크기.** ASCII, 라틴-1, 일반 구두점, 화살표·수학 기호 일부, 원 숫자, 도형 몇 개, 한중일 구두점, 호환 자모, KS X 1001 한글 2,350자 + 글 글자 = 2,704글자, 391,128바이트(Plan 어림 500 KB). 글에 있지만 원본에도 없는 글자는 0.
+67. **cmap 판독기를 직접 썼다(`scripts/ops/lib/font-cmap.mjs`).** 서브셋이 실제로 그릴 수 있는 글자를 확인하려면 글꼴의 cmap을 읽어야 한다. `subset-font`의 하위 의존성(harfbuzz)은 pnpm에서 직접 가져올 수 없다. 형식 4·12만 읽는 70줄이다.
+68. **`getPublishedEntryById()`를 더했다.** OG는 글 ID로 조회한다(slug가 바뀌어도 같은 주소, D13). 공개 데이터와 같이 60초 메모, 발행 때 비워진다.
+69. **OG 404는 글자 응답이다.** 이미지 주소에 HTML 안내 화면은 쓸모가 없다. 그래도 `X-Astro-Reroute: no`를 붙여 Astro가 404 화면으로 바꿔 그리지 않게 한다(5절 31과 같은 이유).
+70. **OG 그리기 결과는 복사한 배열이다.** `Response` 본문 타입(`BodyInit`)이 Node `Buffer`의 배열 형식을 받지 않아 `tsc`가 오류를 냈다. 450 KB 복사라 비용은 작다. 콜드 첫 그림 3.6초(로컬 빌드), 그 뒤 0.6~0.8초.
+71. **점검 스크립트 구성.** `stage4-public.mjs`는 2단계 점검을 자식 프로세스로 끝에 돌린다(Plan 8.2 "그대로 포함"). 옛 프로젝트 페이지 비교는 이전 때 한 번 하는 검사라 옵션(`--project-baseline`)이다. 비교는 태그·제목 앵커·코드 머리줄을 빼고, 코드 토큰 경계는 붙이고, 둥근 따옴표를 곧은 따옴표로 맞춘다. 옛 HTML 8편은 세션 공유 노트에 있다(저장소 밖).
+72. **이전·다음 이름표의 조사를 고쳤다.** "이전 노트과 다음 노트"(PR-B)가 틀린 조사였다. "이전·다음 노트"처럼 조사 없이 쓴다.
+73. **움직이는 webp 3개는 자산 API가 움직이는 webp로 다시 만든다.** 800px이라 최대 변형이 원본 폭이다. 2개는 원본보다 커졌다(605,924 → 740,248, 1,119,272 → 1,282,880바이트), 1개는 작아졌다(4,188,546 → 469,428). 2단계 변형 규칙 그대로라 손대지 않았다.
+
+리뷰(6.3) 뒤에 판단한 것:
+
+74. **되돌리기는 실행 기록(`migration.json`)에 있는 것만 지운다(리뷰 중요 2).** 실제 실행이 덤프 폴더에 "새로 올린 자산"·"새로 만든 seriesMeta 문서" 목록을 남긴다. 되돌리기는 `--manifest`로 그 기록을 받아 그 자산(지울 글만 쓸 때)과 문서만 지운다. 기록이 없으면 글과 `project` 칸만 지우고 자산은 usedBy만 고친다(비면 고아 표시, 7일 뒤 정리). 이전 뒤 에디터로 고친 글은 빼고 알린다(`--include-edited`로만 지운다). 순서는 글 → 자산·seriesMeta 문서 → Storage 파일이다. 이번 실행의 기록은 리뷰 뒤에 같은 실행의 보고서로 만들었다(`~/projects/cruz-lab-backups/20261110-011920-stage4-projects/migration.json`, 자산 ID 10개는 보고서와 같다). 선택 규칙은 순수 함수(`planProjectRollback`)로 옮겨 테스트했다.
+75. **원본 안의 문서 ID·slug 겹침을 오류로 막는다(리뷰 경미 7).** `project-a-b-c`처럼 key·slug 경계가 다른 두 원본, 두 폴더의 같은 파일 이름.
+76. **재동기화 갱신은 읽은 시각을 전제 조건으로 쓴다(리뷰 경미 8).** 읽은 뒤 이미지를 올리는 동안 에디터가 저장했으면 커밋이 실패한다(덮지 않는다). 만들기는 이미 `create`라 문서가 있으면 실패한다.
+77. **재동기화 갱신이 원본에서 뺀 이미지의 usedBy를 고친다(리뷰 경미 9).** 비면 고아 표시. CDN 퍼지는 스크립트가 할 수 없다(Vercel 함수 안에서만 된다). 보고서에 알리고, main 병합 뒤 새 배포는 빈 캐시로 시작한다.
+78. **에디터로 지운 프로젝트 글도 `entryTombstones`를 먼저 쓴다(리뷰 경미 10).** 삭제 API가 `legacy` 또는 `projectSource`가 있으면 표지를 쓴다(`legacyPostId`는 프로젝트 글이면 null, `projectSourcePath`). 이전 스크립트는 표지와 `publishLog` 삭제 기록을 모두 본다. 2단계 스크립트는 표지 ID만 쓰므로 영향이 없다.
+79. **2단계 재동기화가 seriesMeta를 덮을 때 `project` 칸을 남긴다(리뷰 경미 11).** 지금 연재 key와 프로젝트 key는 겹치지 않지만 `set`이 칸을 지우지 않게 했다. `stage2-rollback.mjs`는 새 컬렉션을 통째로 지운다(프로젝트 이전분 포함). 그 뒤 다시 옮기려면 `--source-root`(main checkout)가 필요하다.
+80. **OG 글자 정리는 그림으로 보이는 이모지만 뺀다(리뷰 경미 5).** `Emoji_Presentation`과 변형 선택자(U+FE0F)가 붙은 기호를 뺀다. © ® ™ ↔ ▶ ✔처럼 글자로 보이는 기호는 남긴다(서브셋이 담고 있다).
+81. **OG 주소의 ID는 Firestore 문서 ID 규칙으로 검사한다(리뷰 경미 6).** 한글 slug 프로젝트 글(`project-<key>-<한글>`)도 받는다. '/'·'.'·'..'·`__…__`·300자 초과는 404.
+82. **OG의 글 조회는 메모리 캐시를 쓰지 않는다(리뷰 경미 12).** 재발행 퍼지 직후 다른 인스턴스의 낡은 메모로 그린 그림이 CDN에 하루 저장되는 것을 막는다. OG 요청은 CDN에서 대부분 끝난다.
+83. **점검 스크립트의 거짓 통과를 막았다(리뷰 중요 3).** 열어 본 프로젝트 글 수 = 발행 프로젝트 글 수, 프로젝트 정보가 없는 발행 프로젝트 글은 실패, 본문을 못 찾으면 실패, 페이지 이미지 수 = 본문 `![` 수, 옛 페이지 본문을 못 찾으면 실패.
+84. **`scripts/smoke/stage2-api.mjs`의 기대값 3개를 고쳤다.** 발행 뒤 목록은 글 주소 링크로 찾는다(PR-B부터 목록에 글 ID가 없다). 노트 발행의 `publicUrl`은 `/notes/<slug>`, `/notes/<slug>` 200, `/blog/<노트 slug>`는 301이다(D12). API 계약은 그대로다.
+
 ## 6. 리뷰 결과
 
 ### 6.1 PR-A
@@ -423,27 +595,46 @@ PR-B(T3·T4·T5, 2026-11-10)에서 판단한 것:
 
 리뷰어가 확인한 것: 동의어 태그 301(대문자·공백·NFD·끝 슬래시, 무한 리다이렉트 없음), 옛 연재 주소 2개, `/notes/<글 slug>` → `/blog/<slug>` 301(인코딩·캐시 태그, 왕복 루프 없음), 404의 캐시 헤더 없음, 공개 응답 `Set-Cookie` 없음, `/blog` 약 61 KB, 검색(결과 수·빈 묶음·`?q=`·공백만이면 `?q=` 삭제·`[hidden]`), 테마 버튼, 360·375px 페이지 10개 가로 넘침 0, 1280px 본문 688px·17px/1.75·본문 h1 = h2 = 27px, `prose.css` 단독(목록·표·각주·kbd·인용), 보안(`set:html`은 파이프라인 결과 2곳과 상수 하나, 외부 링크 `noopener noreferrer`, `?q`는 `value`·`textContent`로만), 남은 참조 없음(지운 파일·의존성), D6·부록 B·D11·D12·D16·D17·연재 입구 4곳. 구현자 판단 13건 중 11건 타당, 2건 재고(404 방식·사이트맵 중복, 둘 다 고침).
 
+### 6.3 PR-C
+
+새 리뷰어(별도 에이전트, 읽기 전용)가 커밋 전 작업 트리를 검토했다. lint·테스트·`tsc`를 돌리고, 이전·되돌리기 시험 실행(읽기만), 스크래치 스크립트로 OG 그리기 시간을 재고, 개발 서버(4327)와 빌드 결과(4391)를 GET으로 읽었다. 치명 0, 중요 4, 경미 10건이었다. 중요 4건과 경미 9건을 고쳤다.
+
+| 지적 | 처리 |
+|---|---|
+| 중요 1: `stage4-public.mjs`에 NBSP 원문자가 있어 `pnpm lint`가 실패한다 | 고침(`\u00a0`). lint 통과 |
+| 중요 2: 되돌리기가 이전한 것보다 더 지울 수 있다(이전 뒤 에디터로 올린 이미지, 해시로 다시 쓴 원래 자산, 에디터로 고친 글). Storage 파일은 덤프에 없다. Storage를 글보다 먼저 지운다 | 고침(5절 74). 실행 기록만 지우고, 고친 글은 빼고, 글을 먼저 지운다 |
+| 중요 3: 점검 스크립트가 프로젝트 정보가 깨진 경우·본문 추출 실패를 통과시킨다 | 고침(5절 83) |
+| 중요 4: OG 1장이 1.6~5초(resvg가 기울인 격자 + mask에서 2.5~2.9초) | 고침(5절 64). 로컬 빌드 0.4~0.6초(가끔 1~2.5초). Vercel 시간은 미리보기에서 잰다(4.17) |
+| 경미 5: `ogText`가 © ™ ↔ ▶ 같은 글자 기호도 지운다 | 고침(5절 80) |
+| 경미 6: 한글 slug 프로젝트 글의 OG가 404다(잠재) | 고침(5절 81) |
+| 경미 7: 원본 문서 ID·slug 겹침 검사 없음(잠재) | 고침(5절 75) |
+| 경미 8: 읽기와 쓰기 사이에 에디터가 저장하면 덮는다 | 고침(5절 76) |
+| 경미 9: 재동기화 갱신 뒤 CDN 퍼지·빠진 이미지 usedBy | usedBy 고침, 퍼지는 보고서 안내(5절 77) |
+| 경미 10: 에디터로 지운 글의 표지가 best-effort `publishLog`뿐 | 고침(5절 78) |
+| 경미 11: 2단계 스크립트와의 잠재 충돌(seriesMeta `set`, 되돌리기, slug 조회의 post 우선) | seriesMeta만 고침(5절 79). 되돌리기는 기록, slug는 발행 API가 유일성을 지킨다(그대로) |
+| 경미 12: 인스턴스 간 메모로 낡은 OG가 하루 저장될 수 있다(추측) | 고침(5절 82) |
+| 경미 13: 되돌리기 자산 조회가 30개에서 잘린다 | 고침(30개씩 나눠 묻는다. `publishLog`·해시 조회도 같다) |
+| 경미 14: 배포 확인(글꼴 경로, resvg linux 바이너리. 로컬 `vercel build --prebuilt`로 배포하면 실패) | 미리보기에서 확인(4.17). 이 저장소는 Vercel이 빌드한다 |
+| 테스트 빈틈: 되돌리기 선택, 원본 겹침, `listSeriesMeta`의 잘못된 project, OG 라우트, 기호 보존 | 되돌리기·겹침·기호·OG ID는 테스트를 더했다. `listSeriesMeta`·라우트는 Firestore 목업이 필요해 공개 점검(없는 ID 404)과 미리보기로 대신했다 |
+
+리뷰어가 확인한 것: 테스트 567·`tsc` 0, 이전 시험 실행 skip 8·되돌리기 시험 실행 8·10·4(Plan 9.2와 같다), 2단계 재동기화가 `legacy.postId` 없는 글을 건너뛴다(project 글이 삭제 후보가 되지 않는다), 에디터 쓰기는 `tx.update`라 `projectSource`가 남는다, 충돌 판정(초안 저장·발행·숨김), post·note 발행 규칙 그대로, `publicPathFor` 호출 모두 연재를 넘김, 프로젝트 404 2종(캐시 없음·`noindex`·안내 화면), OG 404·초안 OG 404(캐시 없음), 다른 key 301·`/projects/<key>` 302·루프 없음, 캐시 태그, 공개 점검 838·2단계 324 통과, 아일랜드 0, Part 탭 `aria-current`·nav 이름·이전다음 링크, satori 입력은 문자열 자식만(주입 경로 없음), 서브셋 밖 글자(漢字)에서도 예외 없음, MCP 도구는 폴더가 없으면 오류 응답(서버가 죽지 않음).
+
 ## 7. 다음 작업
 
-**끝난 것.** PR-A(T1·T2) 병합(`2b32907`). PR-B(T3·T4·T5) 구현·검증·리뷰 수정(1~6절), 시험 노트 확인(4.11), 커밋·푸시·[PR #16](https://github.com/crucial-sub/cruz-lab/pull/16).
+**끝난 것.** PR-A(T1·T2) 병합(`2b32907`). PR-B(T3·T4·T5) 병합(`2ca985d`). PR-C(T6·T7·T8) 구현·검증·리뷰 수정(2.7~2.9, 4.12~4.17, 5절 52~83, 6.3). 프로젝트 글 이전 실행(4.13). PR-B에서 넘어온 미리보기 확인 2건(SSR 404, 콜드 TTFB, 4.17).
 
 **다음 것.**
 
-1. 남은 것: [PR #16](https://github.com/crucial-sub/cruz-lab/pull/16) 병합(사용자 확인 뒤). 시험 노트는 확인하고 지웠다(4.11).
-2. (T8) 미리보기에서 `curl -i <미리보기>/blog/tag/no-such`로 SSR 404의 본문·헤더를 본다(5절 31, 리뷰 중요 3의 운영 확인).
-3. PR-B 병합 뒤 `rebuild` 미리보기에서 글 상세 콜드 TTFB(D7 뒤집는 조건 1.5초)와 Lighthouse(CDN 포함)를 잰다. 로컬 값은 4.9.
-4. PR-C(T6·T7·T8)는 새 세션이다. PR-B에서 넘기는 것:
-   - `/projects` 목록은 `ProjectCard.astro`(props만 받음)다. T6은 데이터 출처(`entries` kind `project` + `seriesMeta.project`)만 바꾼다. 프로젝트 글은 `PostArticle` + Part 탭으로 다시 쓴다(D16·D17). 지금 프로젝트 글은 `Reveal`만 뺀 3단계 화면에 `prose.css`를 붙였다.
-   - `/about`의 프로젝트 4줄은 파일에 있다(5절 22). key 4개(`llm-yatcha`·`stock-lab`·`cruz-lab`·`jungle-tetris`)가 T6의 `seriesMeta` key와 같고 `/projects/<key>` → 첫 글 302가 남으면 고칠 것이 없다.
-   - 새 SSR 페이지(`/projects/<key>/<slug>`)의 없는 주소는 `markNotFound()` + `NotFound.astro`로 그린다(5절 31). 빈 404 응답을 돌려주지 않는다.
-   - `publicPathFor('project')`는 아직 null이다. T6이 `/projects/<key>/<slug>`를 더한다. 에디터의 "이 종류는 아직 공개 주소가 없습니다" 토스트는 그 뒤 쓰이지 않는다.
-   - `BaseHead`의 `ogImage` 기본값을 `/og/default.png`로, 글·노트 상세는 `/og/<id>.png`로 바꾼다(T7, D13). 노트 상세도 OG를 받는다(D12).
-   - T8 `scripts/smoke/stage4-public.mjs`는 공유 노트의 `stage4-pr-a-post-detail-check.mjs`(PR-A)와 `stage4-pr-b-public-check.mjs`(PR-B)를 합쳐 옮긴다. PR-B 점검은 저장소 경로를 절대 경로로 가져오므로 옮길 때 상대 경로로 바꾼다.
-   - JS 끈 확인은 CDP 방식(5절 40), Lighthouse는 빌드 결과 + gzip 프록시 방식(5절 41)을 다시 쓸 수 있다. 두 스크립트는 공유 노트에 남겼다.
-   - 콘텐츠 컬렉션·`@astrojs/mdx` 삭제는 T6이다(Plan 6.2).
+1. PR-C 커밋·푸시·PR 끝([PR #17](https://github.com/crucial-sub/cruz-lab/pull/17)). 병합은 사용자 확인 뒤.
+2. 미리보기 확인(Plan 8.5, 4.17에 이어 적는다. 사용자 결정 2026-11-10: 브랜치 먼저, 시험 글은 PR-C 병합 뒤 `rebuild` 미리보기에서 사용자 관리자 로그인으로): 브랜치 미리보기에서 `/og/<id>.png`·`/og/default.png`가 Vercel 함수에서 그려지는지(resvg linux 바이너리, `includeFiles` 글꼴, 그리기 시간), `/projects/**`. 시험 글·노트(사용자 확인 뒤): 발행 → 첫 요청 새 내용 → OG, 제목 고쳐 재발행 → OG 새 제목, 노트 → `/notes`·홈·노트 RSS·노트 OG, 끝에 삭제 → 남은 데이터 0.
+3. 문서 PR(T9)은 새 세션이다. 원료는 이 작업 문서와 Plan 15절이다.
+4. 병합 직전 할 일은 감사 문서 11.3(프로젝트 재동기화 명령 6, MCP 도구 문서 5 포함).
 
 ## 8. 열린 질문
 
 1. ~~운영 왕복 검사 58/59(4.2)~~ 닫음: 사용자가 a안(정규화 규칙 7)을 골랐다(2026-11-09). 59/59(5절 21).
 2. ~~시험 노트로 노트 화면을 확인할지~~ 닫음: 사용자가 "지금 확인하고 삭제"를 골랐다(2026-11-10). 4.11.
 3. 실제 브라우저(Chrome·Safari)의 클립보드 API 경로 확인(PR-A에서 넘어옴). 이 앱 브라우저는 권한이 거부돼 대체 경로만 확인했다.
+4. 글 상세 콜드 TTFB가 1.44초로 D7 뒤집는 조건(1.5초)에 가깝다(4.17, 한 번 잼). 5단계 Plan을 쓸 때 몇 번 더 재서 미리 계산(Plan 14절)을 다시 볼지 정한다.
+5. `tools/cruz-lab-knowledge-mcp`의 프로젝트 기능(5절 58): Firestore를 읽게 바꿀지 5단계 Plan에서 묻는다.
+6. OG 첫 요청이 콜드면 11.7초였다(4.17). 소셜 크롤러가 발행 직후 첫 요청에서 시간 초과할 수 있다. 줄이는 방법 후보: 발행 응답 뒤 백그라운드(`waitUntil`)로 `/og/<id>.png`를 한 번 받아 CDN을 데운다, resvg를 wasm으로 바꿔 잰다. 5단계 Plan에서 정한다.

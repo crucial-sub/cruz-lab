@@ -134,6 +134,12 @@ export function MetaPanel(props: MetaPanelProps) {
               노트는 제목·설명·카테고리가 선택입니다. 본문만 있으면 발행할 수 있습니다.
             </p>
           )}
+          {props.kind === 'project' && (
+            <p className="rounded-md bg-bg-card px-3 py-2 text-xs text-text-secondary">
+              프로젝트 글은 카테고리가 선택입니다. 연재 칸에 프로젝트 key, 순서에 Part 번호를 씁니다. 주소는
+              /projects/&lt;key&gt;/&lt;slug&gt;입니다.
+            </p>
+          )}
 
           <Field label="설명" issue={issues.description}>
             <textarea

@@ -8,7 +8,7 @@
 - Project posts: <https://cruzlab.dev/projects/cruz-lab>
 - GitHub: <https://github.com/crucial-sub/cruz-lab>
 
-![Cruz Lab preview](./src/assets/img/projects/cruz-lab/cruz-lab.png)
+![Cruz Lab preview](./.github/readme/cruz-lab-preview.png)
 
 ## 한눈에 보기
 

@@ -124,6 +124,29 @@ describe('checkPublishable', () => {
     expect(result.ok && result.content.slug).toBe('note-20261108-1204');
   });
 
+  it('project는 제목·설명·slug·본문·연재가 필요하고 카테고리는 없어도 된다(4단계 D1)', () => {
+    const missing = checkPublishable({
+      kind: 'project',
+      draft: content({ title: '', description: '', slug: '', category: null, series: null, markdown: ' ' }),
+      currentPublishedSlug: null,
+      now: NOW,
+    });
+    expect(missing.ok).toBe(false);
+    if (!missing.ok) {
+      expect(missing.issues.map((issue) => issue.field).sort()).toEqual(
+        ['description', 'markdown', 'series', 'slug', 'title'].sort(),
+      );
+    }
+
+    const ok = checkPublishable({
+      kind: 'project',
+      draft: content({ category: null, slug: 'cruz-lab-operating-cms', series: { key: 'cruz-lab', order: 1 } }),
+      currentPublishedSlug: null,
+      now: NOW,
+    });
+    expect(ok.ok && ok.content).toMatchObject({ category: null, series: { key: 'cruz-lab', order: 1 } });
+  });
+
   it('note를 다시 발행할 때 slug가 비어 있으면 지금 발행본의 slug를 다시 쓴다', () => {
     const result = checkPublishable({
       kind: 'note',
@@ -219,10 +242,22 @@ describe('상태 변화 (Plan 6.3 표)', () => {
 });
 
 describe('publicPathFor', () => {
-  it('post는 /blog, note는 /notes(4단계 D12), project는 아직 없다', () => {
+  it('post는 /blog, note는 /notes(4단계 D12), project는 /projects/<프로젝트 key>/<slug>(D1)', () => {
     expect(publicPathFor('post', 'abc')).toBe('/blog/abc');
     expect(publicPathFor('note', 'note-20261108-1204')).toBe('/notes/note-20261108-1204');
+    expect(publicPathFor('project', 'cruz-lab-operating-cms', { key: 'cruz-lab' })).toBe(
+      '/projects/cruz-lab/cruz-lab-operating-cms',
+    );
+  });
+
+  it('연재(프로젝트 key)가 없는 project 글은 주소가 없다', () => {
     expect(publicPathFor('project', 'part-1')).toBeNull();
+    expect(publicPathFor('project', 'part-1', null)).toBeNull();
+    expect(publicPathFor('project', 'part-1', { key: '' })).toBeNull();
+  });
+
+  it('post·note는 연재가 있어도 주소가 같다', () => {
+    expect(publicPathFor('post', 'abc', { key: 'pintos' })).toBe('/blog/abc');
   });
 });
 

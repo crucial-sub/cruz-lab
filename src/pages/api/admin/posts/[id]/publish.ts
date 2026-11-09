@@ -5,7 +5,7 @@
 //   CDN 퍼지와 백업 알림은 함께 보낸다. 둘 다 실패해도 발행은 성공이다.
 //   assetUsage는 커밋 뒤 자산 사용 기록 갱신 결과다(실패해도 발행은 성공).
 //   publicUrl은 지금 요청한 사이트 기준이다(entries는 rebuild 배포에서만 보인다). note는 /notes/<slug>(4단계 D12),
-//   project는 아직 공개 주소가 없어 null(4단계 PR-C가 더한다).
+//   project는 /projects/<프로젝트 key>/<slug>(4단계 D1). 연재가 없는 project 글은 주소가 없어 null이다.
 
 import type { APIRoute } from 'astro';
 import { z } from 'zod';
@@ -31,7 +31,7 @@ export const POST: APIRoute = withAdminApi(async ({ params, request, url }) => {
     purgePublicCache(id),
     notifyContentChanged({ entryId: id, action: 'publish' }),
   ]);
-  const publicPath = publicPathFor(result.kind, result.slug);
+  const publicPath = publicPathFor(result.kind, result.slug, result.series);
 
   return jsonResponse({
     revision: result.revision,

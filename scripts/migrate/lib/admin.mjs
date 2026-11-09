@@ -154,10 +154,16 @@ export class ChunkedBatch {
     assertWritableCollection(top, this.allowed);
   }
 
-  async op(kind, ref, data) {
+  // precondition: update에만 쓴다. { lastUpdateTime }을 주면 그 뒤에 문서가 바뀌었을 때 커밋이 실패한다
+  async op(kind, ref, data, precondition) {
     this.check(ref);
     if (kind === 'create') this.batch.create(ref, data);
     else if (kind === 'set') this.batch.set(ref, data);
+    // 칸 일부만 바꾼다(4단계 프로젝트 이전: 자산 usedBy, seriesMeta.project 칸 삭제, 재동기화 갱신)
+    else if (kind === 'update') {
+      if (precondition) this.batch.update(ref, data, precondition);
+      else this.batch.update(ref, data);
+    }
     else if (kind === 'delete') this.batch.delete(ref);
     else throw new Error(`모르는 쓰기 종류: ${kind}`);
     this.size += 1;

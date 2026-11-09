@@ -4,16 +4,30 @@ import type { PublicEntrySummary } from '@/lib/server/entries';
 
 const findPublishedEntryBySlug = vi.fn();
 const listPublishedEntries = vi.fn();
+const listSeriesMeta = vi.fn();
 
 vi.mock('@/lib/server/entries', () => ({
   findPublishedEntryBySlug: (slug: string) => findPublishedEntryBySlug(slug),
   listPublishedEntries: () => listPublishedEntries(),
   listPublishedNoteEntries: async () => [],
-  listSeriesMeta: async () => new Map(),
+  listSeriesMeta: () => listSeriesMeta(),
 }));
 
-const { getAdjacentPosts, resolveNotePageBySlug, resolvePostPageBySlug } = await import('@/lib/content-posts');
-const { categoryPath, notePath, seriesPath, tagPath } = await import('@/lib/public-paths');
+const {
+  getAdjacentParts,
+  getAdjacentPosts,
+  getPublishedProjects,
+  getPublishedSeriesList,
+  resolveNotePageBySlug,
+  resolvePostPageBySlug,
+  resolveProjectPageBySlug,
+} = await import('@/lib/content-posts');
+const { categoryPath, notePath, ogImagePath, projectPath, projectPostPath, seriesPath, tagPath } = await import(
+  '@/lib/public-paths'
+);
+
+// 프로젝트 정보 (seriesMeta.project)
+const PROJECT_META = { longDescription: '', tags: [], tech: ['Astro 5'], featured: true, order: 2 };
 
 function summary(id: string, kind: PublicEntrySummary['kind'], day: number): PublicEntrySummary {
   const date = new Date(Date.UTC(2026, 0, day));
@@ -37,7 +51,14 @@ function summary(id: string, kind: PublicEntrySummary['kind'], day: number): Pub
 beforeEach(() => {
   findPublishedEntryBySlug.mockReset();
   listPublishedEntries.mockReset();
+  listSeriesMeta.mockReset();
+  listSeriesMeta.mockResolvedValue(new Map());
 });
+
+// 프로젝트 글 요약 (연재 = 프로젝트 key, Part 번호)
+function projectSummary(id: string, key: string, order: number, day: number): PublicEntrySummary {
+  return { ...summary(id, 'project', day), series: { key, order } };
+}
 
 describe('resolvePostPageBySlug', () => {
   it('글이면 그 글을 돌려준다', async () => {
@@ -75,11 +96,28 @@ describe('resolvePostPageBySlug', () => {
     });
   });
 
-  it('공개 주소가 아직 없는 kind(project)의 slug는 찾지 못한 것이다', async () => {
+  it('프로젝트 글의 slug는 /projects/<key>/<slug>로 보낸다 (4단계 D1)', async () => {
+    const project = { ...projectSummary('pr1', 'cruz-lab', 1, 1), markdown: '프로젝트 글', revision: 1 };
+    findPublishedEntryBySlug.mockResolvedValue({ entry: project });
+    expect(await resolvePostPageBySlug('pr1-slug')).toEqual({
+      type: 'redirect',
+      location: '/projects/cruz-lab/pr1-slug',
+      id: 'pr1',
+    });
+    expect(await resolveNotePageBySlug('pr1-slug')).toMatchObject({ location: '/projects/cruz-lab/pr1-slug' });
+    findPublishedEntryBySlug.mockResolvedValue({
+      redirectTo: 'pr1-slug',
+      entryId: 'pr1',
+      kind: 'project',
+      series: { key: 'cruz-lab', order: 1 },
+    });
+    expect(await resolvePostPageBySlug('옛-slug')).toMatchObject({ location: '/projects/cruz-lab/pr1-slug' });
+  });
+
+  it('연재가 없는 프로젝트 글은 주소를 만들 수 없어 찾지 못한 것이다', async () => {
     const project = { ...summary('pr1', 'project', 1), markdown: '프로젝트 글', revision: 1 };
     findPublishedEntryBySlug.mockResolvedValue({ entry: project });
     expect(await resolvePostPageBySlug('pr1-slug')).toBeNull();
-    expect(await resolveNotePageBySlug('pr1-slug')).toBeNull();
   });
 
   it('없으면 null', async () => {
@@ -105,6 +143,59 @@ describe('resolveNotePageBySlug', () => {
       location: '/notes/%EC%83%88-%EB%85%B8%ED%8A%B8',
       id: 'n1',
     });
+  });
+});
+
+describe('resolveProjectPageBySlug', () => {
+  const entry = { ...projectSummary('pr1', 'cruz-lab', 2, 1), markdown: '본문', revision: 1 };
+
+  it('주소의 프로젝트 key가 같으면 그 글을 그린다', async () => {
+    findPublishedEntryBySlug.mockResolvedValue({ entry });
+    expect(await resolveProjectPageBySlug('cruz-lab', 'pr1-slug')).toEqual({ type: 'post', entry });
+  });
+
+  it('프로젝트 key가 다르면 바른 주소로, 글의 slug면 글 주소로 보낸다', async () => {
+    findPublishedEntryBySlug.mockResolvedValue({ entry });
+    expect(await resolveProjectPageBySlug('stock-lab', 'pr1-slug')).toEqual({
+      type: 'redirect',
+      location: '/projects/cruz-lab/pr1-slug',
+      id: 'pr1',
+    });
+    findPublishedEntryBySlug.mockResolvedValue({ entry: { ...summary('p1', 'post', 1), markdown: '', revision: 1 } });
+    expect(await resolveProjectPageBySlug('cruz-lab', 'p1-slug')).toMatchObject({ location: '/blog/p1-slug' });
+    findPublishedEntryBySlug.mockResolvedValue(null);
+    expect(await resolveProjectPageBySlug('cruz-lab', '없음')).toBeNull();
+  });
+});
+
+describe('getPublishedProjects', () => {
+  it('project 칸이 있고 발행 글이 있는 연재만, order 순, Part는 번호 순이다', async () => {
+    listPublishedEntries.mockResolvedValue([
+      projectSummary('c2', 'cruz-lab', 2, 5),
+      projectSummary('s1', 'stock-lab', 1, 4),
+      summary('p1', 'post', 3),
+      projectSummary('c1', 'cruz-lab', 1, 2),
+    ]);
+    listSeriesMeta.mockResolvedValue(
+      new Map([
+        ['cruz-lab', { title: 'Cruz Lab', description: '블로그', project: { ...PROJECT_META, order: 2 } }],
+        ['stock-lab', { title: 'Stock Lab', description: '퀀트', project: { ...PROJECT_META, order: 1 } }],
+        ['empty', { title: '빈 프로젝트', description: '', project: { ...PROJECT_META, order: 0 } }],
+        ['pintos', { title: 'Pintos', description: '연재', project: null }],
+      ]),
+    );
+    const projects = await getPublishedProjects();
+    expect(projects.map((project) => project.key)).toEqual(['stock-lab', 'cruz-lab']);
+    expect(projects[1].posts.map((post) => post.id)).toEqual(['c1', 'c2']);
+    expect(getAdjacentParts(projects[1], 'c1')).toMatchObject({ previous: null, next: { id: 'c2' } });
+    expect(getAdjacentParts(projects[1], 'c2')).toMatchObject({ previous: { id: 'c1' }, next: null });
+    expect(getAdjacentParts(projects[1], 'x')).toEqual({ previous: null, next: null });
+  });
+
+  it('프로젝트 글은 /series 연재 목록에 들어가지 않는다', async () => {
+    listPublishedEntries.mockResolvedValue([projectSummary('c1', 'cruz-lab', 1, 2)]);
+    listSeriesMeta.mockResolvedValue(new Map([['cruz-lab', { title: 'Cruz Lab', description: '', project: PROJECT_META }]]));
+    expect(await getPublishedSeriesList()).toEqual([]);
   });
 });
 
@@ -159,5 +250,12 @@ describe('public-paths', () => {
   it('태그·연재 주소는 인코딩한다', () => {
     expect(tagPath('크래프톤-정글')).toBe(`/blog/tag/${encodeURIComponent('크래프톤-정글')}`);
     expect(seriesPath('pintos')).toBe('/series/pintos');
+  });
+
+  it('프로젝트·프로젝트 글·OG 이미지 주소 (4단계 D1·D13)', () => {
+    expect(projectPath('cruz-lab')).toBe('/projects/cruz-lab');
+    expect(projectPostPath('cruz-lab', 'cruz-lab-operating-cms')).toBe('/projects/cruz-lab/cruz-lab-operating-cms');
+    expect(projectPostPath('a', '한글-글')).toBe(`/projects/a/${encodeURIComponent('한글')}-${encodeURIComponent('글')}`);
+    expect(ogImagePath('LeFCqFhw9iubpp6OocVu')).toBe('/og/LeFCqFhw9iubpp6OocVu.png');
   });
 });

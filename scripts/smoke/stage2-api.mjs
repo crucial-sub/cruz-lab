@@ -7,6 +7,7 @@
 // - 기존 글은 읽기만 한다. 저장·발행·삭제하지 않는다.
 // - 세션: Admin SDK createCustomToken(ADMIN_UID) → Identity Toolkit signInWithCustomToken → POST /api/admin/session
 // - 실패해도 finally에서 시험 데이터(글, revisions, publishLog, 자산 문서, Storage assets/{id}/)를 지운다.
+// - 4단계 PR-C: 목록 확인은 글 주소 링크로, 노트는 /notes/<slug> 공개 주소와 /blog/<slug> 301로 바꿨다(PR-B 화면·D12에 맞춤).
 
 import { createHash } from 'node:crypto';
 import process from 'node:process';
@@ -272,8 +273,9 @@ async function postFlow(db, asset) {
   const page = await publicGet(`/blog/${slug}`);
   check(page.status === 200 && page.text.includes(draftContent().title), `발행 뒤 /blog/<slug>: 200이어야 한다 (${page.status})`);
   check(!page.headers.get('set-cookie'), '공개 글 응답에 Set-Cookie가 있다');
+  // 4단계 PR-B부터 목록은 서버가 그린 행이다(글 ID가 없다). 글 주소 링크로 찾는다
   const list = await publicGet('/blog');
-  check(list.text.includes(id), '발행 뒤 /blog 목록에 시험 글이 없다');
+  check(list.text.includes(`href="${encodeURI(`/blog/${slug}`)}"`), '발행 뒤 /blog 목록에 시험 글이 없다');
 
   const revision = await db.collection('entries').doc(id).collection('revisions').doc('1').get();
   check(revision.exists && revision.get('slug') === slug, 'revisions/1이 없다');
@@ -318,17 +320,25 @@ async function duplicateSlugFlow(slug) {
   return id;
 }
 
-// 6. note: 발행해도 /blog에 없다
+// 6. note: 공개 주소는 /notes/<slug>다(4단계 D12). /blog 목록에 없고, /blog/<slug>는 /notes/<slug>로 301
 async function noteFlow() {
   const id = await createEntry('note');
   const version = await saveDraft(id, 1, draftContent({ title: '', description: '', slug: '', category: null, tags: [], markdown: '스모크 노트 본문이다.' }));
   const publish = await api('POST', `/api/admin/posts/${id}/publish`, { body: { draftVersion: version } });
-  check(publish.status === 200 && publish.json?.publicUrl === null, `note 발행: 200, publicUrl null이어야 한다 (${publish.status} ${publish.text})`);
   const entry = await api('GET', `/api/admin/posts/${id}`);
   const slug = entry.json?.published?.slug ?? '';
+  check(
+    publish.status === 200 && publish.json?.publicUrl === `${ORIGIN}/notes/${slug}`,
+    `note 발행: 200, publicUrl이 /notes/<slug>여야 한다 (${publish.status} ${publish.text})`,
+  );
   check(/^note-\d{8}-\d{4}$/.test(slug), `note slug 형식이 다르다 (${slug})`);
-  check((await publicGet(`/blog/${slug}`)).status === 404, 'note /blog/<slug>: 404여야 한다');
-  check(!(await publicGet('/blog')).text.includes(id), 'note가 /blog 목록에 있다');
+  check((await publicGet(`/notes/${slug}`)).status === 200, 'note /notes/<slug>: 200이어야 한다');
+  const viaBlog = await publicGet(`/blog/${slug}`);
+  check(
+    viaBlog.status === 301 && viaBlog.headers.get('location') === `/notes/${slug}`,
+    `note /blog/<slug>: /notes/<slug>로 301이어야 한다 (${viaBlog.status} ${viaBlog.headers.get('location')})`,
+  );
+  check(!(await publicGet('/blog')).text.includes(`/${slug}"`), 'note가 /blog 목록에 있다');
 
   // 빈 slug로 다시 발행해도 slug가 바뀌지 않는다
   const nextVersion = await saveDraft(id, version, draftContent({ title: '', description: '', slug: '', category: null, tags: [], markdown: '스모크 노트 본문을 고쳤다.' }));

@@ -399,7 +399,14 @@ export async function publishEntry(id: string, draftVersion: number) {
   });
 
   const { assetUsage } = await syncAssetUsageSafely(id, collectUsedAssetIds([result.draft, result.published]));
-  return { kind: result.kind, revision: result.revision, slug: result.published.slug, assetUsage };
+  // series: 프로젝트 글의 공개 주소(/projects/<key>/<slug>)에 쓴다(4단계 D1)
+  return {
+    kind: result.kind,
+    revision: result.revision,
+    slug: result.published.slug,
+    series: result.published.series,
+    assetUsage,
+  };
 }
 
 // ───────────── 숨김 / 다시 보임 ─────────────
@@ -425,6 +432,7 @@ export async function setEntryVisibility(id: string, visible: boolean) {
 
 // 글 삭제 (Plan 6.3 DELETE)
 // 1. 마이그레이션 출신 글이면 entryTombstones/{id}를 먼저 쓴다(재동기화가 되살리지 않게, 5.4).
+//    4단계 프로젝트 이전 글(projectSource)도 같다(이전 스크립트를 다시 돌려도 되살리지 않게, PR-C 리뷰 경미 10).
 // 2. 문서와 하위 revisions를 지운다(recursiveDelete).
 // 3. 그 글이 쓰던 자산에서 글 ID를 뺀다. usedBy가 비면 orphanedAt을 적는다.
 // 4. publishLog(delete, 마지막 slug).
@@ -437,9 +445,10 @@ export async function deleteEntry(id: string) {
   const lastSlug = entry.published?.slug ?? entry.draft.slug;
   const now = new Date();
 
-  if (entry.legacy) {
+  if (entry.legacy || entry.projectSource) {
     await db.collection(ENTRY_TOMBSTONES_COLLECTION).doc(id).set({
-      legacyPostId: entry.legacy.postId,
+      legacyPostId: entry.legacy?.postId ?? null,
+      ...(entry.projectSource ? { projectSourcePath: entry.projectSource.path } : {}),
       deletedAt: now,
       lastSlug,
     });

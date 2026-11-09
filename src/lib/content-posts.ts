@@ -1,11 +1,13 @@
 // 공개 페이지용 글 데이터 (재건 2단계 Plan 8절, 4단계 D11·D12·D16)
 // - 글(kind == 'post'): 홈·/blog·카테고리·태그·연재·RSS·사이트맵. 화면용 모양(ContentPost)으로 돌려준다.
 // - 노트(kind == 'note'): /notes·홈·노트 RSS(4단계 D12). 본문을 함께 읽는다(getPublishedNoteEntries).
-// - 상세 주소 조회는 resolvePostPageBySlug(/blog/<slug>)·resolveNotePageBySlug(/notes/<slug>)다.
-//   slug 공간이 하나라서 다른 kind의 slug는 그 kind의 주소로 301한다.
+// - 프로젝트 글(kind == 'project'): /projects·사이트맵(4단계 D1). 연재 key가 프로젝트 key이고,
+//   seriesMeta/<key>.project가 프로젝트 정보다(getPublishedProjects).
+// - 상세 주소 조회는 resolvePostPageBySlug(/blog/<slug>)·resolveNotePageBySlug(/notes/<slug>)·
+//   resolveProjectPageBySlug(/projects/<key>/<slug>)다. slug 공간이 하나라서 다른 kind의 slug는 그 kind의 주소로 301한다.
 
 import { publicPathFor } from '@/lib/entry-rules';
-import type { EntryKind, SeriesRef } from '@/lib/entry-schema';
+import type { EntryKind, ProjectMeta, SeriesRef } from '@/lib/entry-schema';
 import {
   findPublishedEntryBySlug,
   listPublishedEntries,
@@ -56,10 +58,10 @@ export async function getPublishedContentPosts(): Promise<ContentPost[]> {
   return entries.filter((entry) => entry.kind === 'post').map((entry) => toContentPost(entry));
 }
 
-// 상세 주소(/blog/<slug>, /notes/<slug>)의 조회 결과 (4단계 D11)
+// 상세 주소(/blog/<slug>, /notes/<slug>, /projects/<key>/<slug>)의 조회 결과 (4단계 D11)
 // - post: 이 페이지가 그린다(그 페이지의 kind와 같은 글).
 // - redirect: 예전 slug(slugHistory)이거나 다른 kind의 slug다. 그 kind의 주소로 301.
-//   다른 kind의 공개 주소가 아직 없으면(publicPathFor가 null. 지금은 project) 찾지 못한 것으로 본다(404).
+//   공개 주소를 만들 수 없으면(publicPathFor가 null. 연재가 없는 project 글) 찾지 못한 것으로 본다(404).
 export type PostPageLookup =
   | { type: 'post'; entry: PublicEntry }
   | { type: 'redirect'; location: string; id: string }
@@ -70,14 +72,14 @@ export async function resolveEntryPageBySlug(slug: string, pageKind: EntryKind):
   const result = await findPublishedEntryBySlug(slug);
   if (!result) return null;
   if ('redirectTo' in result) {
-    const location = publicPathFor(result.kind, result.redirectTo);
+    const location = publicPathFor(result.kind, result.redirectTo, result.series);
     return location
       ? { type: 'redirect', location: encodeURI(location), id: result.entryId }
       : null;
   }
   const { entry } = result;
   if (entry.kind === pageKind) return { type: 'post', entry };
-  const location = publicPathFor(entry.kind, entry.slug);
+  const location = publicPathFor(entry.kind, entry.slug, entry.series);
   return location ? { type: 'redirect', location: encodeURI(location), id: entry.id } : null;
 }
 
@@ -89,6 +91,16 @@ export function resolvePostPageBySlug(slug: string): Promise<PostPageLookup> {
 // 노트 상세 /notes/<slug> (4단계 D12)
 export function resolveNotePageBySlug(slug: string): Promise<PostPageLookup> {
   return resolveEntryPageBySlug(slug, 'note');
+}
+
+// 프로젝트 글 상세 /projects/<key>/<slug> (4단계 D1)
+// - 프로젝트 글이고 그 프로젝트(연재 key)가 주소의 key와 같으면 그린다.
+// - 프로젝트 key가 다르면(글을 다른 프로젝트로 옮겼다) 바른 주소로 301. 다른 kind·예전 slug도 301이다.
+export async function resolveProjectPageBySlug(projectKey: string, slug: string): Promise<PostPageLookup> {
+  const lookup = await resolveEntryPageBySlug(slug, 'project');
+  if (lookup?.type !== 'post' || lookup.entry.series?.key === projectKey) return lookup;
+  const location = publicPathFor('project', lookup.entry.slug, lookup.entry.series);
+  return location ? { type: 'redirect', location: encodeURI(location), id: lookup.entry.id } : null;
 }
 
 export interface AdjacentPosts {
@@ -153,4 +165,50 @@ export async function getPublishedSeriesList(): Promise<PublishedSeries[]> {
 export async function getPublishedSeriesByKey(key: string): Promise<PublishedSeries | null> {
   const list = await getPublishedSeriesList();
   return list.find((series) => series.key === key) ?? null;
+}
+
+// ───────────── 프로젝트 (4단계 D1) ─────────────
+
+export interface PublishedProject {
+  key: string; // 프로젝트 key (= 연재 key, 주소 /projects/<key>)
+  title: string;
+  description: string;
+  meta: ProjectMeta;
+  posts: ContentPost[]; // Part 순서대로. 발행된 프로젝트 글만
+}
+
+// 발행된 프로젝트 목록
+// - seriesMeta에 project 칸이 있고 발행된 프로젝트 글이 1편 이상인 연재다. 글이 없는 프로젝트는 보이지 않는다
+//   (/projects/<key>가 보낼 첫 글이 없다).
+// - 순서는 project.order, 같으면 key 순이다(D17: featured 구분 없이 order 순).
+export async function getPublishedProjects(): Promise<PublishedProject[]> {
+  const [entries, metaByKey] = await Promise.all([listPublishedEntries(), listSeriesMeta()]);
+  const grouped = new Map<string, ContentPost[]>();
+  for (const entry of entries) {
+    if (entry.kind !== 'project' || !entry.series) continue;
+    const list = grouped.get(entry.series.key) ?? [];
+    list.push(toContentPost(entry));
+    grouped.set(entry.series.key, list);
+  }
+  const projects: PublishedProject[] = [];
+  for (const [key, meta] of metaByKey) {
+    const posts = grouped.get(key);
+    if (!meta.project || !posts || posts.length === 0) continue;
+    posts.sort((a, b) => (a.series?.order ?? 0) - (b.series?.order ?? 0) || a.slug.localeCompare(b.slug));
+    projects.push({ key, title: meta.title, description: meta.description, meta: meta.project, posts });
+  }
+  return projects.sort((a, b) => a.meta.order - b.meta.order || a.key.localeCompare(b.key));
+}
+
+// 프로젝트 하나
+export async function getPublishedProjectByKey(key: string): Promise<PublishedProject | null> {
+  const projects = await getPublishedProjects();
+  return projects.find((project) => project.key === key) ?? null;
+}
+
+// 프로젝트 안에서 이웃한 Part (D17 "이전·다음 Part")
+export function getAdjacentParts(project: PublishedProject, id: string): AdjacentPosts {
+  const index = project.posts.findIndex((post) => post.id === id);
+  if (index === -1) return { previous: null, next: null };
+  return { previous: project.posts[index - 1] ?? null, next: project.posts[index + 1] ?? null };
 }

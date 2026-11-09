@@ -1,21 +1,32 @@
 ---
-// 프로젝트 목록 /projects (prerender, 콘텐츠 컬렉션)
-// - 프로젝트 4개를 order 순으로 카드(코드 커버)로 보인다. featured 구분은 없다(4개 모두 featured다, D17).
-// - 4단계 PR-B: React 아일랜드(ProjectCard.tsx)와 Reveal을 ProjectCard.astro로 바꿨다. 데이터는 그대로다.
-//   4단계 PR-C(T6)가 데이터를 entries(seriesMeta.project)로 옮긴다(D1).
-export const prerender = true;
-
+// 프로젝트 목록 /projects (재건 4단계 D1·D17, SSR)
+// - 데이터: entries(kind project) + seriesMeta/<key>.project. 발행된 Part가 있는 프로젝트만 보인다.
+// - 프로젝트를 project.order 순으로 카드(코드 커버)로 보인다. featured 구분은 없다(4개 모두 featured다, D17).
+// - 카드를 누르면 그 프로젝트의 첫 Part로 간다.
+// - CDN: s-maxage=60, 태그 posts(발행하면 목록 무효화로 함께 비워진다).
 import ProjectCard from '@/components/projects/ProjectCard.astro';
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { getProjectHref, getProjectMetas, getProjectSlug } from '@/lib/project-posts';
-import { getCollection } from 'astro:content';
+import { getPublishedProjects } from '@/lib/content-posts';
+import { projectPostPath } from '@/lib/public-paths';
+import { setPublicPageCache } from '@/lib/server/cache-headers';
+
+export const prerender = false;
 
 const title = 'Projects';
 const description = 'Cruz의 프로젝트와 그 과정의 기록';
 
-const entries = await getCollection('projects');
-// getProjectMetas가 order 순으로 정렬한다
-const projects = getProjectMetas(entries);
+const projects = await getPublishedProjects();
+setPublicPageCache(Astro.response.headers);
+
+// 커버 왼쪽 위 날짜: 시작 월(YYYY-MM). 없으면 첫 Part의 발행일
+function coverDateOf(project: (typeof projects)[number]): Date {
+  const month = project.meta.startDate;
+  if (month) {
+    const [year, monthIndex] = month.split('-').map(Number);
+    return new Date(Date.UTC(year, monthIndex - 1, 1));
+  }
+  return project.posts[0].pubDate;
+}
 ---
 
 <BaseLayout title={title} description={description}>
@@ -29,23 +40,20 @@ const projects = getProjectMetas(entries);
         <p class="projects-empty">아직 등록된 프로젝트가 없습니다.</p>
       ) : (
         <ul class="projects-grid">
-          {projects.map((project) => {
-            const key = getProjectSlug(project);
-            return (
-              <li>
-                <ProjectCard
-                  title={project.data.title}
-                  description={project.data.description}
-                  href={getProjectHref(entries, key)}
-                  tech={project.data.tech}
-                  coverKey={key}
-                  coverDate={project.data.startDate ?? new Date()}
-                  github={project.data.github}
-                  demo={project.data.demo}
-                />
-              </li>
-            );
-          })}
+          {projects.map((project) => (
+            <li>
+              <ProjectCard
+                title={project.title}
+                description={project.description}
+                href={projectPostPath(project.key, project.posts[0].slug)}
+                tech={project.meta.tech}
+                coverKey={project.key}
+                coverDate={coverDateOf(project)}
+                github={project.meta.github}
+                demo={project.meta.demo}
+              />
+            </li>
+          ))}
         </ul>
       )
     }

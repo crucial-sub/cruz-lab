@@ -13,14 +13,17 @@
 // - 노트 상세(/notes/<slug>, D12)도 이 컴포넌트를 쓴다(kind="note"): 머리가 작고, 제목이 없으면 "노트 · 날짜"다.
 //   읽기 시간·연재를 보이지 않고, 이전·다음은 노트끼리다. 노트의 카테고리·태그는 링크가 아니라 글자다.
 //   카테고리·태그 목록 주소는 글(post)만 보이므로 노트만 쓰는 태그는 404가 된다(4단계 PR-B 리뷰 경미 4).
+// - 프로젝트 글(/projects/<key>/<slug>, D1)도 이 컴포넌트를 쓴다(kind="project"): 머리줄의 카테고리 자리에 프로젝트 이름,
+//   연재 상자 자리에 Part 탭(PartTabs), 이전·다음은 같은 프로젝트의 Part다.
 import '@/styles/prose.css';
 import '@/styles/shiki.css';
-import type { AdjacentPosts, PublishedSeries } from '@/lib/content-posts';
+import type { AdjacentPosts, PublishedProject, PublishedSeries } from '@/lib/content-posts';
 import type { MarkdownRenderResult } from '@/lib/content/markdown';
 import { isVideoUrl } from '@/lib/content/safe-url';
 import { formatSeoulDate, isSameSeoulDate } from '@/lib/date-format';
-import { categoryPath, tagPath } from '@/lib/public-paths';
+import { PROJECTS_INDEX_PATH, categoryPath, tagPath } from '@/lib/public-paths';
 import type { PublicEntry } from '@/lib/server/entries';
+import PartTabs from './PartTabs.astro';
 import PrevNext from './PrevNext.astro';
 import SeriesBox from './SeriesBox.astro';
 import Toc from './Toc.astro';
@@ -30,12 +33,14 @@ interface Props {
   rendered: MarkdownRenderResult;
   adjacent: AdjacentPosts;
   series: PublishedSeries | null;
-  kind?: 'post' | 'note';
+  kind?: 'post' | 'note' | 'project';
+  project?: PublishedProject | null; // kind="project"일 때 그 프로젝트
 }
 
-const { entry, rendered, adjacent, series, kind = 'post' } = Astro.props;
+const { entry, rendered, adjacent, series, kind = 'post', project = null } = Astro.props;
 const { html, toc } = rendered;
 const isNote = kind === 'note';
+const isProject = kind === 'project';
 
 const published = formatSeoulDate(entry.publishedAt);
 const updated = isSameSeoulDate(entry.publishedAt, entry.lastPublishedAt)
@@ -51,6 +56,14 @@ const heading = entry.title || (isNote ? `노트 · ${published}` : '');
     <header class="post-header">
       <p class="post-meta">
         {
+          isProject && project && (
+            <a class="post-category" href={PROJECTS_INDEX_PATH}>
+              {project.title}
+            </a>
+          )
+        }
+        {
+          !isProject &&
           entry.category &&
             (isNote ? (
               <span class="post-category">{entry.categoryLabel}</span>
@@ -75,6 +88,7 @@ const heading = entry.title || (isNote ? `노트 · ${published}` : '');
     </header>
 
     {series && <SeriesBox series={series} currentId={entry.id} variant="top" />}
+    {isProject && project && <PartTabs project={project} currentId={entry.id} />}
 
     {
       coverUrl && (
@@ -112,7 +126,7 @@ const heading = entry.title || (isNote ? `노트 · ${published}` : '');
     }
 
     <footer class="post-footer">
-      <PrevNext previous={adjacent.previous} next={adjacent.next} kind={kind} />
+      <PrevNext previous={adjacent.previous} next={adjacent.next} kind={kind} projectKey={project?.key} />
       {series && <SeriesBox series={series} currentId={entry.id} variant="bottom" />}
     </footer>
   </div>
