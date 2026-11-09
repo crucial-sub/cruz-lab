@@ -186,7 +186,7 @@ A에서 토글은 대부분의 독자가 쓰지 않는다. **기본값이 결과
 
 ## 9. 구현 (2026-11-10, 브랜치 `stage4/d-blog-list`)
 
-결정대로 구현했다. 상세는 [작업 문서](./2026-11-09-stage4-public-site.md) 2.7(파일)·4.12(검증)·5절 52~60(판단).
+결정대로 구현했다. 상세는 [작업 문서](./2026-11-09-stage4-public-site.md) 2.11(파일)·4.18(검증)·5절 85~97(판단)·6.4(리뷰). PR: [PR #19](https://github.com/crucial-sub/cruz-lab/pull/19)(대상 `rebuild`).
 
 - 대표 카드 `FeaturedPost.astro`(새) + 작은 커버 행 `PostRow.astro` + 머리·결과 수 줄·태그 `<details>`를 다시 짠 `BlogList.astro`. `PostCover.astro`는 CSS 변수와 `variant`(`card`·`thumb`), `post-cover.ts`는 카테고리 팔레트 표, `blog-list.ts`는 `splitFeatured`.
 - 지킨 것: `<li data-post-row>`(대표 카드 포함, 스모크 행 수 = 글 수), 제목 링크 하나 + 가상 요소, JS 없이 완전(태그 `<details>`도 JS 없이 열림), React 0.
