@@ -731,7 +731,7 @@ Claude 판단으로 정한 것(승인 때 함께 확인): D7 요청 때 렌더 +
 10. `github-mark` SVG 2개도 지웠다(6.1 목록 밖, 헤더를 인라인 SVG로 바꿔 쓰는 곳이 없다). `scripts/smoke/stage2-public.mjs`의 목록·동의어 태그 검사를 새 화면에 맞게 고쳤다.
 11. 리뷰 뒤: 안전 처리가 할 일 체크 상자(읽기 전용)만 남긴다(3단계부터 지워졌다). `renderMarkdown`에 `idPrefix`(노트 스트림). 노트의 카테고리·태그는 글자. Tailwind 통합의 base.css 자동 주입을 껐다(CSS 중복, 페이지당 약 17 KB). 에디터 태그 칩 CSS를 `editor.css`로 옮겼다.
 
-**PR-C (T6·T7·T8, 2026-11-10).** 작업 문서 5절 52~84(구현 22, 리뷰 뒤 11).
+**PR-C (T6·T7·T8, 2026-11-10, [PR #17](https://github.com/crucial-sub/cruz-lab/pull/17)).** 작업 문서 5절 52~84(구현 22, 리뷰 뒤 11).
 
 1. 이전 표지는 `legacy`가 아니라 새 선택 칸 `projectSource`다(2단계 재동기화가 프로젝트 글을 삭제 후보로 보지 않게). 에디터로 지운 글은 `publishLog` 삭제 기록으로 알아본다. 원본 위치는 `--source-root`(원본을 지운 뒤 main checkout), 날짜는 원본 파일의 git 첫·마지막 커밋.
 2. seriesMeta 4개는 새 문서다(기간은 `YYYY-MM` 글자). `chapterLabel`은 옮기지 않는다(모두 "Part <order>"). 왕복 검사는 63이 아니라 69편이다(사용자 초안 2편 증가).
