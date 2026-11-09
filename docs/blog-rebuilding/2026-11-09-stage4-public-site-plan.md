@@ -2,7 +2,7 @@
 
 - 날짜: 2026-11-09
 - 상태: **승인됨(2026-11-09). 4단계 끝(2026-11-10).** 사용자 결정 6건의 답은 13절, 미룬 기능과 "main 병합 직전" 항목은 14절에 있다. 12절 끝의 "Claude 판단"(D7~D18)도 함께 승인받았다. 구현 PR 3개(PR-A #15, PR-B #16, PR-C #17)는 `rebuild`에 병합됐다. 구현과 다른 것과 끝 상태는 15절, 결과는 [작업 문서](./2026-11-09-stage4-public-site.md)에 있다. 다음은 5단계 Plan이다.
-- 브랜치: 이 Plan은 `stage4/plan`, [PR #14](https://github.com/crucial-sub/cruz-lab/pull/14)(대상 `rebuild`). 구현은 `rebuild`에서 작업 브랜치를 만들었다(`stage4/a-renderer`, `stage4/b-pages`, `stage4/c-projects-og`). 문서 PR(T9)은 `stage4/docs`다. PR 대상은 `rebuild`다. main이 아니다.
+- 브랜치: 이 Plan은 `stage4/plan`, [PR #14](https://github.com/crucial-sub/cruz-lab/pull/14)(대상 `rebuild`). 구현은 `rebuild`에서 작업 브랜치를 만들었다(`stage4/a-renderer`, `stage4/b-pages`, `stage4/c-projects-og`). 문서 PR(T9)은 `stage4/docs`, [PR #18](https://github.com/crucial-sub/cruz-lab/pull/18)이다. PR 대상은 `rebuild`다. main이 아니다.
 - 근거: [계획 문서](./2026-11-06-blog-architecture-audit-2-problems-and-plan.md) 3.3, 4.3, 6절(U1~U18), 8.3 "4. 공개 사이트", 8.4, 9절, 10.1, 10.2. [2단계 Plan](./2026-11-07-stage2-data-model-and-server-plan.md) D4(`kind`별 규칙), D6(srcset), D11(프로젝트 글), 7.4, 8절. [2단계 작업 문서](./2026-11-08-stage2-data-model-and-server.md) 2.3, 8절 2. [3단계 Plan](./2026-11-08-stage3-editor-plan.md) 2.3, 4.3, D3, D10, D11 9, 14절. [3단계 작업 문서](./2026-11-09-stage3-editor.md) 2.1·2.5, 5절(11·15·21·37·38·42·48·73), 7절, 8절 8·9·11·14.
 - 시각 문서: [visual-plans/2026-11-09-cruz-lab-stage4-plan.html](./visual-plans/2026-11-09-cruz-lab-stage4-plan.html)
 
@@ -742,7 +742,7 @@ Claude 판단으로 정한 것(승인 때 함께 확인): D7 요청 때 렌더 +
 6. 점검 스크립트 `stage4-public.mjs`는 2단계 점검을 끝에 돌리고, 옛 프로젝트 페이지 비교는 옵션이다. 이전·다음 이름표 조사를 고쳤다.
 7. 리뷰 뒤: 되돌리기는 실행 기록(`migration.json`)에 있는 자산·seriesMeta 문서만 지우고, 에디터로 고친 글은 빼고, 글을 먼저 지운다. 재동기화 갱신은 읽은 시각을 전제 조건으로 쓰고 빠진 이미지의 usedBy를 고친다. 에디터로 지운 프로젝트 글도 삭제 표지(`entryTombstones`)를 쓴다. 2단계 재동기화가 seriesMeta의 `project` 칸을 남긴다. API 스모크의 낡은 기대값 3개(PR-B 목록·노트 주소)를 고쳤다(105/105).
 
-**T9 (문서 PR, 2026-11-10, 브랜치 `stage4/docs`).** 작업 문서 2.10.
+**T9 (문서 PR, 2026-11-10, 브랜치 `stage4/docs`, [PR #18](https://github.com/crucial-sub/cruz-lab/pull/18)).** 작업 문서 2.10.
 
 1. 7절 T9의 범위(작업 문서, 감사 문서 11절 표·11.9, 이 15절)에 3단계 T10(PR #12)과 같은 두 곳을 더했다. 감사 문서 8.3의 5단계 행에 4단계 결과를 이어받는다는 한 줄을 썼다. 이 Plan 14절에 콜드 TTFB 측정값과 MCP 도구 상기 행을 더했다(사용자 결정 2026-11-10 "5단계 Plan에서 다시 묻는다").
 2. 감사 문서 11.3의 6에 재동기화 주의 두 가지를 더했다(2단계 재실행은 프로젝트 글을 지움 후보로 보지 않는다. 이전 스크립트는 CDN을 비우지 못한다). 4단계 몫(2·3·5·6)은 빠진 것이 없다.

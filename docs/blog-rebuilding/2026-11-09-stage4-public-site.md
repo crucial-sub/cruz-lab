@@ -3,8 +3,8 @@
 - 날짜: 2026-11-09 (PR-A 구현), 2026-11-10 (PR-B 구현, PR-C 구현, T9 문서 PR. 4단계 끝)
 - Plan: [2026-11-09-stage4-public-site-plan.md](./2026-11-09-stage4-public-site-plan.md) (승인 2026-11-09, PR #14 병합 `b2583ed`)
 - 진행 기록: [계획 문서 11.9](./2026-11-06-blog-architecture-audit-2-problems-and-plan.md#119-4단계-구현-진행-기록-2026-11-09--2026-11-10)
-- 브랜치: `stage4/a-renderer`(PR-A, [PR #15](https://github.com/crucial-sub/cruz-lab/pull/15), `rebuild`에 병합 `2b32907`), `stage4/b-pages`(PR-B, [PR #16](https://github.com/crucial-sub/cruz-lab/pull/16), `rebuild`에 병합 `2ca985d`), `stage4/c-projects-og`(PR-C, [PR #17](https://github.com/crucial-sub/cruz-lab/pull/17), `rebuild`에 병합 `34df87f`). 대상은 `rebuild`다. 문서 PR 브랜치 `stage4/docs`(T9)는 `34df87f`에서 만들었다(미리보기 기록 커밋이 먼저 있다).
-- 상태: **4단계 끝(2026-11-10).** PR-A(T1·T2)·PR-B(T3·T4·T5)·PR-C(T6·T7·T8)를 `rebuild`에 병합했다. PR-C는 프로젝트 글 이전을 사용자 승인(2026-11-10)으로 실행했다(4.13). 커밋 `81b7be9`(코드)·`3857b95`(문서)·`bf21c33`·`fb6fce6`(기록), [PR #17](https://github.com/crucial-sub/cruz-lab/pull/17), 사용자 답으로 병합(`34df87f`). 병합 뒤 `rebuild` 미리보기에서 Plan 8.5를 끝냈다(4.17). T9 문서 PR은 2.10에 적었다. 그 병합은 사용자 확인 뒤다. 다음 작업 단위는 5단계 Plan이다(7절).
+- 브랜치: `stage4/a-renderer`(PR-A, [PR #15](https://github.com/crucial-sub/cruz-lab/pull/15), `rebuild`에 병합 `2b32907`), `stage4/b-pages`(PR-B, [PR #16](https://github.com/crucial-sub/cruz-lab/pull/16), `rebuild`에 병합 `2ca985d`), `stage4/c-projects-og`(PR-C, [PR #17](https://github.com/crucial-sub/cruz-lab/pull/17), `rebuild`에 병합 `34df87f`). 대상은 `rebuild`다. 문서 PR 브랜치 `stage4/docs`(T9, [PR #18](https://github.com/crucial-sub/cruz-lab/pull/18))는 `34df87f`에서 만들었다(미리보기 기록 커밋이 먼저 있다).
+- 상태: **4단계 끝(2026-11-10).** PR-A(T1·T2)·PR-B(T3·T4·T5)·PR-C(T6·T7·T8)를 `rebuild`에 병합했다. PR-C는 프로젝트 글 이전을 사용자 승인(2026-11-10)으로 실행했다(4.13). 커밋 `81b7be9`(코드)·`3857b95`(문서)·`bf21c33`·`fb6fce6`(기록), [PR #17](https://github.com/crucial-sub/cruz-lab/pull/17), 사용자 답으로 병합(`34df87f`). 병합 뒤 `rebuild` 미리보기에서 Plan 8.5를 끝냈다(4.17). T9 문서 [PR #18](https://github.com/crucial-sub/cruz-lab/pull/18)은 2.10에 적었다. 그 병합은 사용자 확인 뒤다. 다음 작업 단위는 5단계 Plan이다(7절).
 
 ## 1. 현재 상황
 
@@ -13,7 +13,7 @@
 | PR-A (T1 공유 파이프라인, T2 글 상세) | 끝. [PR #15](https://github.com/crucial-sub/cruz-lab/pull/15) `rebuild` 병합(`2b32907`). 테스트 504, 왕복 59/59, 공개 스모크 322/0, 글 상세 점검 378/0. 리뷰 치명 0·중요 1·경미 12(6.1). 태그 `rebuild-pre-stage4`(`b2583ed`) |
 | PR-B (T3 토큰·레이아웃, T4 페이지, T5 React 삭제) | 끝(2026-11-10). 브랜치 `stage4/b-pages`(`origin/rebuild` `2b32907`에서 생성). 204파일(글꼴 subset·라이선스 93개 포함). 글꼴·lockfile을 빼면 108파일, +3,871·−4,190줄(문서 포함). 테스트 526(+22), `tsc` **0**, lint·빌드 통과, 운영 왕복 59/59, 2단계 공개 스모크 324/0, PR-B 공개 점검 602/0, 공개 페이지 `astro-island` 0, 브라우저 확인(4.10). 리뷰 치명 0·중요 3·경미 15 → 중요 3·경미 10 고침(6.2). 커밋 `25facf1`·`ad1765b`·`4c3cdaf`(PR 링크), [PR #16](https://github.com/crucial-sub/cruz-lab/pull/16)(대상 `rebuild`) 병합(`2ca985d`). 병합 뒤 미리보기 확인 2건(SSR 404, 콜드 TTFB)은 4.17 |
 | PR-C (T6 프로젝트 이전, T7 OG, T8 검증) | 끝(2026-11-10). 브랜치 `stage4/c-projects-og`(`origin/rebuild` `2ca985d`에서 생성). 테스트 573(+47), `tsc` 0, lint·빌드 통과, 운영 왕복 69/69, 공개 점검(`stage4-public.mjs`) 871/0 + 2단계 324/0, 옛 프로젝트 페이지 8편과 본문 글자 같음, JS 끈 확인 7쪽, 브라우저(Plan 8.3의 8, 390px). API 스모크 105/105. 리뷰 치명 0·중요 4·경미 10 → 중요 4·경미 9 고침(6.3). 커밋 `81b7be9`·`3857b95`·`bf21c33`·`fb6fce6`, [PR #17](https://github.com/crucial-sub/cruz-lab/pull/17) 병합(`34df87f`). 미리보기 확인(8.5) 끝, 시험 데이터 0(4.17) |
-| 문서 PR (T9) | 끝(2026-11-10, 2.10). 브랜치 `stage4/docs`(`34df87f`에서 생성, 미리보기 기록 커밋 `ea1fb8e` 위). 이 문서, 감사 문서, Plan만 바꿨다. 코드 변경 0. 커밋·PR은 사용자 확인 뒤 |
+| 문서 PR (T9) | 끝(2026-11-10, 2.10). 브랜치 `stage4/docs`(`34df87f`에서 생성, 미리보기 기록 커밋 `ea1fb8e` 위). 이 문서, 감사 문서, Plan만 바꿨다. 코드 변경 0. 사용자 승인(2026-11-10)으로 커밋 `1ef8148`, 푸시, [PR #18](https://github.com/crucial-sub/cruz-lab/pull/18)(대상 `rebuild`). 병합은 사용자 확인 뒤 |
 | 외부 변경 | 없음(규칙·인덱스·환경 변수·Vercel·버킷 CORS) |
 | 운영 데이터 | PR-A는 읽기만 했다. PR-B는 사용자 승인(2026-11-10)으로 시험 노트 1편을 만들어 발행하고 확인 뒤 지웠다(4.11, `publishLog` 2건 남음). PR-C는 사용자 승인(2026-11-10)으로 프로젝트 글을 옮겼다: `entries` kind project 8편(+`revisions` 8), `seriesMeta` 새 문서 4개(`project` 칸), 새 자산 10개(Storage `assets/<id>/` 변형). 지금 `entries` 69(공개 post 54, project 8, 사용자 초안 7: post 6·note 1. PR-B 끝 59에서 사용자가 초안 2편을 더 만들었다), `assets` 141, `seriesMeta` 7, `publishLog` 2. 사용자 초안은 건드리지 않았다. Plan 8.5(병합 뒤 미리보기)는 시험 글·노트 1편씩을 만들고 지웠다. 시험 `publishLog` 5줄도 지웠다(4.17). 4단계 끝 상태: `entries` 69, `assets` 141, Storage `assets/` 37, `seriesMeta` 7, `publishLog` 2, `entryTombstones` 0 |
 
@@ -657,7 +657,7 @@ PR-C(T6·T7·T8, 2026-11-10)에서 판단한 것:
 2. PR-B(T3·T4·T5) [PR #16](https://github.com/crucial-sub/cruz-lab/pull/16) `rebuild` 병합(`2ca985d`).
 3. PR-C(T6·T7·T8) 구현·검증·리뷰 수정(2.7~2.9, 4.12~4.17, 5절 52~84, 6.3). [PR #17](https://github.com/crucial-sub/cruz-lab/pull/17) `rebuild` 병합(`34df87f`). 프로젝트 글 이전 실행(4.13). 되돌리기는 `stage4-projects.mjs --rollback --manifest`(5절 74).
 4. 미리보기 확인: Plan 8.5 전부와 PR-B에서 넘어온 2건(SSR 404, 콜드 TTFB)(4.17). 시험 데이터 0.
-5. T9 문서 PR(2.10). 브랜치 `stage4/docs`. 커밋·PR은 사용자 확인 뒤.
+5. T9 문서 PR(2.10). 브랜치 `stage4/docs`. 사용자 승인(2026-11-10)으로 커밋 `1ef8148`, 푸시, [PR #18](https://github.com/crucial-sub/cruz-lab/pull/18)(대상 `rebuild`).
 6. 검증 끝 상태: lint 통과, 테스트 573, `tsc` 0, 빌드 통과, 운영 왕복 69/69, 공개 점검 871/0 + 2단계 324/0, API 스모크 105/105, 공개 페이지 `astro-island` 0, 미리보기 확인 8.5(4.12~4.17). 외부 변경 0(3절).
 
 **다음 것.**
@@ -671,7 +671,7 @@ PR-C(T6·T7·T8, 2026-11-10)에서 판단한 것:
    - project 글을 새로 만드는 API가 없다(`CREATABLE_KINDS`는 post·note, 5절 62).
    - 관리자 목록 `/admin`은 프로젝트 글 8편을 "프로젝트"로 보인다. 에디터 메타 패널은 프로젝트 글 안내 한 줄을 보인다(2.7, 4.15).
    - 에디터 미리보기와 공개 페이지는 같은 파이프라인(`renderMarkdown`)과 같은 CSS(`prose.css`·`shiki.css`)를 쓴다(2.1).
-3. T9 문서 PR 병합(사용자 확인 뒤).
+3. T9 문서 [PR #18](https://github.com/crucial-sub/cruz-lab/pull/18) 병합(사용자 확인 뒤).
 4. 원격의 병합 끝난 브랜치 삭제(사용자 확인 뒤): `stage4/plan`, `stage4/a-renderer`, `stage4/b-pages`, `stage4/c-projects-og`. 문서 PR 병합 뒤 `stage4/docs`도. 3단계 브랜치 6개도 아직 원격에 있다(감사 문서 11.8 다음 것 3).
 5. main 병합 직전 할 일은 감사 문서 11.3이다(프로젝트 재동기화 2·6, 설명 문서 3, MCP 도구 문서 5).
 
