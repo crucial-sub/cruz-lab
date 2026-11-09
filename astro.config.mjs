@@ -1,5 +1,4 @@
 // astro.config.mjs
-import mdx from '@astrojs/mdx';
 import react from '@astrojs/react';
 import sitemap from '@astrojs/sitemap';
 import tailwind from '@astrojs/tailwind';
@@ -16,9 +15,13 @@ export default defineConfig({
   output: 'server', // SSR 모드 (Astro 5)
   // 함수 최대 실행 시간 60초 (재건 2단계 Plan 6.4)
   // - 이미지 변형(finalize)이 몇 초 걸린다. Fluid compute 설정과 상관없이 Hobby 한도 안의 같은 값을 쓴다.
-  adapter: vercel({ maxDuration: 60 }),
+  // includeFiles: OG 이미지 글꼴 서브셋(재건 4단계 D13). /og/<id>.png 함수가 실행 중에 읽는다(src/lib/server/og-image.ts).
+  // - 코드에서 import하지 않는 파일이라 함수 번들 추적(nft)이 찾지 못한다. 그래서 함수 폴더에 같은 경로로 싣게 한다.
+  adapter: vercel({
+    maxDuration: 60,
+    includeFiles: ['./src/assets/fonts/og/Pretendard-Bold.subset.otf'],
+  }),
   integrations: [
-    mdx(),
     sitemap({
       // 관리자 페이지는 사이트맵에서 제외
       filter: (page) => !new URL(page).pathname.startsWith('/admin'),

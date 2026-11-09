@@ -736,8 +736,8 @@ export default function EditorApp({ entryId }: { entryId: string }) {
           label: '공개 페이지 보기',
         });
       } else {
-        // 공개 주소가 없는 kind(지금은 project, 4단계 PR-C가 더한다)
-        showToast('success', `발행됨 · 이 종류는 아직 공개 주소가 없습니다${suffix}`);
+        // 공개 주소가 없는 글(연재가 없는 project 글. 발행 검사가 막으므로 보통은 오지 않는다)
+        showToast('success', `발행됨 · 공개 주소가 없습니다${suffix}`);
       }
       await refreshEntry();
     } catch (error) {
@@ -1035,7 +1035,7 @@ export default function EditorApp({ entryId }: { entryId: string }) {
   const publicUrl =
     entry?.published && entry.status === 'published'
       ? (() => {
-          const path = publicPathFor(entry.kind, entry.published.slug);
+          const path = publicPathFor(entry.kind, entry.published.slug, entry.published.series);
           return path ? new URL(path, window.location.origin).toString() : null;
         })()
       : null;

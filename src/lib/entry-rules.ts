@@ -119,7 +119,9 @@ export interface PublishCheckInput {
 
 // 발행 검사 (Plan 6.3 2단계, D4 kind별 규칙)
 // - 성공하면 발행할 내용을 돌려준다. 제목·설명·slug는 앞뒤 공백을 지운다.
+// - post는 제목·설명·slug·카테고리·본문이 필수다.
 // - note는 본문만 필수다. slug가 비면 지금 발행본의 slug를 다시 쓴다. 처음 발행이면 note-YYYYMMDD-HHmm으로 만든다.
+// - project(4단계 D1)는 제목·설명·slug·본문·연재(프로젝트 key와 Part 번호)가 필수다. 카테고리는 고르지 않아도 된다.
 // - 이 글이 쓰던 slug(지금 발행본, slugHistory)는 옛 형식이어도 받는다(Plan 4.1 "바꾸지 않으면 검사하지 않는다").
 // - slug 유일성은 Firestore를 봐야 하므로 여기서 검사하지 않는다(호출하는 쪽이 한다).
 export function checkPublishable({
@@ -145,7 +147,11 @@ export function checkPublishable({
       issues.push({ field: 'title', message: `제목은 1~${MAX_TITLE_LENGTH}자입니다` });
     }
     if (!description) issues.push({ field: 'description', message: '설명이 필요합니다' });
-    if (!draft.category) issues.push({ field: 'category', message: '카테고리가 필요합니다' });
+    if (kind === 'project') {
+      if (!draft.series) issues.push({ field: 'series', message: '프로젝트 글은 연재(프로젝트 key)가 필요합니다' });
+    } else if (!draft.category) {
+      issues.push({ field: 'category', message: '카테고리가 필요합니다' });
+    }
     if (!slug) issues.push({ field: 'slug', message: 'slug가 필요합니다' });
   }
 
@@ -230,9 +236,14 @@ export function reservesSlug(status: EntryStatus): boolean {
 // 공개 주소를 만든다 (인코딩하지 않은 경로)
 // - post: /blog/<slug> (2단계 D4)
 // - note: /notes/<slug> (4단계 D12)
-// - project: 아직 없다. 4단계 PR-C(T6)가 /projects/<key>/<slug>를 더한다(D1)
-export function publicPathFor(kind: EntryKind, slug: string): string | null {
+// - project: /projects/<프로젝트 key>/<slug> (4단계 D1). 프로젝트 key는 연재 key다. 연재가 없으면 주소가 없다(null)
+export function publicPathFor(
+  kind: EntryKind,
+  slug: string,
+  series: { key: string } | null = null,
+): string | null {
   if (kind === 'post') return `/blog/${slug}`;
   if (kind === 'note') return `/notes/${slug}`;
+  if (kind === 'project') return series?.key ? `/projects/${series.key}/${slug}` : null;
   return null;
 }

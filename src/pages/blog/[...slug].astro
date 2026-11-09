@@ -12,6 +12,7 @@ import {
   getPublishedSeriesByKey,
   resolvePostPageBySlug,
 } from '@/lib/content-posts';
+import { ogImagePath } from '@/lib/public-paths';
 import { POSTS_CACHE_TAG, postCacheTag, setPublicPageCache } from '@/lib/server/cache-headers';
 import { renderEntry } from '@/lib/server/render-entry';
 
@@ -48,14 +49,14 @@ if (!entry) {
 
 const title = entry?.title || '포스트를 찾을 수 없습니다';
 const description = entry?.description || '요청한 블로그 포스트를 찾을 수 없습니다.';
-// OG 이미지는 표지 이미지다. 4단계 PR-C(T7)가 /og/<id>.png로 바꾼다(D13)
-const heroImage = entry?.cover.kind === 'image' ? entry.cover.url : undefined;
+// OG 이미지는 코드로 그린 카드 /og/<글 ID>.png다(D13). 표지 이미지는 쓰지 않는다
+const ogImage = entry ? ogImagePath(entry.id) : undefined;
 ---
 
 <BaseLayout
   title={title}
   description={description}
-  ogImage={heroImage}
+  {ogImage}
   type="article"
   publishedTime={entry?.publishedAt.toISOString()}
   tags={entry?.tags ?? []}

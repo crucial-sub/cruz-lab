@@ -97,6 +97,21 @@ export const legacyInfoSchema = z.object({
 });
 export type LegacyInfo = z.infer<typeof legacyInfoSchema>;
 
+// 프로젝트 글 이전 출처와 재동기화 표지 (재건 4단계 D1, Plan 7절)
+// - 저장소 파일(src/content/projects/**)에서 옮긴 글만 갖는다. legacy(옛 posts)와 따로 둔다.
+//   legacy.postId를 쓰면 2단계 재동기화가 이 글을 "운영에서 지운 글"로 본다.
+// - sourceHash: 원본 .md와 본문 이미지 파일의 SHA-256을 함께 해시한 값. 바뀌면 다시 옮길 대상이다.
+// - synced*: 옮긴 직후의 번호·상태. 지금 값과 다르면 에디터로 고친 글이다(덮지 않고 충돌로 보고한다).
+export const projectSourceSchema = z.object({
+  path: z.string().min(1), // 저장소 기준 경로 (src/content/projects/<key>/<slug>.md)
+  sourceHash: z.string().regex(/^[0-9a-f]{64}$/),
+  syncedDraftVersion: z.number().int().positive(),
+  syncedRevision: z.number().int().positive(),
+  syncedStatus: z.enum(ENTRY_STATUSES),
+  migratedAt: timestampSchema,
+});
+export type ProjectSource = z.infer<typeof projectSourceSchema>;
+
 export const entryDocSchema = z
   .object({
     kind: z.enum(ENTRY_KINDS),
@@ -109,6 +124,8 @@ export const entryDocSchema = z
     draft: draftSchema,
     published: publishedSchema.nullable(),
     legacy: legacyInfoSchema.nullable(),
+    // 4단계 D1: 프로젝트 글만 갖는다. 2·3단계 문서에는 칸이 없다(더하기만)
+    projectSource: projectSourceSchema.nullable().optional(),
   })
   .superRefine((entry, ctx) => {
     // draft ⇔ 발행본 없음 (Plan 4.1 규칙)
@@ -125,6 +142,10 @@ export const entryDocSchema = z
       if (entry.kind === 'post' && entry.published.category === null) {
         ctx.addIssue({ code: 'custom', path: ['published', 'category'], message: 'post 발행본에 카테고리가 없습니다' });
       }
+      // 프로젝트 글은 연재(프로젝트 key)로 주소를 만든다(4단계 D1)
+      if (entry.kind === 'project' && entry.published.series === null) {
+        ctx.addIssue({ code: 'custom', path: ['published', 'series'], message: 'project 발행본에 프로젝트(연재)가 없습니다' });
+      }
       if (entry.publishedAt === null) {
         ctx.addIssue({ code: 'custom', path: ['publishedAt'], message: '발행본이 있는데 publishedAt이 없습니다' });
       }
@@ -132,10 +153,29 @@ export const entryDocSchema = z
   });
 export type EntryDoc = z.infer<typeof entryDocSchema>;
 
+// 프로젝트 정보 (seriesMeta/{key}.project, 재건 4단계 D1)
+// - 이 칸이 있는 연재가 프로젝트다. /projects가 보인다. /series는 글(post)이 있는 연재만 보인다.
+// - 커버 이미지는 저장하지 않는다. 카드와 OG는 코드 커버다(U14).
+// - startDate·endDate는 'YYYY-MM'(옛 project.md 값 그대로. 날짜까지는 없다).
+export const PROJECT_MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+export const projectMetaSchema = z.object({
+  longDescription: z.string(),
+  tags: z.array(z.string().min(1)),
+  tech: z.array(z.string().min(1)),
+  github: z.string().url().optional(),
+  demo: z.string().url().optional(),
+  featured: z.boolean(),
+  order: z.number().int().nonnegative(),
+  startDate: z.string().regex(PROJECT_MONTH_PATTERN).optional(),
+  endDate: z.string().regex(PROJECT_MONTH_PATTERN).optional(),
+});
+export type ProjectMeta = z.infer<typeof projectMetaSchema>;
+
 // seriesMeta/{key}
 export const seriesMetaSchema = z.object({
   title: z.string().min(1),
   description: z.string(),
+  project: projectMetaSchema.optional(),
 });
 export type SeriesMeta = z.infer<typeof seriesMetaSchema>;
 

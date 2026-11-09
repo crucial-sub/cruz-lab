@@ -2,8 +2,13 @@ export const prerender = false;
 
 import type { APIContext } from 'astro';
 import { buildCategoryTabs, buildTagChips } from '@/lib/blog-list';
-import { getPublishedContentPosts, getPublishedNoteEntries, getPublishedSeriesList } from '@/lib/content-posts';
-import { notePath, seriesPath } from '@/lib/public-paths';
+import {
+  getPublishedContentPosts,
+  getPublishedNoteEntries,
+  getPublishedProjects,
+  getPublishedSeriesList,
+} from '@/lib/content-posts';
+import { notePath, projectPostPath, seriesPath } from '@/lib/public-paths';
 import { POSTS_CACHE_TAG } from '@/lib/server/cache-headers';
 import { blogPath } from '@/lib/slug-lookup';
 
@@ -18,17 +23,19 @@ function escapeXml(value: string) {
 }
 
 // 요청 때 그리는 공개 주소 사이트맵 (재건 4단계 D11·D12)
-// - @astrojs/sitemap(sitemap-0.xml)은 주소가 고정된 페이지만 빌드 때 모은다: prerender 페이지(/about, /projects/**)와
-//   매개변수가 없는 SSR 페이지(/, /blog/, /notes/, /series/). 그래서 여기에는 넣지 않는다(4단계 PR-B 리뷰 경미 7).
-// - 여기에는 매개변수가 있는 주소를 entries로 만든다: 글, 발행 글이 있는 카테고리·태그(D11), 노트(D12), 연재.
+// - @astrojs/sitemap(sitemap-0.xml)은 주소가 고정된 페이지만 빌드 때 모은다: prerender 페이지(/about)와
+//   매개변수가 없는 SSR 페이지(/, /blog/, /notes/, /series/, /projects/). 그래서 여기에는 넣지 않는다(4단계 PR-B 리뷰 경미 7).
+// - 여기에는 매개변수가 있는 주소를 entries로 만든다: 글, 발행 글이 있는 카테고리·태그(D11), 노트(D12), 연재,
+//   프로젝트 글(D1. 3단계까지는 prerender라 sitemap-0.xml에 있었다). /projects/<key>는 302라 넣지 않는다.
 //   글이 없는 카테고리·태그 주소는 404라 넣지 않는다.
 // - astro.config.mjs의 customSitemaps로 sitemap-index.xml에 연결된다.
 export async function GET(context: APIContext) {
   const site = context.site ?? new URL(context.url.origin);
-  const [posts, notes, seriesList] = await Promise.all([
+  const [posts, notes, seriesList, projects] = await Promise.all([
     getPublishedContentPosts(),
     getPublishedNoteEntries(),
     getPublishedSeriesList(),
+    getPublishedProjects(),
   ]);
 
   // 목록 페이지의 lastmod는 그 목록에서 가장 최근에 바뀐 글이다
@@ -46,6 +53,9 @@ export async function GET(context: APIContext) {
     })),
     ...notes.map((note) => ({ path: notePath(note.slug), lastmod: note.lastPublishedAt })),
     ...seriesList.map((series) => ({ path: seriesPath(series.key), lastmod: series.updatedAt })),
+    ...projects.flatMap((project) =>
+      project.posts.map((post) => ({ path: projectPostPath(project.key, post.slug), lastmod: post.updatedDate })),
+    ),
   ];
 
   const body = [

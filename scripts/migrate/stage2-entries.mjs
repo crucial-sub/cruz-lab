@@ -257,7 +257,10 @@ async function main() {
       errors.push(`seriesMeta/${key}가 스키마에 맞지 않습니다: ${parsed.error.message}`);
       continue;
     }
-    if (!sameValue(seriesMetaById.get(key), parsed.data)) seriesMetaWrites.push({ id: key, data: parsed.data });
+    // 4단계 프로젝트 정보(project 칸)가 있는 문서는 그 칸을 남긴다(set이 덮어 지우지 않게, 4단계 PR-C 리뷰 경미 11)
+    const existingProject = seriesMetaById.get(key)?.project;
+    const desired = existingProject ? { ...parsed.data, project: existingProject } : parsed.data;
+    if (!sameValue(seriesMetaById.get(key), desired)) seriesMetaWrites.push({ id: key, data: desired });
   }
 
   // 6. legacy 자산

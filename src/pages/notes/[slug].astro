@@ -3,6 +3,7 @@
 // - 공유 주소다. 발행 토스트의 "공개 페이지 보기"가 여기를 연다(publicPathFor('note')).
 // - 예전 slug와 다른 kind(글)의 slug는 그 주소로 301(slug 공간이 하나다). /blog/<노트 slug>는 반대로 여기로 301.
 // - 글 상세와 같은 PostArticle(kind="note")이다. 제목이 없으면 <title>은 "노트 · 2026-11-09"다.
+// - OG 이미지는 /og/<노트 ID>.png("노트" 라벨 + 첫 줄, 4단계 D13).
 // - CDN: 노트를 찾았을 때만 s-maxage=60, 태그 posts,post-<id>. 없으면 안내 화면을 직접 그리고(404) 저장하지 않는다.
 import katexCssUrl from 'katex/dist/katex.min.css?url';
 import NotFound from '@/components/NotFound.astro';
@@ -11,6 +12,7 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 import { getAdjacentPosts, resolveNotePageBySlug } from '@/lib/content-posts';
 import { firstLineExcerpt } from '@/lib/content/excerpt';
 import { formatSeoulDate } from '@/lib/date-format';
+import { ogImagePath } from '@/lib/public-paths';
 import { POSTS_CACHE_TAG, postCacheTag, setPublicPageCache } from '@/lib/server/cache-headers';
 import { markNotFound } from '@/lib/server/not-found';
 import { renderEntry } from '@/lib/server/render-entry';
@@ -47,6 +49,7 @@ const description = note
 <BaseLayout
   title={title}
   description={description}
+  ogImage={note ? ogImagePath(note.id) : undefined}
   type={note ? 'article' : 'website'}
   publishedTime={note?.publishedAt.toISOString()}
   tags={note?.tags ?? []}

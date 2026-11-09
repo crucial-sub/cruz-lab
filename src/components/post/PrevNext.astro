@@ -2,27 +2,36 @@
 // 이전·다음 글 (재건 4단계 D16 7)
 // - 발행순으로 이웃한 같은 kind의 글. 이전 글은 바로 전에 발행한 글, 다음 글은 바로 뒤에 발행한 글이다.
 // - 노트 상세(4단계 D12)는 kind="note"로 부른다. 주소는 /notes/<slug>, 이름은 "노트"다.
+// - 프로젝트 글(4단계 D1)은 kind="project"로 부른다. 이웃은 같은 프로젝트의 Part 순서다(D17). 주소는 /projects/<key>/<slug>.
 import type { ContentPost } from '@/lib/content-posts';
 import { formatSeoulDate } from '@/lib/date-format';
-import { notePath } from '@/lib/public-paths';
+import { notePath, projectPostPath } from '@/lib/public-paths';
 import { blogPath } from '@/lib/slug-lookup';
 
 interface Props {
   previous: ContentPost | null;
   next: ContentPost | null;
-  kind?: 'post' | 'note';
+  kind?: 'post' | 'note' | 'project';
+  projectKey?: string; // kind="project"일 때 프로젝트 key
 }
 
-const { previous, next, kind = 'post' } = Astro.props;
-const noun = kind === 'note' ? '노트' : '글';
-const pathOf = (post: ContentPost) => (kind === 'note' ? notePath(post.slug) : blogPath(post.slug));
-// 제목 없는 노트는 날짜로 부른다
-const titleOf = (post: ContentPost) => post.title || `노트 · ${formatSeoulDate(post.pubDate)}`;
+const { previous, next, kind = 'post', projectKey = '' } = Astro.props;
+const noun = kind === 'note' ? '노트' : kind === 'project' ? 'Part' : '글';
+const pathOf = (post: ContentPost) => {
+  if (kind === 'note') return notePath(post.slug);
+  if (kind === 'project') return projectPostPath(projectKey, post.slug);
+  return blogPath(post.slug);
+};
+// 제목 없는 노트는 날짜로 부른다. Part는 번호를 앞에 붙인다
+const titleOf = (post: ContentPost) => {
+  if (kind === 'project') return `Part ${post.series?.order ?? 1} · ${post.title}`;
+  return post.title || `노트 · ${formatSeoulDate(post.pubDate)}`;
+};
 ---
 
 {
   (previous || next) && (
-    <nav class="prev-next" aria-label={`이전 ${noun}과 다음 ${noun}`}>
+    <nav class="prev-next" aria-label={`이전·다음 ${noun}`}>
       {previous ? (
         <a class="prev-next-link" href={pathOf(previous)} rel="prev">
           <span class="prev-next-label">← 이전 {noun}</span>

@@ -51,10 +51,9 @@ async function main() {
   const snapshot = await db.collection('entries').get();
   const entries = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
   const publishedPosts = entries.filter((entry) => entry.status === 'published' && entry.kind === 'post');
-  // 발행 노트는 /notes/<slug>가 공개 주소다(4단계 D12. /blog/<노트 slug>는 301). 그 밖은 /blog/<slug>가 404여야 한다
-  const notPublic = entries.filter(
-    (entry) => entry.status !== 'published' || (entry.kind !== 'post' && entry.kind !== 'note'),
-  );
+  // 발행 노트는 /notes/<slug>, 발행 프로젝트 글은 /projects/<key>/<slug>가 공개 주소다(4단계 D12·D1. /blog/<slug>는 301).
+  // 그 밖은 /blog/<slug>가 404여야 한다
+  const notPublic = entries.filter((entry) => entry.status !== 'published' || !['post', 'note', 'project'].includes(entry.kind));
   console.log(`entries ${entries.length}개 (공개 post ${publishedPosts.length}, 그 밖 ${notPublic.length}) / 기준 ${BASE}`);
 
   // 1. 글 상세

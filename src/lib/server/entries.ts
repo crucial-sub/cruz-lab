@@ -6,7 +6,7 @@
 
 import type { DocumentData, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import type { RenderAsset, RenderAssetVariant } from '@/lib/content/rehype-assets';
-import type { Cover, EntryKind, SeriesRef } from '@/lib/entry-schema';
+import { projectMetaSchema, type Cover, type EntryKind, type ProjectMeta, type SeriesRef } from '@/lib/entry-schema';
 import { chooseSlugLookup } from '@/lib/slug-lookup';
 import { getCategoryLabel, type CategoryKey } from '@/lib/taxonomy';
 import { getServerDb } from './firebase-server';
@@ -52,6 +52,8 @@ export interface PublicEntry extends PublicEntrySummary {
 export interface SeriesMetaValue {
   title: string;
   description: string;
+  // 이 칸이 있으면 프로젝트다(4단계 D1). 값이 스키마에 맞지 않으면 없는 것으로 본다
+  project: ProjectMeta | null;
 }
 
 // 목록에 필요한 필드만 읽는다
@@ -151,9 +153,10 @@ export async function listPublishedNoteEntries(): Promise<PublicEntry[]> {
   });
 }
 
+// redirectTo의 series: 프로젝트 글은 연재(프로젝트 key)로 주소를 만든다(4단계 D1)
 export type PublicSlugLookup =
   | { entry: PublicEntry }
-  | { redirectTo: string; entryId: string; kind: EntryKind }
+  | { redirectTo: string; entryId: string; kind: EntryKind; series: SeriesRef | null }
   | null;
 
 // 공개 slug 조회 (Plan 4.1)
@@ -186,20 +189,37 @@ export async function findPublishedEntryBySlug(slug: string): Promise<PublicSlug
     const choice = chooseSlugLookup(slug, directItems, historyItems);
     if (!choice) return null;
     if ('match' in choice) return { entry: choice.match };
-    return { redirectTo: choice.redirectTo, entryId: choice.target.id, kind: choice.target.kind };
+    return {
+      redirectTo: choice.redirectTo,
+      entryId: choice.target.id,
+      kind: choice.target.kind,
+      series: choice.target.series,
+    };
   });
 }
 
-// 연재 제목·설명 (seriesMeta/{key})
+// 발행된 글 하나를 문서 ID로 읽는다 (OG 이미지 /og/<id>.png, 4단계 D13)
+// - 발행 상태(published)가 아니면 null. 본문을 함께 준다(노트 첫 줄).
+// - 메모리 캐시를 쓰지 않는다(PR-C 리뷰 경미 12). OG는 CDN이 하루 저장하므로, 재발행 퍼지 직후 다른 인스턴스의
+//   낡은 메모로 그린 그림이 다시 하루 저장되면 안 된다. 요청은 CDN에서 대부분 끝나 조회가 드물다.
+export async function getPublishedEntryById(id: string): Promise<PublicEntry | null> {
+  const snapshot = await getServerDb().collection(ENTRIES_COLLECTION).doc(id).get();
+  if (!snapshot.exists) return null;
+  return toPublicEntry(snapshot as QueryDocumentSnapshot<DocumentData>);
+}
+
+// 연재 제목·설명과 프로젝트 정보 (seriesMeta/{key})
 export async function listSeriesMeta(): Promise<Map<string, SeriesMetaValue>> {
   return memoize(`${ENTRIES_MEMO_PREFIX}series-meta`, async () => {
     const snapshot = await getServerDb().collection(SERIES_META_COLLECTION).get();
     const result = new Map<string, SeriesMetaValue>();
     for (const docSnap of snapshot.docs) {
       const data = docSnap.data();
+      const project = data.project === undefined ? null : projectMetaSchema.safeParse(data.project);
       result.set(docSnap.id, {
         title: typeof data.title === 'string' && data.title ? data.title : docSnap.id,
         description: typeof data.description === 'string' ? data.description : '',
+        project: project?.success ? project.data : null,
       });
     }
     return result;
