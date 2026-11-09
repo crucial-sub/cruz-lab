@@ -18,8 +18,10 @@ import { lowlight } from './lowlight.ts';
 // 목록의 느슨함(mdast spread). 렌더에 영향을 주므로(항목이 <p>로 감싸인다) 보존한다. DOM에는 쓰지 않는다
 const spreadAttribute = { spread: { default: false, rendered: false } };
 
-// 인라인 코드: 기본값은 다른 마크를 모두 밀어내지만(excludes '_'), 기존 글의 **`코드`**를 지키려면 굵게·링크와 겹쳐야 한다
-export const EditorCode = Code.extend({ excludes: 'code' });
+// 인라인 코드: 기본값은 다른 마크를 모두 밀어내지만(excludes '_'), 기존 글의 **`코드`**를 지키려면 굵게·링크와 겹쳐야 한다.
+// keepOnSplit false: 인라인 코드 끝에서 Enter를 누르면 새 줄은 인라인 코드가 아니다(사용 피드백 2026-11-09).
+// 스키마는 바뀌지 않는다(Tiptap의 splitBlock·splitListItem이 새 줄에 넘길 마크를 고를 때만 읽는다)
+export const EditorCode = Code.extend({ excludes: 'code', keepOnSplit: false });
 
 export const EditorBulletList = BulletList.extend({
   addAttributes() {

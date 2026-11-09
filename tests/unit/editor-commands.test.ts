@@ -95,6 +95,9 @@ describe('레지스트리 형태', () => {
       'save-now': 'Mod-s',
       publish: 'Mod-Shift-Enter',
       'toggle-panel': 'Mod-Shift-,',
+      // 사용 피드백 2026-11-09(부록 B 밖, 작업 문서 2.11)
+      'select-word': 'Mod-d',
+      'collapse-selection': 'Escape',
     };
     for (const [id, key] of Object.entries(expected)) {
       expect(byId(commands, id).keys, id).toEqual({ mac: key, other: key });
