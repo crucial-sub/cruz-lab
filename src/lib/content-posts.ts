@@ -1,12 +1,15 @@
 // 공개 페이지용 글 데이터 (재건 2단계 Plan 8절)
 // - entries 컬렉션의 발행 글(kind == 'post')만 돌려준다. 노트는 4단계 /notes에서 보인다(D4).
 // - 화면 컴포넌트가 쓰던 모양(ContentPost)을 지킨다. category, categoryLabel, series를 더했다.
+// - 4단계 글 상세(D16)는 resolvePostPageBySlug·getAdjacentPosts를 쓴다.
 
+import { publicPathFor } from '@/lib/entry-rules';
 import type { SeriesRef } from '@/lib/entry-schema';
 import {
   findPublishedEntryBySlug,
   listPublishedEntries,
   listSeriesMeta,
+  type PublicEntry,
   type PublicEntrySummary,
 } from '@/lib/server/entries';
 import type { CategoryKey } from '@/lib/taxonomy';
@@ -56,18 +59,43 @@ export async function getPublishedContentPosts(): Promise<ContentPost[]> {
   return entries.filter((entry) => entry.kind === 'post').map((entry) => toContentPost(entry));
 }
 
-export type ContentPostLookup = { post: ContentPost } | { redirectTo: string; id: string } | null;
+// 글 상세 주소(/blog/<slug>)의 조회 결과 (4단계 D11)
+// - post: 이 페이지가 그린다.
+// - redirect: 예전 slug(slugHistory)이거나 다른 kind(노트·프로젝트 글)의 slug다. 그 주소로 301.
+//   다른 kind의 공개 주소가 아직 없으면(publicPathFor가 null) 찾지 못한 것으로 본다(404).
+export type PostPageLookup =
+  | { type: 'post'; entry: PublicEntry }
+  | { type: 'redirect'; location: string; id: string }
+  | null;
 
-// slug로 글 하나 찾기. 예전 slug면 새 slug를 돌려준다(301용)
-export async function resolveContentPostBySlug(slug: string): Promise<ContentPostLookup> {
+export async function resolvePostPageBySlug(slug: string): Promise<PostPageLookup> {
   const result = await findPublishedEntryBySlug(slug);
   if (!result) return null;
   if ('redirectTo' in result) {
-    // 리다이렉트 대상도 post여야 한다
-    return result.kind === 'post' ? { redirectTo: result.redirectTo, id: result.entryId } : null;
+    const location = publicPathFor(result.kind, result.redirectTo);
+    return location
+      ? { type: 'redirect', location: encodeURI(location), id: result.entryId }
+      : null;
   }
-  if (result.entry.kind !== 'post') return null;
-  return { post: toContentPost(result.entry, result.entry.markdown) };
+  const { entry } = result;
+  if (entry.kind === 'post') return { type: 'post', entry };
+  const location = publicPathFor(entry.kind, entry.slug);
+  return location ? { type: 'redirect', location: encodeURI(location), id: entry.id } : null;
+}
+
+export interface AdjacentPosts {
+  // 바로 전에 발행한 글 (더 오래된 글)
+  previous: ContentPost | null;
+  // 바로 뒤에 발행한 글 (더 새 글)
+  next: ContentPost | null;
+}
+
+// 발행순으로 이웃한 글 (같은 kind = post, 4단계 D16 7)
+export async function getAdjacentPosts(id: string): Promise<AdjacentPosts> {
+  const posts = await getPublishedContentPosts(); // 최신 발행순
+  const index = posts.findIndex((post) => post.id === id);
+  if (index === -1) return { previous: null, next: null };
+  return { previous: posts[index + 1] ?? null, next: posts[index - 1] ?? null };
 }
 
 // 발행 글에 쓰인 태그 (가나다·알파벳순)

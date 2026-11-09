@@ -48,6 +48,7 @@
     "firebase": "^12.6.0",
     "firebase-admin": "^13.7.0",
     "framer-motion": "^12.23.25",
+    "github-slugger": "2.0.0",
     "highlight.js": "^11.11.1",
     "katex": "^0.19.1",
     "lowlight": "^3.3.0",
@@ -66,6 +67,7 @@
     "remark-rehype": "^11.1.2",
     "remark-stringify": "^11.0.0",
     "sharp": "^0.34.3",
+    "shiki": "3.12.2",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.2.0",
     "zod": "^4.3.6"

@@ -1,0 +1,329 @@
+/* 글 본문 스타일 .prose (재건 4단계 D10·D16)
+   - 공개 글 상세, 에디터 편집 영역(.tiptap-body.prose), 에디터 미리보기가 모두 이 파일을 쓴다.
+     3단계까지는 공개 글 페이지(<style is:global>)와 editor.css에 같은 규칙이 두 벌 있었다(3단계 작업 문서 5절 37).
+   - 색은 global.css 토큰이다. 다크가 기본이고 html.light가 덮어쓴다.
+   - 코드 색 토큰(--code-*)은 3단계 사용 피드백(PR #13)에서 editor.css에 만든 값을 옮겼다.
+     구문 강조 색은 둘로 나뉜다: 편집 영역의 lowlight(hljs 클래스, --hl-*)는 editor.css, 미리보기·공개 페이지의 Shiki는 shiki.css.
+   - Tailwind typography(prose prose-lg dark:prose-invert)는 4단계 PR-B(T5)까지 함께 쓰인다.
+     여기 규칙은 `.prose 요소` 선택자라 typography의 `:where()` 규칙보다 우선한다.
+   - 본문 글자는 1차 색이다(D16, U11). 3단계까지는 단락·목록이 보조 색(--text-secondary)이었다. */
+
+/* ── 코드 색 토큰 (3단계 사용 피드백 2026-11-09에서 옮김) ── */
+:root {
+  --code-inline-fg: #ff7b72;
+  --code-inline-bg: rgba(255, 123, 114, 0.1);
+  --code-inline-border: rgba(255, 123, 114, 0.24);
+  --code-block-bg: #0d1117;
+  --code-block-fg: #c9d1d9;
+  --code-block-border: #30363d;
+  --code-chip-bg: #161b22;
+  --code-chip-fg: #8b949e;
+}
+html.light {
+  --code-inline-fg: #cf222e;
+  --code-inline-bg: rgba(207, 34, 46, 0.07);
+  --code-inline-border: rgba(207, 34, 46, 0.2);
+  --code-block-bg: #f6f8fa;
+  --code-block-fg: #24292e;
+  --code-block-border: #d0d7de;
+  --code-chip-bg: #ffffff;
+  --code-chip-fg: #57606a;
+}
+
+/* ── 글자 ── */
+.prose {
+  color: var(--text-primary);
+}
+.prose h1 {
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+.prose h2 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+}
+.prose h3 {
+  font-size: 1.375rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+.prose h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+.prose p {
+  margin: 1rem 0;
+  line-height: 1.8;
+  color: var(--text-primary);
+}
+.prose ul,
+.prose ol {
+  padding-left: 1.5rem;
+  margin: 1rem 0;
+}
+.prose li {
+  margin: 0.5rem 0;
+  color: var(--text-primary);
+}
+.prose blockquote {
+  border-left: 4px solid var(--brand);
+  padding-left: 1rem;
+  margin: 1.5rem 0;
+  color: var(--text-secondary);
+  font-style: italic;
+  background: var(--bg-card);
+  padding: 1rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+.prose a {
+  color: var(--brand);
+  text-decoration: underline;
+}
+.prose a:hover {
+  color: var(--brand);
+  opacity: 0.8;
+}
+.prose hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2.5rem 0;
+}
+.prose strong {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.prose em {
+  font-style: italic;
+}
+
+/* ── 제목 앵커 (D16) ──
+   공유 파이프라인(rehype-headings)이 제목 끝에 <a class="heading-anchor">#</a>를 더한다.
+   hover·키보드 포커스 때만 보인다. 앵커로 이동했을 때 제목이 화면 위에 붙지 않게 여백을 둔다 */
+.prose :is(h1, h2, h3, h4, h5, h6) {
+  scroll-margin-top: 5rem;
+}
+.prose .heading-anchor {
+  margin-left: 0.25em;
+  color: var(--text-secondary);
+  font-weight: 400;
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.prose :is(h1, h2, h3, h4, h5, h6):hover .heading-anchor,
+.prose .heading-anchor:focus-visible {
+  opacity: 1;
+}
+.prose .heading-anchor:hover {
+  color: var(--brand);
+  opacity: 1;
+}
+@media (hover: none) {
+  /* 터치 화면에는 hover가 없다. 보이지 않는 앵커가 줄을 차지해 제목 아래에 빈 줄을 만들지 않게 뺀다.
+     제목으로 가는 링크는 목차가 준다 */
+  .prose .heading-anchor {
+    display: none;
+  }
+}
+
+/* ── 코드 ── */
+.prose code {
+  font-family: 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+}
+/* 인라인 코드. 코드 블록 밖의 <code>만 고른다(편집 영역의 Code 마크, 미리보기·공개 페이지의 `코드`).
+   Tailwind typography(dark:prose-invert)의 흰 글자·굵기를 덮는다 */
+.prose :not(pre) > code {
+  color: var(--code-inline-fg);
+  background: var(--code-inline-bg);
+  border: 1px solid var(--code-inline-border);
+  border-radius: 0.375rem;
+  padding: 0.1em 0.4em;
+  font-size: 0.85em;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.prose pre {
+  background-color: var(--code-block-bg);
+  color: var(--code-block-fg);
+  border: 1px solid var(--code-block-border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 1.5rem 0;
+}
+.prose pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+/* 코드 블록 틀 (D8): figure.code-block = 머리줄(언어·파일 이름·복사) + pre */
+.prose figure.code-block {
+  margin: 1.5rem 0;
+  border: 1px solid var(--code-block-border);
+  border-radius: 0.5rem;
+  background: var(--code-block-bg);
+  overflow: hidden;
+}
+.prose figure.code-block > pre {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+.prose .code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 2rem;
+  padding: 0.25rem 0.5rem 0.25rem 0.875rem;
+  border-bottom: 1px solid var(--code-block-border);
+  background: var(--code-chip-bg);
+  color: var(--code-chip-fg);
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+/* 라벨도 버튼도 없으면(언어 없음 + JS 없음·미리보기) 머리줄을 숨긴다 */
+.prose .code-head:has(.code-label:empty):has(.code-copy[hidden]) {
+  display: none;
+}
+.prose .code-label {
+  display: flex;
+  gap: 0.75rem;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.prose .code-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--code-block-fg);
+}
+.prose .code-copy {
+  flex: none;
+  border: 1px solid var(--code-block-border);
+  border-radius: 0.375rem;
+  padding: 0.125rem 0.5rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+.prose .code-copy:hover,
+.prose .code-copy:focus-visible {
+  color: var(--code-block-fg);
+  border-color: var(--code-chip-fg);
+}
+.prose .code-copy[data-state='copied'] {
+  color: var(--brand);
+  border-color: var(--brand);
+}
+
+/* ── 이미지·영상 ── */
+.prose img,
+.prose video {
+  max-width: 100%;
+  border-radius: 0.5rem;
+  margin: 1.5rem 0;
+}
+/* width·height 속성(새 자산, D15)이 있어도 폭에 맞춰 비율을 지킨다 */
+.prose img {
+  height: auto;
+}
+.prose video {
+  width: 100%;
+}
+
+/* ── 표 (가로 스크롤) ── */
+.prose .table-scroll {
+  margin: 1.5rem 0;
+  overflow-x: auto;
+}
+.prose .table-scroll > table {
+  margin: 0;
+}
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+}
+.prose th,
+.prose td {
+  border: 1px solid var(--border);
+  padding: 0.75rem;
+  text-align: left;
+}
+.prose th {
+  background: var(--bg-card);
+  font-weight: 600;
+}
+
+/* ── 수식 ── 긴 블록 수식은 가로로 스크롤한다 */
+.prose .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+}
+
+/* ── 콜아웃·임베드 (공유 파이프라인과 에디터 콜아웃 노드가 같은 클래스를 쓴다) ── */
+.prose .callout {
+  border-left: 4px solid var(--brand);
+  background: var(--bg-card);
+  padding: 0.75rem 1rem;
+  margin: 1.5rem 0;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+.prose .callout[data-callout='tip'] {
+  border-left-color: var(--graph-4);
+}
+.prose .callout[data-callout='warning'] {
+  border-left-color: #f59e0b;
+}
+.prose .callout::before {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  content: attr(data-callout);
+}
+.prose .callout > p:first-of-type {
+  margin-top: 0.25rem;
+}
+.prose .embed {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin: 1.5rem 0;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: var(--bg-card);
+}
+.prose .embed iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}

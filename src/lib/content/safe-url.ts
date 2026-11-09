@@ -3,7 +3,7 @@
 // - isVideoUrl: 공개 페이지 규칙(영상 확장자 → <video>)의 판정. 쿼리·해시를 뗀 경로의 확장자로 본다.
 // - 공유 파이프라인(markdown.ts)과 원시 HTML 안전 처리(rehype-strip-unsafe.ts)가 같이 쓴다. 순수 함수다.
 
-// 공개 페이지가 영상으로 그리는 확장자 (MarkdownPostView.tsx와 같다)
+// 공개 페이지가 영상으로 그리는 확장자 (옛 MarkdownPostView.tsx와 같다)
 export const VIDEO_EXTENSIONS = ['.webm', '.mp4', '.mov'];
 
 // 허용 프로토콜 (react-markdown defaultUrlTransform과 같다)

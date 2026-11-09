@@ -1,24 +1,16 @@
-/* 에디터 페이지 스타일 (재건 3단계 D8·D13)
-   - 편집 영역(.tiptap-body)과 미리보기는 공개 글 페이지(src/pages/blog/[...slug].astro)의 .prose 규칙과 같다.
-     4단계가 공개 페이지를 공유 파이프라인으로 바꿀 때 한 곳으로 합친다.
-   - 색은 global.css 토큰이다. html.light로 라이트 전환(M10).
-   - 예외: 코드 색(인라인 코드, 코드 블록 구문 강조)은 아래 "코드 색 토큰"이다(사용 피드백 2026-11-09).
-     공개 글 페이지는 아직 흰 글자 인라인 코드와 cdnjs github-dark다. 4단계가 공개 페이지를 바꿀 때 맞춘다. */
+/* 에디터 페이지 스타일 (재건 3단계 D8·D13, 4단계 D10)
+   - 글 본문 .prose 규칙은 src/styles/prose.css 한 파일이다. 편집 영역(.tiptap-body.prose)과 미리보기가 공개 글 상세와
+     같은 규칙을 쓴다(4단계에서 3단계 복사본을 합쳤다). 코드 색 토큰(--code-*)과 콜아웃·임베드 규칙도 거기에 있다.
+   - 미리보기의 코드 블록은 Shiki(src/styles/shiki.css)다. 편집 영역의 코드 블록은 lowlight라 아래 구문 강조 색(--hl-*)을 쓴다.
+   - 색은 global.css 토큰이다. html.light로 라이트 전환(M10). */
+@import '../styles/prose.css';
+@import '../styles/shiki.css';
 
-/* ── 코드 색 토큰 (사용 피드백 2026-11-09) ──
-   - 인라인 코드: 빨간 글자 + 옅은 빨간 배경 + 둥근 테두리.
-   - 코드 블록: GitHub 테마 색(highlight.js github-dark.css·github.css, BSD-3-Clause)을 변수로 옮겼다.
-     4단계 Plan D8의 공개 페이지 Shiki 테마(github-dark-default·github-light-default)와 같은 계열이다.
+/* ── 편집 영역 구문 강조 색 토큰 (사용 피드백 2026-11-09) ──
+   - lowlight(highlight.js 클래스)용이다. GitHub 테마 색(highlight.js github-dark.css·github.css, BSD-3-Clause)을 변수로 옮겼다.
+     미리보기·공개 페이지의 Shiki 테마(github-dark-default·github-light-default)와 같은 계열이다.
    - 다크가 기본이고 html.light가 덮어쓴다(global.css와 같은 규칙). */
 :root {
-  --code-inline-fg: #ff7b72;
-  --code-inline-bg: rgba(255, 123, 114, 0.1);
-  --code-inline-border: rgba(255, 123, 114, 0.24);
-  --code-block-bg: #0d1117;
-  --code-block-fg: #c9d1d9;
-  --code-block-border: #30363d;
-  --code-chip-bg: #161b22;
-  --code-chip-fg: #8b949e;
   --hl-keyword: #ff7b72;
   --hl-entity: #d2a8ff;
   --hl-constant: #79c0ff;
@@ -34,14 +26,6 @@
   --hl-deletion-bg: #67060c;
 }
 html.light {
-  --code-inline-fg: #cf222e;
-  --code-inline-bg: rgba(207, 34, 46, 0.07);
-  --code-inline-border: rgba(207, 34, 46, 0.2);
-  --code-block-bg: #f6f8fa;
-  --code-block-fg: #24292e;
-  --code-block-border: #d0d7de;
-  --code-chip-bg: #ffffff;
-  --code-chip-fg: #57606a;
   --hl-keyword: #d73a49;
   --hl-entity: #6f42c1;
   --hl-constant: #005cc5;
@@ -57,99 +41,8 @@ html.light {
   --hl-deletion-bg: #ffeef0;
 }
 
-/* ── 공개 글 페이지와 같은 .prose ── */
-.prose {
-  color: var(--text-primary);
-}
-.prose h1 {
-  font-size: 2.25rem;
-  font-weight: 700;
-  margin-top: 2rem;
-  margin-bottom: 1rem;
-  color: var(--text-primary);
-}
-.prose h2 {
-  font-size: 1.75rem;
-  font-weight: 600;
-  margin-top: 2rem;
-  margin-bottom: 0.75rem;
-  color: var(--text-primary);
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 0.5rem;
-}
-.prose h3 {
-  font-size: 1.375rem;
-  font-weight: 600;
-  margin-top: 1.5rem;
-  margin-bottom: 0.5rem;
-  color: var(--text-primary);
-}
-.prose h4 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin-top: 1.25rem;
-  margin-bottom: 0.5rem;
-  color: var(--text-primary);
-}
-.prose p {
-  margin: 1rem 0;
-  line-height: 1.8;
-  color: var(--text-secondary);
-}
-.prose ul,
-.prose ol {
-  padding-left: 1.5rem;
-  margin: 1rem 0;
-}
-.prose li {
-  margin: 0.5rem 0;
-  color: var(--text-secondary);
-}
-.prose blockquote {
-  border-left: 4px solid var(--brand);
-  padding-left: 1rem;
-  margin: 1.5rem 0;
-  color: var(--text-secondary);
-  font-style: italic;
-  background: var(--bg-card);
-  padding: 1rem;
-  border-radius: 0 0.5rem 0.5rem 0;
-}
-.prose pre {
-  background-color: var(--code-block-bg);
-  color: var(--code-block-fg);
-  border: 1px solid var(--code-block-border);
-  border-radius: 0.5rem;
-  padding: 1rem;
-  overflow-x: auto;
-  margin: 1.5rem 0;
-}
-.prose code {
-  font-family: 'Fira Code', 'JetBrains Mono', Consolas, monospace;
-}
-/* 인라인 코드. 코드 블록 밖의 <code>만 고른다(편집 영역의 Code 마크, 미리보기의 `코드`).
-   Tailwind typography(dark:prose-invert)의 흰 글자·굵기를 덮는다 */
-.prose :not(pre) > code {
-  color: var(--code-inline-fg);
-  background: var(--code-inline-bg);
-  border: 1px solid var(--code-inline-border);
-  border-radius: 0.375rem;
-  padding: 0.1em 0.4em;
-  font-size: 0.85em;
-  font-weight: 500;
-  overflow-wrap: anywhere;
-}
-.prose pre code {
-  background: transparent;
-  border: 0;
-  padding: 0;
-  color: inherit;
-  font-size: 0.875rem;
-  font-weight: 400;
-}
-
-/* 코드 블록 구문 강조. 편집 영역(lowlight 장식)과 미리보기(rehype-highlight)가 같은 hljs 클래스를 쓴다.
-   선택자 묶음은 highlight.js github 테마와 같다 */
+/* 편집 영역 코드 블록 구문 강조(lowlight 장식의 hljs 클래스). 선택자 묶음은 highlight.js github 테마와 같다.
+   미리보기는 Shiki라 이 규칙이 닿지 않는다(4단계 D8) */
 .prose pre .hljs-doctag,
 .prose pre .hljs-keyword,
 .prose pre .hljs-meta .hljs-keyword,
@@ -223,98 +116,6 @@ html.light {
   color: var(--hl-deletion-fg);
   background-color: var(--hl-deletion-bg);
 }
-.prose img,
-.prose video {
-  max-width: 100%;
-  border-radius: 0.5rem;
-  margin: 1.5rem 0;
-}
-.prose a {
-  color: var(--brand);
-  text-decoration: underline;
-}
-.prose a:hover {
-  color: var(--brand);
-  opacity: 0.8;
-}
-.prose hr {
-  border: none;
-  border-top: 1px solid var(--border);
-  margin: 2.5rem 0;
-}
-.prose strong {
-  font-weight: 700;
-  color: var(--text-primary);
-}
-.prose em {
-  font-style: italic;
-}
-.prose table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 1.5rem 0;
-}
-.prose th,
-.prose td {
-  border: 1px solid var(--border);
-  padding: 0.75rem;
-  text-align: left;
-}
-.prose th {
-  background: var(--bg-card);
-  font-weight: 600;
-}
-
-/* ── 콜아웃·임베드 (공유 파이프라인과 콜아웃 노드가 같은 클래스를 쓴다) ── */
-.prose .callout,
-.tiptap-body .callout {
-  border-left: 4px solid var(--brand);
-  background: var(--bg-card);
-  padding: 0.75rem 1rem;
-  margin: 1.5rem 0;
-  border-radius: 0 0.5rem 0.5rem 0;
-}
-.prose .callout[data-callout='tip'],
-.tiptap-body .callout[data-callout='tip'] {
-  border-left-color: var(--graph-4);
-}
-.prose .callout[data-callout='warning'],
-.tiptap-body .callout[data-callout='warning'] {
-  border-left-color: #f59e0b;
-}
-.prose .callout::before,
-.tiptap-body .callout::before {
-  display: block;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  content: attr(data-callout);
-}
-.prose .callout > p:first-of-type,
-.tiptap-body .callout > p:first-of-type {
-  margin-top: 0.25rem;
-}
-.prose .embed,
-.tiptap-body .embed {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  margin: 1.5rem 0;
-  border-radius: 0.5rem;
-  overflow: hidden;
-  background: var(--bg-card);
-}
-.prose .embed iframe,
-.tiptap-body .embed iframe {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: 0;
-}
-
 /* ── 편집 영역 ── */
 .tiptap-body {
   min-height: 60vh;
@@ -380,8 +181,7 @@ html.light {
 .tiptap-body ul[data-type='taskList'] li > div > p {
   margin: 0.25rem 0;
 }
-/* 코드 블록 안의 하이라이트 토큰은 highlight.js 클래스다. 색은 위 "코드 블록 구문 강조" 규칙이다
-   (에디터 페이지는 공개 페이지의 cdnjs 테마를 불러오지 않는다) */
+/* 코드 블록 안의 하이라이트 토큰은 highlight.js 클래스다. 색은 위 "편집 영역 코드 블록 구문 강조" 규칙이다 */
 .tiptap-body pre {
   white-space: pre;
 }

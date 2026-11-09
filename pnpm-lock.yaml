@@ -86,6 +86,9 @@ importers:
       framer-motion:
         specifier: ^12.23.25
         version: 12.23.25(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+      github-slugger:
+        specifier: 2.0.0
+        version: 2.0.0
       highlight.js:
         specifier: ^11.11.1
         version: 11.11.1
@@ -140,6 +143,9 @@ importers:
       sharp:
         specifier: ^0.34.3
         version: 0.34.4
+      shiki:
+        specifier: 3.12.2
+        version: 3.12.2
       unified:
         specifier: ^11.0.5
         version: 11.0.5

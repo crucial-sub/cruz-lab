@@ -22,6 +22,8 @@ const { title, description, image, type, publishedTime, tags } = Astro.props;
 <!doctype html>
 <html lang="ko">
   <BaseHead {title} {description} {image} {type} {publishedTime} {tags} />
+  <!-- 페이지별 head 요소(예: 글 상세의 KaTeX CSS, 재건 4단계 D16). </head> 뒤라도 파서가 head에 넣는다 -->
+  <slot name="head" />
   <ViewTransitions />
   <body class="bg-bg-app text-text-primary antialiased">
     <!-- 건너뛰기 링크 (접근성) -->

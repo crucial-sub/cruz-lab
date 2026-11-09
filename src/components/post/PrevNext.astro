@@ -1,0 +1,77 @@
+---
+// 이전·다음 글 (재건 4단계 D16 7)
+// - 발행순으로 이웃한 같은 kind의 글. 이전 글은 바로 전에 발행한 글, 다음 글은 바로 뒤에 발행한 글이다.
+import type { ContentPost } from '@/lib/content-posts';
+import { blogPath } from '@/lib/slug-lookup';
+
+interface Props {
+  previous: ContentPost | null;
+  next: ContentPost | null;
+}
+
+const { previous, next } = Astro.props;
+---
+
+{
+  (previous || next) && (
+    <nav class="prev-next" aria-label="이전 글과 다음 글">
+      {previous ? (
+        <a class="prev-next-link" href={blogPath(previous.slug)} rel="prev">
+          <span class="prev-next-label">← 이전 글</span>
+          <span class="prev-next-title">{previous.title}</span>
+        </a>
+      ) : (
+        <span />
+      )}
+      {next ? (
+        <a class="prev-next-link prev-next-link-next" href={blogPath(next.slug)} rel="next">
+          <span class="prev-next-label">다음 글 →</span>
+          <span class="prev-next-title">{next.title}</span>
+        </a>
+      ) : (
+        <span />
+      )}
+    </nav>
+  )
+}
+
+<style>
+  .prev-next {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  @media (min-width: 640px) {
+    .prev-next {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  .prev-next-link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+    padding: 0.875rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: border-color 0.15s;
+  }
+  .prev-next-link:hover {
+    border-color: var(--brand);
+  }
+  .prev-next-link-next {
+    text-align: right;
+  }
+  .prev-next-label {
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+  }
+  .prev-next-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+</style>

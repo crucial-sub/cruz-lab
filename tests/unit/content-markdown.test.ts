@@ -1,6 +1,11 @@
 // 공유 마크다운 파이프라인 테스트 (재건 3단계 Plan 4.3, D1 정규화)
 import { describe, expect, it } from 'vitest';
-import { markdownToHtml, normalizeForCompare, parseMarkdown } from '@/lib/content/markdown';
+import {
+  encodeDestination,
+  markdownToHtml,
+  normalizeForCompare,
+  parseMarkdown,
+} from '@/lib/content/markdown';
 
 describe('normalizeForCompare (D1 정규화 규칙)', () => {
   it('규칙 1: ZWSP를 지운다', () => {
@@ -98,10 +103,11 @@ describe('markdownToHtml', () => {
     expect(html).toContain('katex-display');
   });
 
-  it('코드 블록을 highlight.js 클래스로 그린다', () => {
+  it('하이라이터가 없으면 코드 블록은 민무늬이고 틀은 같다 (4단계 D8)', () => {
     const html = markdownToHtml('```js\nconst a = 1;\n```');
-    expect(html).toContain('hljs');
-    expect(html).toContain('language-js');
+    expect(html).not.toContain('hljs');
+    expect(html).toContain('<figure class="code-block" data-lang="js">');
+    expect(html).toContain('<pre><code class="language-js">const a = 1;\n</code></pre>');
   });
 
   it('영상 확장자 이미지는 video, 외부 링크는 새 창, 원시 <br>은 그대로다', () => {
@@ -109,6 +115,7 @@ describe('markdownToHtml', () => {
       '![영상](https://x.y/a.webm)\n\n[밖](https://x.y) [안](/blog)\n\n가<br />나',
     );
     expect(html).toContain('<video src="https://x.y/a.webm"');
+    expect(html).toContain('preload="metadata"');
     expect(html).toContain(
       '<a href="https://x.y" target="_blank" rel="noopener noreferrer">밖</a>',
     );
@@ -136,5 +143,86 @@ describe('리뷰 지적 수정 (PR-A 6.1)', () => {
     expect(normalizeForCompare('가​\n나')).toBe(normalizeForCompare('가나'));
     expect(normalizeForCompare('가​\n나')).not.toBe(normalizeForCompare('가 나'));
     expect(normalizeForCompare('가\n​나')).toBe(normalizeForCompare('가나'));
+  });
+});
+
+describe('목적지 인코딩 encodeDestination (4단계 D14)', () => {
+  it('보통 주소는 그대로, & 뒤에 글자가 와도 그대로다', () => {
+    expect(encodeDestination('https://a.b/c?alt=media&token=1', false)).toBe(
+      'https://a.b/c?alt=media&token=1',
+    );
+  });
+
+  it('문자 참조를 이루는 &만 \\&로 쓴다', () => {
+    expect(encodeDestination('https://a.b/?x=&amp;', false)).toBe('https://a.b/?x=\\&amp;');
+    expect(encodeDestination('https://a.b/?x=&#38;&#x26;', false)).toBe(
+      'https://a.b/?x=\\&#38;\\&#x26;',
+    );
+    expect(encodeDestination('https://a.b/?x=&amp', false)).toBe('https://a.b/?x=&amp');
+  });
+
+  it('공백·괄호·꺾쇠가 있으면 <…>로 감싼다', () => {
+    expect(encodeDestination('https://a.b/c d', false)).toBe('<https://a.b/c d>');
+    expect(encodeDestination('https://a.b/(c)', false)).toBe('<https://a.b/(c)>');
+    expect(encodeDestination('https://a.b/<c>', false)).toBe('<https://a.b/\\<c\\>>');
+  });
+
+  it('빈 주소는 제목이 있을 때만 <>다', () => {
+    expect(encodeDestination('', false)).toBe('');
+    expect(encodeDestination('', true)).toBe('<>');
+  });
+
+  it('쓴 주소를 다시 읽으면 같은 주소다', () => {
+    for (const url of [
+      'https://a.b/?a=1&amp;b',
+      'https://a.b/x\\(y',
+      'https://a.b/ (1)',
+      'https://a.b/\\',
+    ]) {
+      const tree = parseMarkdown(`[x](${encodeDestination(url, false)})`);
+      const paragraph = tree.children[0];
+      const link = paragraph.type === 'paragraph' ? paragraph.children[0] : null;
+      expect(link?.type === 'link' ? link.url : null, url).toBe(url);
+    }
+  });
+});
+
+describe('리뷰 지적 (경미 3)', () => {
+  it('주소의 줄바꿈은 문자 참조로 써서 다시 읽어도 같다', () => {
+    for (const url of ['https://e.com/a\nb', 'https://e.com/a\r\nb']) {
+      const encoded = encodeDestination(url, false);
+      expect(encoded).not.toMatch(/[\r\n]/);
+      const paragraph = parseMarkdown(`[x](${encoded})`).children[0];
+      const node = paragraph.type === 'paragraph' ? paragraph.children[0] : null;
+      expect(node?.type === 'link' ? node.url : null).toBe(url);
+    }
+  });
+});
+
+describe('normalizeForCompare 규칙 7: 블록 처음·끝 공백 (4단계 사용자 결정 2026-11-09)', () => {
+  it('단락 끝·처음의 공백(문자 참조 포함)은 렌더에 보이지 않으므로 같다', () => {
+    expect(normalizeForCompare('`코드`&#x20;')).toBe(normalizeForCompare('`코드`'));
+    expect(normalizeForCompare('&#x20;가')).toBe(normalizeForCompare('가'));
+    expect(normalizeForCompare('# 제목&#x20;')).toBe(normalizeForCompare('# 제목'));
+    expect(normalizeForCompare('| a&#x20; |\n| - |\n| &#x20;b |')).toBe(
+      normalizeForCompare('| a |\n| - |\n| b |'),
+    );
+    expect(normalizeForCompare('- 항목&#x20;')).toBe(normalizeForCompare('- 항목'));
+  });
+
+  it('블록 처음의 링크·강조 안 공백도 같다', () => {
+    expect(normalizeForCompare('[&#x20;링크](https://e.com)')).toBe(
+      normalizeForCompare('[링크](https://e.com)'),
+    );
+  });
+
+  it('보이는 공백은 그대로 다르다 (NBSP, 이미지 옆, 인라인 코드 안, 단락 가운데)', () => {
+    expect(normalizeForCompare('&nbsp;가')).not.toBe(normalizeForCompare('가'));
+    expect(normalizeForCompare('![x](https://e.com/a.png) 가')).not.toBe(
+      normalizeForCompare('![x](https://e.com/a.png)가'),
+    );
+    // CommonMark는 인라인 코드 양쪽 공백을 한 칸씩 지운다. 두 칸이면 한 칸이 남는다
+    expect(normalizeForCompare('`  a  `')).not.toBe(normalizeForCompare('`a`'));
+    expect(normalizeForCompare('가 나')).not.toBe(normalizeForCompare('가나'));
   });
 });

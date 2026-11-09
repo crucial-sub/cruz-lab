@@ -5,6 +5,7 @@
 // - 정렬과 kind 거르기는 메모리에서 한다(복합 인덱스가 필요 없다).
 
 import type { DocumentData, QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import type { RenderAsset, RenderAssetVariant } from '@/lib/content/rehype-assets';
 import type { Cover, EntryKind, SeriesRef } from '@/lib/entry-schema';
 import { chooseSlugLookup } from '@/lib/slug-lookup';
 import { getCategoryLabel, type CategoryKey } from '@/lib/taxonomy';
@@ -42,8 +43,10 @@ export interface PublicEntrySummary {
 }
 
 // 공개 글 하나 (본문 포함)
+// - revision: 발행본 번호(published.revision). 렌더 캐시 키에 쓴다(4단계 D7). 리다이렉트 후보는 0이다
 export interface PublicEntry extends PublicEntrySummary {
   markdown: string;
+  revision: number;
 }
 
 export interface SeriesMetaValue {
@@ -133,8 +136,16 @@ export async function findPublishedEntryBySlug(slug: string): Promise<PublicSlug
     const directItems = direct.docs.flatMap((docSnap) => {
       const summary = toSummary(docSnap);
       if (!summary) return [];
-      const markdown = docSnap.data().published?.markdown;
-      return [{ ...summary, markdown: typeof markdown === 'string' ? markdown : '' }];
+      const published = docSnap.data().published;
+      const markdown = published?.markdown;
+      const revision = published?.revision;
+      return [
+        {
+          ...summary,
+          markdown: typeof markdown === 'string' ? markdown : '',
+          revision: typeof revision === 'number' ? revision : 0,
+        },
+      ];
     });
 
     // 리다이렉트 후보는 본문이 필요 없다(빈 문자열로 둔다)
@@ -148,7 +159,7 @@ export async function findPublishedEntryBySlug(slug: string): Promise<PublicSlug
       historyItems = history.docs
         .map(toSummary)
         .filter((entry): entry is PublicEntrySummary => entry !== null)
-        .map((entry) => ({ ...entry, markdown: '' }));
+        .map((entry) => ({ ...entry, markdown: '', revision: 0 }));
     }
 
     const choice = chooseSlugLookup(slug, directItems, historyItems);
@@ -169,6 +180,46 @@ export async function listSeriesMeta(): Promise<Map<string, SeriesMetaValue>> {
         title: typeof data.title === 'string' && data.title ? data.title : docSnap.id,
         description: typeof data.description === 'string' ? data.description : '',
       });
+    }
+    return result;
+  });
+}
+
+// 자산 변형 하나 (문서 값이 모양에 맞지 않으면 null)
+function toRenderVariant(value: unknown): RenderAssetVariant | null {
+  if (!value || typeof value !== 'object') return null;
+  const { url, width, height } = value as Record<string, unknown>;
+  if (typeof url !== 'string' || !url) return null;
+  if (typeof width !== 'number' || typeof height !== 'number') return null;
+  return { url, width, height };
+}
+
+// 자산 문서 → 렌더용 변형 (재건 4단계 D15). legacy 자산은 variants가 null이다
+function toRenderAsset(data: DocumentData | undefined): RenderAsset {
+  const variants = data?.variants;
+  const max = toRenderVariant(variants?.max);
+  if (!max) return { variants: null };
+  const result: NonNullable<RenderAsset['variants']> = { max };
+  for (const key of ['w480', 'w960', 'w1600'] as const) {
+    const variant = toRenderVariant(variants?.[key]);
+    if (variant) result[key] = variant;
+  }
+  return { variants: result };
+}
+
+// 본문에 쓰인 새 자산의 변형 (재건 4단계 D15)
+// - 자산 ID 목록을 한 번에 읽는다(getAll, variants 칸만). 없는 문서는 결과에서 빠진다.
+// - 공개 데이터와 같이 메모리 캐시한다(같은 목록이면 60초 안에 다시 읽지 않는다).
+export async function getAssetsByIds(ids: readonly string[]): Promise<Map<string, RenderAsset>> {
+  const unique = [...new Set(ids)].sort();
+  if (unique.length === 0) return new Map();
+  return memoize(`${ENTRIES_MEMO_PREFIX}assets:${unique.join(',')}`, async () => {
+    const db = getServerDb();
+    const refs = unique.map((id) => db.collection(ASSETS_COLLECTION).doc(id));
+    const snapshots = await db.getAll(...refs, { fieldMask: ['variants'] });
+    const result = new Map<string, RenderAsset>();
+    for (const snapshot of snapshots) {
+      if (snapshot.exists) result.set(snapshot.id, toRenderAsset(snapshot.data()));
     }
     return result;
   });
