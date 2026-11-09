@@ -44,6 +44,8 @@ import {
   SquareCode,
   Strikethrough,
   Table,
+  TextCursor,
+  TextSelect,
   Trash2,
   TriangleAlert,
   Undo2,
@@ -51,6 +53,7 @@ import {
 } from 'lucide-react';
 import type { CalloutType } from '@/lib/content/remark-callout';
 import type { KeyBinding } from './keymap';
+import { collapsedSelection, nextSelectionRange } from './select-word';
 
 export type CommandGroup = 'block' | 'mark' | 'insert' | 'view' | 'doc';
 export type ViewModeName = 'edit' | 'source' | 'preview';
@@ -537,6 +540,42 @@ export function createCommands(actions: CommandActions): EditorCommand[] {
       inSlash: false,
       inPalette: true,
       icon: Redo2,
+    },
+    // 단어·줄 선택(사용 피드백 2026-11-09, 작업 문서 2.11). 한 번: 가까운 단어, 다시: 그 줄, 다시: 블록 전체.
+    // 넓힐 것이 없어도 키를 받는다(true). 받지 않으면 브라우저가 Mod+D 북마크 창을 연다
+    {
+      id: 'select-word',
+      title: '단어·줄 선택',
+      group: 'doc',
+      scope: 'editor',
+      keys: both('Mod-d'),
+      run: (editor) => {
+        const range = nextSelectionRange(editor.state);
+        editor.commands.focus();
+        if (range) editor.commands.setTextSelection(range);
+        return true;
+      },
+      inSlash: false,
+      inPalette: true,
+      icon: TextSelect,
+    },
+    // 선택 풀기(사용 피드백 2026-11-09, 작업 문서 2.11). 선택이 없으면 받지 않는다(false):
+    // 슬래시 메뉴는 선택 없이 열리므로 그때의 Esc는 지금처럼 메뉴를 닫는다. 팔레트·대화상자는 에디터 밖에서 Esc를 받는다
+    {
+      id: 'collapse-selection',
+      title: '선택 풀기',
+      group: 'doc',
+      scope: 'editor',
+      keys: both('Escape'),
+      run: (editor) => {
+        if (editor.state.selection.empty) return false;
+        const next = collapsedSelection(editor.state);
+        if (next) editor.view.dispatch(editor.state.tr.setSelection(next));
+        return true;
+      },
+      inSlash: false,
+      inPalette: false,
+      icon: TextCursor,
     },
     actionCommand(
       {
