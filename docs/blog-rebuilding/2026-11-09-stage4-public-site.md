@@ -3,8 +3,8 @@
 - 날짜: 2026-11-09 (PR-A 구현), 2026-11-10 (PR-B 구현, PR-C 구현)
 - Plan: [2026-11-09-stage4-public-site-plan.md](./2026-11-09-stage4-public-site-plan.md) (승인 2026-11-09, PR #14 병합 `b2583ed`)
 - 진행 기록: [계획 문서 11.9](./2026-11-06-blog-architecture-audit-2-problems-and-plan.md#119-4단계-구현-진행-기록-2026-11-09)
-- 브랜치: `stage4/a-renderer`(PR-A, [PR #15](https://github.com/crucial-sub/cruz-lab/pull/15), `rebuild`에 병합 `2b32907`), `stage4/b-pages`(PR-B, [PR #16](https://github.com/crucial-sub/cruz-lab/pull/16), `rebuild`에 병합 `2ca985d`), `stage4/c-projects-og`(PR-C, `origin/rebuild` `2ca985d`에서 생성, [PR #17](https://github.com/crucial-sub/cruz-lab/pull/17)). 대상은 `rebuild`다. 문서 PR `stage4/docs`는 아직이다.
-- 상태: **PR-A(T1·T2)·PR-B(T3·T4·T5) 병합. PR-C(T6·T7·T8) 구현·검증·리뷰 수정 끝(4.12~4.17, 6.3).** 프로젝트 글 이전은 사용자 승인(2026-11-10)으로 실행했다(4.13). 사용자 승인(2026-11-10)으로 커밋 `81b7be9`(코드)·`3857b95`(문서), 푸시, [PR #17](https://github.com/crucial-sub/cruz-lab/pull/17)(대상 `rebuild`). 미리보기 확인(Plan 8.5)은 4.17에 이어 적는다. 병합은 사용자 확인 뒤다.
+- 브랜치: `stage4/a-renderer`(PR-A, [PR #15](https://github.com/crucial-sub/cruz-lab/pull/15), `rebuild`에 병합 `2b32907`), `stage4/b-pages`(PR-B, [PR #16](https://github.com/crucial-sub/cruz-lab/pull/16), `rebuild`에 병합 `2ca985d`), `stage4/c-projects-og`(PR-C, [PR #17](https://github.com/crucial-sub/cruz-lab/pull/17), `rebuild`에 병합 `34df87f`). 대상은 `rebuild`다. 문서 PR 브랜치 `stage4/docs`는 `34df87f`에서 만들었다(미리보기 기록 커밋이 먼저 있다).
+- 상태: **PR-A(T1·T2)·PR-B(T3·T4·T5)·PR-C(T6·T7·T8) 병합.** PR-C는 프로젝트 글 이전을 사용자 승인(2026-11-10)으로 실행했다(4.13). 커밋 `81b7be9`(코드)·`3857b95`(문서)·`bf21c33`·`fb6fce6`(기록), [PR #17](https://github.com/crucial-sub/cruz-lab/pull/17), 사용자 답으로 병합(`34df87f`). 병합 뒤 `rebuild` 미리보기에서 Plan 8.5를 끝냈다(4.17). 남은 것은 문서 PR(T9)이다.
 
 ## 1. 현재 상황
 
@@ -12,7 +12,7 @@
 |---|---|
 | PR-A (T1 공유 파이프라인, T2 글 상세) | 끝. [PR #15](https://github.com/crucial-sub/cruz-lab/pull/15) `rebuild` 병합(`2b32907`). 테스트 504, 왕복 59/59, 공개 스모크 322/0, 글 상세 점검 378/0. 리뷰 치명 0·중요 1·경미 12(6.1). 태그 `rebuild-pre-stage4`(`b2583ed`) |
 | PR-B (T3 토큰·레이아웃, T4 페이지, T5 React 삭제) | 구현·검증·리뷰 수정 끝(2026-11-10). 브랜치 `stage4/b-pages`(`origin/rebuild` `2b32907`에서 생성). 204파일(글꼴 subset·라이선스 93개 포함). 글꼴·lockfile을 빼면 108파일, +3,871·−4,190줄(문서 포함). 테스트 526(+22), `tsc` **0**, lint·빌드 통과, 운영 왕복 59/59, 2단계 공개 스모크 324/0, PR-B 공개 점검 602/0, 공개 페이지 `astro-island` 0, 브라우저 확인(4.10). 리뷰 치명 0·중요 3·경미 15 → 중요 3·경미 10 고침(6.2). 커밋 `25facf1`·`ad1765b`, [PR #16](https://github.com/crucial-sub/cruz-lab/pull/16)(대상 `rebuild`). 병합은 사용자 확인 뒤 |
-| PR-C (T6 프로젝트 이전, T7 OG, T8 검증) | 구현·검증 끝(2026-11-10). 브랜치 `stage4/c-projects-og`(`origin/rebuild` `2ca985d`에서 생성). 테스트 573(+47), `tsc` 0, lint·빌드 통과, 운영 왕복 69/69, 공개 점검(`stage4-public.mjs`) 871/0 + 2단계 324/0, 옛 프로젝트 페이지 8편과 본문 글자 같음, JS 끈 확인 7쪽, 브라우저(Plan 8.3의 8, 390px). API 스모크 105/105. 리뷰 치명 0·중요 4·경미 10 → 중요 4·경미 9 고침(6.3). 커밋 `81b7be9`·`3857b95`, [PR #17](https://github.com/crucial-sub/cruz-lab/pull/17). 미리보기 확인(8.5)은 4.17 |
+| PR-C (T6 프로젝트 이전, T7 OG, T8 검증) | 구현·검증 끝(2026-11-10). 브랜치 `stage4/c-projects-og`(`origin/rebuild` `2ca985d`에서 생성). 테스트 573(+47), `tsc` 0, lint·빌드 통과, 운영 왕복 69/69, 공개 점검(`stage4-public.mjs`) 871/0 + 2단계 324/0, 옛 프로젝트 페이지 8편과 본문 글자 같음, JS 끈 확인 7쪽, 브라우저(Plan 8.3의 8, 390px). API 스모크 105/105. 리뷰 치명 0·중요 4·경미 10 → 중요 4·경미 9 고침(6.3). 커밋 `81b7be9`·`3857b95`, [PR #17](https://github.com/crucial-sub/cruz-lab/pull/17) 병합(`34df87f`). 미리보기 확인(8.5) 끝, 시험 데이터 0(4.17) |
 | 문서 PR (T9) | 아직. 새 세션(7절) |
 | 외부 변경 | 없음(규칙·인덱스·환경 변수·Vercel·버킷 CORS) |
 | 운영 데이터 | PR-A는 읽기만 했다. PR-B는 사용자 승인(2026-11-10)으로 시험 노트 1편을 만들어 발행하고 확인 뒤 지웠다(4.11, `publishLog` 2건 남음). PR-C는 사용자 승인(2026-11-10)으로 프로젝트 글을 옮겼다: `entries` kind project 8편(+`revisions` 8), `seriesMeta` 새 문서 4개(`project` 칸), 새 자산 10개(Storage `assets/<id>/` 변형). 지금 `entries` 69(공개 post 54, project 8, 사용자 초안 7: post 6·note 1. PR-B 끝 59에서 사용자가 초안 2편을 더 만들었다), `assets` 141, `seriesMeta` 7, `publishLog` 2. 사용자 초안은 건드리지 않았다 |
@@ -438,7 +438,17 @@ PR-C 브랜치 미리보기(`cruz-lab-git-stage4-c-projects-og-crucialsubs-proje
 | 사이트맵·OG 메타 | `sitemap-posts.xml`에 프로젝트 글 8. 홈·`/projects`·404의 og:image는 `/og/default.png`, 글 상세는 `/og/<글 ID>.png`. og:image는 사이트 주소(`www.cruzlab.dev`) 기준이다(`Astro.site`, 미리보기에서도 같다) |
 | 페이지 시간(참고) | 프로젝트 글 첫 요청 2.15초(콜드), 그다음 0.25초. 글 상세 1.18초 |
 
-남은 것(사용자 결정 2026-11-10): PR-C 병합 뒤 `rebuild` 미리보기에서 사용자가 관리자로 로그인하면 시험 글 1편(코드·콜아웃·이미지 1장)·시험 노트 1편으로 Plan 8.5의 1·2·3·5를 한다. Lighthouse(CDN 포함)는 미리보기의 로그인 보호 때문에 CLI로 재지 못했다(로컬 값은 4.16).
+PR-C 병합 뒤 `rebuild` 미리보기(`34df87f`, 2026-11-10, 사용자 결정 "브랜치 먼저, 병합 뒤 시험 글"). 새 배포라 Vercel 로그인을 다시 요구했고, 사용자가 Vercel과 블로그 관리자(Google)에 로그인했다. 시험 글·노트는 그 세션으로 페이지 안에서 관리자 API(에디터와 같은 API)를 불러 만들었다. 이미지는 새로 올리지 않고 기존 프로젝트 자산(`assets/8viJXSfdXqAlun2X7dcb`) 주소를 썼다.
+
+| # | 확인 | 결과 |
+|---|---|---|
+| 8.5-1 | 시험 글 발행(코드·콜아웃·이미지 1장, 카테고리 회고) → 첫 요청 → OG | 발행 200(퍼지 `ok`, 백업 알림 `dispatched`). `/blog/<slug>` 첫 요청 200·`MISS`, 새 제목, Shiki `js` 코드 틀 1, 콜아웃, 새 자산 이미지에 `srcset`. og:image `/og/<글 ID>.png`. OG 첫 요청 200·1200×630·11.2초(같은 함수에 방금 페이지 요청을 보낸 뒤인데도. 8절 6), 두 번째 `HIT` |
+| 8.5-2 | 제목을 고쳐 다시 발행 → OG 새 제목 | 발행 200·revision 2·퍼지 `ok`. 페이지 `REVALIDATED`·새 제목. OG `REVALIDATED`·0.6초, 그림이 바뀌었다(해시 다름). 그림에 "(제목 고침)"·라벨 "회고"·날짜가 보인다(눈으로) |
+| 8.5-3 | 시험 노트 발행 → `/notes`·홈·노트 RSS·노트 OG | `/notes/note-20261110-0244` 200, `<title>` "노트 · 2026-11-10", 코드 틀 1, og:image `/og/<노트 ID>.png`. `/notes`·홈 최신 노트·노트 RSS(item 1)에 보인다. `/blog/<노트 slug>` 리다이렉트. 노트 OG 200·0.68초, 라벨 "노트" + 첫 줄이 제목(눈으로) |
+| 8.5-4 | 프로젝트 글 | 브랜치 미리보기에서 확인(위 표) |
+| 8.5-5 | 시험 데이터 삭제 → 남은 데이터 0 | 관리자 API로 두 편 삭제(퍼지 `ok`). 바로 상세 404·OG 404(`REVALIDATED`). `/notes`·노트 RSS·홈은 목록 무효화(`invalidateByTag`)라 첫 요청은 옛 응답(`STALE`), 그다음 요청부터 노트 없음(`HIT`). Admin SDK: 두 문서·`revisions`·삭제 표지 없음, 자산 `8viJX…` usedBy가 프로젝트 글 하나로 돌아옴(고아 표시 없음). 시험이 남긴 `publishLog` 5줄은 지웠다. 끝 상태 entries 69, assets 141, Storage `assets/` 37, seriesMeta 7, `publishLog` 2(PR-B가 남긴 것), `entryTombstones` 0. 백업 저장소에는 발행·삭제 알림이 갔다(2단계 설계대로) |
+
+Lighthouse(CDN 포함)는 미리보기의 로그인 보호 때문에 CLI로 재지 못했다(로컬 값은 4.16).
 
 ## 5. Plan과 다르게 하거나 Plan이 정하지 않은 것
 
@@ -621,14 +631,13 @@ PR-C(T6·T7·T8, 2026-11-10)에서 판단한 것:
 
 ## 7. 다음 작업
 
-**끝난 것.** PR-A(T1·T2) 병합(`2b32907`). PR-B(T3·T4·T5) 병합(`2ca985d`). PR-C(T6·T7·T8) 구현·검증·리뷰 수정(2.7~2.9, 4.12~4.17, 5절 52~83, 6.3). 프로젝트 글 이전 실행(4.13). PR-B에서 넘어온 미리보기 확인 2건(SSR 404, 콜드 TTFB, 4.17).
+**끝난 것.** PR-A(T1·T2) 병합(`2b32907`). PR-B(T3·T4·T5) 병합(`2ca985d`). PR-C(T6·T7·T8) 구현·검증·리뷰 수정(2.7~2.9, 4.12~4.17, 5절 52~84, 6.3), 병합(`34df87f`). 프로젝트 글 이전 실행(4.13). 미리보기 확인 Plan 8.5 전부와 PR-B에서 넘어온 2건(SSR 404, 콜드 TTFB)(4.17). 시험 데이터 0.
 
 **다음 것.**
 
-1. PR-C 커밋·푸시·PR 끝([PR #17](https://github.com/crucial-sub/cruz-lab/pull/17)). 병합은 사용자 확인 뒤.
-2. 미리보기 확인(Plan 8.5, 4.17에 이어 적는다. 사용자 결정 2026-11-10: 브랜치 먼저, 시험 글은 PR-C 병합 뒤 `rebuild` 미리보기에서 사용자 관리자 로그인으로): 브랜치 미리보기에서 `/og/<id>.png`·`/og/default.png`가 Vercel 함수에서 그려지는지(resvg linux 바이너리, `includeFiles` 글꼴, 그리기 시간), `/projects/**`. 시험 글·노트(사용자 확인 뒤): 발행 → 첫 요청 새 내용 → OG, 제목 고쳐 재발행 → OG 새 제목, 노트 → `/notes`·홈·노트 RSS·노트 OG, 끝에 삭제 → 남은 데이터 0.
-3. 문서 PR(T9)은 새 세션이다. 원료는 이 작업 문서와 Plan 15절이다.
-4. 병합 직전 할 일은 감사 문서 11.3(프로젝트 재동기화 명령 6, MCP 도구 문서 5 포함).
+1. 문서 PR(T9)은 새 세션이다. 브랜치 `stage4/docs`(`origin/rebuild` `34df87f`에서 생성)에 이 미리보기 기록 커밋이 먼저 있다. 원료는 이 작업 문서와 Plan 15절이다.
+2. 원격의 병합 끝난 브랜치(`stage4/a-renderer`·`stage4/b-pages`·`stage4/c-projects-og`) 삭제는 사용자 확인 뒤.
+3. 병합 직전 할 일은 감사 문서 11.3(프로젝트 재동기화 명령 6, MCP 도구 문서 5 포함).
 
 ## 8. 열린 질문
 
@@ -637,4 +646,4 @@ PR-C(T6·T7·T8, 2026-11-10)에서 판단한 것:
 3. 실제 브라우저(Chrome·Safari)의 클립보드 API 경로 확인(PR-A에서 넘어옴). 이 앱 브라우저는 권한이 거부돼 대체 경로만 확인했다.
 4. 글 상세 콜드 TTFB가 1.44초로 D7 뒤집는 조건(1.5초)에 가깝다(4.17, 한 번 잼). 5단계 Plan을 쓸 때 몇 번 더 재서 미리 계산(Plan 14절)을 다시 볼지 정한다.
 5. `tools/cruz-lab-knowledge-mcp`의 프로젝트 기능(5절 58): Firestore를 읽게 바꿀지 5단계 Plan에서 묻는다.
-6. OG 첫 요청이 콜드면 11.7초였다(4.17). 소셜 크롤러가 발행 직후 첫 요청에서 시간 초과할 수 있다. 줄이는 방법 후보: 발행 응답 뒤 백그라운드(`waitUntil`)로 `/og/<id>.png`를 한 번 받아 CDN을 데운다, resvg를 wasm으로 바꿔 잰다. 5단계 Plan에서 정한다.
+6. OG 첫 요청이 콜드면 11.2~11.7초였다(4.17, 두 번). 페이지 요청으로 함수가 이미 깨어 있어도 같았다. 그래서 비용은 함수 부팅보다 그 인스턴스의 satori·resvg 첫 import(네이티브 바이너리·yoga wasm)와 글꼴 읽기로 보인다(추측, 로컬은 1.6~3.7초). 소셜 크롤러가 발행 직후 첫 요청에서 시간 초과할 수 있다. 줄이는 방법 후보: 발행 응답 뒤 백그라운드(`waitUntil`)로 `/og/<id>.png`를 한 번 받아 CDN을 데운다, resvg를 wasm으로 바꿔 잰다. 5단계 Plan에서 정한다.
