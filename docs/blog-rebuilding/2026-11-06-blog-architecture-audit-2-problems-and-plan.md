@@ -455,7 +455,7 @@ Firestore ──(GitHub Action, 매일 + 발행 후 트리거)──▶ GitHub `
 | 2026-11-06 | 전수조사 | 완료 | 이 문서를 쓴 세션 | 1편·2편 문서, 시각 문서, 캡처. 10절(시리즈·방향·docs) 결정 |
 | 2026-11-06 | 1. 즉시 수리 | 완료 (main 병합) | 1단계 세션 | [PR #3](https://github.com/crucial-sub/cruz-lab/pull/3), 브랜치 `fix/rebuild-stage1-repairs`. 되돌리기 기준 태그 `pre-rebuild`(`bb97e81`). 규칙 배포 완료. 계획 밖 2건(사용자 승인): `publish-verify.mjs` 경로, 운영 함수 `syncPostToGitHub` 삭제. 관리자 로그인 확인(이미지 업로드·글 열기)은 사용자 몫. [2026-11-06-stage1-immediate-repairs.md](./2026-11-06-stage1-immediate-repairs.md) |
 | 2026-11-07 | 2. 데이터 모델과 서버 | 완료 (`rebuild` 병합, 2026-11-08): PR-A [#4](https://github.com/crucial-sub/cruz-lab/pull/4)(`bf55696`, 태그 `rebuild-pre-stage2`), PR-B [#5](https://github.com/crucial-sub/cruz-lab/pull/5)(`e232b94`), PR-C [#6](https://github.com/crucial-sub/cruz-lab/pull/6)(`814e7b3`). 사용자 설정 E3·E4·E5 뒤 미리보기·백업 확인 끝 | 2단계 Plan 세션 | [Plan 문서](./2026-11-07-stage2-data-model-and-server-plan.md), [visual plan](./visual-plans/2026-11-07-cruz-lab-stage2-plan.html). 사용자 결정 5건에 모두 답했다(Plan 14절): D1 새 컬렉션 `entries`, D7 새 비공개 저장소, D10 API만, D11 4단계로 미룸, 부록 A 그대로. 사용자가 2026-11-08에 Plan을 승인했다. 코드·데이터·운영 설정 변경 없음. 구현은 승인 뒤 새 세션에서 T1부터 한다. 진행 기록은 11.4. 구현은 2단계 구현 세션이 한다: [작업 문서](./2026-11-08-stage2-data-model-and-server.md), 진행 기록 11.5 |
-| 2026-11-08 | 3. 에디터 | Plan 승인(2026-11-08). [PR #8](https://github.com/crucial-sub/cruz-lab/pull/8) 병합(`4bc465b`). **구현 중(2026-11-09)**: PR-A [#9](https://github.com/crucial-sub/cruz-lab/pull/9)(T1·T2) `rebuild` 병합(`4010bd0`), 왕복 55/55, 태그 `rebuild-pre-stage3`(`4bc465b`). PR-B(T3·T4·T6·T8) 구현·검증·리뷰 끝(테스트 290, 브라우저 시나리오 15개, API 스모크 104/104, 시험 데이터 0), 브랜치 `stage3/b-editor`(기준 `4010bd0`), 커밋 `dfe1220`(코드)·`2df00d6`(문서), [PR #10](https://github.com/crucial-sub/cruz-lab/pull/10)(대상 `rebuild`, 병합은 사용자 확인 뒤). 외부 변경 E2(버킷 CORS, 사용자 승인). PR-C 시작 전. 진행 기록 11.7 | 3단계 Plan 세션, 3단계 구현 세션 | [Plan 문서](./2026-11-08-stage3-editor-plan.md), [visual plan](./visual-plans/2026-11-08-cruz-lab-stage3-plan.html). 사용자 결정 3건에 모두 답했다(Plan 13절): D1 왕복 검사는 "렌더 결과 동일 + 고치지 않으면 쓰지 않음"(9절의 "diff 0"을 대체), D2 옛 관리자 화면 삭제 + 최소 서버 렌더 목록, D3 임베드(YouTube·CodeSandbox)·수식·이미지 크기 선택은 넣고 찾기·바꾸기·드래그 핸들·링크 카드·임의 px 폭은 미룸(Plan 14절 상기 목록). 코드·데이터·운영 설정 변경 없음. 구현은 새 세션에서 T1부터. 진행 기록은 11.6 |
+| 2026-11-08 | 3. 에디터 | Plan 승인(2026-11-08). [PR #8](https://github.com/crucial-sub/cruz-lab/pull/8) 병합(`4bc465b`). **구현 중(2026-11-09)**: PR-A [#9](https://github.com/crucial-sub/cruz-lab/pull/9)(T1·T2) `rebuild` 병합(`4010bd0`), 왕복 55/55, 태그 `rebuild-pre-stage3`(`4bc465b`). PR-B(T3·T4·T6·T8) 구현·검증·리뷰 끝(테스트 290, 브라우저 시나리오 15개, API 스모크 104/104, 시험 데이터 0), 브랜치 `stage3/b-editor`(기준 `4010bd0`), 커밋 `dfe1220`(코드)·`2df00d6`(문서), [PR #10](https://github.com/crucial-sub/cruz-lab/pull/10) `rebuild` 병합(`03698b5`). 외부 변경 E2(버킷 CORS, 사용자 승인). PR-C(T5·T7·T9) 구현·검증·리뷰 끝(테스트 398, `tsc` 1, 브라우저 시나리오 7·14·17·18, 미리보기 확인 8.5, 시험 데이터 0), 브랜치 `stage3/c-commands`, 커밋·PR은 사용자 확인 뒤. 남은 것: 문서 PR(T10). 진행 기록 11.7 | 3단계 Plan 세션, 3단계 구현 세션 | [Plan 문서](./2026-11-08-stage3-editor-plan.md), [visual plan](./visual-plans/2026-11-08-cruz-lab-stage3-plan.html). 사용자 결정 3건에 모두 답했다(Plan 13절): D1 왕복 검사는 "렌더 결과 동일 + 고치지 않으면 쓰지 않음"(9절의 "diff 0"을 대체), D2 옛 관리자 화면 삭제 + 최소 서버 렌더 목록, D3 임베드(YouTube·CodeSandbox)·수식·이미지 크기 선택은 넣고 찾기·바꾸기·드래그 핸들·링크 카드·임의 px 폭은 미룸(Plan 14절 상기 목록). 코드·데이터·운영 설정 변경 없음. 구현은 새 세션에서 T1부터. 진행 기록은 11.6 |
 
 ### 11.1 1단계 작업 범위 (인계용 상세)
 
@@ -629,15 +629,21 @@ main에는 긴급 수정만 넣는다. main에 긴급 수정을 넣으면 main�
 11. PR-B 리뷰: 치명 1(editorJson이 Firestore 깊이 한도를 넘어 저장 500, 기존 글 2편 해당), 중요 10, 경미 11. 치명·중요는 모두 실패하는 테스트를 먼저 쓰고 고쳤다. 작업 문서 6.2, 5절 41~49.
 12. 외부 변경 E2(버킷 CORS, 2026-11-09, 사용자 승인): Plan 값 + `http://localhost:4322`. 이전 값 `[]`. 작업 문서 3절.
 13. 시험 데이터는 모두 지웠다(`entries` 55, `publishLog` 0, 새 자산 0, Storage `assets/` 0).
+14. 사용자가 [PR #10](https://github.com/crucial-sub/cruz-lab/pull/10)(PR-B)을 `rebuild`에 병합했다(2026-11-09, merge commit `03698b5`).
+15. PR-C(T5·T7·T9) 구현(2026-11-09): 브랜치 `stage3/c-commands`(`03698b5`에서 생성). 명령 레지스트리 41개(단축키·슬래시·팔레트 `Mod+K`·툴바·모바일 바가 한 목록), 키맵 순수 함수(덮어쓰기·충돌·표기), 더한 입력 규칙(콜아웃·체크 항목·`$$`), 임베드 붙여넣기·Enter·노드 뷰, 수식·링크 대화상자, 코드 블록 언어 선택, 개요·글자 수·읽기 시간, 최소 목록 `/admin`(서버 렌더), 옛 주소 301, 옛 관리자 화면·훅·lib·문서·평가 스크립트 2,468줄과 의존성 8개 삭제. 작업 문서 2.7·2.8.
+16. PR-C 검증: lint 통과, 테스트 398, `tsc` **1**(`TextReveal`만. 9 → 1), 빌드 통과(에디터 청크 1,795 KB, gzip 548 KB. 공개 페이지 청크 크기 같음), 왕복 55/55, API 스모크 104/104, 브라우저 시나리오 7·14·17·18 통과(`execCommand` 경로로 입력 규칙 확인), 미리보기 확인 8.5(발행 첫 요청 `MISS`·새 내용, 재발행 첫 요청 `REVALIDATED`·새 내용, `/blog` `STALE`). 시험 데이터 0. 작업 문서 4.6·4.7.
+17. PR-C 리뷰: 치명 0, 중요 4, 경미 11. 중요 1~3(발행 중복, 체크 규칙이 목록 전체 변환, 넣기 명령이 표·코드 블록을 가름)과 경미 9건을 고쳤다(테스트 17개). 중요 4(맥 `⌘⇧3/4` 스크린샷 충돌)는 사용자 결정으로 맥만 `⌃⇧2/3/4/0`. 작업 문서 6.3, 5절 55~73.
+18. 사용자 결정(2026-11-09): `/admin/posts/new`는 POST 폼(Plan D2 a의 GET과 다름). 맥 제목·단락 키 `⌃⇧숫자`. 시험 데이터 쓰기와 미리보기 발행 승인.
 
 **다음 것.**
 
-1. [PR #10](https://github.com/crucial-sub/cruz-lab/pull/10)(PR-B) 병합(사용자 확인 뒤). 커밋·푸시·PR은 사용자 승인으로 했다(2026-11-09, `dfe1220` 코드, `2df00d6` 문서).
-2. PR-C(T5 명령·모바일·개요, T7 최소 목록·옛 화면 삭제·`tsc` 재집계, T9 남은 시나리오 7·14·17·18과 미리보기 확인 8.5), 문서 PR(T10). 순서는 Plan 7절.
-3. 드래그 핸들 상기(Plan 14절)는 3단계 작업 문서를 마무리할 때 사용자에게 묻는다.
+1. PR-C 커밋·푸시·PR(대상 `rebuild`)과 병합. 모두 사용자 확인 뒤.
+2. 문서 PR(T10): 작업 문서 마무리, 11.7, Plan 15절, `README.md` 옛 CMS 설명 교체, 드래그 핸들 상기 답 기록. 새 세션(전역 7번 규칙).
+3. 사용자가 `rebuild` 미리보기에서 실제 키보드로 에디터를 써 본다(입력 규칙·슬래시·맥 키). 드래그 핸들 상기(Plan 14절)는 그 뒤 또는 5단계 Plan 때.
 
 **열린 질문.**
 
 1. ~~PR-B 브랜치의 기준~~ 닫음: PR-A 병합(`4010bd0`) 뒤 `rebuild`로 옮겼다(작업 문서 8절 1).
-2. `/admin/posts/new`의 GET 생성을 POST 폼으로 바꿀지(작업 문서 8절 3, PR-C T7에서 정한다).
-3. 단락 끝 공백의 `&#x20;` 표기, 초안 버리기 뒤 `hasUnpublishedChanges`(작업 문서 8절 9·10).
+2. ~~`/admin/posts/new`의 GET 생성~~ 닫음: POST 폼(사용자 결정 2026-11-09, 작업 문서 5절 68).
+3. 단락 끝 공백의 `&#x20;` 표기, 이미지 주소 `\&`, 초안 버리기 뒤 `hasUnpublishedChanges`(작업 문서 8절 9·10·11).
+4. 재발행 뒤 첫 요청 헤더 `REVALIDATED`(작업 문서 8절 12), iOS Safari의 모바일 바(8절 13).
