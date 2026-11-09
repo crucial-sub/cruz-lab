@@ -2,7 +2,7 @@
 
 - 날짜: 2026-11-09
 - 상태: **승인됨(2026-11-09).** 사용자 결정 6건의 답은 13절, 미룬 기능과 "main 병합 직전" 항목은 14절에 있다. 12절 끝의 "Claude 판단"(D7~D18)도 함께 승인받았다. 구현은 새 세션에서 T1부터 한다.
-- 브랜치: 이 Plan은 `stage4/plan`(PR 대상 `rebuild`). 구현은 `rebuild`에서 작업 브랜치를 만든다(`stage4/a-renderer`, `stage4/b-pages`, `stage4/c-projects-og`). PR 대상은 `rebuild`다. main이 아니다.
+- 브랜치: 이 Plan은 `stage4/plan`, [PR #14](https://github.com/crucial-sub/cruz-lab/pull/14)(대상 `rebuild`). 구현은 `rebuild`에서 작업 브랜치를 만든다(`stage4/a-renderer`, `stage4/b-pages`, `stage4/c-projects-og`). PR 대상은 `rebuild`다. main이 아니다.
 - 근거: [계획 문서](./2026-11-06-blog-architecture-audit-2-problems-and-plan.md) 3.3, 4.3, 6절(U1~U18), 8.3 "4. 공개 사이트", 8.4, 9절, 10.1, 10.2. [2단계 Plan](./2026-11-07-stage2-data-model-and-server-plan.md) D4(`kind`별 규칙), D6(srcset), D11(프로젝트 글), 7.4, 8절. [2단계 작업 문서](./2026-11-08-stage2-data-model-and-server.md) 2.3, 8절 2. [3단계 Plan](./2026-11-08-stage3-editor-plan.md) 2.3, 4.3, D3, D10, D11 9, 14절. [3단계 작업 문서](./2026-11-09-stage3-editor.md) 2.1·2.5, 5절(11·15·21·37·38·42·48·73), 7절, 8절 8·9·11·14.
 - 시각 문서: [visual-plans/2026-11-09-cruz-lab-stage4-plan.html](./visual-plans/2026-11-09-cruz-lab-stage4-plan.html)
 
