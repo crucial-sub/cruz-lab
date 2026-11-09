@@ -456,7 +456,7 @@ Firestore ──(GitHub Action, 매일 + 발행 후 트리거)──▶ GitHub `
 | 2026-11-06 | 1. 즉시 수리 | 완료 (main 병합) | 1단계 세션 | [PR #3](https://github.com/crucial-sub/cruz-lab/pull/3), 브랜치 `fix/rebuild-stage1-repairs`. 되돌리기 기준 태그 `pre-rebuild`(`bb97e81`). 규칙 배포 완료. 계획 밖 2건(사용자 승인): `publish-verify.mjs` 경로, 운영 함수 `syncPostToGitHub` 삭제. 관리자 로그인 확인(이미지 업로드·글 열기)은 사용자 몫. [2026-11-06-stage1-immediate-repairs.md](./2026-11-06-stage1-immediate-repairs.md) |
 | 2026-11-07 | 2. 데이터 모델과 서버 | 완료 (`rebuild` 병합, 2026-11-08): PR-A [#4](https://github.com/crucial-sub/cruz-lab/pull/4)(`bf55696`, 태그 `rebuild-pre-stage2`), PR-B [#5](https://github.com/crucial-sub/cruz-lab/pull/5)(`e232b94`), PR-C [#6](https://github.com/crucial-sub/cruz-lab/pull/6)(`814e7b3`). 사용자 설정 E3·E4·E5 뒤 미리보기·백업 확인 끝 | 2단계 Plan 세션 | [Plan 문서](./2026-11-07-stage2-data-model-and-server-plan.md), [visual plan](./visual-plans/2026-11-07-cruz-lab-stage2-plan.html). 사용자 결정 5건에 모두 답했다(Plan 14절): D1 새 컬렉션 `entries`, D7 새 비공개 저장소, D10 API만, D11 4단계로 미룸, 부록 A 그대로. 사용자가 2026-11-08에 Plan을 승인했다. 코드·데이터·운영 설정 변경 없음. 구현은 승인 뒤 새 세션에서 T1부터 한다. 진행 기록은 11.4. 구현은 2단계 구현 세션이 한다: [작업 문서](./2026-11-08-stage2-data-model-and-server.md), 진행 기록 11.5 |
 | 2026-11-08 | 3. 에디터 | 완료 (`rebuild` 병합, 2026-11-09): Plan [PR #8](https://github.com/crucial-sub/cruz-lab/pull/8)(`4bc465b`), PR-A [#9](https://github.com/crucial-sub/cruz-lab/pull/9)(T1·T2, `4010bd0`, 태그 `rebuild-pre-stage3`), PR-B [#10](https://github.com/crucial-sub/cruz-lab/pull/10)(T3·T4·T6·T8, `03698b5`), PR-C [#11](https://github.com/crucial-sub/cruz-lab/pull/11)(T5·T7·T9, `cb2180f`), T10 문서 [PR #12](https://github.com/crucial-sub/cruz-lab/pull/12)(`b13926d`). 사용 피드백 보완 [PR #13](https://github.com/crucial-sub/cruz-lab/pull/13)(`4357218`). 외부 변경 E2(버킷 CORS, 사용자 승인). 끝 상태: 테스트 398, `tsc` 1, 왕복 55/55, API 스모크 104/104, 브라우저 시나리오 19개, 미리보기 확인 8.5, 시험 데이터 0. 진행 기록 11.7 | 3단계 Plan 세션, 3단계 구현 세션(PR-A·PR-B·PR-C·T10) | [Plan 문서](./2026-11-08-stage3-editor-plan.md), [visual plan](./visual-plans/2026-11-08-cruz-lab-stage3-plan.html), [작업 문서](./2026-11-09-stage3-editor.md). 사용자 결정(Plan 13절·15절): D1 왕복 검사는 "렌더 결과 동일 + 고치지 않으면 쓰지 않음", D2 옛 관리자 화면 삭제 + 최소 서버 렌더 목록, D3 임베드(YouTube·CodeSandbox)·수식·이미지 크기 선택은 넣고 찾기·바꾸기·드래그 핸들·링크 카드·임의 px 폭은 미룸(Plan 14절 상기 목록), 기울임 `*`, E2에 `localhost:4322` 추가, `/admin/posts/new`는 POST 폼, 맥 제목·단락 키 `⌃⇧2/3/4/0`, 드래그 핸들은 써 본 뒤 정함(5단계 Plan 때 다시 묻기). Plan과 다른 판단 76건(구현 1~73, 사용 피드백 74~76)은 작업 문서 5절. 운영 데이터는 시험 글·자산을 만들었다가 모두 지웠다. 진행 기록은 11.6(Plan)·11.7(구현) |
-| 2026-11-09 | 4. 공개 사이트 | Plan 승인됨(2026-11-09). 사용자 결정 6건 답함. Plan [PR #14](https://github.com/crucial-sub/cruz-lab/pull/14)(커밋 `31230c8`, 병합은 사용자 확인 뒤). 브랜치 `stage4/plan`(처음 기준 `origin/stage3/docs` `4b2a96f`. PR #12·#13 병합 뒤 `rebuild` 끝 `4357218`로 옮겼다). PR 대상 `rebuild` | 4단계 Plan 세션 | [Plan 문서](./2026-11-09-stage4-public-site-plan.md), [visual plan](./visual-plans/2026-11-09-cruz-lab-stage4-plan.html). 사용자 결정(Plan 13절): D1 프로젝트 글을 `entries`로 옮긴다, D2 검색은 `/blog` 필터만, D3 이미지 세부 조절은 4단계 제외·5단계에 반드시 포함, D4 링크 카드 미룸, D5 README·PUBLISHING·`.env.example`은 재건 끝 main 병합 직전에 한 번(11.3 목록), D6 헤더 Blog · Notes · Projects · About. Claude 판단 D7~D18. 바로잡음: 공개 글 54편·공개 카테고리 9개. 코드·데이터·운영 설정 변경 없음. 기준선 lint 통과, 테스트 398, `tsc` 1. 진행 기록은 11.8 |
+| 2026-11-09 | 4. 공개 사이트 | 진행 중. Plan 승인됨(2026-11-09). 사용자 결정 6건 답함. Plan [PR #14](https://github.com/crucial-sub/cruz-lab/pull/14) 병합(`b2583ed`). PR-A(T1 공유 파이프라인·T2 글 상세) 구현·검증·리뷰 끝, 커밋 전(브랜치 `stage4/a-renderer`, 테스트 504, `tsc` 1, 빌드 통과, 왕복 덤프 55/55·운영 59/59(정규화 규칙 7, 사용자 결정), 공개 스모크 322/0, 글 상세 점검 378/0, 리뷰 치명 0·중요 1·경미 12 → 중요 1·경미 10 고침). PR-B·PR-C·문서 PR 아직. 브랜치 `stage4/plan`(처음 기준 `origin/stage3/docs` `4b2a96f`. PR #12·#13 병합 뒤 `rebuild` 끝 `4357218`로 옮겼다). PR 대상 `rebuild` | 4단계 Plan 세션, 4단계 구현 세션(PR-A) | [Plan 문서](./2026-11-09-stage4-public-site-plan.md), [visual plan](./visual-plans/2026-11-09-cruz-lab-stage4-plan.html). 사용자 결정(Plan 13절): D1 프로젝트 글을 `entries`로 옮긴다, D2 검색은 `/blog` 필터만, D3 이미지 세부 조절은 4단계 제외·5단계에 반드시 포함, D4 링크 카드 미룸, D5 README·PUBLISHING·`.env.example`은 재건 끝 main 병합 직전에 한 번(11.3 목록), D6 헤더 Blog · Notes · Projects · About. Claude 판단 D7~D18. 바로잡음: 공개 글 54편·공개 카테고리 9개. 코드·데이터·운영 설정 변경 없음. 기준선 lint 통과, 테스트 422, `tsc` 1. 진행 기록은 11.8(Plan)·11.9(구현). 구현 [작업 문서](./2026-11-09-stage4-public-site.md) |
 
 ### 11.1 1단계 작업 범위 (인계용 상세)
 
@@ -692,3 +692,28 @@ main에는 긴급 수정만 넣는다. main에 긴급 수정을 넣으면 main�
 
 1. ~~Plan 12절의 사용자 결정 6건~~ 모두 답함(2026-11-09, Plan 13절).
 2. ~~Plan 승인~~ 승인됨(2026-11-09).
+
+### 11.9 4단계 구현 진행 기록 (2026-11-09)
+
+작업 문서: [2026-11-09-stage4-public-site.md](./2026-11-09-stage4-public-site.md). 새 세션은 작업 문서 1절(현재 상황), 5절(판단), 7절(다음 작업), 8절(열린 질문)을 먼저 읽는다.
+
+**끝난 것.**
+
+1. Plan [PR #14](https://github.com/crucial-sub/cruz-lab/pull/14)가 `rebuild`에 병합됐다(`b2583ed`). 구현 브랜치 `stage4/a-renderer`를 그 커밋에서 만들었다.
+2. PR-A T1(공유 파이프라인): Shiki 세밀 번들(언어 20, 별칭 `objectivec`·`nasm`, 듀얼 테마 CSS 변수), 코드 블록 틀(언어·파일 이름 라벨, 복사 버튼), 제목 id·앵커·목차, 새 자산 srcset, `renderMarkdown()`, `.prose` CSS 한 파일(`src/styles/prose.css`)과 `shiki.css`, 에디터 미리보기의 하이라이터 동적 import, 변환기 표기 옵션 2건(D14: 블록 앞뒤 공백, 주소 `&`) + fixture 2개. 작업 문서 2.1.
+3. PR-A T2(글 상세): `/blog/<slug>` 재작성(요청 때 렌더 + 글 ID·발행본 번호 메모리 캐시, 목차·연재 상자·이전다음·태그, 코드 복사·앵커·스크롤 스파이 `<script>`, KaTeX CSS 조건부, cdnjs 링크 제거, 다른 kind slug 301). `MarkdownPostView.tsx` 삭제. 작업 문서 2.2.
+4. 검증: lint 통과, 테스트 504(+82), `tsc` 1(그대로), 빌드 통과, 왕복 덤프 55/55·운영 59/59(처음 58/59, 7번), 공개 스모크 322/0, 글 상세 점검 378/0, 브라우저 확인(Plan 8.3의 3·4·5·6, 에디터 열기만·저장 없음). 작업 문서 4절.
+5. 별도 리뷰어 검토: 치명 0, 중요 1(단락 끝 줄바꿈 뒤 공백 → `\` 글자, D14 회귀), 경미 12. 중요 1과 경미 10건을 실패 테스트를 먼저 쓰고 고쳤다. 작업 문서 6.1.
+6. Plan과 다른 판단 21건(구현 14, 리뷰 뒤 6, 사용자 결정 1)은 작업 문서 5절. 외부 변경 없음. 운영 데이터는 읽기만 했다.
+7. 사용자 결정(2026-11-09): 운영 왕복 검사의 실패 1편(사용자 시험 초안의 단락 끝 `&#x20;`)은 정규화 규칙 7(블록 처음·끝 공백)을 더해 같게 본다(Plan 5절 대응표와 다름). 59/59. 커밋·푸시·PR과 태그 `rebuild-pre-stage4`도 승인했다.
+
+**다음 것.**
+
+1. ~~별도 리뷰어 검토 결과를 고친다~~ 끝(작업 문서 6.1).
+2. PR-A 커밋·푸시·PR(대상 `rebuild`)·태그 `rebuild-pre-stage4`(사용자 승인 2026-11-09). 남은 것: PR 병합(사용자 확인 뒤).
+3. PR-A 병합 뒤 `rebuild` 미리보기에서 글 상세 콜드 TTFB를 잰다(Plan D7 뒤집는 조건).
+4. PR-B(T3·T4·T5)는 새 세션이다. PR-A가 넘기는 것은 작업 문서 7절 3.
+
+**열린 질문.**
+
+1. ~~운영 왕복 검사의 실패 1편~~ 닫음: 정규화 규칙 7(사용자 결정 2026-11-09). 작업 문서 5절 21.
