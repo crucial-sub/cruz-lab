@@ -1,4 +1,4 @@
-// 글 상세 조회·이웃 글·공개 주소 테스트 (재건 4단계 D11·D16, 리뷰 테스트 빈틈)
+// 글·노트 상세 조회·이웃 글·공개 주소 테스트 (재건 4단계 D11·D12·D16, 리뷰 테스트 빈틈)
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PublicEntrySummary } from '@/lib/server/entries';
 
@@ -8,11 +8,12 @@ const listPublishedEntries = vi.fn();
 vi.mock('@/lib/server/entries', () => ({
   findPublishedEntryBySlug: (slug: string) => findPublishedEntryBySlug(slug),
   listPublishedEntries: () => listPublishedEntries(),
+  listPublishedNoteEntries: async () => [],
   listSeriesMeta: async () => new Map(),
 }));
 
-const { getAdjacentPosts, resolvePostPageBySlug } = await import('@/lib/content-posts');
-const { categoryPath, seriesPath, tagPath } = await import('@/lib/public-paths');
+const { getAdjacentPosts, resolveNotePageBySlug, resolvePostPageBySlug } = await import('@/lib/content-posts');
+const { categoryPath, notePath, seriesPath, tagPath } = await import('@/lib/public-paths');
 
 function summary(id: string, kind: PublicEntrySummary['kind'], day: number): PublicEntrySummary {
   const date = new Date(Date.UTC(2026, 0, day));
@@ -58,21 +59,52 @@ describe('resolvePostPageBySlug', () => {
     });
   });
 
-  it('다른 kind의 slug는 공개 주소가 아직 없으면 찾지 못한 것이다 (PR-B가 노트 주소를 더한다)', async () => {
+  it('노트의 slug는 노트 주소로 보낸다 (4단계 D12)', async () => {
     const note = { ...summary('n1', 'note', 1), markdown: '노트', revision: 1 };
     findPublishedEntryBySlug.mockResolvedValue({ entry: note });
-    expect(await resolvePostPageBySlug('n1-slug')).toBeNull();
+    expect(await resolvePostPageBySlug('n1-slug')).toEqual({ type: 'redirect', location: '/notes/n1-slug', id: 'n1' });
     findPublishedEntryBySlug.mockResolvedValue({
       redirectTo: 'n1-slug',
       entryId: 'n1',
       kind: 'note',
     });
-    expect(await resolvePostPageBySlug('옛-노트')).toBeNull();
+    expect(await resolvePostPageBySlug('옛-노트')).toEqual({
+      type: 'redirect',
+      location: '/notes/n1-slug',
+      id: 'n1',
+    });
+  });
+
+  it('공개 주소가 아직 없는 kind(project)의 slug는 찾지 못한 것이다', async () => {
+    const project = { ...summary('pr1', 'project', 1), markdown: '프로젝트 글', revision: 1 };
+    findPublishedEntryBySlug.mockResolvedValue({ entry: project });
+    expect(await resolvePostPageBySlug('pr1-slug')).toBeNull();
+    expect(await resolveNotePageBySlug('pr1-slug')).toBeNull();
   });
 
   it('없으면 null', async () => {
     findPublishedEntryBySlug.mockResolvedValue(null);
     expect(await resolvePostPageBySlug('없음')).toBeNull();
+  });
+});
+
+describe('resolveNotePageBySlug', () => {
+  it('노트면 그 노트를 돌려준다', async () => {
+    const note = { ...summary('n1', 'note', 1), markdown: '노트', revision: 2 };
+    findPublishedEntryBySlug.mockResolvedValue({ entry: note });
+    expect(await resolveNotePageBySlug('n1-slug')).toEqual({ type: 'post', entry: note });
+  });
+
+  it('글의 slug는 글 주소로, 노트의 예전 slug는 새 노트 주소로 보낸다', async () => {
+    const post = { ...summary('p1', 'post', 1), markdown: '본문', revision: 1 };
+    findPublishedEntryBySlug.mockResolvedValue({ entry: post });
+    expect(await resolveNotePageBySlug('p1-slug')).toEqual({ type: 'redirect', location: '/blog/p1-slug', id: 'p1' });
+    findPublishedEntryBySlug.mockResolvedValue({ redirectTo: '새-노트', entryId: 'n1', kind: 'note' });
+    expect(await resolveNotePageBySlug('옛-노트')).toEqual({
+      type: 'redirect',
+      location: '/notes/%EC%83%88-%EB%85%B8%ED%8A%B8',
+      id: 'n1',
+    });
   });
 });
 
@@ -92,6 +124,19 @@ describe('getAdjacentPosts', () => {
     expect(next?.id).toBe('c');
   });
 
+  it('노트는 노트끼리 이웃한다 (kind note)', async () => {
+    listPublishedEntries.mockResolvedValue([
+      summary('n3', 'note', 5),
+      summary('c', 'post', 4),
+      summary('n2', 'note', 3),
+      summary('n1', 'note', 1),
+    ]);
+    const { previous, next } = await getAdjacentPosts('n2', 'note');
+    expect(previous?.id).toBe('n1');
+    expect(next?.id).toBe('n3');
+    expect(await getAdjacentPosts('c', 'note')).toEqual({ previous: null, next: null });
+  });
+
   it('양 끝과 모르는 글', async () => {
     listPublishedEntries.mockResolvedValue(list);
     expect(await getAdjacentPosts('a')).toMatchObject({ previous: null, next: { id: 'b' } });
@@ -101,9 +146,14 @@ describe('getAdjacentPosts', () => {
 });
 
 describe('public-paths', () => {
-  it('카테고리는 PR-B까지 동의어 태그 주소다', () => {
-    expect(categoryPath('react-native')).toBe('/blog/tag/reactnative');
-    expect(categoryPath('os')).toBe(`/blog/tag/${encodeURIComponent('운영체제')}`);
+  it('카테고리는 /blog/category/<key>다 (4단계 D11)', () => {
+    expect(categoryPath('react-native')).toBe('/blog/category/react-native');
+    expect(categoryPath('os')).toBe('/blog/category/os');
+  });
+
+  it('노트 주소는 /notes/<slug>이고 한글은 인코딩한다', () => {
+    expect(notePath('note-20261109-1200')).toBe('/notes/note-20261109-1200');
+    expect(notePath('짧은-기록')).toBe(`/notes/${encodeURIComponent('짧은')}-${encodeURIComponent('기록')}`);
   });
 
   it('태그·연재 주소는 인코딩한다', () => {

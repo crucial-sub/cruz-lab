@@ -1,0 +1,73 @@
+---
+// 찾을 수 없음 안내 (재건 4단계 D10, U18)
+// - 404.astro(prerender)와, 없는 카테고리·태그·연재·노트 주소를 그리는 SSR 페이지가 같이 쓴다.
+// - SSR 페이지는 이 컴포넌트를 직접 그린다(Astro.response.status = 404, X-Astro-Reroute: no).
+//   빈 404 응답을 돌려주면 운영(Vercel)에서는 Astro가 /404.html을 네트워크로 다시 받아 붙인다.
+//   rebuild 미리보기처럼 로그인 보호가 걸린 배포에서는 그 요청이 막힐 수 있다(4단계 PR-B 리뷰 중요 3).
+// - 최신 글 목록은 넣지 않는다(Plan 2.3). 고정 링크 4개만 둔다.
+interface Props {
+  title?: string;
+  message?: string;
+}
+
+const {
+  title = '페이지를 찾을 수 없습니다',
+  message = '주소가 바뀌었거나 삭제된 페이지일 수 있습니다.',
+} = Astro.props;
+
+const LINKS = [
+  { href: '/', label: '홈' },
+  { href: '/blog', label: '블로그' },
+  { href: '/notes', label: '노트' },
+  { href: '/about', label: '소개' },
+];
+---
+
+<section class="not-found" aria-labelledby="not-found-title">
+  <p class="not-found-code">404</p>
+  <h1 id="not-found-title">{title}</h1>
+  <p class="not-found-text">{message}</p>
+  <ul class="not-found-links">
+    {
+      LINKS.map((link) => (
+        <li>
+          <a href={link.href}>{link.label} →</a>
+        </li>
+      ))
+    }
+  </ul>
+</section>
+
+<style>
+  .not-found {
+    padding-block: 3rem;
+  }
+  .not-found-code {
+    margin: 0;
+    color: var(--brand);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: 700;
+  }
+  h1 {
+    margin: 0.5rem 0 0;
+    font-size: var(--text-3xl);
+    font-weight: 800;
+    line-height: var(--leading-heading);
+  }
+  .not-found-text {
+    margin: 0.75rem 0 0;
+    color: var(--text-secondary);
+  }
+  .not-found-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+    margin: 2rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .not-found-links a {
+    font-weight: 600;
+  }
+</style>

@@ -2,6 +2,7 @@
    - 공유 파이프라인이 Shiki(github-light-default·github-dark-default, defaultColor: false)로 코드 블록을 그린다.
      토큰마다 style="--shiki-light:…;--shiki-dark:…"가 붙는다. 이 파일이 어느 변수를 쓸지 정한다.
    - 다크가 기본이고 html.light면 light 변수다(global.css 테마 규칙과 같다).
+     JS가 없으면(html에 dark·light 클래스가 없으면) 시스템 설정을 따른다.
    - 코드 블록 바탕·기본 글자·테두리는 테마 색(--shiki-*-bg)이 아니라 prose.css의 --code-* 토큰이다.
      그래서 style이 있는 토큰(span[style])만 칠한다. style이 없는 글자는 <pre>의 --code-block-fg를 물려받는다.
    - 에디터 편집 영역은 lowlight(hljs 클래스)라 이 파일과 관계없다. 미리보기는 이 파일을 쓴다. */
@@ -16,4 +17,12 @@ html.light .shiki span[style] {
   font-style: var(--shiki-light-font-style);
   font-weight: var(--shiki-light-font-weight);
   text-decoration: var(--shiki-light-text-decoration);
+}
+@media (prefers-color-scheme: light) {
+  html:not(.dark):not(.light) .shiki span[style] {
+    color: var(--shiki-light);
+    font-style: var(--shiki-light-font-style);
+    font-weight: var(--shiki-light-font-weight);
+    text-decoration: var(--shiki-light-text-decoration);
+  }
 }

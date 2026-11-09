@@ -339,6 +339,28 @@ export interface MarkdownRenderOptions {
   highlighter?: CodeHighlighter;
   // 새 자산 srcset·크기(D15). 없으면 이미지 주소 그대로다
   assets?: { byId: ReadonlyMap<string, RenderAsset>; bucket: string };
+  // 문서 안 id와 그 id를 가리키는 #주소·aria-describedby 앞에 붙일 글자.
+  // 한 페이지에 본문 여러 개를 그릴 때(/notes 스트림) 제목·각주 id가 겹치지 않게 한다(4단계 PR-B 리뷰 경미 5)
+  idPrefix?: string;
+}
+
+// 문서 안 id에 접두사를 붙인다 (idPrefix, 처리의 마지막 단계)
+// - hast에서 바꾼다. 글자(코드 안의 id="…" 등)는 건드리지 않는다.
+// - 목차(file.data.toc)는 이미 뽑았으므로 바뀌지 않는다. 스트림은 목차를 쓰지 않는다.
+function rehypePrefixIds(options: { prefix: string }) {
+  const { prefix } = options;
+  return (tree: HastRoot) => {
+    visit(tree, 'element', (node) => {
+      const { properties } = node;
+      if (typeof properties.id === 'string' && properties.id) properties.id = `${prefix}${properties.id}`;
+      if (typeof properties.href === 'string' && properties.href.startsWith('#') && properties.href.length > 1) {
+        properties.href = `#${prefix}${properties.href.slice(1)}`;
+      }
+      if (Array.isArray(properties.ariaDescribedBy)) {
+        properties.ariaDescribedBy = properties.ariaDescribedBy.map((id) => `${prefix}${id}`);
+      }
+    });
+  };
 }
 
 export interface MarkdownRenderResult {
@@ -373,6 +395,9 @@ function createHtmlProcessor(options: MarkdownRenderOptions) {
   if (options.assets) {
     processor.use(rehypeAssets, { assets: options.assets.byId, bucket: options.assets.bucket });
   }
+  if (options.idPrefix) {
+    processor.use(rehypePrefixIds, { prefix: options.idPrefix });
+  }
   return processor.use(rehypeStringify);
 }
 
@@ -385,7 +410,9 @@ export function renderMarkdown(
   options: MarkdownRenderOptions = {},
 ): MarkdownRenderResult {
   const processor =
-    options.highlighter || options.assets ? createHtmlProcessor(options) : plainHtmlProcessor;
+    options.highlighter || options.assets || options.idPrefix
+      ? createHtmlProcessor(options)
+      : plainHtmlProcessor;
   const file = processor.processSync(markdown);
   return {
     html: String(file),

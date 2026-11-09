@@ -1,52 +1,49 @@
-// 공개 페이지용 글 데이터 (재건 2단계 Plan 8절)
-// - entries 컬렉션의 발행 글(kind == 'post')만 돌려준다. 노트는 4단계 /notes에서 보인다(D4).
-// - 화면 컴포넌트가 쓰던 모양(ContentPost)을 지킨다. category, categoryLabel, series를 더했다.
-// - 4단계 글 상세(D16)는 resolvePostPageBySlug·getAdjacentPosts를 쓴다.
+// 공개 페이지용 글 데이터 (재건 2단계 Plan 8절, 4단계 D11·D12·D16)
+// - 글(kind == 'post'): 홈·/blog·카테고리·태그·연재·RSS·사이트맵. 화면용 모양(ContentPost)으로 돌려준다.
+// - 노트(kind == 'note'): /notes·홈·노트 RSS(4단계 D12). 본문을 함께 읽는다(getPublishedNoteEntries).
+// - 상세 주소 조회는 resolvePostPageBySlug(/blog/<slug>)·resolveNotePageBySlug(/notes/<slug>)다.
+//   slug 공간이 하나라서 다른 kind의 slug는 그 kind의 주소로 301한다.
 
 import { publicPathFor } from '@/lib/entry-rules';
-import type { SeriesRef } from '@/lib/entry-schema';
+import type { EntryKind, SeriesRef } from '@/lib/entry-schema';
 import {
   findPublishedEntryBySlug,
   listPublishedEntries,
+  listPublishedNoteEntries,
   listSeriesMeta,
   type PublicEntry,
   type PublicEntrySummary,
 } from '@/lib/server/entries';
 import type { CategoryKey } from '@/lib/taxonomy';
 
+// 목록·카드·이전다음이 쓰는 글 값 (본문 없음)
+// - 4단계 PR-B: 옛 React 카드가 쓰던 content·heroImage·heroVideo·isPublic 칸을 지웠다(리뷰 경미 9).
+//   표지는 글 상세가 PublicEntry.cover로 읽는다.
 export interface ContentPost {
   id: string;
   title: string;
   description: string;
-  content: string; // 목록에서는 빈 문자열이다(본문을 읽지 않는다)
-  heroImage: string;
-  heroVideo?: string;
   tags: string[];
   slug: string;
   pubDate: Date;
   updatedDate: Date;
   readingTime: number;
-  isPublic: boolean;
   category: CategoryKey | null;
   categoryLabel: string;
   series: SeriesRef | null;
 }
 
 // 공개 요약 → 화면용 모양
-function toContentPost(entry: PublicEntrySummary, markdown = ''): ContentPost {
+function toContentPost(entry: PublicEntrySummary): ContentPost {
   return {
     id: entry.id,
     title: entry.title,
     description: entry.description,
-    content: markdown,
-    // 옛 데이터의 heroImage를 표지 주소로 옮겼다. 영상 주소일 수도 있다(옛 화면과 같은 동작)
-    heroImage: entry.cover.kind === 'image' ? entry.cover.url : '',
     tags: entry.tags,
     slug: entry.slug,
     pubDate: entry.publishedAt,
     updatedDate: entry.lastPublishedAt,
     readingTime: entry.readingTime,
-    isPublic: true,
     category: entry.category,
     categoryLabel: entry.categoryLabel,
     series: entry.series,
@@ -59,16 +56,17 @@ export async function getPublishedContentPosts(): Promise<ContentPost[]> {
   return entries.filter((entry) => entry.kind === 'post').map((entry) => toContentPost(entry));
 }
 
-// 글 상세 주소(/blog/<slug>)의 조회 결과 (4단계 D11)
-// - post: 이 페이지가 그린다.
-// - redirect: 예전 slug(slugHistory)이거나 다른 kind(노트·프로젝트 글)의 slug다. 그 주소로 301.
-//   다른 kind의 공개 주소가 아직 없으면(publicPathFor가 null) 찾지 못한 것으로 본다(404).
+// 상세 주소(/blog/<slug>, /notes/<slug>)의 조회 결과 (4단계 D11)
+// - post: 이 페이지가 그린다(그 페이지의 kind와 같은 글).
+// - redirect: 예전 slug(slugHistory)이거나 다른 kind의 slug다. 그 kind의 주소로 301.
+//   다른 kind의 공개 주소가 아직 없으면(publicPathFor가 null. 지금은 project) 찾지 못한 것으로 본다(404).
 export type PostPageLookup =
   | { type: 'post'; entry: PublicEntry }
   | { type: 'redirect'; location: string; id: string }
   | null;
 
-export async function resolvePostPageBySlug(slug: string): Promise<PostPageLookup> {
+// slug로 그 페이지(kind)의 글을 찾는다
+export async function resolveEntryPageBySlug(slug: string, pageKind: EntryKind): Promise<PostPageLookup> {
   const result = await findPublishedEntryBySlug(slug);
   if (!result) return null;
   if ('redirectTo' in result) {
@@ -78,9 +76,19 @@ export async function resolvePostPageBySlug(slug: string): Promise<PostPageLooku
       : null;
   }
   const { entry } = result;
-  if (entry.kind === 'post') return { type: 'post', entry };
+  if (entry.kind === pageKind) return { type: 'post', entry };
   const location = publicPathFor(entry.kind, entry.slug);
   return location ? { type: 'redirect', location: encodeURI(location), id: entry.id } : null;
+}
+
+// 글 상세 /blog/<slug>
+export function resolvePostPageBySlug(slug: string): Promise<PostPageLookup> {
+  return resolveEntryPageBySlug(slug, 'post');
+}
+
+// 노트 상세 /notes/<slug> (4단계 D12)
+export function resolveNotePageBySlug(slug: string): Promise<PostPageLookup> {
+  return resolveEntryPageBySlug(slug, 'note');
 }
 
 export interface AdjacentPosts {
@@ -90,18 +98,18 @@ export interface AdjacentPosts {
   next: ContentPost | null;
 }
 
-// 발행순으로 이웃한 글 (같은 kind = post, 4단계 D16 7)
-export async function getAdjacentPosts(id: string): Promise<AdjacentPosts> {
-  const posts = await getPublishedContentPosts(); // 최신 발행순
-  const index = posts.findIndex((post) => post.id === id);
+// 발행순으로 이웃한 글 (같은 kind, 4단계 D16 7). 노트 상세는 kind 'note'로 부른다
+export async function getAdjacentPosts(id: string, kind: EntryKind = 'post'): Promise<AdjacentPosts> {
+  const entries = await listPublishedEntries(); // 최신 발행순
+  const sameKind = entries.filter((entry) => entry.kind === kind).map((entry) => toContentPost(entry));
+  const index = sameKind.findIndex((post) => post.id === id);
   if (index === -1) return { previous: null, next: null };
-  return { previous: posts[index + 1] ?? null, next: posts[index - 1] ?? null };
+  return { previous: sameKind[index + 1] ?? null, next: sameKind[index - 1] ?? null };
 }
 
-// 발행 글에 쓰인 태그 (가나다·알파벳순)
-export async function getAllContentTags(): Promise<string[]> {
-  const posts = await getPublishedContentPosts();
-  return Array.from(new Set(posts.flatMap((post) => post.tags))).sort();
+// 발행된 노트와 본문 (최신 발행순, 4단계 D12)
+export async function getPublishedNoteEntries(): Promise<PublicEntry[]> {
+  return listPublishedNoteEntries();
 }
 
 export interface PublishedSeries {

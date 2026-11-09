@@ -93,3 +93,27 @@ describe('리뷰 지적 (경미 2·4·5)', () => {
     expect(toc[0]).toMatchObject({ id: 'foo', text: 'Foo' });
   });
 });
+
+describe('id 접두사 (4단계 PR-B 리뷰 경미 5, /notes 스트림)', () => {
+  it('제목 id·앵커, 각주 id·주소·aria-describedby에 접두사를 붙인다. 글자는 그대로다', () => {
+    const markdown = '## 제목\n\n본문[^1]\n\n```html\n<a id="x" href="#y">코드</a>\n```\n\n[^1]: 각주';
+    const { html, toc } = renderMarkdown(markdown, { idPrefix: 'n-a-' });
+    expect(html).toContain('<h2 id="n-a-제목">');
+    expect(html).toContain('href="#n-a-제목"');
+    expect(html).toContain('id="n-a-user-content-fnref-1"');
+    expect(html).toContain('href="#n-a-user-content-fn-1"');
+    expect(html).toContain('aria-describedby="n-a-footnote-label"');
+    expect(html).toContain('id="n-a-footnote-label"');
+    // 태그 속성의 id는 모두 접두사가 있다
+    expect(html).not.toMatch(/<[^>]* id="(?!n-a-)/);
+    // 코드 블록 안의 글자는 바꾸지 않는다
+    expect(html).toContain('&#x3C;a id="x" href="#y">');
+    // 목차는 접두사 전 id다(스트림은 목차를 쓰지 않는다)
+    expect(toc[0].id).toBe('제목');
+  });
+
+  it('접두사가 없으면 그대로다', () => {
+    expect(markdownToHtml('## 제목')).toContain('<h2 id="제목">');
+  });
+});
+

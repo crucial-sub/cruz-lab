@@ -219,9 +219,10 @@ describe('상태 변화 (Plan 6.3 표)', () => {
 });
 
 describe('publicPathFor', () => {
-  it('2단계에서는 post만 공개 주소가 있다', () => {
+  it('post는 /blog, note는 /notes(4단계 D12), project는 아직 없다', () => {
     expect(publicPathFor('post', 'abc')).toBe('/blog/abc');
-    expect(publicPathFor('note', 'note-20261108-1204')).toBeNull();
+    expect(publicPathFor('note', 'note-20261108-1204')).toBe('/notes/note-20261108-1204');
+    expect(publicPathFor('project', 'part-1')).toBeNull();
   });
 });
 

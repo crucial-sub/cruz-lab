@@ -4,7 +4,8 @@
 // - 성공하면 200 { revision, status, publicUrl, purge, backup, assetUsage }.
 //   CDN 퍼지와 백업 알림은 함께 보낸다. 둘 다 실패해도 발행은 성공이다.
 //   assetUsage는 커밋 뒤 자산 사용 기록 갱신 결과다(실패해도 발행은 성공).
-//   publicUrl은 지금 요청한 사이트 기준이다(entries는 rebuild 배포에서만 보인다). note는 공개 페이지가 없어 null.
+//   publicUrl은 지금 요청한 사이트 기준이다(entries는 rebuild 배포에서만 보인다). note는 /notes/<slug>(4단계 D12),
+//   project는 아직 공개 주소가 없어 null(4단계 PR-C가 더한다).
 
 import type { APIRoute } from 'astro';
 import { z } from 'zod';

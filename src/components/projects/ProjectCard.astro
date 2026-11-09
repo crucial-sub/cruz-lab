@@ -1,0 +1,123 @@
+---
+// 프로젝트 카드 (재건 4단계 D9·D17, U14)
+// - 코드 커버(프로젝트 이름) · 제목 · 설명 · 기술 · GitHub·Demo 링크. 3단계의 React 아일랜드(ProjectCard.tsx)를 대신한다.
+// - 카드 전체를 누르면 프로젝트 첫 글로 간다(제목 링크 + 가상 요소). GitHub·Demo 링크는 그 위에 올라온다.
+// - 값은 props로만 받는다. 4단계 PR-C(T6)가 데이터를 entries로 옮겨도 이 카드는 그대로 쓴다.
+import PostCover from '@/components/blog/PostCover.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  href: string;
+  tech: string[];
+  coverKey: string; // 커버 블롭 배치를 정하는 값(프로젝트 key)
+  coverDate: Date; // 커버 왼쪽 위 날짜(시작 월)
+  github?: string;
+  demo?: string;
+}
+
+const { title, description, href, tech, coverKey, coverDate, github, demo } = Astro.props;
+---
+
+<article class="project-card">
+  <div class="project-card-cover">
+    <PostCover categoryLabel={title} tags={[]} slug={coverKey} date={coverDate} />
+  </div>
+  <div class="project-card-body">
+    <h2 class="project-card-title">
+      <a href={href}>{title}</a>
+    </h2>
+    <p class="project-card-desc">{description}</p>
+    {tech.length > 0 && <p class="project-card-tech">{tech.join(' · ')}</p>}
+    {
+      (github || demo) && (
+        <p class="project-card-links">
+          {github && (
+            <a href={github} target="_blank" rel="noopener noreferrer">
+              GitHub
+            </a>
+          )}
+          {demo && (
+            <a href={demo} target="_blank" rel="noopener noreferrer">
+              Demo
+            </a>
+          )}
+        </p>
+      )
+    }
+  </div>
+</article>
+
+<style>
+  .project-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--bg-surface);
+    transition: var(--transition-colors);
+  }
+  .project-card:hover {
+    border-color: var(--brand);
+  }
+  .project-card-cover {
+    aspect-ratio: 16 / 9;
+  }
+  .project-card-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem 1.125rem 1.25rem;
+  }
+  .project-card-title {
+    margin: 0;
+    font-size: var(--text-lg);
+    font-weight: 700;
+    line-height: var(--leading-heading);
+  }
+  .project-card-title a {
+    color: var(--text-primary);
+    text-decoration: none;
+  }
+  .project-card-title a::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+  .project-card-title a:focus-visible {
+    outline: none;
+  }
+  /* 포커스 표시는 전체를 덮는 가상 요소에 그린다(:has()가 없는 브라우저에서도 보인다).
+     카드는 overflow: hidden이라 안쪽(-2px)에 그린다 */
+  .project-card-title a:focus-visible::after {
+    outline: 2px solid var(--ring-focus);
+    outline-offset: -2px;
+    border-radius: var(--radius-lg);
+  }
+  .project-card-desc {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    line-height: 1.6;
+    word-break: keep-all;
+  }
+  .project-card-tech {
+    margin: 0;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+  }
+  .project-card-links {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    gap: 1rem;
+    margin: auto 0 0;
+    padding-top: 0.25rem;
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+</style>

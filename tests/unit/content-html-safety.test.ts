@@ -84,4 +84,19 @@ describe('markdownToHtml 원시 HTML 안전 처리 (지적 11)', () => {
     expect(html).not.toMatch(/onload|allow="camera"/);
     expect(html).toContain('sandbox=');
   });
+
+  it('할 일 목록의 체크 상자만 남긴다. 늘 disabled이고 type·checked 말고는 지운다 (4단계 PR-B 리뷰 중요 2)', () => {
+    const html = markdownToHtml('- [ ] 할 일\n- [x] 끝난 일');
+    expect(html).toContain('class="contains-task-list"');
+    expect(html).toMatch(/<li class="task-list-item"><input type="checkbox" disabled> 할 일<\/li>/);
+    expect(html).toMatch(/<li class="task-list-item"><input type="checkbox" checked disabled> 끝난 일<\/li>/);
+    // 원시 HTML 체크 상자도 같은 속성만 남는다
+    const raw = markdownToHtml('<input type="checkbox" name="x" form="f" onclick="alert(1)" autofocus>');
+    expect(raw).toContain('<input type="checkbox" disabled>');
+    expect(raw).not.toMatch(/onclick|name=|form=|autofocus/);
+    // 체크 상자가 아닌 input은 지운다
+    for (const input of ['<input type="text" value="x">', '<input type="image" src="javascript:alert(1)">', '<input>']) {
+      expect(markdownToHtml(input), input).not.toContain('<input');
+    }
+  });
 });

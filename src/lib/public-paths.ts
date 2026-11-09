@@ -1,18 +1,22 @@
-// 공개 페이지 주소 (재건 4단계 D11)
+// 공개 페이지 주소와 사이트 이름 (재건 4단계 D11)
 // - 페이지·사이트맵·리다이렉트가 같은 함수로 주소를 만든다. 주소 규칙은 이 파일에만 둔다.
-// - 4단계 PR-A는 글 상세가 쓰는 것만 둔다. PR-B(T4)가 카테고리·노트 주소 등을 더한다.
-// - 글 주소는 slug-lookup.ts의 blogPath, kind별 주소는 entry-rules.ts의 publicPathFor다.
+// - 돌려주는 주소는 인코딩된 경로다(한글 태그·slug는 %XX). href와 Location에 그대로 쓴다.
+// - 글 주소는 slug-lookup.ts의 blogPath, kind별 주소 규칙(발행 API·에디터)은 entry-rules.ts의 publicPathFor다.
+// - 상대 경로 import에 `.ts`를 붙인다(redirects.ts가 가져온다. 다른 공유 모듈과 같은 규칙).
 
-import { CATEGORIES, type CategoryKey } from './taxonomy';
+import { publicPathFor } from './entry-rules.ts';
+import type { CategoryKey } from './taxonomy.ts';
 
-// 카테고리 목록 주소
-// - 최종 주소는 /blog/category/<key>다(D11). 그 페이지는 PR-B(T4)가 만든다.
-// - 그때까지는 지금 동작하는 동의어 태그 주소를 쓴다. 태그 페이지가 그 카테고리의 글을 보인다.
-//   PR-B가 동의어 태그를 카테고리로 301하므로, 이 함수만 /blog/category/<key>로 바꾸면 된다.
+// 사이트 이름과 기본 설명 (3단계까지는 src/consts.ts)
+export const SITE_TITLE = 'Cruz Lab';
+export const SITE_DESCRIPTION = 'Cruz의 개발 블로그 - 프론트엔드, 시스템 프로그래밍, 학습 기록';
+
+// 글 목록 첫 화면
+export const BLOG_INDEX_PATH = '/blog';
+
+// 카테고리 목록 주소 (D11). 카테고리와 같은 뜻의 태그 주소는 미들웨어가 이 주소로 301한다
 export function categoryPath(key: CategoryKey): string {
-  const category = CATEGORIES.find((item) => item.key === key);
-  const synonym = category?.synonymTags[0] ?? key;
-  return tagPath(synonym);
+  return `/blog/category/${encodeURIComponent(key)}`;
 }
 
 // 태그 목록 주소
@@ -23,4 +27,9 @@ export function tagPath(tag: string): string {
 // 연재 상세 주소 (연재 key)
 export function seriesPath(key: string): string {
   return `/series/${encodeURIComponent(key)}`;
+}
+
+// 노트 1편 주소 (D12). 규칙은 publicPathFor('note')와 같다
+export function notePath(slug: string): string {
+  return encodeURI(publicPathFor('note', slug) ?? `/notes/${slug}`);
 }

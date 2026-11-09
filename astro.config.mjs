@@ -26,7 +26,9 @@ export default defineConfig({
       customSitemaps: [`${SITE}/sitemap-posts.xml`],
     }),
     react(),
-    tailwind(),
+    // base.css 자동 주입을 끈다. global.css가 @tailwind 지시문을 갖고, 모든 페이지 틀(BaseLayout·AdminPage)이
+    // global.css를 가져온다. 켜 두면 preflight·utilities가 한 벌 더 나갔다(4단계 PR-B 리뷰 경미 10)
+    tailwind({ applyBaseStyles: false }),
   ],
   image: {
     service: sharpImageService(),
@@ -43,8 +45,8 @@ export default defineConfig({
     optimizeDeps: {
       // 개발 서버 시작 시 항상 의존성 재스캔
       force: true,
-      // 자주 사용하는 의존성 미리 번들링
-      include: ['react', 'react-dom', 'framer-motion'],
+      // 자주 사용하는 의존성 미리 번들링 (React는 관리자 화면만 쓴다. framer-motion은 4단계에서 지웠다)
+      include: ['react', 'react-dom'],
     },
     server: {
       // HMR 연결 안정성 향상

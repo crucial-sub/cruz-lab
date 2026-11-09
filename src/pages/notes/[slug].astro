@@ -1,0 +1,66 @@
+---
+// 노트 상세 /notes/<slug> (재건 4단계 D11·D12·D16)
+// - 공유 주소다. 발행 토스트의 "공개 페이지 보기"가 여기를 연다(publicPathFor('note')).
+// - 예전 slug와 다른 kind(글)의 slug는 그 주소로 301(slug 공간이 하나다). /blog/<노트 slug>는 반대로 여기로 301.
+// - 글 상세와 같은 PostArticle(kind="note")이다. 제목이 없으면 <title>은 "노트 · 2026-11-09"다.
+// - CDN: 노트를 찾았을 때만 s-maxage=60, 태그 posts,post-<id>. 없으면 안내 화면을 직접 그리고(404) 저장하지 않는다.
+import katexCssUrl from 'katex/dist/katex.min.css?url';
+import NotFound from '@/components/NotFound.astro';
+import PostArticle from '@/components/post/PostArticle.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getAdjacentPosts, resolveNotePageBySlug } from '@/lib/content-posts';
+import { firstLineExcerpt } from '@/lib/content/excerpt';
+import { formatSeoulDate } from '@/lib/date-format';
+import { POSTS_CACHE_TAG, postCacheTag, setPublicPageCache } from '@/lib/server/cache-headers';
+import { markNotFound } from '@/lib/server/not-found';
+import { renderEntry } from '@/lib/server/render-entry';
+
+export const prerender = false;
+
+const slug = Astro.params.slug ?? '';
+const lookup = await resolveNotePageBySlug(slug);
+
+if (lookup?.type === 'redirect') {
+  const response = Astro.redirect(lookup.location, 301);
+  setPublicPageCache(response.headers, [POSTS_CACHE_TAG, postCacheTag(lookup.id)]);
+  return response;
+}
+
+const note = lookup?.type === 'post' ? lookup.entry : null;
+const [rendered, adjacent] = note
+  ? await Promise.all([renderEntry(note), getAdjacentPosts(note.id, 'note')])
+  : [null, null];
+
+if (note) {
+  setPublicPageCache(Astro.response.headers, [POSTS_CACHE_TAG, postCacheTag(note.id)]);
+} else {
+  markNotFound(Astro.response);
+}
+
+const date = note ? formatSeoulDate(note.publishedAt) : '';
+const title = note ? note.title || `노트 · ${date}` : '노트를 찾을 수 없습니다';
+const description = note
+  ? note.description || firstLineExcerpt(note.markdown) || `${date}의 노트`
+  : '요청한 노트를 찾을 수 없습니다.';
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  type={note ? 'article' : 'website'}
+  publishedTime={note?.publishedAt.toISOString()}
+  tags={note?.tags ?? []}
+  noindex={!note}
+>
+  {rendered?.hasMath && <link slot="head" rel="stylesheet" href={katexCssUrl} />}
+  {
+    note && rendered && adjacent ? (
+      <PostArticle entry={note} rendered={rendered} adjacent={adjacent} series={null} kind="note" />
+    ) : (
+      <NotFound
+        title="노트를 찾을 수 없습니다"
+        message="삭제되었거나 아직 발행되지 않은 노트일 수 있습니다."
+      />
+    )
+  }
+</BaseLayout>

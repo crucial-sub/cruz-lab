@@ -10,6 +10,9 @@
 // 7. 이전·다음 글, 연재 글이면 그 아래 연재 목차 전체
 // - 본문 HTML은 공유 파이프라인 결과다(render-entry.ts). .prose 규칙은 src/styles/prose.css 한 파일이다.
 // - 보조 스크립트(post-scripts.ts)는 코드 복사·앵커 복사·목차 위치 표시만 한다. 없어도 글은 읽힌다.
+// - 노트 상세(/notes/<slug>, D12)도 이 컴포넌트를 쓴다(kind="note"): 머리가 작고, 제목이 없으면 "노트 · 날짜"다.
+//   읽기 시간·연재를 보이지 않고, 이전·다음은 노트끼리다. 노트의 카테고리·태그는 링크가 아니라 글자다.
+//   카테고리·태그 목록 주소는 글(post)만 보이므로 노트만 쓰는 태그는 404가 된다(4단계 PR-B 리뷰 경미 4).
 import '@/styles/prose.css';
 import '@/styles/shiki.css';
 import type { AdjacentPosts, PublishedSeries } from '@/lib/content-posts';
@@ -27,28 +30,35 @@ interface Props {
   rendered: MarkdownRenderResult;
   adjacent: AdjacentPosts;
   series: PublishedSeries | null;
+  kind?: 'post' | 'note';
 }
 
-const { entry, rendered, adjacent, series } = Astro.props;
+const { entry, rendered, adjacent, series, kind = 'post' } = Astro.props;
 const { html, toc } = rendered;
+const isNote = kind === 'note';
 
 const published = formatSeoulDate(entry.publishedAt);
 const updated = isSameSeoulDate(entry.publishedAt, entry.lastPublishedAt)
   ? null
   : formatSeoulDate(entry.lastPublishedAt);
 const coverUrl = entry.cover.kind === 'image' ? entry.cover.url : null;
+// 제목 없는 노트는 날짜로 부른다(D12)
+const heading = entry.title || (isNote ? `노트 · ${published}` : '');
 ---
 
-<article class:list={['post', toc.length > 0 && 'post-has-toc']} aria-labelledby="post-title">
+<article class:list={['post', isNote && 'post-note', toc.length > 0 && 'post-has-toc']} aria-labelledby="post-title">
   <div class="post-main">
     <header class="post-header">
       <p class="post-meta">
         {
-          entry.category && (
-            <a class="post-category" href={categoryPath(entry.category)}>
-              {entry.categoryLabel}
-            </a>
-          )
+          entry.category &&
+            (isNote ? (
+              <span class="post-category">{entry.categoryLabel}</span>
+            ) : (
+              <a class="post-category" href={categoryPath(entry.category)}>
+                {entry.categoryLabel}
+              </a>
+            ))
         }
         <time datetime={entry.publishedAt.toISOString()}>{published}</time>
         {
@@ -58,9 +68,9 @@ const coverUrl = entry.cover.kind === 'image' ? entry.cover.url : null;
             </span>
           )
         }
-        <span>{entry.readingTime}분</span>
+        {!isNote && <span>{entry.readingTime}분</span>}
       </p>
-      <h1 id="post-title" class="post-title">{entry.title}</h1>
+      <h1 id="post-title" class="post-title">{heading}</h1>
       {entry.description && <p class="post-description">{entry.description}</p>}
     </header>
 
@@ -89,26 +99,20 @@ const coverUrl = entry.cover.kind === 'image' ? entry.cover.url : null;
       )
     }
 
-    <div
-      id="post-body"
-      class="post-body prose prose-lg max-w-none dark:prose-invert"
-      set:html={html}
-    />
+    <div id="post-body" class="post-body prose" set:html={html} />
 
     {
       entry.tags.length > 0 && (
         <ul class="post-tags" aria-label="태그">
           {entry.tags.map((tag) => (
-            <li>
-              <a href={tagPath(tag)}>#{tag}</a>
-            </li>
+            <li>{isNote ? <span>#{tag}</span> : <a href={tagPath(tag)}>#{tag}</a>}</li>
           ))}
         </ul>
       )
     }
 
     <footer class="post-footer">
-      <PrevNext previous={adjacent.previous} next={adjacent.next} />
+      <PrevNext previous={adjacent.previous} next={adjacent.next} kind={kind} />
       {series && <SeriesBox series={series} currentId={entry.id} variant="bottom" />}
     </footer>
   </div>
@@ -133,13 +137,12 @@ const coverUrl = entry.cover.kind === 'image' ? entry.cover.url : null;
 </script>
 
 <style>
-  /* 본문 폭 68자(D10). ch는 이 요소의 글꼴 크기(17px) 기준이다 */
+  /* 본문 폭 --measure(68ch, D10). ch는 이 요소의 글꼴 크기(--text-base 17px) 기준이다 */
   .post {
-    --measure: 68ch;
-    font-size: 1.0625rem;
+    font-size: var(--text-base);
     max-width: var(--measure);
     margin-inline: auto;
-    padding-block: 2rem 4rem;
+    padding-block: 0 2rem;
   }
   .post-main {
     display: flex;
@@ -175,14 +178,18 @@ const coverUrl = entry.cover.kind === 'image' ? entry.cover.url : null;
     color: var(--text-primary);
     font-size: clamp(28px, 4vw, 40px);
     font-weight: 800;
-    line-height: 1.25;
+    line-height: var(--leading-heading);
     word-break: keep-all;
     overflow-wrap: anywhere;
+  }
+  /* 노트는 머리가 작다(D16) */
+  .post-note .post-title {
+    font-size: var(--text-2xl);
   }
   .post-description {
     margin: 0;
     color: var(--text-secondary);
-    font-size: 1.0625rem;
+    font-size: var(--text-base);
     line-height: 1.6;
   }
   .post-cover {
@@ -230,7 +237,8 @@ const coverUrl = entry.cover.kind === 'image' ? entry.cover.url : null;
     padding: 0;
     list-style: none;
   }
-  .post-tags a {
+  .post-tags a,
+  .post-tags span {
     display: inline-block;
     padding: 0.25rem 0.75rem;
     border: 1px solid var(--border);
@@ -257,13 +265,18 @@ const coverUrl = entry.cover.kind === 'image' ? entry.cover.url : null;
     display: none;
   }
 
-  /* 1280px 이상: 본문 오른쪽에 목차를 고정한다. 목차가 없는 글은 한 열 그대로 가운데다 */
+  /* 1280px 이상: 본문 오른쪽에 목차를 고정한다. 목차가 없는 글은 한 열 그대로 가운데다.
+     본문(68ch) + 간격 + 목차는 페이지 컨테이너(960px)보다 넓다. 그래서 이 폭에서만 컨테이너 밖으로 나가
+     가운데에 둔다(바깥 여백을 음수로). 1280px 화면에서도 좌우에 여유가 있다 */
   @media (min-width: 1280px) {
     .post-has-toc {
+      --post-grid-width: calc(var(--measure) + 240px + 2.5rem);
       display: grid;
       grid-template-columns: minmax(0, var(--measure)) 240px;
       column-gap: 2.5rem;
-      max-width: calc(var(--measure) + 240px + 2.5rem);
+      width: var(--post-grid-width);
+      max-width: none;
+      margin-inline: calc((100% - var(--post-grid-width)) / 2);
     }
     .post-toc-inline {
       display: none;

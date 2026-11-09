@@ -1,25 +1,15 @@
-import typography from '@tailwindcss/typography';
-
 /** @type {import('tailwindcss').Config} */
+// Tailwind 설정 (재건 4단계 D10)
+// - 색·모서리 이름은 global.css 토큰을 그대로 쓴다(bg-bg-app, text-text-primary …).
+// - typography 플러그인은 지웠다. 글 본문은 src/styles/prose.css 한 파일이다.
+// - container 플러그인은 껐다. .container는 global.css에서 --container(960px)로 정한다.
 export default {
   darkMode: 'class', // 기본 다크(변수도 다크 기준). .light로 라이트 전환
-  content: [
-    './src/**/*.{astro,html,md,mdx,js,ts,jsx,tsx}',
-    './content/**/*.{md,mdx}',
-    './public/**/*.html',
-  ],
+  content: ['./src/**/*.{astro,html,md,mdx,js,ts,jsx,tsx}', './content/**/*.{md,mdx}', './public/**/*.html'],
+  corePlugins: {
+    container: false,
+  },
   theme: {
-    container: {
-      center: true,
-      padding: '1rem', // 모든 브레이크포인트에서 16px 고정
-      screens: {
-        sm: '100%',
-        md: '100%',
-        lg: '992px',
-        xl: '992px',
-        '2xl': '992px',
-      },
-    },
     borderRadius: {
       none: '0px',
       sm: '8px', // # radius.sm (8)
@@ -32,14 +22,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: [
-          'Pretendard Variable',
-          'Pretendard',
-          'IBM Plex Sans KR',
-          'Noto Sans KR',
-          'sans-serif',
-        ],
-        mono: ['JetBrains Mono', 'IBM Plex Mono', 'ui-monospace', 'monospace'],
+        sans: ['var(--font-sans)'],
+        mono: ['var(--font-mono)'],
       },
       colors: {
         /* Semantic tokens (CSS 변수 매핑) */
@@ -78,53 +62,7 @@ export default {
         card: 'var(--shadow-card)', // 0 1px 0 rgba(255,255,255,0.02), 0 6px 20px rgba(0,0,0,0.35)
         popover: 'var(--shadow-popover)', // 0 10px 30px rgba(0,0,0,0.45)
       },
-      // Typography 커스터마이징
-      typography: () => ({
-        DEFAULT: {
-          css: {
-            '--tw-prose-body': 'var(--text-primary)',
-            '--tw-prose-headings': 'var(--text-primary)',
-            '--tw-prose-lead': 'var(--text-secondary)',
-            '--tw-prose-links': 'var(--brand)',
-            '--tw-prose-bold': 'var(--text-primary)',
-            '--tw-prose-counters': 'var(--text-secondary)',
-            '--tw-prose-bullets': 'var(--text-secondary)',
-            '--tw-prose-hr': 'var(--border)',
-            '--tw-prose-quotes': 'var(--text-primary)',
-            '--tw-prose-quote-borders': 'var(--brand)',
-            '--tw-prose-captions': 'var(--text-secondary)',
-            '--tw-prose-code': 'var(--brand-weak)',
-            '--tw-prose-pre-code': 'var(--text-primary)',
-            '--tw-prose-pre-bg': 'var(--bg-surface)',
-            '--tw-prose-th-borders': 'var(--border)',
-            '--tw-prose-td-borders': 'var(--border)',
-            'code::before': { content: 'none' },
-            'code::after': { content: 'none' },
-            a: {
-              textDecoration: 'none',
-              '&:hover': {
-                color: 'var(--brand-hover)',
-              },
-            },
-            'pre': {
-              borderRadius: '12px',
-              border: '1px solid var(--border)',
-            },
-            'blockquote': {
-              borderLeftColor: 'var(--brand)',
-              fontStyle: 'normal',
-              quotes: 'none',
-            },
-            'blockquote p:first-of-type::before': {
-              content: 'none',
-            },
-            'blockquote p:last-of-type::after': {
-              content: 'none',
-            },
-          },
-        },
-      }),
     },
   },
-  plugins: [typography],
+  plugins: [],
 };

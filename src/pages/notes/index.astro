@@ -1,0 +1,91 @@
+---
+// 노트 스트림 /notes (재건 4단계 D12)
+// - 발행 노트를 최신 발행순으로 본문까지 그린다. 노트는 짧고 거친 기록이다(계획 문서 10.2).
+// - 본문은 글 상세와 같은 렌더(renderEntry: 공유 파이프라인 + 메모리 캐시)다. 수식이 있으면 KaTeX CSS를 넣는다.
+// - 50편이 넘으면 "더 보기"(?before=)를 그때 더한다(D12). 지금은 한 페이지다.
+// - 검색 필터는 없다(D12). 코드 복사 버튼은 글 상세와 같은 보조 스크립트가 맡는다.
+import katexCssUrl from 'katex/dist/katex.min.css?url';
+import '@/styles/prose.css';
+import '@/styles/shiki.css';
+import NoteItem from '@/components/notes/NoteItem.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getPublishedNoteEntries } from '@/lib/content-posts';
+import { setPublicPageCache } from '@/lib/server/cache-headers';
+import { renderEntry } from '@/lib/server/render-entry';
+
+export const prerender = false;
+
+const notes = await getPublishedNoteEntries();
+// 노트마다 id 접두사를 붙여 그린다. 한 페이지에 여러 본문이 있어도 제목·각주 id가 겹치지 않는다(PR-B 리뷰 경미 5)
+const rendered = await Promise.all(
+  notes.map((note) => renderEntry(note, { idPrefix: `n-${note.id}-` })),
+);
+const hasMath = rendered.some((result) => result.hasMath);
+
+// CDN이 60초 동안 이 응답을 저장하게 한다
+setPublicPageCache(Astro.response.headers);
+
+const title = 'Notes';
+const description = '짧은 기록. 그날 배운 것, 떠오른 것을 바로 적습니다.';
+---
+
+<BaseLayout title={title} description={description}>
+  {hasMath && <link slot="head" rel="stylesheet" href={katexCssUrl} />}
+  <section class="notes" aria-labelledby="notes-title">
+    <header class="notes-head">
+      <h1 id="notes-title">{title}</h1>
+      <p>{description}</p>
+      <a class="notes-rss" href="/notes/rss.xml">노트 RSS</a>
+    </header>
+    {
+      notes.length === 0 ? (
+        <p class="notes-empty">아직 노트가 없습니다.</p>
+      ) : (
+        <div class="notes-stream">
+          {notes.map((note, index) => (
+            <NoteItem note={note} html={rendered[index].html} />
+          ))}
+        </div>
+      )
+    }
+    <p class="sr-only" role="status" aria-live="polite" data-post-status></p>
+  </section>
+</BaseLayout>
+
+<script>
+  import { setupPostPage } from '@/components/post/post-scripts';
+  setupPostPage();
+</script>
+
+<style>
+  .notes {
+    max-width: var(--measure);
+    margin-inline: auto;
+    font-size: var(--text-base);
+  }
+  .notes-head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  h1 {
+    margin: 0;
+    font-size: var(--text-3xl);
+    font-weight: 800;
+    line-height: var(--leading-heading);
+  }
+  .notes-head p,
+  .notes-empty {
+    margin: 0;
+    color: var(--text-secondary);
+  }
+  .notes-rss {
+    align-self: flex-start;
+    font-size: var(--text-sm);
+  }
+  .notes-empty {
+    padding-block: 2rem;
+  }
+</style>

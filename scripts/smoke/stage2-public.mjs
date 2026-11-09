@@ -4,8 +4,8 @@
 //
 // 확인하는 것
 // - 발행 글 전체의 /blog/<slug>가 200이고 <h1> 제목이 entries의 제목과 같다. 초안 글의 slug는 404다
-// - /blog 목록의 카드 수 = 발행 post 수
-// - 7.4 리다이렉트가 301이고 목적지가 200이다
+// - /blog 목록의 행 수 = 발행 post 수, 모든 글의 주소가 목록에 있다 (4단계 PR-B: 서버 렌더 행)
+// - 7.4 리다이렉트가 301이고 목적지가 200이다. 카테고리와 같은 뜻의 태그는 /blog/category/<key>로 301 (4단계 D11)
 // - /series/<key>의 글 수와 순서
 // - RSS·사이트맵이 XML이고 사이트맵에 옛 연재 주소가 없다
 // - 공개 응답에 Set-Cookie가 없고 Vercel-Cache-Tag가 있다
@@ -51,7 +51,10 @@ async function main() {
   const snapshot = await db.collection('entries').get();
   const entries = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
   const publishedPosts = entries.filter((entry) => entry.status === 'published' && entry.kind === 'post');
-  const notPublic = entries.filter((entry) => entry.status !== 'published' || entry.kind !== 'post');
+  // 발행 노트는 /notes/<slug>가 공개 주소다(4단계 D12. /blog/<노트 slug>는 301). 그 밖은 /blog/<slug>가 404여야 한다
+  const notPublic = entries.filter(
+    (entry) => entry.status !== 'published' || (entry.kind !== 'post' && entry.kind !== 'note'),
+  );
   console.log(`entries ${entries.length}개 (공개 post ${publishedPosts.length}, 그 밖 ${notPublic.length}) / 기준 ${BASE}`);
 
   // 1. 글 상세
@@ -76,11 +79,11 @@ async function main() {
   const blog = await get('/blog');
   check(blog.response.status === 200, `/blog: ${blog.response.status}`);
   checkPublicHeaders('/blog', blog.response);
-  // 목록은 React 섬의 props(JSON)로 글을 넘긴다. 글 ID 수를 센다
-  const listedIds = publishedPosts.filter((post) => blog.body.includes(post.id));
-  const slugMentions = (blog.body.match(/&quot;slug&quot;:\[0,&quot;/g) ?? []).length;
-  check(listedIds.length === publishedPosts.length, `/blog: 목록의 글 ${listedIds.length}편, 기대 ${publishedPosts.length}`);
-  check(slugMentions === publishedPosts.length, `/blog: 목록 props의 slug ${slugMentions}개, 기대 ${publishedPosts.length}`);
+  // 4단계 PR-B부터 목록은 서버가 그린 행이다(React 섬 props 없음). 행 수와 글 주소를 센다
+  const rowCount = (blog.body.match(/<li[^>]*\sdata-post-row/g) ?? []).length;
+  const listedSlugs = publishedPosts.filter((post) => blog.body.includes(`href="${encodeURI(`/blog/${post.published.slug}`)}"`));
+  check(rowCount === publishedPosts.length, `/blog: 목록 행 ${rowCount}개, 기대 ${publishedPosts.length}`);
+  check(listedSlugs.length === publishedPosts.length, `/blog: 목록의 글 주소 ${listedSlugs.length}개, 기대 ${publishedPosts.length}`);
 
   // 3. 리다이렉트 (Plan 7.4)
   const redirects = [
@@ -101,12 +104,15 @@ async function main() {
     const target = await get(encodeURI(to));
     check(target.response.status === 200, `${to}: ${target.response.status}`);
   }
-  // 카테고리와 같은 뜻의 태그는 그 카테고리 글을 보인다
+  // 카테고리와 같은 뜻의 태그는 카테고리 목록으로 301하고, 그 목록의 행 수가 그 카테고리 글 수다 (4단계 D11)
   for (const [tag, category] of [['javascript', 'javascript'], ['운영체제', 'os']]) {
-    const { response, body } = await get(encodeURI(`/blog/tag/${tag}`));
+    const { response } = await get(encodeURI(`/blog/tag/${tag}`));
+    const location = response.headers.get('location') ?? '';
+    check(response.status === 301 && location === `/blog/category/${category}`, `/blog/tag/${tag}: ${response.status} → ${location}`);
+    const target = await get(`/blog/category/${category}`);
     const expected = publishedPosts.filter((post) => post.published.category === category).length;
-    const match = body.match(/(\d+)개의 포스트/);
-    check(response.status === 200 && match && Number(match[1]) === expected, `/blog/tag/${tag}: ${match?.[1]}편, 기대 ${expected}`);
+    const rows = (target.body.match(/<li[^>]*\sdata-post-row/g) ?? []).length;
+    check(target.response.status === 200 && rows === expected, `/blog/category/${category}: ${rows}편, 기대 ${expected}`);
   }
 
   // 4. 연재

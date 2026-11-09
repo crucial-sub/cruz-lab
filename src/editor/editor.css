@@ -333,3 +333,30 @@ html.light {
   font-size: 0.85rem;
   color: #fca5a5;
 }
+
+/* ── 메타 패널 태그 칩 (MetaPanel.tsx) ──
+   3단계까지 global.css의 .tag·.tag-sm(@apply)이었다. 4단계 PR-B에서 global.css를 다시 쓰며 이 파일로 옮겼다
+   (리뷰 중요 1). 값은 같다: rounded-2xl 24px, px-2 py-0.5, text-sm / sm: px-1.5 py-2px, text-xs */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2xl);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  text-decoration: none;
+  transition-property: color, background-color, border-color;
+  transition-duration: 0.3s;
+}
+.tag:hover {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+}
+.tag-sm {
+  padding: 2px 0.375rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}

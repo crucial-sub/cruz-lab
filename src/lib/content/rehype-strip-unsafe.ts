@@ -7,6 +7,8 @@
 //   2. iframe은 임베드 주소(youtube-nocookie·codesandbox의 /embed/<id>)만 남기고 속성을 안전한 값으로 다시 쓴다.
 //   3. on* 이벤트 속성, srcdoc, srcset, http-equiv를 지운다.
 //   4. 주소 속성(href, src, xlink:href, action, poster, cite 등)에 safeUrl을 적용한다.
+//   5. input은 GFM 할 일 목록의 체크 상자만 남긴다(4단계 PR-B 리뷰 중요 2). 속성은 type·checked·disabled만,
+//      늘 disabled다. 3단계부터 input을 모두 지워 공개 페이지·미리보기에서 할 일의 완료 여부가 보이지 않았다.
 // - Node 스크립트가 가져오므로 상대 경로 import에 .ts를 붙인다.
 
 import type { Element, Properties, Root } from 'hast';
@@ -110,6 +112,11 @@ export default function rehypeStripUnsafe() {
           node.children = [];
           return SKIP;
         }
+      }
+      if (tag === 'input' && node.properties.type === 'checkbox') {
+        node.properties = { type: 'checkbox', checked: node.properties.checked === true, disabled: true };
+        node.children = [];
+        return SKIP;
       }
       if (tag === 'iframe' || DROPPED_TAGS.has(tag)) {
         if (parent && index !== undefined) {
