@@ -4,7 +4,7 @@
 - Plan: [2026-11-08-stage3-editor-plan.md](./2026-11-08-stage3-editor-plan.md) (승인 2026-11-08, PR #8 병합)
 - 진행 기록: [계획 문서 11.7](./2026-11-06-blog-architecture-audit-2-problems-and-plan.md#117-3단계-구현-진행-기록-2026-11-09)
 - 브랜치: `stage3/a-markdown`(PR-A), `stage3/b-editor`(PR-B), `stage3/c-commands`(PR-C), `stage3/docs`(T10 문서 PR). 대상은 모두 `rebuild`다.
-- 상태: **3단계 끝(2026-11-09).** T1~T9를 구현·검증하고 PR-A·PR-B를 `rebuild`에 병합했다. PR-C [PR #11](https://github.com/crucial-sub/cruz-lab/pull/11)도 사용자 답으로 병합했다(`cb2180f`). T10 문서 PR의 병합은 사용자 확인 뒤다. 다음은 4단계 Plan이다(7절).
+- 상태: **3단계 끝(2026-11-09).** T1~T9를 구현·검증하고 PR-A·PR-B를 `rebuild`에 병합했다. PR-C [PR #11](https://github.com/crucial-sub/cruz-lab/pull/11)도 사용자 답으로 병합했다(`cb2180f`). T10 문서 [PR #12](https://github.com/crucial-sub/cruz-lab/pull/12)의 병합은 사용자 확인 뒤다. 다음은 4단계 Plan이다(7절).
 
 ## 1. 현재 상황
 
@@ -13,7 +13,7 @@
 | PR-A (T1 변환기·파이프라인, T2 왕복 검사) | 끝. 커밋 `44a41d6`(코드)·`ee31798`(문서), [PR #9](https://github.com/crucial-sub/cruz-lab/pull/9)(대상 `rebuild`). 사용자 승인으로 병합했다(2026-11-09, merge commit `4010bd0`). 되돌리기 기준 태그 `rebuild-pre-stage3`(`4bc465b`). 원격 브랜치 `stage3/a-markdown`은 남아 있다(삭제는 사용자 확인 뒤) |
 | PR-B (T3 에디터 페이지, T4 이미지, T6 보기 모드, T8 퍼지) | 구현·검증·리뷰 끝(2026-11-09). 브랜치 `stage3/b-editor`. 처음에는 `stage3/a-markdown`(`13a0825`) 위에서 시작했고, PR #9 병합 뒤 `rebuild` 끝 `4010bd0` 위로 옮겼다(8절 1). 테스트 290, `tsc` 9(새 오류 0), 빌드 통과, 왕복 55/55, API 스모크 104/104. 리뷰(6.2) 치명 1·중요 10을 고쳤다. 브라우저 시나리오(8.4의 PR-B 몫 15개) 통과(4.5). 시험 데이터 0. 사용자 승인(2026-11-09)으로 커밋 `dfe1220`(코드)·`2df00d6`(문서), 푸시, [PR #10](https://github.com/crucial-sub/cruz-lab/pull/10)(대상 `rebuild`). 사용자가 병합했다(2026-11-09, merge commit `03698b5`). 원격 브랜치 `stage3/b-editor`는 남아 있다(삭제는 사용자 확인 뒤) |
 | PR-C (T5 명령·키맵·슬래시·팔레트·툴바·입력 규칙·임베드·수식·모바일·개요, T7 최소 목록·301·옛 화면 삭제) | 구현·검증·리뷰 끝(2026-11-09). 브랜치 `stage3/c-commands`(`origin/rebuild` `03698b5` = PR #10 병합 커밋에서 생성). 테스트 398(+108), `tsc` 9 → **1**(TextReveal만), lint·빌드 통과, 왕복 55/55, API 스모크 104/104. 리뷰(6.3) 치명 0·중요 4·경미 11을 고쳤다(중요 4는 사용자 결정). 브라우저 시나리오 7·14·17·18 통과(4.6), 미리보기 확인 8.5 끝(4.7). 시험 데이터 0. 사용자 승인(2026-11-09)으로 커밋 `ff8b7b4`(코드)·`07381f8`(문서), 푸시, [PR #11](https://github.com/crucial-sub/cruz-lab/pull/11)(대상 `rebuild`). PR 링크 커밋 `c5a5cce`. 사용자 답으로 병합했다(2026-11-09, merge commit `cb2180f`). 원격 브랜치 `stage3/c-commands`는 남아 있다(삭제는 사용자 확인 뒤) |
-| T10 (문서 PR) | 끝(2026-11-09, 2.9). 브랜치 `stage3/docs`(`origin/stage3/c-commands` `c5a5cce` 위에서 시작. PR #11 병합 뒤 기준을 `rebuild` 끝 `cb2180f`로 옮겼다. 트리 차이 0, 8절 1과 같은 방식). 이 문서, 감사 문서 11절·11.7·8.3, Plan 14절, `README.md`만 바꿨다. 코드 변경 0. `pnpm lint` 통과, `pnpm test` 398(그대로). 사용자 승인(2026-11-09)으로 커밋·푸시·PR(대상 `rebuild`). 병합은 사용자 확인 뒤 |
+| T10 (문서 PR) | 끝(2026-11-09, 2.9). 브랜치 `stage3/docs`(`origin/stage3/c-commands` `c5a5cce` 위에서 시작. PR #11 병합 뒤 기준을 `rebuild` 끝 `cb2180f`로 옮겼다. 트리 차이 0, 8절 1과 같은 방식). 이 문서, 감사 문서 11절·11.7·8.3, Plan 14절, `README.md`만 바꿨다. 코드 변경 0. `pnpm lint` 통과, `pnpm test` 398(그대로). 사용자 승인(2026-11-09)으로 커밋 `b3aaa83`, 푸시, [PR #12](https://github.com/crucial-sub/cruz-lab/pull/12)(대상 `rebuild`). 병합은 사용자 확인 뒤 |
 | T9 (E2 버킷 CORS, 브라우저 확인, 미리보기 확인) | 모두 끝. E2는 PR-B(3절). 시나리오 19개 중 15개는 PR-B(4.5), 7·14·17·18은 PR-C(4.6). 미리보기 확인 8.5는 PR-C(4.7) |
 | 외부 변경 | E2 버킷 CORS(2026-11-09 08:07 KST 무렵, 사용자 승인). Plan 값에 `http://localhost:4322`를 더했다(3절) |
 | 운영 데이터 | 기존 글은 읽기만 했다. PR-B: 시험 글 2편·시험 자산 2개·publishLog 6줄을 만들었다가 모두 지웠다(4.5). PR-C: 시험 글 3편(localhost 2, 미리보기 1)·시험 자산 1개·publishLog 5줄을 만들었다가 모두 지웠다(4.6·4.7). 끝 상태: `entries` 55, `publishLog` 0, `entryTombstones` 0, `assets` 130(기존 그대로), Storage `assets/` 0 |
@@ -484,13 +484,13 @@ PR-C에서 판단한 것:
 1. PR-A(T1·T2) [PR #9](https://github.com/crucial-sub/cruz-lab/pull/9) `rebuild` 병합(`4010bd0`). 되돌리기 기준 태그 `rebuild-pre-stage3`(`4bc465b`).
 2. PR-B(T3·T4·T6·T8) [PR #10](https://github.com/crucial-sub/cruz-lab/pull/10) `rebuild` 병합(`03698b5`). 외부 변경 E2(버킷 CORS, 3절).
 3. PR-C(T5·T7·T9) 구현·검증·리뷰 끝. 커밋 `ff8b7b4`(코드)·`07381f8`(문서)·`c5a5cce`(PR 링크), [PR #11](https://github.com/crucial-sub/cruz-lab/pull/11) `rebuild` 병합(사용자 답, 2026-11-09, `cb2180f`).
-4. T10 문서 PR(2.9). 브랜치 `stage3/docs`(기준 `cb2180f`). 사용자 승인(2026-11-09)으로 커밋·푸시·PR(대상 `rebuild`). 병합은 사용자 확인 뒤.
+4. T10 문서 PR(2.9). 브랜치 `stage3/docs`(기준 `cb2180f`). 사용자 승인(2026-11-09)으로 커밋 `b3aaa83`, 푸시, [PR #12](https://github.com/crucial-sub/cruz-lab/pull/12)(대상 `rebuild`). 병합은 사용자 확인 뒤.
 5. 검증 끝 상태: lint 통과, 테스트 398, `tsc` 1(`TextReveal`), 빌드 통과, 왕복 55/55, API 스모크 104/104, 브라우저 시나리오 19개, 미리보기 확인 8.5. 시험 데이터 0(1절 "운영 데이터").
 
 **다음 것.**
 
 1. 4단계 Plan(공개 페이지 렌더 교체). 새 세션에서 한다. 먼저 읽을 것: 3단계 작업 문서 5절·8절, 감사 문서 8.3·8.4의 4단계 행. 4단계가 3단계에서 이어받는 것: 공유 파이프라인 `src/lib/content/markdown.ts`(`markdownToHtml`), 콜아웃·임베드 remark 플러그인과 수식(remark-math·rehype-katex), 영상 판정 `isVideoUrl`(`safe-url.ts`), 원시 HTML 안전 처리 `rehype-strip-unsafe.ts`. 공개 페이지 `MarkdownPostView.tsx`(react-markdown)를 이 파이프라인으로 바꾸면 8절 8이 함께 닫힌다. 미룬 기능 중 4단계 몫은 이미지 임의 px 폭·정렬과 링크 카드다(Plan 14절).
-2. ~~[PR #11](https://github.com/crucial-sub/cruz-lab/pull/11) 병합~~ 끝(2026-11-09, `cb2180f`). `stage3/docs`의 기준을 `cb2180f`로 옮겼다. 남은 것: T10 문서 PR 병합(사용자 확인 뒤).
+2. ~~[PR #11](https://github.com/crucial-sub/cruz-lab/pull/11) 병합~~ 끝(2026-11-09, `cb2180f`). `stage3/docs`의 기준을 `cb2180f`로 옮겼다. 남은 것: T10 문서 [PR #12](https://github.com/crucial-sub/cruz-lab/pull/12) 병합(사용자 확인 뒤).
 3. 사용자가 `rebuild` 미리보기에서 실제 키보드로 입력 규칙·슬래시·단축키를 한 번 써 본다(4.6은 `execCommand` 경로다). 맥 키 `⌃⇧2/3/4/0`이 손에 맞는지도 그때 본다. iPhone으로 모바일 바도 본다(8절 13).
 4. 원격의 병합 끝난 브랜치 삭제(사용자 확인 뒤): `stage3/plan`, `stage3/a-markdown`, `stage3/b-editor`, `stage3/c-commands`. 문서 PR 병합 뒤 `stage3/docs`도. 2단계 브랜치는 이미 없다(2026-11-09 `git branch -r` 확인).
 5. 드래그 핸들 상기: 사용자 답(2026-11-09) "써 본 뒤 정한다". 5단계 Plan 때 다시 묻는다(Plan 14절).
