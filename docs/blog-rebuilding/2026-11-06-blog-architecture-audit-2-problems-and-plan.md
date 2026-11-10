@@ -349,7 +349,7 @@ Firestore ──(GitHub Action, 매일 + 발행 후 트리거)──▶ GitHub `
 | **2. 데이터 모델과 서버**       | 8.1 컬렉션으로 마이그레이션 스크립트(56편: 제목 접두사 → `category`, 태그 정규화, 시리즈 2개는 10.1의 결정대로 `series` 필드 또는 태그로 환원, `series` 컬렉션·관리 화면·API 2,514줄 삭제). 세션 쿠키 인증. `/api/admin/posts` CRUD(초안 저장, 발행, 비공개, 삭제 + 이미지 정리). 이미지 서버 업로드 + sharp 변형. 백업 Action. CDN 퍼지. 마이그레이션은 `postIds`의 문서 ID·slug 두 형식을 모두 읽는다(5.4 A13) | API 명세 문서, 마이그레이션 스크립트, Action | 1                 |
 | **3. 에디터**              | Tiptap 기반 에디터 패키지(`src/editor/`). 명령 레지스트리, 키맵 설정, 슬래시 메뉴, 블록 세트, 이미지, 3모드 보기, 모바일 툴바, 서버 자동저장 + 오프라인 큐. 마크다운 직렬화 왕복 테스트(기존 56편 전부 통과 조건). 실행 점검 요구 M7~M10(5.4) | 에디터 + 테스트                      | 2                 |
 | **4. 공개 사이트**           | 디자인 토큰·타이포 재정의. 홈(최신 글 + 노트 + 2줄 소개), 목록(카테고리 축 + 태그 칩 + 검색), 글 상세(목차, 연재 N/M·이전다음, 코드 복사, Shiki), `/series/[key]`는 posts에서 생성, 프로젝트 통합, `/about`(포트폴리오 요약 1화면 + PDF 링크), 푸터, 404. React 아일랜드 제거. OG 이미지 생성(satori). **3단계 결과를 이어받는다(2026-11-09)**: 공유 파이프라인 `src/lib/content/markdown.ts`(`markdownToHtml`), 콜아웃·임베드 remark 플러그인과 수식(remark-math·rehype-katex), 영상 판정 `isVideoUrl`, 원시 HTML 안전 처리 `rehype-strip-unsafe`. 공개 페이지 `MarkdownPostView.tsx`를 이 파이프라인으로 바꾼다(3단계 작업 문서 7절 다음 것 1, 8절 8) | 페이지                            | 2 (데이터), 3과 병행 가능 |
-| **5. 관리자 앱**            | 단일 React 앱. 목록(상태 필터, 검색), 글 편집(3단계와 합침), 글 안에서 category·tags·series key 지정, 태그·카테고리 관리(이름 바꾸기·합치기), 이미지 라이브러리, 출간 기록, 설정(키맵). 헤더 "쓰기" 진입점. 실행 점검 요구 M1~M6·M11(5.4). 첫 요구는 "열면 본문, 문제 있을 때만 알림". **4단계 결과를 이어받는다(2026-11-10)**: 4단계 Plan 14절 상기 목록(이미지 세부 조절은 묻지 않고 범위에 넣는다. 링크 카드·드래그 핸들·찾기·바꾸기·MCP 도구는 다시 묻는다. 키맵 설정은 확정), 4단계 작업 문서 8절 3~6(클립보드, 글 상세 콜드 TTFB, MCP 도구, OG 첫 요청), project 글을 새로 만드는 API 없음(4단계 작업 문서 5절 62), 3단계 작업 문서 8절의 5단계 몫(4·5·7·10·13). 먼저 읽을 것은 4단계 작업 문서 7절 | 앱                              | 2, 3              |
+| **5. 관리자 앱**            | 단일 React 앱. 목록(상태 필터, 검색), 글 편집(3단계와 합침), 글 안에서 category·tags·series key 지정, 태그·카테고리 관리(이름 바꾸기·합치기), 이미지 라이브러리, 출간 기록, 설정(키맵). 헤더 "쓰기" 진입점. 실행 점검 요구 M1~M6·M11(5.4). 첫 요구는 "열면 본문, 문제 있을 때만 알림". **4단계 결과를 이어받는다(2026-11-10)**: 4단계 Plan 14절 상기 목록(이미지 세부 조절은 묻지 않고 범위에 넣는다. 링크 카드·드래그 핸들·찾기·바꾸기·MCP 도구는 다시 묻는다. 키맵 설정은 확정), 4단계 작업 문서 8절 3~6(클립보드, 글 상세 콜드 TTFB, MCP 도구, OG 첫 요청), project 글을 새로 만드는 API 없음(4단계 작업 문서 5절 62), 3단계 작업 문서 8절의 5단계 몫(4·5·7·10·13). 먼저 읽을 것은 4단계 작업 문서 7절. **5단계 Plan(2026-11-10)**: [2026-11-10-stage5-admin-app-plan.md](./2026-11-10-stage5-admin-app-plan.md). 사용자 결정으로 카테고리 목록 데이터화, 연재·프로젝트 화면, 리비전, 독자 흐름, 푸터 "관리", MCP 도구 삭제가 더해졌다(Plan 13절) | 앱                              | 2, 3              |
 
 단계 1은 하루 안에 끝낼 크기다. 2~5는 각각 설계 문서(Plan)를 따로 쓰고 진행한다. 3과 4는 2가 끝나면 병행할 수 있다.
 
@@ -457,6 +457,7 @@ Firestore ──(GitHub Action, 매일 + 발행 후 트리거)──▶ GitHub `
 | 2026-11-07 | 2. 데이터 모델과 서버 | 완료 (`rebuild` 병합, 2026-11-08): PR-A [#4](https://github.com/crucial-sub/cruz-lab/pull/4)(`bf55696`, 태그 `rebuild-pre-stage2`), PR-B [#5](https://github.com/crucial-sub/cruz-lab/pull/5)(`e232b94`), PR-C [#6](https://github.com/crucial-sub/cruz-lab/pull/6)(`814e7b3`). 사용자 설정 E3·E4·E5 뒤 미리보기·백업 확인 끝 | 2단계 Plan 세션 | [Plan 문서](./2026-11-07-stage2-data-model-and-server-plan.md), [visual plan](./visual-plans/2026-11-07-cruz-lab-stage2-plan.html). 사용자 결정 5건에 모두 답했다(Plan 14절): D1 새 컬렉션 `entries`, D7 새 비공개 저장소, D10 API만, D11 4단계로 미룸, 부록 A 그대로. 사용자가 2026-11-08에 Plan을 승인했다. 코드·데이터·운영 설정 변경 없음. 구현은 승인 뒤 새 세션에서 T1부터 한다. 진행 기록은 11.4. 구현은 2단계 구현 세션이 한다: [작업 문서](./2026-11-08-stage2-data-model-and-server.md), 진행 기록 11.5 |
 | 2026-11-08 | 3. 에디터 | 완료 (`rebuild` 병합, 2026-11-09): Plan [PR #8](https://github.com/crucial-sub/cruz-lab/pull/8)(`4bc465b`), PR-A [#9](https://github.com/crucial-sub/cruz-lab/pull/9)(T1·T2, `4010bd0`, 태그 `rebuild-pre-stage3`), PR-B [#10](https://github.com/crucial-sub/cruz-lab/pull/10)(T3·T4·T6·T8, `03698b5`), PR-C [#11](https://github.com/crucial-sub/cruz-lab/pull/11)(T5·T7·T9, `cb2180f`), T10 문서 [PR #12](https://github.com/crucial-sub/cruz-lab/pull/12)(`b13926d`). 사용 피드백 보완 [PR #13](https://github.com/crucial-sub/cruz-lab/pull/13)(`4357218`). 외부 변경 E2(버킷 CORS, 사용자 승인). 끝 상태: 테스트 398, `tsc` 1, 왕복 55/55, API 스모크 104/104, 브라우저 시나리오 19개, 미리보기 확인 8.5, 시험 데이터 0. 진행 기록 11.7 | 3단계 Plan 세션, 3단계 구현 세션(PR-A·PR-B·PR-C·T10) | [Plan 문서](./2026-11-08-stage3-editor-plan.md), [visual plan](./visual-plans/2026-11-08-cruz-lab-stage3-plan.html), [작업 문서](./2026-11-09-stage3-editor.md). 사용자 결정(Plan 13절·15절): D1 왕복 검사는 "렌더 결과 동일 + 고치지 않으면 쓰지 않음", D2 옛 관리자 화면 삭제 + 최소 서버 렌더 목록, D3 임베드(YouTube·CodeSandbox)·수식·이미지 크기 선택은 넣고 찾기·바꾸기·드래그 핸들·링크 카드·임의 px 폭은 미룸(Plan 14절 상기 목록), 기울임 `*`, E2에 `localhost:4322` 추가, `/admin/posts/new`는 POST 폼, 맥 제목·단락 키 `⌃⇧2/3/4/0`, 드래그 핸들은 써 본 뒤 정함(5단계 Plan 때 다시 묻기). Plan과 다른 판단 76건(구현 1~73, 사용 피드백 74~76)은 작업 문서 5절. 운영 데이터는 시험 글·자산을 만들었다가 모두 지웠다. 진행 기록은 11.6(Plan)·11.7(구현) |
 | 2026-11-09 | 4. 공개 사이트 | 완료 (`rebuild` 병합, 2026-11-10): Plan [PR #14](https://github.com/crucial-sub/cruz-lab/pull/14)(`b2583ed`), PR-A [#15](https://github.com/crucial-sub/cruz-lab/pull/15)(T1·T2, `2b32907`, 태그 `rebuild-pre-stage4` = `b2583ed`), PR-B [#16](https://github.com/crucial-sub/cruz-lab/pull/16)(T3·T4·T5, `2ca985d`), PR-C [#17](https://github.com/crucial-sub/cruz-lab/pull/17)(T6·T7·T8, `34df87f`), T9 문서 [PR #18](https://github.com/crucial-sub/cruz-lab/pull/18)(브랜치 `stage4/docs`, 병합은 사용자 확인 뒤). 외부 설정 변경 없음. 끝 상태: 테스트 573, `tsc` 0, 빌드 통과, 운영 왕복 69/69, 공개 점검 871/0 + 2단계 324/0, API 스모크 105/105, 공개 페이지 `astro-island` 0, React 청크는 `/admin/login`·에디터만 참조, `/blog` HTML 355 KB → 67 KB, 옛 프로젝트 페이지 8편과 본문 글자 같음, 미리보기 확인 8.5, 시험 데이터 0. 리뷰: PR-A 치명 0·중요 1·경미 12, PR-B 치명 0·중요 3·경미 15, PR-C 치명 0·중요 4·경미 10(중요는 모두 고침). 진행 기록 11.9 | 4단계 Plan 세션, 4단계 구현 세션(PR-A, PR-B, PR-C), T9 문서 세션 | [Plan 문서](./2026-11-09-stage4-public-site-plan.md), [visual plan](./visual-plans/2026-11-09-cruz-lab-stage4-plan.html). 사용자 결정(Plan 13절): D1 프로젝트 글을 `entries`로 옮긴다, D2 검색은 `/blog` 필터만, D3 이미지 세부 조절은 4단계 제외·5단계에 반드시 포함, D4 링크 카드 미룸, D5 README·PUBLISHING·`.env.example`은 재건 끝 main 병합 직전에 한 번(11.3 목록), D6 헤더 Blog · Notes · Projects · About. Claude 판단 D7~D18. 바로잡음: 공개 글 54편·공개 카테고리 9개. 외부 설정 변경 없음. 운영 데이터는 시험 노트 1편을 만들었다 지웠다(`publishLog` 2건 남음). PR-C가 프로젝트 글 8편·자산 10개·seriesMeta 4개를 더했다(되돌리기 `stage4-projects.mjs --rollback --manifest`). Plan 8.5의 시험 글·노트도 만들었다 지웠다. 진행 기록은 11.8(Plan)·11.9(구현·T9). 구현 [작업 문서](./2026-11-09-stage4-public-site.md) |
+| 2026-11-10 | 5. 관리자 앱 | Plan 승인(2026-11-10). 구현 전 | 5단계 Plan 세션 | [Plan 문서](./2026-11-10-stage5-admin-app-plan.md), [visual plan](./visual-plans/2026-11-10-cruz-lab-stage5-plan.html). 사용자 결정(Plan 13절): D1 b 카테고리 목록까지 브라우저에서(`settings/taxonomy`), D2 a 연재·프로젝트 화면과 새 프로젝트, D3 리비전 넣음 + 독자 흐름 1·2·3단계(미리보기 링크·예약 발행 뺌), D4 푸터 "관리"를 모두에게 + 로그인 사전 안내·거부 화면 + 비관리자 인증 기록 즉시 삭제, D5 링크 카드 미룸, D6 블록 이동 명령만, D7 찾기·바꾸기 넣음, D8 MCP 도구 삭제. Claude 판단 D9~D20. 미리보기 콜드 측정 3회(부팅 3.3초 + 렌더 준비 1.4초, OG 첫 요청 11초대). 코드·운영 데이터·운영 설정 변경 없음. 진행 기록 11.10 |
 
 ### 11.1 1단계 작업 범위 (인계용 상세)
 
@@ -531,8 +532,11 @@ main에는 긴급 수정만 넣는다. main에 긴급 수정을 넣으면 main�
 2. 프로젝트 글 재동기화(4단계 Plan D1 답): 4단계 이전 뒤 main에서 `src/content/projects/**`를 고쳤다면 `stage4-projects.mjs`를 다시 돌린다. 에디터로 고친 글과 충돌하면 보고만 하고 덮지 않는다.
 3. 설명 문서 최종본(4단계 Plan D5 답): `README.md`, `PUBLISHING.md`, `.env.example`을 재건 끝 상태로 한 번에 쓴다. 원료는 각 단계 Plan·작업 문서다. 알려진 낡은 곳: README 환경 변수 절(코드가 읽지 않는 `GITHUB_TOKEN`·`PUBLIC_SITE_URL`이 있고 `ADMIN_UID`·`BACKUP_DISPATCH_TOKEN`이 없다), 범위 절(권한은 `ADMIN_UID`로 검사한다, GitHub 보상 흐름은 없어졌다), 구조·디렉터리·기술 스택 절, PUBLISHING "지금 상태" 절. 3단계 작업 문서 8절 14와 같다.
 4. 병합 뒤 확인: 재발행 첫 요청의 `x-vercel-cache`(3단계 작업 문서 8절 12).
-5. `tools/cruz-lab-knowledge-mcp` README와 저장소 README의 도구 설명(4단계 PR-C, 사용자 결정 2026-11-10): 4단계가 `src/content/projects`를 지워 도구의 `projects` 범위(`list_projects`·`get_project_context`·`cruzlab://projects`)가 "폴더 없음" 오류를 낸다. 3번 문서 정리 때 이 사실을 적는다. 도구가 Firestore를 읽게 바꿀지는 5단계 Plan에서 정한다(4단계 작업 문서 5절 58).
+5. `tools/cruz-lab-knowledge-mcp`(4단계 PR-C, 5단계 Plan D8): 사용자 결정(2026-11-10)으로 도구를 지운다(5단계 T14: 폴더, `package.json`의 `mcp:knowledge`, 의존성 `@modelcontextprotocol/sdk`, Codex 설정 3줄). 3번 문서 정리 때 저장소 README의 도구 설명(기술 표 1행, 문단 1, 디렉터리 1행, 실행 명령)을 지운다.
 6. 프로젝트 글 재동기화 명령(2번): 원본이 rebuild에 없으므로 main checkout을 준다. `node --env-file=.env scripts/migrate/stage4-projects.mjs --source-root <main checkout>`(시험 실행) → 보고서 확인 → `--apply --base <개발 서버>`(4단계 작업 문서 5절 54). 1번의 2단계 재실행은 프로젝트 글을 지움 후보로 보지 않고 seriesMeta의 `project` 칸을 남긴다(5절 52·79, 시험 실행 삭제 후보 0은 4.12). 이 스크립트는 CDN을 비우지 못한다(5절 77). 그래서 병합 전에 돌린다. 병합 뒤 새 배포는 빈 캐시로 시작한다.
+7. 운영 콜드 TTFB(5단계 Plan D16): 병합 뒤 운영 글 상세를 콜드로 3회 잰다. 기준 1.5초. 넘고 렌더 몫이 절반을 넘으면 본문 미리 계산을 별도 작업으로 다시 본다. 미리보기 값(부팅 3.3초 + 렌더 준비 1.4초)은 운영보다 느리다(바이트코드 캐시·미리 데우기는 production에만).
+8. 독자 흐름 첫 수집 확인(5단계 Plan D20): 병합 뒤 운영에서 `readerDaily`에 첫 날 요약이 쌓이는지, 관리자 본인 방문이 빠지는지 본다. 미리보기·localhost는 저장하지 않는다.
+9. 병합이 끝나면 바로: cruz-lab 프로젝트 글 작성 전략을 사용자와 함께 세운다(5단계 Plan 14절, 사용자 요청 2026-11-10). 지금 3편(옛 CMS 2, MCP 1)은 낡았다.
 
 ### 11.4 2단계 Plan 작성 (2026-11-07)
 
@@ -721,7 +725,7 @@ main에는 긴급 수정만 넣는다. main에 긴급 수정을 넣으면 main�
 
 **다음 것.**
 
-1. 5단계 Plan(관리자 앱). 새 세션에서 한다(전역 7번 규칙). 먼저 읽을 것: 4단계 작업 문서 7절(5단계 Plan이 읽을 목록과 이어받는 사실), 8.3의 5단계 행, 이 절 11.3, 4단계 Plan 14절(상기 목록). 이미지 세부 조절은 묻지 않고 범위에 넣는다.
+1. ~~5단계 Plan(관리자 앱)~~ 새 세션에서 썼다(11.10).
 2. ~~문서 PR(T9)~~ 병합됨(`67299d1`).
 2-1. ~~PR-D [PR #19](https://github.com/crucial-sub/cruz-lab/pull/19) 병합과 `rebuild` 미리보기 확인~~ 끝(`446b629`, 위 끝난 것 14, 작업 문서 4.18·7절 끝난 것 8).
 3. 원격의 병합 끝난 브랜치 삭제(사용자 확인 뒤): `stage4/plan`, `stage4/a-renderer`, `stage4/b-pages`, `stage4/c-projects-og`. `stage4/docs`. PR-D 병합 뒤 `stage4/d-blog-list`도. 3단계 브랜치 6개(11.8 다음 것 3)도 아직 원격에 있다.
@@ -730,4 +734,26 @@ main에는 긴급 수정만 넣는다. main에 긴급 수정을 넣으면 main�
 
 1. ~~운영 왕복 검사의 실패 1편~~ 닫음: 정규화 규칙 7(사용자 결정 2026-11-09).
 2. ~~시험 노트로 노트 화면을 실제 데이터로 확인할지~~ 닫음: 확인하고 지웠다(작업 문서 4.11).
-3. 4단계에서 닫지 않은 질문 4개는 5단계 Plan에서 다룬다(작업 문서 8절 3~6): 실제 브라우저의 클립보드 API 경로, 글 상세 콜드 TTFB 1.44초(D7 뒤집는 조건 1.5초), `tools/cruz-lab-knowledge-mcp`의 프로젝트 기능, 콜드 OG 첫 요청 11.2~11.7초.
+3. ~~4단계에서 닫지 않은 질문 4개(작업 문서 8절 3~6)~~ 5단계 Plan에서 다뤘다: 클립보드는 D18(실제 Chrome·Safari 확인), 콜드 TTFB는 1.3 측정과 D16(기준을 운영으로), MCP 도구는 D8(삭제), OG 첫 요청은 1.3 측정과 D17.
+
+### 11.10 5단계 Plan 작성 (2026-11-10)
+
+**끝난 것.**
+
+1. Plan 문서 [2026-11-10-stage5-admin-app-plan.md](./2026-11-10-stage5-admin-app-plan.md)와 visual plan(`visual-plans/2026-11-10-cruz-lab-stage5-plan.html`, 소스 `.src.html`)을 썼다. 4단계 Plan의 절 구성을 따랐다. 부록 A는 이 문서 5.1~5.4의 요구, 부록 B는 2~4단계에서 넘어온 항목의 처리표다.
+2. 출발점을 직접 확인했다(Plan 1절, 읽기만). 운영 데이터: `entries` 69(사용자 초안 7편 중 빈 초안 2편), `revisions` 글마다 1개, 태그 12종, `assets` 141(쓰지 않는 26개는 모두 legacy), `settings` 없음, `publishLog` 2. 관리자 화면: `rebuild` 미리보기에서 기존 로그인으로 최소 목록을 보기만 했다(1280px 내용 폭 896px, 390px 가로 넘침 없음, 검색·종류·정렬 없음). 코드: 관리자 API에 자산 목록·출간 기록·설정·분류·연재 정보·리비전·project 생성이 없다. 공개 헤더는 390px에서 377px를 쓴다(실제 빌드). 백업 Action은 `settings`를 내보내지 않는다.
+3. 4단계에서 넘어온 측정을 미리보기에서 세 번 쟀다(Plan 1.3): 콜드 글 상세 = 함수 부팅 약 3.3초 + 첫 렌더 준비 약 1.4초, OG 첫 요청 11초대(함수가 깨어 있어도). 바이트코드 캐시·미리 데우기는 production에만 있어 글 상세 기준을 운영으로 옮겼다(D16).
+4. 사용자 결정 8건에 모두 답을 받았다(2026-11-10, Plan 13절). 결정마다 그림으로 설명했다. 사용자의 질문으로 권장을 바꾼 것: D1(a → b, 카테고리 목록도 브라우저에서), D8(사본 읽기 → 도구 삭제, 객관 평가 요청). 사용자 제안으로 넓힌 것: D3 조회수 → 독자 흐름 1·2·3단계(설계 D20), D4 헤더 연필(본인만) → 푸터 "관리"(모두) + 로그인·거부 화면 + 비관리자 인증 기록 즉시 삭제.
+5. 결정을 받는 동안 PR #19·#20이 병합돼 브랜치를 `rebuild` 끝 `c7701c1` 위로 옮겼다(커밋 전 문서만 있어 충돌 없음). 그 기준에서 `pnpm lint` 통과, `pnpm test` 580(39 파일), `pnpm build` 통과, `tsc --noEmit` 0(빌드 뒤). 문서만 바꿨다.
+6. 코드·규칙·운영 데이터·Vercel 설정은 바꾸지 않았다. 위 11.3에 5단계 몫(5 MCP 도구 삭제, 7 운영 콜드 TTFB, 8 독자 흐름 첫 수집, 9 cruz-lab 프로젝트 글 전략)을 적었다.
+
+**다음 것.**
+
+1. ~~Plan 승인~~ 승인됨(2026-11-10). 사용자 승인으로 커밋·푸시·PR(대상 `rebuild`)을 열었다.
+2. 5단계 구현. 새 세션에서 T1부터 한다. 먼저 읽을 것: 5단계 Plan 7절(작업 순서), 3절(결정), 13절(답). 작업 브랜치는 `rebuild`에서 `stage5/a-app`부터 만든다. PR-A 병합 전에 태그 `rebuild-pre-stage5`를 단다(사용자 확인 뒤).
+3. 원격의 병합 끝난 브랜치 삭제(사용자 확인 뒤): 3단계 6개, 4단계 `stage4/plan`·`a-renderer`·`b-pages`·`c-projects-og`·`docs`·`d-blog-list`·`d-preview`.
+4. 5단계 뒤: main 병합 준비 작업 단위(5단계 Plan D19, 위 11.3).
+
+**열린 질문.**
+
+1. ~~Plan 승인(Claude 판단 D9~D20 포함)~~ 승인됨(2026-11-10).
