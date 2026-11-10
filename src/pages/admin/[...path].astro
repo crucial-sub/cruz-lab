@@ -1,0 +1,19 @@
+---
+// 관리자 앱 진입 (재건 5단계 D9)
+// - /admin/** 한 페이지가 React 앱(AdminApp)을 띄운다. 화면 전환은 앱 안의 History API 라우터다(src/admin/router.ts).
+//   /admin(첫 화면·목록), /admin/edit/<id>(에디터), /admin/log(출간 기록). 모르는 주소는 앱이 /admin으로 바꾼다.
+// - /admin/login은 따로 있다(login.astro가 이 페이지보다 먼저 맞는다. 세션 없이 연다).
+// - 미들웨어가 세션 쿠키를 검사한다(2단계 D5). 응답은 저장하지 않는다(no-store).
+// - 에디터 코드는 앱이 에디터 화면에 들어갈 때만 받는다(React.lazy). KaTeX·에디터 CSS도 그 모듈이 가져온다.
+// - 세션 만료 시각을 앱에 넘긴다. 앱은 그 시각까지 관리자 표시(cruz-admin-hint)를 남긴다(D4).
+export const prerender = false;
+
+import AdminApp from '@/admin/AdminApp';
+import AdminPage from '@/layouts/AdminPage.astro';
+
+const sessionExpiresAt = Astro.locals.admin?.expiresAt ?? null;
+---
+
+<AdminPage title="관리자 | Cruz Lab">
+  <AdminApp client:only="react" sessionExpiresAt={sessionExpiresAt} />
+</AdminPage>

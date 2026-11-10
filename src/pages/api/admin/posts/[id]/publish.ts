@@ -6,6 +6,7 @@
 //   assetUsage는 커밋 뒤 자산 사용 기록 갱신 결과다(실패해도 발행은 성공).
 //   publicUrl은 지금 요청한 사이트 기준이다(entries는 rebuild 배포에서만 보인다). note는 /notes/<slug>(4단계 D12),
 //   project는 /projects/<프로젝트 key>/<slug>(4단계 D1). 연재가 없는 project 글은 주소가 없어 null이다.
+// - 5단계 D11: 부수 결과(purge·backup·assetUsage)를 그 발행의 publishLog 줄에 적는다. 알림 띠가 이 칸을 본다.
 
 import type { APIRoute } from 'astro';
 import { z } from 'zod';
@@ -14,6 +15,7 @@ import { publishEntry } from '@/lib/server/admin-entries';
 import { ApiError, jsonResponse, parseJsonBody, withAdminApi } from '@/lib/server/api-response';
 import { notifyContentChanged } from '@/lib/server/backup-dispatch';
 import { purgePublicCache } from '@/lib/server/cdn-purge';
+import { recordSideEffects } from '@/lib/server/publish-log';
 
 export const prerender = false;
 
@@ -31,6 +33,7 @@ export const POST: APIRoute = withAdminApi(async ({ params, request, url }) => {
     purgePublicCache(id),
     notifyContentChanged({ entryId: id, action: 'publish' }),
   ]);
+  await recordSideEffects(result.logId, { purge, backup, assetUsage: result.assetUsage });
   const publicPath = publicPathFor(result.kind, result.slug, result.series);
 
   return jsonResponse({

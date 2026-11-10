@@ -9,6 +9,7 @@ import {
   isWriteMethod,
   resolveAdminRequestKind,
   safeAdminNextPath,
+  shouldDeleteRejectedUser,
 } from '@/lib/admin-guard';
 
 describe('classifyAdminRequest', () => {
@@ -131,5 +132,22 @@ describe('resolveAdminRequestKind (인코딩 우회 방지)', () => {
 
   it('디코딩할 수 없는 경로는 invalid다', () => {
     expect(resolveAdminRequestKind({ pathname: '/api/%E0%A4%A', routePattern: undefined, method: 'GET' })).toBe('invalid');
+  });
+});
+
+describe('shouldDeleteRejectedUser (5단계 D4)', () => {
+  it('관리자가 아닌 UID만 지운다', () => {
+    expect(shouldDeleteRejectedUser('someone', 'admin-uid')).toBe(true);
+  });
+
+  it('관리자 UID는 절대 지우지 않는다', () => {
+    expect(shouldDeleteRejectedUser('admin-uid', 'admin-uid')).toBe(false);
+  });
+
+  it('ADMIN_UID 설정이 없거나 UID가 비면 지우지 않는다', () => {
+    expect(shouldDeleteRejectedUser('someone', null)).toBe(false);
+    expect(shouldDeleteRejectedUser('someone', '')).toBe(false);
+    expect(shouldDeleteRejectedUser('', 'admin-uid')).toBe(false);
+    expect(shouldDeleteRejectedUser(undefined, 'admin-uid')).toBe(false);
   });
 });

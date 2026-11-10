@@ -8,6 +8,7 @@
 //   그래서 슬롯은 PR-A의 자리 그대로 두고, 틀의 모양(.site, .site-main)은 global.css에 둔다.
 import '../styles/global.css';
 import BaseHead from './components/BaseHead.astro';
+import { ADMIN_HINT_KEY } from '@/admin/admin-hint';
 import Footer from './components/Footer.astro';
 import Header from './components/Header.astro';
 
@@ -42,6 +43,17 @@ const { title, description, ogImage, type, publishedTime, tags, noindex } = Astr
     </main>
 
     <Footer />
+    <!--
+      관리자 표시(5단계 D4): 관리자 앱을 연 브라우저에만 관리자 전용 요소([data-admin-only], 기본 hidden)를 드러낸다.
+      표시는 localStorage의 만료 시각(src/admin/admin-hint.ts)이다. 권한이 아니다. 본문 끝에 둬서 요소가 이미 있다.
+    -->
+    <script is:inline define:vars={{ hintKey: ADMIN_HINT_KEY }}>
+      try {
+        if (Number(localStorage.getItem(hintKey)) > Date.now()) {
+          for (const el of document.querySelectorAll('[data-admin-only]')) el.hidden = false;
+        }
+      } catch {}
+    </script>
   </body>
 </html>
 

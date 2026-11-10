@@ -2,6 +2,8 @@
 // 사이트 푸터 (재건 4단계 D6·D10)
 // - 왼쪽 저작권, 오른쪽 링크: 연재 · RSS(글) · 노트 RSS · GitHub · 이메일 · 사이트맵 · About.
 // - "연재"는 헤더에 없는 /series의 입구 중 하나다(D6 답의 연재 입구 4곳 중 4번).
+// - 5단계 D4: 끝에 "관리"(관리자 앱 입구). 누구에게나 보인다. 세션이 없으면 로그인 화면(사전 안내)으로 간다.
+//   권한은 서버가 막는다. 검색 엔진이 따라가지 않게 nofollow를 붙인다(관리자 화면은 noindex다).
 const year = new Date().getFullYear();
 
 const LINKS = [
@@ -12,6 +14,7 @@ const LINKS = [
   { href: 'mailto:jssub940@gmail.com', label: '이메일' },
   { href: '/sitemap-index.xml', label: '사이트맵' },
   { href: '/about', label: 'About' },
+  { href: '/admin', label: '관리', nofollow: true },
 ];
 ---
 
@@ -23,7 +26,11 @@ const LINKS = [
         {
           LINKS.map((link) => (
             <li>
-              <a href={link.href} {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
+              <a
+                href={link.href}
+                target={link.external ? '_blank' : undefined}
+                rel={link.external ? 'noopener noreferrer' : link.nofollow ? 'nofollow' : undefined}
+              >
                 {link.label}
               </a>
             </li>

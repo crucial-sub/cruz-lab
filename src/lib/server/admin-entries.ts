@@ -15,6 +15,7 @@ import {
   hasUnpublishedChanges,
   nextSlugHistory,
   pickEntryContent,
+  publicPathFor,
   reservesSlug,
   type FieldIssue,
   type NormalizedDraft,
@@ -87,17 +88,17 @@ function draftConflict(entry: EntryDoc): ApiError {
   });
 }
 
-// publishLog 한 줄을 트랜잭션에 더한다
+// publishLog 한 줄을 트랜잭션에 더한다. 줄 ID를 돌려준다
+// - title은 그때 제목이다(5단계 D11). 글이 지워져도 출간 기록 화면이 이 값을 보인다.
+// - 부수 작업 결과(purge·backup·assetUsage)는 커밋 뒤 경로 처리기가 같은 줄에 적는다(publish-log.ts recordSideEffects).
 function addPublishLog(
   tx: Transaction,
-  entryId: string,
-  action: PublishAction,
-  slug: string,
-  at: Date,
-  revision?: number,
-) {
+  entry: { entryId: string; action: PublishAction; slug: string; title: string; at: Date; revision?: number },
+): string {
   const ref = getServerDb().collection(PUBLISH_LOG_COLLECTION).doc();
-  tx.set(ref, { entryId, action, slug, at, ...(revision !== undefined ? { revision } : {}) });
+  const { revision, ...rest } = entry;
+  tx.set(ref, { ...rest, ...(revision !== undefined ? { revision } : {}) });
+  return ref.id;
 }
 
 // 커밋 뒤 부수 작업의 결과
@@ -175,6 +176,13 @@ export interface AdminListItem {
   publishedAt: string | null;
   hasUnpublishedChanges: boolean;
   draftDevice: string | null;
+  // 발행본이 없고 제목·설명·본문이 모두 빈 초안(5단계 D10). 서버가 계산한다(본문을 보내지 않는다)
+  isEmptyDraft: boolean;
+  // 최근 30일 독자(방문) 수. 독자 흐름(D20, PR-D) 전에는 null이다
+  readers30: number | null;
+  // 발행본의 공개 주소(발행본 slug 기준). 발행본이 없거나 주소가 없으면 null.
+  // 숨김 글도 값을 준다(다시 보이면 이 주소다). 화면은 발행 상태일 때만 링크를 보인다(5단계 D10 행 메뉴)
+  publicPath: string | null;
 }
 
 // 목록에 필요한 필드만 읽는다
@@ -191,18 +199,47 @@ const ADMIN_LIST_FIELDS = [
   'draft.version',
   'draft.device',
   'published.fromDraftVersion',
+  'published.slug',
+  'published.series',
 ];
 
 function isOneOf<T extends string>(values: readonly T[], value: unknown): value is T {
   return typeof value === 'string' && (values as readonly string[]).includes(value);
 }
 
+// 빈 초안 판정에 필요한 칸. 초안 상태 글만 읽는다(발행본이 있는 글은 빈 초안이 아니다)
+const EMPTY_CHECK_FIELDS = ['draft.description', 'draft.markdown'];
+
+// 초안 상태이고 제목이 빈 글 중 설명·본문도 빈 글의 ID (5단계 D10 isEmptyDraft)
+// - 본문은 서버에서만 읽는다. 제목이 빈 초안만 읽는다(제목이 있는 초안의 본문은 받지 않는다).
+// - 같음 조건 두 개라 단일 필드 인덱스 병합으로 된다(복합 인덱스 없음).
+// - 공백만 있는 제목은 이 쿼리에 걸리지 않는다. 빈 초안이 아니라고 본다(지우지 않는 쪽).
+async function findBlankDraftBodies(): Promise<Set<string>> {
+  const snapshot = await entriesRef()
+    .where('status', '==', 'draft')
+    .where('draft.title', '==', '')
+    .select(...EMPTY_CHECK_FIELDS)
+    .get();
+  const ids = new Set<string>();
+  for (const docSnap of snapshot.docs) {
+    const draft = docSnap.data().draft ?? {};
+    const description = typeof draft.description === 'string' ? draft.description : '';
+    const markdown = typeof draft.markdown === 'string' ? draft.markdown : '';
+    if (!description.trim() && !markdown.trim()) ids.add(docSnap.id);
+  }
+  return ids;
+}
+
 // 모든 상태의 글 목록 (Plan 6.3 GET)
 // - title·slug·분류는 초안 값을 준다. 정렬은 updatedAt 내림차순.
 // - counts는 kind 조건만 적용한 상태별 수다(status·q 조건 전). 화면의 탭 수에 쓴다.
 // - q는 제목·slug 부분 일치다(메모리에서 거른다. 대소문자 무시).
+// - 5단계: isEmptyDraft(발행본 없음 + 제목·설명·본문이 빔)와 readers30(PR-D 전에는 null)을 더한다.
 export async function listEntriesForAdmin(query: AdminListQuery) {
-  const snapshot = await entriesRef().select(...ADMIN_LIST_FIELDS).get();
+  const [snapshot, blankBodies] = await Promise.all([
+    entriesRef().select(...ADMIN_LIST_FIELDS).get(),
+    findBlankDraftBodies(),
+  ]);
   const items: AdminListItem[] = [];
   for (const docSnap of snapshot.docs) {
     const data = docSnap.data();
@@ -225,6 +262,16 @@ export async function listEntriesForAdmin(query: AdminListQuery) {
       hasUnpublishedChanges:
         typeof fromDraftVersion === 'number' && typeof draft.version === 'number' && draft.version !== fromDraftVersion,
       draftDevice: typeof draft.device === 'string' ? draft.device : null,
+      isEmptyDraft:
+        status === 'draft' &&
+        data.published == null &&
+        blankBodies.has(docSnap.id) &&
+        !(typeof draft.title === 'string' && draft.title.trim()),
+      readers30: null,
+      publicPath:
+        status !== 'draft' && typeof data.published?.slug === 'string'
+          ? publicPathFor(kind, data.published.slug, data.published.series ?? null)
+          : null,
     });
   }
 
@@ -274,6 +321,22 @@ export async function getEntryForAdmin(id: string) {
   return serializeEntry(id, parseStoredEntry(snapshot));
 }
 
+// 글의 이름표(다시 시도 줄, 5단계 D11). 글이 없으면 null
+// - 이름표 칸만 읽는다(본문·editorJson은 받지 않는다).
+export async function getEntryLabel(id: string): Promise<{ slug: string; title: string } | null> {
+  const ref = entriesRef().doc(id);
+  const [snapshot] = await ref.firestore.getAll(ref, {
+    fieldMask: ['published.slug', 'published.title', 'draft.slug', 'draft.title'],
+  });
+  if (!snapshot?.exists) return null;
+  const data = snapshot.data() ?? {};
+  const pick = (key: 'slug' | 'title') => {
+    const value = data.published?.[key] ?? data.draft?.[key];
+    return typeof value === 'string' ? value : '';
+  };
+  return { slug: pick('slug'), title: pick('title') };
+}
+
 // ───────────── 초안 저장 ─────────────
 
 export interface SaveDraftInput {
@@ -312,6 +375,8 @@ export async function saveDraft(id: string, input: SaveDraftInput) {
 
 // 초안을 발행본 내용으로 되돌린다 (Plan 6.3 draft/discard)
 // - 발행본이 없으면 409. baseVersion이 다르면 409.
+// - 5단계 D15 2: 같은 트랜잭션에서 published.fromDraftVersion을 새 초안 버전으로 맞춘다.
+//   초안이 발행본과 같으므로 "발행 뒤 변경 있음"이 사라진다. 리비전 문서는 바꾸지 않는다.
 export async function discardDraft(id: string, baseVersion: number) {
   const now = new Date();
   const result = await getServerDb().runTransaction(async (tx) => {
@@ -326,9 +391,10 @@ export async function discardDraft(id: string, baseVersion: number) {
       device: null,
       editorJson: null,
     };
-    assertValidEntry(id, { ...entry, draft, updatedAt: now });
-    tx.update(ref, { draft, updatedAt: now });
-    return { version: draft.version, published: entry.published };
+    const published = { ...entry.published, fromDraftVersion: draft.version };
+    assertValidEntry(id, { ...entry, draft, published, updatedAt: now });
+    tx.update(ref, { draft, 'published.fromDraftVersion': draft.version, updatedAt: now });
+    return { version: draft.version, published };
   });
 
   const { assetUsage } = await syncAssetUsageSafely(id, collectUsedAssetIds([result.published]));
@@ -394,8 +460,15 @@ export async function publishEntry(id: string, draftVersion: number) {
 
     tx.update(ref, changes);
     tx.set(ref.collection(REVISIONS_SUBCOLLECTION).doc(String(revision)), { ...published, publishedAt: now });
-    addPublishLog(tx, id, 'publish', published.slug, now, revision);
-    return { kind: entry.kind, revision, published, draft: entry.draft };
+    const logId = addPublishLog(tx, {
+      entryId: id,
+      action: 'publish',
+      slug: published.slug,
+      title: published.title,
+      at: now,
+      revision,
+    });
+    return { kind: entry.kind, revision, published, draft: entry.draft, logId };
   });
 
   const { assetUsage } = await syncAssetUsageSafely(id, collectUsedAssetIds([result.draft, result.published]));
@@ -406,6 +479,7 @@ export async function publishEntry(id: string, draftVersion: number) {
     slug: result.published.slug,
     series: result.published.series,
     assetUsage,
+    logId: result.logId,
   };
 }
 
@@ -419,12 +493,18 @@ export async function setEntryVisibility(id: string, visible: boolean) {
     const { ref, entry } = await readEntryInTx(tx, id);
     const transition = applyVisibility(entry.status, entry.published !== null, visible);
     if (!transition.ok) throw new ApiError(409, 'NOT_PUBLISHED', '발행하지 않은 글은 숨기거나 보일 수 없습니다.');
-    if (!transition.changed) return { status: transition.next, changed: false };
+    if (!transition.changed) return { status: transition.next, changed: false, logId: null };
 
     assertValidEntry(id, { ...entry, status: transition.next, updatedAt: now });
     tx.update(ref, { status: transition.next, updatedAt: now });
-    addPublishLog(tx, id, visible ? 'unhide' : 'hide', entry.published?.slug ?? entry.draft.slug, now);
-    return { status: transition.next, changed: true };
+    const logId = addPublishLog(tx, {
+      entryId: id,
+      action: visible ? 'unhide' : 'hide',
+      slug: entry.published?.slug ?? entry.draft.slug,
+      title: entry.published?.title ?? entry.draft.title,
+      at: now,
+    });
+    return { status: transition.next, changed: true, logId };
   });
 }
 
@@ -435,7 +515,7 @@ export async function setEntryVisibility(id: string, visible: boolean) {
 //    4단계 프로젝트 이전 글(projectSource)도 같다(이전 스크립트를 다시 돌려도 되살리지 않게, PR-C 리뷰 경미 10).
 // 2. 문서와 하위 revisions를 지운다(recursiveDelete).
 // 3. 그 글이 쓰던 자산에서 글 ID를 뺀다. usedBy가 비면 orphanedAt을 적는다.
-// 4. publishLog(delete, 마지막 slug).
+// 4. publishLog(delete, 마지막 slug, 그때 제목). 줄 ID를 돌려준다(부수 결과 기록, 5단계 D11).
 export async function deleteEntry(id: string) {
   const db = getServerDb();
   const ref = entriesRef().doc(id);
@@ -458,13 +538,19 @@ export async function deleteEntry(id: string) {
 
   // 여기부터는 지운 뒤의 일이다. 실패해도 삭제는 성공으로 끝낸다
   const { assetUsage, orphaned } = await syncAssetUsageSafely(id, new Set());
+  let logId: string | null = null;
   try {
-    await db
-      .collection(PUBLISH_LOG_COLLECTION)
-      .add({ entryId: id, action: 'delete', slug: lastSlug, at: Timestamp.fromDate(now) });
+    const logRow = await db.collection(PUBLISH_LOG_COLLECTION).add({
+      entryId: id,
+      action: 'delete',
+      slug: lastSlug,
+      title: entry.published?.title ?? entry.draft.title,
+      at: Timestamp.fromDate(now),
+    });
+    logId = logRow.id;
   } catch (error) {
     console.error(`[admin-entries] 삭제 기록 실패: ${id}`, error);
   }
 
-  return { deleted: true as const, orphanedAssets: orphaned, assetUsage };
+  return { deleted: true as const, orphanedAssets: orphaned, assetUsage, logId };
 }

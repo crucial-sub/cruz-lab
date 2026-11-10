@@ -8,6 +8,7 @@
 // - 세션: Admin SDK createCustomToken(ADMIN_UID) → Identity Toolkit signInWithCustomToken → POST /api/admin/session
 // - 실패해도 finally에서 시험 데이터(글, revisions, publishLog, 자산 문서, Storage assets/{id}/)를 지운다.
 // - 4단계 PR-C: 목록 확인은 글 주소 링크로, 노트는 /notes/<slug> 공개 주소와 /blog/<slug> 301로 바꿨다(PR-B 화면·D12에 맞춤).
+// - 5단계 PR-A: 초안 버리기 뒤 hasUnpublishedChanges 기대값을 false로 바꿨다(D15 2). 검사를 둘로 나눠 106건이다.
 
 import { createHash } from 'node:crypto';
 import process from 'node:process';
@@ -301,11 +302,13 @@ async function postFlow(db, asset) {
   check(oldSlugPage.status === 301 && decodeURI(oldSlugPage.headers.get('location') ?? '').endsWith(`/blog/${newSlug}`), `옛 slug: 301이어야 한다 (${oldSlugPage.status} ${oldSlugPage.headers.get('location')})`);
 
   // 초안 버리기: 고친 제목이 발행본 제목으로 돌아간다
+  // 5단계 D15 2: 초안이 발행본과 같으므로 "발행 뒤 변경"이 없다(fromDraftVersion을 새 초안 버전으로 맞춘다)
   version = await saveDraft(id, version, draftContent({ slug: newSlug, title: '버릴 제목' }));
   const discard = await api('POST', `/api/admin/posts/${id}/draft/discard`, { body: { baseVersion: version } });
   check(discard.status === 200 && discard.json?.version === version + 1, `초안 버리기: 200, version+1이어야 한다 (${discard.status})`);
   const afterDiscard = await api('GET', `/api/admin/posts/${id}`);
-  check(afterDiscard.json?.draft?.title === draftContent().title && afterDiscard.json?.hasUnpublishedChanges === true, '초안 버리기 뒤 제목이 발행본과 다르다');
+  check(afterDiscard.json?.draft?.title === draftContent().title, '초안 버리기 뒤 제목이 발행본과 다르다');
+  check(afterDiscard.json?.hasUnpublishedChanges === false, '초안 버리기 뒤 "발행 뒤 변경"이 남았다(5단계 D15 2)');
   check(afterDiscard.json?.slugHistory?.includes(slug), 'slugHistory에 옛 slug가 없다');
 
   return { id, slug: newSlug };

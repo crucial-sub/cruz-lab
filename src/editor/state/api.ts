@@ -116,6 +116,9 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return json as T;
 }
 
+// 관리자 앱(src/admin)도 같은 요청 함수를 쓴다(5단계 D9). 에디터 청크를 끌어오지 않도록 이 파일은 타입만 가져온다
+export const apiRequest = request;
+
 export const adminApi = {
   getEntry: (id: string) =>
     request<EntryResponse>('GET', `/api/admin/posts/${encodeURIComponent(id)}`),
