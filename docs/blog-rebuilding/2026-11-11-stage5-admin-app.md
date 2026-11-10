@@ -4,13 +4,13 @@
 - Plan: [2026-11-10-stage5-admin-app-plan.md](./2026-11-10-stage5-admin-app-plan.md) (승인 2026-11-10, [PR #21](https://github.com/crucial-sub/cruz-lab/pull/21) 병합 `90c6201`)
 - 진행 기록: [계획 문서 11.11](./2026-11-06-blog-architecture-audit-2-problems-and-plan.md#1111-5단계-구현-진행-기록-2026-11-10-)
 - 브랜치: `stage5/a-app`(PR-A, `origin/rebuild` `90c6201`에서 생성). 대상은 `rebuild`다.
-- 상태: **PR-A(T1~T4) 구현·검증·별도 리뷰·리뷰 수정 끝(2026-11-11). 커밋 전.** 커밋·푸시·PR은 사용자 확인 뒤다. PR-A 병합 전에 태그 `rebuild-pre-stage5`(= `90c6201`)를 단다(사용자 확인 뒤). PR-B~PR-E는 PR-A 병합 뒤 새 세션에서 한다(7절).
+- 상태: **PR-A(T1~T4) 구현·검증·별도 리뷰·리뷰 수정 끝(2026-11-11). 커밋 `4a8f6b3`, [PR #22](https://github.com/crucial-sub/cruz-lab/pull/22)(대상 `rebuild`, 병합 전). 태그 `rebuild-pre-stage5`(= `90c6201`)를 달았다.** 병합은 사용자 확인 뒤다. PR-B~PR-E는 PR-A 병합 뒤 새 세션에서 한다(7절).
 
 ## 1. 현재 상황
 
 | 항목 | 상태 |
 |---|---|
-| PR-A (T1 앱 틀, T2 첫 화면·목록, T3 알림·출간 기록, T4 입구) | 구현·검증 끝(2026-11-11). 별도 리뷰 2건(서버·화면)과 수정 끝(6절). 49파일, +4,288·−267줄(문서 제외). 커밋 전 |
+| PR-A (T1 앱 틀, T2 첫 화면·목록, T3 알림·출간 기록, T4 입구) | 구현·검증 끝(2026-11-11). 별도 리뷰 2건(서버·화면)과 수정 끝(6절). 49파일, +4,288·−267줄(문서 제외). 커밋 `4a8f6b3`, [PR #22](https://github.com/crucial-sub/cruz-lab/pull/22) 병합 전 |
 | PR-B~PR-E, 문서 PR | 시작 전. PR-A 병합 뒤(Plan D19) |
 | 외부 변경 | 없음(규칙·인덱스·환경 변수·Vercel·버킷 CORS) |
 | 운영 데이터 | 시험 데이터만 만들고 모두 지웠다(4.5). 끝 상태: `entries` 69(초안 7, 빈 초안 2), `publishLog` 2, `assets` 141, `seriesMeta` 7, Storage `assets/` 파일 37. Plan 8.3의 시작 값과 같다. 사용자 초안과 공개 글은 읽기만 했다 |
@@ -277,10 +277,11 @@
 
 1. PR-A(T1~T4) 구현·검증(2·4절). 커밋 전.
 2. 별도 리뷰(서버·화면)와 수정(6절): 치명 0, 중요 2, 경미 21. 중요 2건과 경미 17건 고침, 경미 4건은 이유를 적고 둠. 다시 검증: lint 통과, `tsc` 0, 테스트 633, 빌드 통과, `stage5-admin.mjs` 119/119(빌드 결과 4392), `stage2-api.mjs` 106/106(개발 서버 4329), 브라우저 확인 8건(4.4). 시험 데이터 0.
+3. 사용자 승인(2026-11-11) 뒤 커밋 `4a8f6b3`, 브랜치 푸시, [PR #22](https://github.com/crucial-sub/cruz-lab/pull/22)(대상 `rebuild`, CI 2개 통과), 태그 `rebuild-pre-stage5`(= `90c6201`) 푸시. 이 worktree의 `.env`는 사용자 승인으로 지웠다(원본은 주 checkout).
 
 **다음 것.**
 
-1. 사용자 확인 뒤: 커밋, 푸시, PR(대상 `rebuild`), 태그 `rebuild-pre-stage5`(= `90c6201`), 병합.
+1. 사용자 확인 뒤: [PR #22](https://github.com/crucial-sub/cruz-lab/pull/22) 병합.
 2. PR-A 병합 뒤 `rebuild` 미리보기 확인(Plan 8.6의 1): 시험 글 발행 → 출간 기록에 부수 결과(퍼지 ok, 백업 dispatched), 시나리오 7의 "다시 비우기"가 실제로 띠를 지우는지, 로그아웃 뒤 "고치기"가 사라지는지(사용자 세션).
 3. 사용자 확인(Plan D18): 관리자가 아닌 Google 계정으로 로그인 거부 → Firebase 인증 사용자 목록에 남지 않음.
 4. PR-B(`stage5/b-manage`, T5~T8)부터 새 세션에서(전역 7번 규칙). 메뉴·라우터 표에 화면을 더한다(5절 1).
