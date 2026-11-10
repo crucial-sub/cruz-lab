@@ -186,7 +186,7 @@ A에서 토글은 대부분의 독자가 쓰지 않는다. **기본값이 결과
 
 ## 9. 구현 (2026-11-10, 브랜치 `stage4/d-blog-list`)
 
-결정대로 구현했다. 상세는 [작업 문서](./2026-11-09-stage4-public-site.md) 2.11(파일)·4.18(검증)·5절 85~97(판단)·6.4(리뷰). PR: [PR #19](https://github.com/crucial-sub/cruz-lab/pull/19)(대상 `rebuild`).
+결정대로 구현했다. 상세는 [작업 문서](./2026-11-09-stage4-public-site.md) 2.11(파일)·4.18(검증)·5절 85~97(판단)·6.4(리뷰). PR: [PR #19](https://github.com/crucial-sub/cruz-lab/pull/19)(대상 `rebuild`, 병합 `446b629`).
 
 - 대표 카드 `FeaturedPost.astro`(새) + 작은 커버 행 `PostRow.astro` + 머리·결과 수 줄·태그 `<details>`를 다시 짠 `BlogList.astro`. `PostCover.astro`는 CSS 변수와 `variant`(`card`·`thumb`), `post-cover.ts`는 카테고리 팔레트 표, `blog-list.ts`는 `splitFeatured`.
 - 지킨 것: `<li data-post-row>`(대표 카드 포함, 스모크 행 수 = 글 수), 제목 링크 하나 + 가상 요소, JS 없이 완전(태그 `<details>`도 JS 없이 열림), React 0.
@@ -202,6 +202,16 @@ A에서 토글은 대부분의 독자가 쓰지 않는다. **기본값이 결과
 | 54편 전체 길이 | 약 6,700px | 약 7,700px(연도 머리·행 사이 선 포함) |
 | 390px 전체 길이 | 약 6,500px | 약 8,700px(대표 세로형 406px, 행 163px) |
 | `/blog` HTML(빌드) | 약 92 KB | **90,181바이트**(리뷰 수정 뒤. 전역 스타일 전 110,851) |
+
+**`rebuild` 미리보기 실측(PR #19 병합 `446b629` 뒤, 2026-11-10).** 로컬 실측과 거의 같다. 문제 없음. 상세는 작업 문서 4.18 "미리보기 확인"이다.
+
+| 항목 | 1280px | 390px |
+|---|---|---|
+| 행 높이 | 127px | 164px |
+| 대표 카드 | 222px | 406px |
+| 목록 시작 위치 | 344px | — |
+| 54편 전체 길이 | 7,598px | 8,649px |
+| `/blog` HTML | 90,259바이트(로컬 빌드보다 78바이트 많다) | — |
 
 ## 10. 참고
 
