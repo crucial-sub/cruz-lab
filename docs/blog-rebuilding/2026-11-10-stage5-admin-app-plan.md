@@ -2,7 +2,7 @@
 
 - 날짜: 2026-11-10
 - 상태: **승인됨(2026-11-10).** 사용자 결정 8건의 답은 13절에 있다. 12절 끝의 "Claude 판단"(D9~D20)도 함께 승인받았다. 구현은 새 세션에서 T1부터 한다(7절).
-- 브랜치: 이 Plan은 `stage5/plan`. 처음 `origin/rebuild` `67299d1`에서 만들었고, 결정을 받는 동안 PR #19·#20이 병합돼 `origin/rebuild` `c7701c1` 위로 옮겼다(커밋 전 문서만 있어 충돌 없음). PR 대상은 `rebuild`다. main이 아니다. 구현은 승인 뒤 새 세션에서 `rebuild`에서 작업 브랜치를 만든다(7절).
+- 브랜치: 이 Plan은 `stage5/plan`. 처음 `origin/rebuild` `67299d1`에서 만들었고, 결정을 받는 동안 PR #19·#20이 병합돼 `origin/rebuild` `c7701c1` 위로 옮겼다(커밋 전 문서만 있어 충돌 없음). 커밋 `3624923`, [PR #21](https://github.com/crucial-sub/cruz-lab/pull/21)(대상 `rebuild`). main이 아니다. 구현은 승인 뒤 새 세션에서 `rebuild`에서 작업 브랜치를 만든다(7절).
 - 근거: [계획 문서](./2026-11-06-blog-architecture-audit-2-problems-and-plan.md) 5.1~5.4(M1~M6·M11), 8.1, 8.3 "5. 관리자 앱", 10.1, 11.3. [2단계 Plan](./2026-11-07-stage2-data-model-and-server-plan.md) D4·D5·D7, 6절(API), 15절. [3단계 Plan](./2026-11-08-stage3-editor-plan.md) D6·D9·D11, 14절, 부록 B. [3단계 작업 문서](./2026-11-09-stage3-editor.md) 8절 4·5·7·10·13. [4단계 Plan](./2026-11-09-stage4-public-site-plan.md) D3·D4·D5·D6·D7·D13, 13절, 14절. [4단계 작업 문서](./2026-11-09-stage4-public-site.md) 4.17·4.18, 5절 58·62, 7절, 8절 3~6.
 - 시각 문서: [visual-plans/2026-11-10-cruz-lab-stage5-plan.html](./visual-plans/2026-11-10-cruz-lab-stage5-plan.html)
 
