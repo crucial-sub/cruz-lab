@@ -9,7 +9,13 @@
 //   사용자 키맵 덮어쓰기는 5단계다. 지금은 빈 객체다.
 // - 개요·글자 수·읽기 시간(D13): 입력을 300ms 디바운스한 요약만 패널에 넘긴다.
 // - 리렌더: Tiptap 상태는 에디터 안에만 있다. 이 컴포넌트는 저장 상태·메타·모드·요약이 바뀔 때만 다시 그린다.
+// - 5단계 D9: 관리자 앱(src/admin/AdminApp.tsx)의 한 화면이다. 앱이 이 모듈을 늦게 받는다(React.lazy).
+//   KaTeX CSS·에디터 CSS는 이 모듈이 가져온다(목록만 보면 받지 않는다).
+//   앱 안 이동은 host.navigate로 한다. 화면을 떠나기 전에 앱이 떠나기 가드를 부른다: 저장을 비우고(flush),
+//   실패하면 떠날지 묻는다. 떠날 때 목록 한 줄을 고칠 값(제목·상태·빈 초안 여부 등)을 host에 알린다.
 
+import 'katex/dist/katex.min.css';
+import '@/editor/editor.css';
 import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import {
   useCallback,
@@ -109,7 +115,49 @@ interface EntryInfo {
   status: EntryStatus;
   published: EntryPublished | null;
   hasUnpublishedChanges: boolean;
+  publishedAt: string | null;
 }
+
+// 관리자 앱이 넘기는 연결부 (5단계 D9)
+export interface EditorEntryUpdate {
+  id: string;
+  title: string;
+  slug: string;
+  category: string | null;
+  tags: string[];
+  series: { key: string; order: number } | null;
+  status: EntryStatus;
+  hasUnpublishedChanges: boolean;
+  publishedAt: string | null;
+  // 이 화면에서 마지막으로 저장한 시각. 저장하지 않았으면 null(목록 값을 그대로 둔다)
+  updatedAt: string | null;
+  draftDevice: string | null;
+  isEmptyDraft: boolean;
+  // 발행본의 공개 주소(목록 API의 publicPath와 같은 규칙). 처음 발행한 글도 행 메뉴에 "공개 페이지 보기"가 생긴다
+  publicPath: string | null;
+}
+
+export interface EditorHost {
+  // 앱 안 주소로 간다(앱이 떠나기 가드를 부른다)
+  navigate(path: string): void;
+  // 떠나기 가드를 등록한다. true면 떠나도 된다. null이면 지운다
+  registerLeaveGuard(guard: (() => Promise<boolean>) | null): void;
+  // 떠날 때 목록 한 줄을 고친다
+  onEntryChange(update: EditorEntryUpdate): void;
+  // 글을 지웠다
+  onDeleted(id: string): void;
+  // 로그아웃(관리자 표시도 지운다)
+  logout(): Promise<void>;
+}
+
+// 떠나기 전 저장을 끝내지 못했을 때 묻는 말
+const LEAVE_CONFIRM_MESSAGES: Partial<Record<SaveOutcome, string>> = {
+  blocked: '업로드 중인 이미지나 입력 중인 글자가 있어 저장을 끝내지 못했습니다. 그래도 떠날까요?',
+  invalid: '입력 값에 문제가 있어 저장하지 않았습니다. 떠나면 마지막 변경을 잃습니다. 그래도 떠날까요?',
+  conflict: '다른 곳에서 먼저 저장해 충돌이 있습니다. 떠나면 이 화면의 변경을 잃을 수 있습니다. 그래도 떠날까요?',
+  offline: '오프라인이라 서버에 보내지 못했습니다. 마지막 몇 초의 입력은 기기에 보관되지 않았을 수 있습니다. 그래도 떠날까요?',
+  failed: '저장이 실패했습니다. 떠나면 마지막 변경을 잃을 수 있습니다. 그래도 떠날까요?',
+};
 
 type DialogState =
   | { kind: 'offline-restore'; offline: OfflineDraft }
@@ -158,6 +206,7 @@ function infoOf(data: EntryResponse): EntryInfo {
     status: data.status,
     published: data.published,
     hasUnpublishedChanges: data.hasUnpublishedChanges,
+    publishedAt: data.publishedAt,
   };
 }
 
@@ -211,7 +260,7 @@ function emptyDraft(): DraftInput {
   };
 }
 
-export default function EditorApp({ entryId }: { entryId: string }) {
+export default function EditorApp({ entryId, host }: { entryId: string; host?: EditorHost }) {
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [entry, setEntry] = useState<EntryInfo | null>(null);
@@ -251,6 +300,20 @@ export default function EditorApp({ entryId }: { entryId: string }) {
   const summaryTimerRef = useRef<number | null>(null);
   deviceRef.current = device;
   issuesRef.current = issues;
+  // 떠나기 가드가 읽는 최신 값(5단계 D9)
+  const entryInfoRef = useRef<EntryInfo | null>(null);
+  const savedAtRef = useRef<string | null>(null);
+  const deletedRef = useRef(false);
+  const hostRef = useRef(host);
+  entryInfoRef.current = entry;
+  savedAtRef.current = save.savedAt;
+  hostRef.current = host;
+
+  // 앱 안 주소로 간다. 앱 밖(연결부 없음)이면 문서를 다시 연다
+  const goTo = useCallback((path: string) => {
+    if (hostRef.current) hostRef.current.navigate(path);
+    else window.location.assign(path);
+  }, []);
 
   // ───────────── 명령 레지스트리 (D9) ─────────────
 
@@ -353,6 +416,12 @@ export default function EditorApp({ entryId }: { entryId: string }) {
           dispatch(event);
           // 발행본이 있는 글은 저장하면 "발행 뒤 변경 있음"이 된다(리뷰 6.2 지적 20)
           if (event.type === 'save-succeeded') {
+            // 떠나기 가드는 flush 바로 뒤에 이 ref를 읽는다. 다시 그리기 전이므로 여기서 바로 고친다(5단계 리뷰)
+            savedAtRef.current = event.updatedAt;
+            const info = entryInfoRef.current;
+            if (info?.published && !info.hasUnpublishedChanges) {
+              entryInfoRef.current = { ...info, hasUnpublishedChanges: true };
+            }
             setEntry((current) =>
               current?.published && !current.hasUnpublishedChanges
                 ? { ...current, hasUnpublishedChanges: true }
@@ -502,10 +571,19 @@ export default function EditorApp({ entryId }: { entryId: string }) {
         }
         setPhase('ready');
         if (offline) setDialog({ kind: 'offline-restore', offline });
+        // 열면 본문(5단계 D10 "이어 쓰기"): 편집 모드면 본문에 커서를 둔다. 초안은 끝, 발행한 글은 처음
+        else if (storedMode === 'edit') {
+          window.requestAnimationFrame(() => {
+            if (!editor.isDestroyed) editor.commands.focus(data.status === 'draft' ? 'end' : 'start');
+          });
+        }
       } catch (error) {
         if (cancelled) return;
         if (error instanceof ApiClientError && error.status === 404) {
-          window.location.assign('/admin');
+          // 다른 곳에서 지운 글이다. 앱 목록에서도 줄을 뺀다(목록을 다시 받지 않으므로)
+          deletedRef.current = true;
+          hostRef.current?.onDeleted(entryId);
+          goTo('/admin');
           return;
         }
         if (error instanceof ApiClientError && error.status === 401) {
@@ -519,7 +597,55 @@ export default function EditorApp({ entryId }: { entryId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [editor, entryId, applyEntry, controller, syncViewTexts]);
+  }, [editor, entryId, applyEntry, controller, syncViewTexts, goTo]);
+
+  // 앱 안에서 떠나기 전: 저장을 비우고, 실패하면 떠날지 묻는다. 떠나면 목록 한 줄을 고칠 값을 알린다(5단계 D9)
+  useEffect(() => {
+    if (!host) return;
+    host.registerLeaveGuard(async () => {
+      if (controller.hasPending()) {
+        const outcome = await controller.flush();
+        if (outcome !== 'saved' && outcome !== 'unchanged') {
+          const message = LEAVE_CONFIRM_MESSAGES[outcome] ?? '저장을 끝내지 못했습니다. 그래도 떠날까요?';
+          if (!window.confirm(message)) return false;
+        }
+      }
+      controller.leave();
+      const info = entryInfoRef.current;
+      const instance = editorRef.current;
+      if (info && !deletedRef.current) {
+        const current = metaRef.current;
+        const blankBody =
+          modeRef.current === 'source' || !instance
+            ? !sourceRef.current.trim()
+            : !docToMarkdown(instance.getJSON()).trim();
+        host.onEntryChange({
+          id: entryId,
+          title: current.title,
+          slug: current.slug,
+          category: current.category,
+          tags: [...current.tags],
+          series: current.series ? { ...current.series } : null,
+          status: info.status,
+          hasUnpublishedChanges: info.hasUnpublishedChanges,
+          publishedAt: info.publishedAt,
+          updatedAt: savedAtRef.current,
+          draftDevice: savedAtRef.current ? deviceRef.current : null,
+          isEmptyDraft:
+            info.published === null &&
+            !current.title.trim() &&
+            !current.description.trim() &&
+            blankBody,
+          publicPath:
+            info.status !== 'draft' && info.published
+              ? publicPathFor(info.kind, info.published.slug, info.published.series ?? null)
+              : null,
+        });
+      }
+      return true;
+    });
+    return () => host.registerLeaveGuard(null);
+  }, [host, controller, entryId]);
 
   // 온라인 복귀: 보관한 초안을 보낸다
   useEffect(() => {
@@ -813,19 +939,33 @@ export default function EditorApp({ entryId }: { entryId: string }) {
     try {
       await adminApi.deleteEntry(entryId);
       controller.leave();
+      deletedRef.current = true;
       await deleteOfflineDraft(entryId).catch(() => {});
-      window.location.assign('/admin');
+      hostRef.current?.onDeleted(entryId);
+      goTo('/admin');
     } catch (error) {
       showToast('error', messageOf(error));
       setBusy(null);
     }
-  }, [controller, entryId, showToast]);
+  }, [controller, entryId, goTo, showToast]);
 
+  // 로그아웃: 앱 안 이동과 같이 저장을 먼저 비운다. 실패하면 떠날지 묻는다(5단계 리뷰)
   const logout = useCallback(async () => {
+    if (controller.hasPending()) {
+      const outcome = await controller.flush();
+      if (outcome !== 'saved' && outcome !== 'unchanged') {
+        const message = LEAVE_CONFIRM_MESSAGES[outcome] ?? '저장을 끝내지 못했습니다. 그래도 로그아웃할까요?';
+        if (!window.confirm(message)) return;
+      }
+    }
+    controller.leave();
+    if (hostRef.current) {
+      await hostRef.current.logout();
+      return;
+    }
     try {
       await adminApi.logout();
     } finally {
-      controller.leave();
       window.location.assign('/admin/login');
     }
   }, [controller]);

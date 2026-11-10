@@ -2,9 +2,11 @@
 // - 로그인: ID 토큰 검증 → 관리자 확인 → 로그인 5분 이내 확인 → 세션 쿠키 발급
 // - 요청마다: 미들웨어가 세션 쿠키를 검증한다(checkRevoked = true)
 // - 관리자는 ADMIN_UID 환경 변수와 email_verified로 식별한다.
+// - 5단계 D4: 관리자가 아닌 계정이 로그인하면 그 Firebase 인증 기록을 바로 지운다(관리자 UID는 절대 아님).
+//   그래서 Firebase 인증 사용자 목록에는 관리자만 남는다. 403 details.authRecordDeleted가 결과다.
 
 import type { AstroCookieSetOptions } from 'astro';
-import { isAdminClaims, isRecentLogin } from '@/lib/admin-guard';
+import { isAdminClaims, isRecentLogin, shouldDeleteRejectedUser } from '@/lib/admin-guard';
 import { ApiError } from './api-response';
 import { getServerAuth } from './firebase-server';
 
@@ -53,13 +55,37 @@ export async function createAdminSessionCookie(idToken: string): Promise<string>
   }
 
   if (!isAdminClaims(decoded, adminUid)) {
-    throw new ApiError(403, 'NOT_ADMIN', '관리자 계정이 아닙니다.');
+    const authRecordDeleted = await deleteRejectedUser(decoded.uid, adminUid);
+    throw new ApiError(403, 'NOT_ADMIN', '관리자 계정이 아닙니다.', { authRecordDeleted });
   }
   if (!isRecentLogin(decoded.auth_time, Date.now())) {
     throw new ApiError(401, 'STALE_LOGIN', '로그인한 지 5분이 지났습니다. 다시 로그인해 주세요.');
   }
 
   return auth.createSessionCookie(idToken, { expiresIn: ADMIN_SESSION_MAX_AGE_SECONDS * 1000 });
+}
+
+// 거부한 로그인의 인증 기록을 지운다. 지웠으면 true
+// - shouldDeleteRejectedUser가 거짓이면(관리자 UID, 설정 없음) 부르지 않는다.
+// - ADMIN_UID가 실제 인증 사용자가 아니면 지우지 않는다. 설정값이 틀렸으면(오타, 따옴표)
+//   진짜 관리자가 "관리자 아님"으로 판정된다. 그때 관리자 본인의 기록을 지우면 되돌리기 어렵다.
+// - 지우기에 실패해도 로그인 거부는 그대로다. 로그만 남긴다.
+async function deleteRejectedUser(uid: string, adminUid: string): Promise<boolean> {
+  if (!shouldDeleteRejectedUser(uid, adminUid)) return false;
+  const auth = getServerAuth();
+  try {
+    await auth.getUser(adminUid);
+  } catch (error) {
+    console.error('[admin-session] ADMIN_UID가 인증 사용자가 아니다. 거부한 계정을 지우지 않는다', error);
+    return false;
+  }
+  try {
+    await auth.deleteUser(uid);
+    return true;
+  } catch (error) {
+    console.error('[admin-session] 거부한 계정의 인증 기록 삭제 실패', error);
+    return false;
+  }
 }
 
 // 세션 쿠키를 검증한다. 틀리거나 폐기됐거나 관리자가 아니면 null

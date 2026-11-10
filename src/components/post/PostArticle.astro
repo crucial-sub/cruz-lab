@@ -15,6 +15,8 @@
 //   카테고리·태그 목록 주소는 글(post)만 보이므로 노트만 쓰는 태그는 404가 된다(4단계 PR-B 리뷰 경미 4).
 // - 프로젝트 글(/projects/<key>/<slug>, D1)도 이 컴포넌트를 쓴다(kind="project"): 머리줄의 카테고리 자리에 프로젝트 이름,
 //   연재 상자 자리에 Part 탭(PartTabs), 이전·다음은 같은 프로젝트의 Part다.
+// - 5단계 D4: 머리줄 끝에 관리자 전용 "고치기"(에디터 링크). 기본 hidden이고, 관리자 앱을 연 브라우저에서만
+//   BaseLayout의 인라인 스크립트가 드러낸다. 공개 HTML은 모든 방문자에게 같다(CDN 캐시). 누르면 세션이 없을 때 로그인 화면이다.
 import '@/styles/prose.css';
 import '@/styles/shiki.css';
 import type { AdjacentPosts, PublishedProject, PublishedSeries } from '@/lib/content-posts';
@@ -82,6 +84,9 @@ const heading = entry.title || (isNote ? `노트 · ${published}` : '');
           )
         }
         {!isNote && <span>{entry.readingTime}분</span>}
+        <a class="post-edit" href={`/admin/edit/${encodeURIComponent(entry.id)}`} data-admin-only hidden rel="nofollow">
+          고치기
+        </a>
       </p>
       <h1 id="post-title" class="post-title">{heading}</h1>
       {entry.description && <p class="post-description">{entry.description}</p>}
@@ -186,6 +191,24 @@ const heading = entry.title || (isNote ? `노트 · ${published}` : '');
   }
   .post-category:hover {
     color: var(--brand-hover);
+  }
+  /* 관리자 전용 "고치기"(5단계 D4). hidden이 풀릴 때만 보인다. 머리줄 끝으로 민다 */
+  .post-edit {
+    margin-left: auto;
+    padding: 0.125rem 0.625rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    text-decoration: none;
+    transition: var(--transition-colors);
+  }
+  .post-edit[hidden] {
+    display: none;
+  }
+  .post-edit:hover {
+    border-color: var(--brand);
+    color: var(--text-primary);
   }
   .post-title {
     margin: 0;

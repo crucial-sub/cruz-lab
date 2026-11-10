@@ -104,6 +104,16 @@ export function isRecentLogin(authTimeSeconds: number, nowMs: number): boolean {
   return ageSeconds >= -60 && ageSeconds <= RECENT_LOGIN_WINDOW_SECONDS;
 }
 
+// 거부한 로그인의 Firebase 인증 기록을 지워도 되는지 (5단계 D4)
+// - 관리자 UID는 절대 지우지 않는다. email_verified가 거짓이라 거부된 관리자 본인도 지우지 않는다.
+// - ADMIN_UID 설정이 없으면 지우지 않는다(누가 관리자인지 모른다).
+export function shouldDeleteRejectedUser(
+  uid: string | null | undefined,
+  adminUid: string | null | undefined,
+): boolean {
+  return Boolean(adminUid) && typeof uid === 'string' && uid.length > 0 && uid !== adminUid;
+}
+
 // 토큰 주인이 관리자인지 확인한다 (D5: ADMIN_UID와 email_verified)
 export function isAdminClaims(
   claims: { uid?: string; email_verified?: boolean },

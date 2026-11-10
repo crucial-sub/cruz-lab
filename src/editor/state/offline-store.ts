@@ -87,3 +87,9 @@ export async function deleteOfflineDraft(
 ): Promise<void> {
   await withStore(factory, 'readwrite', (store) => store.delete(id));
 }
+
+// 보관 초안이 있는 글 ID 목록 (5단계 D11 알림 띠 "이 기기에 보내지 않은 초안 N편")
+export async function listOfflineDraftIds(factory: IDBFactory = defaultFactory()): Promise<string[]> {
+  const keys = await withStore(factory, 'readonly', (store) => store.getAllKeys());
+  return keys.filter((key): key is string => typeof key === 'string');
+}
