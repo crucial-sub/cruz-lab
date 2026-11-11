@@ -4,7 +4,7 @@
 - Plan: [2026-11-10-stage5-admin-app-plan.md](./2026-11-10-stage5-admin-app-plan.md) (승인 2026-11-10, [PR #21](https://github.com/crucial-sub/cruz-lab/pull/21) 병합 `90c6201`)
 - 진행 기록: [계획 문서 11.11](./2026-11-06-blog-architecture-audit-2-problems-and-plan.md#1111-5단계-구현-진행-기록-2026-11-10--2026-11-11)
 - 브랜치: `stage5/a-app`(PR-A, `origin/rebuild` `90c6201`에서 생성), `stage5/b-manage`(PR-B, `d1ded00`), `stage5/c-editor`(PR-C, `eb72c39`), `stage5/d-readers`(PR-D, `7a370fb`), `stage5/e-perf`(PR-E, `c582243`), `stage5/docs`(T16 문서 PR, `5c6ba0c`). 대상은 `rebuild`다.
-- 상태: **5단계 끝(2026-11-11).** 코드 PR 5개(PR-A~PR-E)가 모두 `rebuild`에 병합됐다. 마지막 병합은 PR-E [PR #26](https://github.com/crucial-sub/cruz-lab/pull/26)(`5c6ba0c`)이다. T16 문서 PR은 2.21에 적었다. 다음 작업 단위는 main 병합 준비다(7절, 감사 문서 11.3). 아래는 PR별 기록이다.
+- 상태: **5단계 끝(2026-11-11).** 코드 PR 5개(PR-A~PR-E)가 모두 `rebuild`에 병합됐다. 마지막 병합은 PR-E [PR #26](https://github.com/crucial-sub/cruz-lab/pull/26)(`5c6ba0c`)이다. T16 문서 PR은 2.21에 적었다(커밋 `7887eff`, [PR #27](https://github.com/crucial-sub/cruz-lab/pull/27), 병합은 사용자 확인 뒤). 다음 작업 단위는 main 병합 준비다(7절, 감사 문서 11.3). 아래는 PR별 기록이다.
 - PR별 기록: PR-A(T1~T4) 끝. 커밋 `4a8f6b3`, [PR #22](https://github.com/crucial-sub/cruz-lab/pull/22) `rebuild` 병합(`d1ded00`, 2026-11-11). 태그 `rebuild-pre-stage5`(= `90c6201`). **PR-B(T5~T8) 구현·검증·별도 리뷰·리뷰 수정 끝(2026-11-11), 브랜치 `stage5/b-manage`(기준 `d1ded00`), 커밋 `ee39038`, [PR #23](https://github.com/crucial-sub/cruz-lab/pull/23) `rebuild` 병합(`eb72c39`).** **PR-C(T9~T11) 구현·검증·별도 리뷰·리뷰 수정 끝(2026-11-11), 브랜치 `stage5/c-editor`(기준 `eb72c39`), 커밋 `7fbfe27`, [PR #24](https://github.com/crucial-sub/cruz-lab/pull/24) `rebuild` 병합(`7a370fb`).** **PR-D(T12) 구현·검증·별도 리뷰·리뷰 수정 끝(2026-11-11), 브랜치 `stage5/d-readers`(기준 `7a370fb`), 커밋 `48c8d66`, [PR #25](https://github.com/crucial-sub/cruz-lab/pull/25) `rebuild` 병합(`c582243`).** **PR-E(T13·T14) 구현·측정·검증·별도 리뷰·리뷰 수정 끝(2026-11-11), 브랜치 `stage5/e-perf`(기준 `c582243`), 측정용 커밋 3개를 사용자 확인 뒤 커밋 하나 `c61fa06`로 합쳤다. [PR #26](https://github.com/crucial-sub/cruz-lab/pull/26) `rebuild` 병합(`5c6ba0c`).**
 
 ## 1. 현재 상황
@@ -18,7 +18,7 @@
 | PR-C (T9 이미지 세부 조절, T10 키맵 설정, T11 자동 재시도·블록 이동·찾기·바꾸기) | 구현·검증 끝(2026-11-11, 2.12~2.15·4.10~4.12). 별도 리뷰 2건과 수정 끝(6.9~6.12). 커밋 `7fbfe27`·`16fa7ad`(PR 링크), [PR #24](https://github.com/crucial-sub/cruz-lab/pull/24) `rebuild` 병합(`7a370fb`) |
 | PR-D (T12 독자 흐름) | 구현·검증 끝(2026-11-11, 2.16·2.17·4.13~4.15). 별도 리뷰 2건과 수정 끝(6.13~6.16). 커밋 `48c8d66`·`ef7ea13`(PR 링크), [PR #25](https://github.com/crucial-sub/cruz-lab/pull/25) `rebuild` 병합(`c582243`) |
 | PR-E (T13 측정·처방, T14 MCP 도구 삭제) | 구현·측정·검증 끝(2026-11-11, 2.18~2.20·4.16·4.17). 처방 2건은 사용자 결정(5절 140·145). 별도 리뷰 2건과 수정 끝(6.17~6.20). 커밋 `c61fa06`·`36fdab8`(PR 링크), [PR #26](https://github.com/crucial-sub/cruz-lab/pull/26) `rebuild` 병합(`5c6ba0c`) |
-| 문서 PR (T16) | 끝(2026-11-11, 2.21). 브랜치 `stage5/docs`(`origin/rebuild` `5c6ba0c`에서 생성). 이 문서, 감사 문서, Plan만 바꿨다. 코드 변경 0 |
+| 문서 PR (T16) | 끝(2026-11-11, 2.21). 브랜치 `stage5/docs`(`origin/rebuild` `5c6ba0c`에서 생성). 이 문서, 감사 문서, Plan만 바꿨다. 코드 변경 0. 커밋 `7887eff`, [PR #27](https://github.com/crucial-sub/cruz-lab/pull/27)(대상 `rebuild`). 병합은 사용자 확인 뒤 |
 | 외부 변경 | 규칙·인덱스·환경 변수·Vercel 설정·버킷 CORS는 바꾸지 않았다. PR-E: E1(Codex 설정 3줄 삭제) 끝, E2는 할 일 없음(Fluid compute 이미 켜짐), 측정용 미리보기 배포 3개(3절). **E3(백업 저장소 `settings`)은 하지 않았다.** 사용자 확인 뒤에 한다(7절 다음 것 2) |
 | 운영 데이터 | 시험 데이터만 만들고 모두 지웠다(4.5·4.7·4.9·4.12·4.14·4.15). `readerEvents`·`readerDaily`는 시험 뒤 0이다(실제 독자 데이터는 main 병합 뒤 운영 주소에서 쌓인다). 끝 상태: `entries` 69(초안 7, 빈 초안 2), `publishLog` 2, `assets` 141, `seriesMeta` 7, Storage `assets/` 파일 37. 더해진 것: `settings/taxonomy`(기본 10개, 별칭 없음). `settings/editor`는 PR-C 시험 뒤 지워 없다. 사용자 초안과 공개 글은 읽기만 했다. 5단계 끝 상태는 PR-E 끝의 수(4.17)다: `entries` 69(초안 7, 표지 붙은 글 0), `publishLog` 2, `assets` 141, `seriesMeta` 7, Storage `assets/` 37, `settings`는 `taxonomy`만, `readerEvents` 0, `readerDaily` 0. T16은 운영 데이터를 읽지도 쓰지도 않았다 |
 | Firebase 인증 사용자 | 스모크가 Admin SDK로 만든 시험 사용자를 세션 API가 지웠다(4.2). 관리자 계정은 그대로다 |
@@ -1107,12 +1107,12 @@ main 병합 준비 세션이 먼저 읽는 절이다. 5단계는 끝났다.
 17. 별도 리뷰(6.17~6.20): 치명 0, 중요 1, 경미 18(겹침 2쌍). 중요는 `excludeNetwork` 테스트가 핵심 동작을 보지 않음(B1). markdown 문법의 늦은 포함(S1 = B6)과 하이라이터 실패가 글 전체를 500으로 만듦(S2)도 고쳤다. 판단 150~160. 다시 검증(4.17).
 18. 사용자 승인(2026-11-11) 뒤 측정용 커밋 3개와 리뷰 수정·문서를 커밋 하나 `c61fa06`로 합치고 `stage5/e-perf`에 `--force-with-lease`로 푸시, [PR #26](https://github.com/crucial-sub/cruz-lab/pull/26)(대상 `rebuild`).
 19. [PR #26](https://github.com/crucial-sub/cruz-lab/pull/26)은 `rebuild`에 병합됐다(`5c6ba0c`, 2026-11-11). 코드 PR 5개가 모두 들어갔다.
-20. T16 문서 PR(2.21). 브랜치 `stage5/docs`(`5c6ba0c`에서 생성). 커밋·PR은 사용자 확인 뒤.
+20. T16 문서 PR(2.21). 브랜치 `stage5/docs`(`5c6ba0c`에서 생성). 사용자 승인(2026-11-11) 뒤 커밋 `7887eff`, [PR #27](https://github.com/crucial-sub/cruz-lab/pull/27)(대상 `rebuild`).
 21. 5단계 끝 검증 상태(PR-E 리뷰 수정 뒤, 4.17): lint 통과, `tsc` 0, 테스트 918(54 파일), 빌드 통과, `stage5-admin.mjs` 252/252·`stage5-track.mjs` 178/178(빌드 결과·개발 서버), 2단계 API 스모크 106/106, 왕복 69/69, 공개 점검 1,380/0 + 324/0, 공개 스크립트 2,038바이트, `/admin` 첫 화면은 에디터 JS를 받지 않음(앱 첫 청크 116,712바이트). 시험 데이터 0. 외부 변경: E1 끝, E2 할 일 없음, E3 안 함(3절).
 
 **다음 것.**
 
-1. T16 문서 PR 병합(사용자 확인 뒤).
+1. T16 문서 [PR #27](https://github.com/crucial-sub/cruz-lab/pull/27) 병합(사용자 확인 뒤).
 2. 사용자 확인 뒤: E3(백업 저장소 `crucial-sub/cruz-lab-content`의 `scripts/export.mjs`에 `{ name: 'settings', subcollections: [] }` 한 줄, 그 저장소에 PR). 지금 `settings/taxonomy`는 백업되지 않는다. main 병합 전에 한다(감사 문서 11.3의 10).
 3. main 병합 준비(Plan D19). 별도 작업 단위이고 새 세션에서 한다. 감사 문서 11.3 "main 병합 직전에 할 일" 1~12를 그대로 따른다. 먼저 읽을 것:
    - 감사 문서 11.3(목록 전체)과 11.11(5단계 진행 기록).
