@@ -2,6 +2,8 @@
 // - 업로드 주소: 같은 해시가 있으면 그 자산을 준다. 없으면 pending 문서와 V4 서명 PUT 주소(15분)를 준다.
 // - finalize: 원본의 실제 형식을 확인하고 webp 변형을 만든다. 변형을 만든 뒤 원본을 지운다(메타데이터·GPS 제거).
 // - purge: 고아가 된 지 N일 지난 자산과 24시간 지난 pending 자산을 지운다. 지우기 직전에 모든 글을 다시 훑는다.
+//   쓰이는 파생 자산의 원본은 지우지 않는다.
+// - transform: 이미지를 돌린 파생 자산을 만든다(이미지 회전·좌우반전 작업). 원본 자산은 그대로 둔다.
 
 import { createHash, randomUUID } from 'node:crypto';
 import type { DocumentData } from 'firebase-admin/firestore';
@@ -22,7 +24,15 @@ import {
   variantPathFor,
   type AllowedContentType,
   type PurgeCandidateReason,
+  type VariantPlan,
 } from '@/lib/asset-rules';
+import {
+  isIdentityTransform,
+  resolveTransformRequest,
+  sameTransform,
+  withDerivedRoots,
+  type TransformOp,
+} from '@/lib/asset-transform';
 import { assetDocSchema, isTimestampLike, toDateValue, type AssetDoc, type AssetVariant } from '@/lib/entry-schema';
 import { ApiError, zodIssues } from './api-response';
 import { collectUsedAssetIds } from './asset-usage';
@@ -34,6 +44,7 @@ import {
   REVISIONS_SUBCOLLECTION,
 } from './entries';
 import { getServerBucket, getServerDb, getStorageBucketName } from './firebase-server';
+import { renderTransformedVariants } from './image-transform';
 
 // main 병합 전에는 legacy 자산을 정리 대상에서 뺀다(D6, Claude 판단).
 // 운영이 옛 이미지를 계속 쓰기 때문이다. 병합 뒤 정리 작업(Plan 15절)에서 true로 바꾼다.
@@ -190,6 +201,11 @@ async function buildImageVariants(assetId: string, buffer: Buffer) {
     });
   }
 
+  return variantsFromFiles(plan, files);
+}
+
+// 폭별 파일 → 자산 문서의 variants (업로드와 회전·좌우반전이 같이 쓴다)
+function variantsFromFiles(plan: VariantPlan, files: ReadonlyMap<number, AssetVariant>) {
   const max = files.get(plan.maxWidth);
   if (!max) throw new ApiError(500, 'VARIANT_FAILED', '최대 변형을 만들지 못했습니다.');
   const variants: NonNullable<AssetDoc['variants']> = { max };
@@ -286,6 +302,103 @@ export async function finalizeAsset(id: string) {
   return { asset: serializeAsset(id, next) };
 }
 
+// ───────────── 회전·좌우반전 (이미지 회전·좌우반전 작업, 사용자 결정 2026-11-12) ─────────────
+
+// 돌릴 수 있는 자산인지. 안 되면 422 NOT_TRANSFORMABLE
+// - 새로 올린 이미지(assets/{id}/, 변형 있음)만 돌린다. 옛 CMS 이미지와 영상은 돌리지 않는다.
+function assertTransformable(id: string, asset: AssetDoc): NonNullable<AssetDoc['variants']> {
+  if (asset.legacy || !asset.storagePath.startsWith(assetPrefixFor(id))) {
+    throw new ApiError(422, 'NOT_TRANSFORMABLE', '옛 이미지는 돌릴 수 없습니다.');
+  }
+  if (isVideoContentType(asset.contentType) || asset.contentType.startsWith('video/')) {
+    throw new ApiError(422, 'NOT_TRANSFORMABLE', '영상은 돌릴 수 없습니다.');
+  }
+  if (asset.status !== 'ready' || !asset.variants) {
+    throw new ApiError(422, 'NOT_TRANSFORMABLE', '업로드를 끝낸 이미지만 돌릴 수 있습니다.');
+  }
+  return asset.variants;
+}
+
+// 이미지를 돌린 자산을 준다 (POST /api/admin/assets/{id}/transform)
+// - 파생 자산을 돌리면 그 원본(root)에서 합친 변환으로 만든다. 다시 압축은 언제나 한 번이다.
+// - 합친 변환이 처음 방향이면 원본 자산을 준다. 같은 원본·같은 변환의 자산이 있으면 그것을 준다(새 파일 없음).
+// - 없으면 원본의 최대 변형을 돌려 새 자산을 만든다. 아직 어느 글도 쓰지 않으므로 고아로 표시한다
+//   (글에 넣고 저장하면 지워진다, finalize와 같다).
+// - 원본 문서가 없으면(정리됨) 지금 자산을 원본으로 삼는다.
+export async function transformAsset(id: string, op: TransformOp) {
+  const snapshot = await assetsRef().doc(id).get();
+  if (!snapshot.exists) throw new ApiError(404, 'NOT_FOUND', '자산이 없습니다.');
+  const asset = parseStoredAsset(id, snapshot.data());
+  assertTransformable(id, asset);
+
+  let { rootId, transform } = resolveTransformRequest(
+    { id, derivedFrom: asset.derivedFrom, transform: asset.transform },
+    op,
+  );
+  let root = asset;
+  if (rootId !== id) {
+    const rootSnapshot = await assetsRef().doc(rootId).get();
+    if (rootSnapshot.exists) {
+      root = parseStoredAsset(rootId, rootSnapshot.data());
+    } else {
+      ({ rootId, transform } = resolveTransformRequest({ id }, op));
+    }
+  }
+  const rootVariants = assertTransformable(rootId, root);
+  if (isIdentityTransform(transform)) return { asset: serializeAsset(rootId, root) };
+
+  const siblings = await assetsRef().where('derivedFrom', '==', rootId).get();
+  for (const docSnap of siblings.docs) {
+    const parsed = assetDocSchema.safeParse(docSnap.data());
+    if (!parsed.success || parsed.data.status !== 'ready' || !parsed.data.transform) continue;
+    if (sameTransform(parsed.data.transform, transform)) {
+      return { asset: serializeAsset(docSnap.id, parsed.data) };
+    }
+  }
+
+  const [source] = await getServerBucket().file(rootVariants.max.path).download();
+  const rendered = await renderTransformedVariants(source, transform);
+  const ref = assetsRef().doc();
+  let next: AssetDoc;
+  try {
+    const files = new Map<number, AssetVariant>();
+    for (const file of rendered) {
+      const path = variantPathFor(ref.id, file.width);
+      const url = await saveWithDownloadUrl(path, file.data, 'image/webp');
+      files.set(file.width, { path, url, width: file.width, height: file.height, bytes: file.data.length });
+    }
+    const largest = rendered[rendered.length - 1];
+    const { max, variants } = variantsFromFiles(planVariants(largest.width), files);
+    const now = new Date();
+    next = {
+      storagePath: max.path,
+      url: max.url,
+      contentType: 'image/webp',
+      bytes: max.bytes,
+      width: max.width,
+      height: max.height,
+      sha256: createHash('sha256').update(largest.data).digest('hex'),
+      variants,
+      status: 'ready',
+      legacy: false,
+      usedBy: [],
+      orphanedAt: now,
+      uploadedAt: now,
+      derivedFrom: rootId,
+      transform,
+    };
+    assetDocSchema.parse(next);
+    await ref.set(next);
+  } catch (error) {
+    // 문서 없이 남은 파일은 정리가 찾지 못한다. 만든 파일을 지운다
+    await getServerBucket()
+      .deleteFiles({ prefix: assetPrefixFor(ref.id) })
+      .catch((cleanupError) => console.error(`[admin-assets] 회전 실패 뒤 파일 정리 실패: ${ref.id}`, cleanupError));
+    throw error;
+  }
+  return { asset: serializeAsset(ref.id, next) };
+}
+
 // ───────────── purge ─────────────
 
 export interface PurgeInput {
@@ -363,8 +476,12 @@ export async function purgeAssets(input: PurgeInput) {
   const nowMs = Date.now();
   const snapshot = await assetsRef().get();
   const candidates: (PurgeCandidate & { asset: AssetDoc })[] = [];
+  // 파생 자산 ID → 원본 ID (쓰이는 파생 자산의 원본을 지키려고 모은다)
+  const derivedFromById = new Map<string, string>();
 
   for (const docSnap of snapshot.docs) {
+    const derivedFrom = docSnap.get('derivedFrom');
+    if (typeof derivedFrom === 'string' && derivedFrom) derivedFromById.set(docSnap.id, derivedFrom);
     if (input.ids && !input.ids.includes(docSnap.id)) continue;
     const asset = parseStoredAsset(docSnap.id, docSnap.data());
     const reason = purgeCandidateReason(
@@ -390,7 +507,11 @@ export async function purgeAssets(input: PurgeInput) {
     });
   }
 
-  const referenced = candidates.length > 0 ? await collectAllReferencedAssetIds() : new Set<string>();
+  // 쓰이는 파생 자산의 원본도 쓰임으로 본다(이미지 회전·좌우반전: 다시 돌리거나 원래 방향으로 돌아올 때 원본이 필요하다)
+  const referenced =
+    candidates.length > 0
+      ? withDerivedRoots(await collectAllReferencedAssetIds(), derivedFromById)
+      : new Set<string>();
   const kept = candidates
     .filter((candidate) => referenced.has(candidate.id))
     .map((candidate) => ({ id: candidate.id, reason: 'still-referenced' }));
