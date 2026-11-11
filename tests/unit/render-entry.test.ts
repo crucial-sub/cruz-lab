@@ -12,6 +12,7 @@ vi.mock('@/lib/server/firebase-server', () => ({ getStorageBucketName: () => BUC
 const { assetIdsInMarkdown, clearRenderCache, renderEntry } = await import(
   '@/lib/server/render-entry'
 );
+const { ServerTiming } = await import('@/lib/server/server-timing');
 
 const url = (path: string, bucket = BUCKET) =>
   `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}?alt=media&token=t`;
@@ -95,3 +96,28 @@ describe('renderEntry', () => {
   });
 });
 
+// 5단계 T13: 실제로 그린 요청에만 단계별 시간을 남긴다(리뷰 S8)
+describe('renderEntry의 timing', () => {
+  it('처음 그리면 assets·hl·md, 메모리 결과를 쓰면 아무것도 남기지 않는다', async () => {
+    const entry = { id: 't1', revision: 1, markdown: '```c\nint a;\n```' };
+    const miss = new ServerTiming();
+    await renderEntry(entry, { timing: miss });
+    expect(miss.metrics.map((metric) => metric.name).sort()).toEqual(['assets', 'hl', 'md']);
+    const hit = new ServerTiming();
+    await renderEntry(entry, { timing: hit });
+    expect(hit.metrics).toEqual([]);
+  });
+
+  it('자산 조회가 실패해도 그리고 시간을 남긴다', async () => {
+    getAssetsByIds.mockRejectedValueOnce(new Error('firestore'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const timing = new ServerTiming();
+    const result = await renderEntry(
+      { id: 't2', revision: 1, markdown: `![a](${url('assets/a1/max.webp')})` },
+      { timing },
+    );
+    expect(result.html).toContain('<img');
+    expect(timing.metrics.map((metric) => metric.name)).toContain('assets');
+    warn.mockRestore();
+  });
+});

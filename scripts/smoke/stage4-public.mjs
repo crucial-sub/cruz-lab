@@ -14,6 +14,7 @@
 // - 5단계 PR-D(D20, Plan 8.1): 모든 공개 페이지의 관리자 표시 + 독자 흐름 수집 스크립트(인라인 모듈 1개, 합 2 KB 안),
 //   글 상세의 data-entry-id·#post-body, 404 화면의 data-not-found, /about 익명 통계 안내 한 줄(10).
 //   개발 서버는 스크립트를 인라인하지 않으므로 크기 대신 수집 모듈이 실렸는지만 본다(크기는 빌드 결과로 잰다).
+// - 5단계 PR-E(T13, 리뷰 B10): 글·노트·프로젝트 글 상세와 /og/<id>.png의 Server-Timing 헤더 항목.
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -164,6 +165,16 @@ function checkArticle(label, html, markdown, entryId) {
   stats.math += hasKatex ? 1 : 0;
 }
 
+// Server-Timing 헤더 (5단계 T13): 필요한 항목이 있고 total·inst로 끝난다
+// - 글 상세의 render 안 항목(assets·hl·md)은 메모리 결과를 쓴 요청에 없으므로 보지 않는다.
+const SERVER_TIMING_TAIL = /, total;dur=[\d.]+, inst;desc="req \d+ age [\d.]+s"$/;
+function checkServerTiming(label, res, names) {
+  const header = res.headers.get('server-timing') ?? '';
+  const present = new Set(header.split(', ').map((item) => item.split(';')[0]));
+  const missing = names.filter((name) => !present.has(name));
+  check(SERVER_TIMING_TAIL.test(header) && missing.length === 0, `${label} Server-Timing ${missing.join(',')} ${header}`);
+}
+
 // 1. 글마다
 for (const entry of posts) {
   const urlPath = encodeURI(`/blog/${entry.published.slug}`);
@@ -172,6 +183,7 @@ for (const entry of posts) {
   checkArticle(urlPath, body, entry.published.markdown, entry.id);
   check(hasTag(res, `post-${entry.id}`), `${urlPath} 캐시 태그`);
   check(ogImageOf(body).endsWith(`/og/${entry.id}.png`), `${urlPath} og:image ${ogImageOf(body)}`);
+  checkServerTiming(urlPath, res, ['db', 'render', 'adj']);
 }
 
 // 2. /blog
@@ -275,6 +287,7 @@ for (const note of notes) {
   check(hasTag(page.res, `post-${note.id}`), `${urlPath} 캐시 태그`);
   checkTrackerScripts(urlPath, page.body);
   check(page.body.includes(`data-entry-id="${note.id}"`), `${urlPath} data-entry-id`);
+  checkServerTiming(urlPath, page.res, ['db', 'render', 'adj']);
   check(
     ogImageOf(page.body).endsWith(`/og/${note.id}.png`),
     `${urlPath} og:image ${ogImageOf(page.body)}`,
@@ -352,6 +365,7 @@ for (const project of projects) {
     check(normalizeText(h1) === entry.published.title, `${urlPath} 제목 ${normalizeText(h1)}`);
     check(hasTag(res, `post-${entry.id}`), `${urlPath} 캐시 태그`);
     check(ogImageOf(body).endsWith(`/og/${entry.id}.png`), `${urlPath} og:image`);
+    checkServerTiming(urlPath, res, ['db', 'render', 'project']);
     const bodyHtml =
       body.match(/id="post-body"[^>]*>([\s\S]*?)<footer class="post-footer"/)?.[1] ?? '';
     // 본문을 못 찾으면 아래 검사가 빈 값으로 통과한다. 먼저 막는다(PR-C 리뷰 중요 3)
@@ -444,6 +458,7 @@ for (const entry of ogTargets) {
     `/og/${entry.id}.png Cache-Control`,
   );
   check(!res.headers.get('set-cookie'), `/og/${entry.id}.png Set-Cookie`);
+  checkServerTiming(`/og/${entry.id}.png`, res, ['db', 'imp-satori', 'imp-resvg', 'font', 'satori', 'resvg']);
   stats.ogImages += 1;
 }
 const defaultOg = await fetch(`${base}/og/default.png`);
@@ -459,6 +474,7 @@ check(
   missingOg.status === 404 && !/s-maxage/.test(missingOg.headers.get('cache-control') ?? ''),
   `/og/no-such-entry.png ${missingOg.status}`,
 );
+checkServerTiming('/og/no-such-entry.png', missingOg, ['db']);
 for (const page of [home, blog, notesPage, projectsPage]) {
   check(
     ogImageOf(page.body).endsWith('/og/default.png'),

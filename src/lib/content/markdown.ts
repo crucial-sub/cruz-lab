@@ -21,7 +21,7 @@ import remarkStringify, { type Options as StringifyOptions } from 'remark-string
 import { unified } from 'unified';
 import { SKIP, visit } from 'unist-util-visit';
 import type { EmbedProvider } from './embed-url.ts';
-import type { CodeHighlighter } from './highlighter.ts';
+import type { CodeHighlighter } from './shiki-languages.ts';
 import rehypeAssets, { type RenderAsset } from './rehype-assets.ts';
 import rehypeHeadings, { tocOf, type FileWithData, type TocEntry } from './rehype-headings.ts';
 import rehypeCodeBlocks, { remarkCodeMeta } from './rehype-shiki.ts';

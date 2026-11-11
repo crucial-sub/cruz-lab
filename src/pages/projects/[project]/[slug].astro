@@ -5,6 +5,7 @@
 //   연재 상자 자리에 Part 탭, 글 끝에 이전·다음 Part.
 // - 예전 slug, 다른 kind의 slug, 프로젝트를 옮긴 글은 바른 주소로 301(slug 공간이 하나다).
 // - CDN: 글을 찾았을 때만 s-maxage=60, 태그 posts,post-<id>. 없으면 안내 화면을 직접 그리고(404) 저장하지 않는다.
+// - Server-Timing(5단계 T13, D16): db(글 찾기), render(본문 렌더 전체)와 그 안의 assets·hl·md, project(프로젝트 정보).
 import katexCssUrl from 'katex/dist/katex.min.css?url';
 import NotFound from '@/components/NotFound.astro';
 import PostArticle from '@/components/post/PostArticle.astro';
@@ -18,22 +19,28 @@ import { ogImagePath } from '@/lib/public-paths';
 import { POSTS_CACHE_TAG, postCacheTag, setPublicPageCache } from '@/lib/server/cache-headers';
 import { markNotFound } from '@/lib/server/not-found';
 import { renderEntry } from '@/lib/server/render-entry';
+import { SERVER_TIMING_HEADER, ServerTiming } from '@/lib/server/server-timing';
 
 export const prerender = false;
 
+const timing = new ServerTiming();
 const projectKey = Astro.params.project ?? '';
 const slug = Astro.params.slug ?? '';
-const lookup = await resolveProjectPageBySlug(projectKey, slug);
+const lookup = await timing.measure('db', () => resolveProjectPageBySlug(projectKey, slug), 'firestore entry');
 
 if (lookup?.type === 'redirect') {
   const response = Astro.redirect(lookup.location, 301);
   setPublicPageCache(response.headers, [POSTS_CACHE_TAG, postCacheTag(lookup.id)]);
+  response.headers.set(SERVER_TIMING_HEADER, timing.header());
   return response;
 }
 
 const found = lookup?.type === 'post' ? lookup.entry : null;
 const [rendered, project] = found
-  ? await Promise.all([renderEntry(found), getPublishedProjectByKey(projectKey)])
+  ? await Promise.all([
+      timing.measure('render', () => renderEntry(found, { timing }), 'render total'),
+      timing.measure('project', () => getPublishedProjectByKey(projectKey), 'firestore project'),
+    ])
   : [null, null];
 // 프로젝트 정보(seriesMeta.project)가 없으면 프로젝트 글로 보이지 않는다(/projects 목록에도 없다)
 const entry = found && project ? found : null;
@@ -48,6 +55,7 @@ const adjacent = entry && project ? getAdjacentParts(project, entry.id) : null;
 const title =
   entry && project ? `${entry.title} | ${project.title}` : '프로젝트 글을 찾을 수 없습니다';
 const description = entry?.description || '요청한 프로젝트 글을 찾을 수 없습니다.';
+Astro.response.headers.set(SERVER_TIMING_HEADER, timing.header());
 ---
 
 <BaseLayout

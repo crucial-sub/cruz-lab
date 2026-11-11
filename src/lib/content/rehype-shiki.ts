@@ -16,7 +16,7 @@
 import type { Element, ElementContent, Root as HastRoot } from 'hast';
 import type { Root as MdRoot } from 'mdast';
 import { SKIP, visit } from 'unist-util-visit';
-import type { CodeHighlighter } from './highlighter.ts';
+import type { CodeHighlighter } from './shiki-languages.ts';
 
 export const CODE_COPY_LABEL = '복사';
 
