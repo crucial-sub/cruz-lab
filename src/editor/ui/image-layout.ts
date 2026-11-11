@@ -5,9 +5,10 @@
 // - 데코레이션은 문서가 바뀔 때만 다시 계산한다.
 // - soloImageStateAt·isSoloImageAt: 노드 뷰가 메뉴·손잡이를 켤지 정할 때 쓴다(선택될 때 그리므로 그때 판정한다).
 // - dragImageWidth: 끌어서 폭 바꾸기의 반올림·범위(순수 함수).
+// - setImageAttrsKeepingSelection: 메뉴가 속성을 바꾸고 이미지 노드 선택을 지킨다(지금 문서의 속성에 더한다).
 
 import type { Node as PmNode } from '@tiptap/pm/model';
-import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { NodeSelection, Plugin, PluginKey, type Transaction } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import {
   canHoldImageLayout,
@@ -146,4 +147,22 @@ export function dragDelta(dx: number, align: ImageAlign | null): number {
   if (align === 'center') return dx * 2;
   if (align === 'right') return -dx;
   return dx;
+}
+
+// 이미지 속성을 바꾸고 그 이미지를 노드 선택으로 둔다(메뉴가 닫히지 않게, 되돌리기 한 번)
+// - 속성은 트랜잭션의 지금 문서에서 읽은 노드 속성에 더한다. 노드 뷰가 그린 때의 속성(React props)을 쓰지 않는다.
+//   iPhone은 폭 입력 칸의 blur(폭 반영)와 "가운데" click(정렬)을 다시 그리기 전에 연달아 보낸다. 그린 때의 속성에
+//   덮어쓰면 click이 앞의 폭을 지웠다(main 병합 준비 작업 문서 6.2).
+// - setNodeMarkup은 잎 노드를 바꿔 끼워 선택이 글자 선택으로 풀린다. 그래서 같은 트랜잭션에서 노드 선택을 다시 둔다.
+// - 그 자리에 노드가 없으면 false다(트랜잭션을 건드리지 않는다).
+export function setImageAttrsKeepingSelection(
+  tr: Transaction,
+  pos: number,
+  attributes: Record<string, unknown>,
+): boolean {
+  const current = pos >= 0 && pos < tr.doc.content.size ? tr.doc.nodeAt(pos) : null;
+  if (!current) return false;
+  tr.setNodeMarkup(pos, undefined, { ...current.attrs, ...attributes });
+  tr.setSelection(NodeSelection.create(tr.doc, pos));
+  return true;
 }

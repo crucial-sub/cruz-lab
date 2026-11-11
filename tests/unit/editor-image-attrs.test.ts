@@ -1,7 +1,8 @@
 // 이미지 폭·정렬 테스트 (재건 5단계 D13)
 // - 원시 HTML 두 모양 읽기·거부·쓰기, 왕복, "이미지만 있는 단락" 판정, 스키마 속성, 에디터 데코레이션, 끌기 폭 계산
+import { readFileSync } from 'node:fs';
 import { getSchema, type JSONContent } from '@tiptap/core';
-import { EditorState, TextSelection } from '@tiptap/pm/state';
+import { EditorState, NodeSelection, TextSelection } from '@tiptap/pm/state';
 import type { DecorationSet } from '@tiptap/pm/view';
 import { describe, expect, it } from 'vitest';
 import { createEditorExtensions } from '@/editor/extensions';
@@ -24,6 +25,7 @@ import {
   imageLayoutDecorations,
   imageLayoutKey,
   isSoloImageAt,
+  setImageAttrsKeepingSelection,
   SOLO_IMAGE_CLASS,
   soloImageStateAt,
   type SoloImageSpec,
@@ -704,5 +706,55 @@ describe('리뷰 S3: 체크 항목에서 빈 첫 단락 뒤의 이미지', () =>
       if (child.type.name === 'image') imagePos = pos;
     });
     expect(soloImageStateAt(node, imagePos)).toBe('blocked');
+  });
+});
+
+// main 병합 준비(작업 문서 6.2): iPhone에서 폭을 입력하고 바로 "가운데"를 누르면 blur(폭 반영)와 click(정렬)이
+// 15ms 안에 연달아 온다. 메뉴가 화면을 그린 때의 속성에 덮어쓰면 click이 앞의 폭을 지웠다.
+// 그래서 속성 변경은 늘 지금 문서의 노드 속성에 더한다.
+describe('이미지 속성 바꾸기: 지금 문서의 속성에 더하고 노드 선택을 지킨다', () => {
+  const src = 'https://e.com/a.png';
+  const imagePosOf = (node: ReturnType<typeof schema.nodeFromJSON>) => {
+    let found = -1;
+    node.descendants((child, pos) => {
+      if (child.type.name === 'image') found = pos;
+    });
+    return found;
+  };
+
+  it('폭을 바꾼 뒤 정렬을 바꾸면 둘 다 남는다', () => {
+    let state = EditorState.create({ schema, doc: schema.nodeFromJSON(doc(p(img({ src })))) });
+    const pos = imagePosOf(state.doc);
+    for (const attributes of [{ width: 200 }, { align: 'center' }]) {
+      const tr = state.tr;
+      expect(setImageAttrsKeepingSelection(tr, pos, attributes)).toBe(true);
+      state = state.apply(tr);
+    }
+    const image = state.doc.nodeAt(pos);
+    expect(image?.attrs.width).toBe(200);
+    expect(image?.attrs.align).toBe('center');
+    expect(image?.attrs.src).toBe(src);
+    expect(state.selection).toBeInstanceOf(NodeSelection);
+    expect(state.selection.from).toBe(pos);
+  });
+
+  it('그 자리에 노드가 없으면 아무것도 바꾸지 않는다', () => {
+    const state = EditorState.create({ schema, doc: schema.nodeFromJSON(doc(p(img({ src })))) });
+    const tr = state.tr;
+    expect(setImageAttrsKeepingSelection(tr, state.doc.content.size + 5, { width: 200 })).toBe(false);
+    expect(tr.docChanged).toBe(false);
+  });
+});
+
+// main 병합 준비(작업 문서 6.3): iPhone에서 이미지를 누르면 연두색 선택 표시와 손잡이가 메뉴 글자까지 덮었다.
+// iOS WebKit은 선택 강조·손잡이를 편집 루트의 caret-color로 칠한다. 노드 선택 중에는 ProseMirror가 루트에
+// ProseMirror-hideselection을 단다. 공식 CSS는 루트 자신을 투명하게 하지만 Tiptap이 넣는 CSS는 하위 요소만 투명하게 한다.
+// editor.css가 루트(.tiptap-body)에 브랜드 색을 주므로, 노드 선택 중에는 루트도 투명해야 한다.
+describe('노드 선택 중 편집 루트의 캐럿 색 (iOS 선택 표시)', () => {
+  const css = readFileSync(new URL('../../src/editor/editor.css', import.meta.url), 'utf8');
+
+  it('.tiptap-body.ProseMirror-hideselection은 caret-color가 transparent다', () => {
+    const rule = css.match(/\.tiptap-body\.ProseMirror-hideselection\s*\{([^}]*)\}/);
+    expect(rule?.[1]).toMatch(/caret-color:\s*transparent/);
   });
 });

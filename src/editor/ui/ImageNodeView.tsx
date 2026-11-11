@@ -9,7 +9,6 @@
 //   화면 표시는 단락 데코레이션(image-layout.ts)과 editor.css가 맡는다. 노드 뷰는 래퍼에 폭 CSS 변수만 둔다.
 //   데스크톱은 가장자리 손잡이를 끌어 폭을 바꾼다(10px 단위, 최대 본문 폭). 끄는 동안 화면 폭만 바꾸고 놓을 때 한 번 저장한다.
 
-import { NodeSelection } from '@tiptap/pm/state';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import {
@@ -31,7 +30,13 @@ import {
 import { assetIdFromUrl } from '@/lib/asset-url';
 import { isVideoUrl } from '@/lib/content/markdown';
 import { classNames } from './class-names';
-import { dragDelta, dragImageWidth, soloImageStateAt, type SoloImageState } from './image-layout';
+import {
+  dragDelta,
+  dragImageWidth,
+  setImageAttrsKeepingSelection,
+  soloImageStateAt,
+  type SoloImageState,
+} from './image-layout';
 
 const BUCKET = (import.meta.env.PUBLIC_FIREBASE_STORAGE_BUCKET as string | undefined) ?? '';
 const SIZES: ImageSize[] = ['small', 'medium', 'large'];
@@ -346,14 +351,12 @@ export function ImageNodeView({
 
   // 속성을 바꾸고 이미지 선택을 지킨다(메뉴가 닫히지 않게)
   // - updateAttributes는 잎 노드를 바꿔 끼워 선택이 글자 선택으로 풀린다. 같은 트랜잭션에서 노드 선택을 다시 둔다(되돌리기 한 번)
+  // - 속성은 지금 문서에서 읽는다(setImageAttrsKeepingSelection). 이 컴포넌트가 그린 때의 node.attrs를 쓰면
+  //   iPhone에서 폭 반영과 정렬 click이 다시 그리기 전에 연달아 와 폭이 지워졌다(main 병합 준비 작업 문서 6.2)
   const updateKeepingSelection = (attributes: Record<string, unknown>) => {
     const pos = getPos();
     if (typeof pos !== 'number') return;
-    editor.commands.command(({ tr }) => {
-      tr.setNodeMarkup(pos, undefined, { ...node.attrs, ...attributes });
-      tr.setSelection(NodeSelection.create(tr.doc, pos));
-      return true;
-    });
+    editor.commands.command(({ tr }) => setImageAttrsKeepingSelection(tr, pos, attributes));
   };
 
   // 입력 칸의 값을 반영한다. 포커스가 메뉴 밖으로 갔을 때만 선택을 되돌리지 않는다(CommitVia)

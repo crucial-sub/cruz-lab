@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<!-- 재건 main 병합 준비 순서표의 시각 문서 소스.
+     원본: 감사 문서 11.3 "main 병합 직전에 할 일" 1~12, 작업 문서 docs/blog-rebuilding/2026-11-12-main-merge-prep.md
+     렌더: node <visual-explainer>/plan/render.mjs 이 파일 -o 2026-11-11-cruz-lab-main-merge-plan.html --root <저장소> -->
+<html lang="ko">
+<head>
+<title>재건 main 병합 준비</title>
+<style>
+  /* 좁은 화면에서 claims 수 · 도구 줄이 한 줄을 넘지 않게 한다 (렌더러 기본은 nowrap) */
+  @media (max-width: 480px) {
+    .plan-col { grid-template-columns: minmax(0, 1fr) !important; }
+    .plan-meta { flex-wrap: wrap; min-width: 0; }
+    .plan-meta, .plan-meta * { white-space: normal; }
+    .done { overflow-x: auto; }
+    .done td, .done th { overflow-wrap: anywhere; }
+  }
+  .later { width: 100%; border-collapse: collapse; font-size: 13px; margin: 6px 0 10px; }
+  .later th, .later td { text-align: left; vertical-align: top; padding: 4px 6px; border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent); }
+  .later th { font-weight: 600; opacity: .75; }
+  .tbl-wrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">Plan · cruz-lab · 재건 main 병합 준비 · 승인 2026-11-12</p>
+  <h1>재건 브랜치를 운영에 넣는다</h1>
+  <p class="lead"><code>rebuild</code>의 2~5단계를 main에 넣기 전에 <b>설명 문서 · 검증 · 운영 설정</b>을 맞춘다. 병합은 <b>사용자가 정한다</b>. 병합 뒤에는 운영 값을 재고, 옛 데이터 정리는 별도 작업으로 넘긴다. 감사 문서 11.3의 1~12를 병합 전 · 병합 · 병합 뒤로 나눴다.</p>
+  <ve-files>
+    ~ README.md                                                     # 재건 끝 상태 · MCP 설명 8곳 삭제 (11.3의 3·5)
+    ~ PUBLISHING.md                                                 # /admin 앱 출간 순서 (11.3의 3)
+    ~ .env.example                                                  # 코드가 읽는 변수만 (11.3의 3)
+    + docs/blog-rebuilding/2026-11-12-main-merge-prep.md            # 작업 문서 · 검증 · 측정 기록
+    ~ docs/blog-rebuilding/2026-11-06-blog-architecture-audit-2-problems-and-plan.md  # 11절 표 · 11.12 진행 기록
+  </ve-files>
+  <ve-revision v="2">
+    <li>사용자가 결정 5건을 모두 기본값으로 정했다(2026-11-12): 시험 데이터 만듦 · E3 지금 · 직전 --apply로 B1 덤프 · merge commit · 병합 뒤 측정은 이 세션.</li>
+    <li>작업 문서 이름을 2026-11-12-main-merge-prep.md로 정했다(작업이 자정을 넘겼다).</li>
+  </ve-revision>
+  <ve-revision v="3">
+    <li>실기기 확인에서 이미지 메뉴 2건이 안 됐다. 원인을 찾아 고쳤다: "폭 입력 → 가운데"가 그린 때의 속성에 덮어써 폭을 지웠다, 노드 선택 중 편집 루트의 caret 색이 초록이라 iOS가 선택을 초록으로 칠했다(작업 문서 6.2 · 6.3).</li>
+    <li>Shiki 줄당 토큰화 시간 한도를 5초로 올렸다(사용자 결정, 작업 문서 6.1).</li>
+    <li>고친 코드는 stage6/merge-prep PR에 문서와 함께 들어간다. rebuild 병합 뒤 iPhone으로 다시 확인한다.</li>
+  </ve-revision>
+  <ve-why>
+    <ve-quote via="감사 문서 11.3" from="사용자" at="2026-11-06">1단계만 main에 병합한다. 2~5단계는 rebuild 통합 브랜치에 모은다. 최종 결과에 만족할 때만 main에 병합한다.</ve-quote>
+    <ve-quote via="4단계 Plan D5" from="사용자" at="2026-11-09">README · PUBLISHING · .env.example은 재건 끝, main 병합 직전에 한 번 쓴다.</ve-quote>
+    <ve-quote via="5단계 Plan 14절" from="사용자" at="2026-11-10">재건이 끝나면 바로 cruz-lab 프로젝트 글 작성 전략을 함께 세운다.</ve-quote>
+  </ve-why>
+</header>
+
+<figure class="hero">
+  <ve-flow label="병합 전에 설명 문서를 쓰고, 검증과 미리보기 확인을 하고, 운영 설정과 직전 재실행을 한다. 그 뒤 사용자가 rebuild를 main에 병합한다. 병합 뒤 운영 값을 재고, 정리와 프로젝트 글 전략은 다음 작업으로 넘긴다.">
+    <ve-node id="docs" at="1 1" sub="README 외 2개" claim="1">설명 문서</ve-node>
+    <ve-node id="verify" at="1 2" sub="테스트 · 스모크" claim="2">검증</ve-node>
+    <ve-node id="preview" at="1 3" sub="미리보기 · 실기기" claim="2">사용자 확인</ve-node>
+    <ve-node id="ext" at="2 1" sub="Vercel 변수 · E3" claim="3">운영 설정</ve-node>
+    <ve-node id="resync" at="2 2" sub="시험 실행 0 확인" claim="3">직전 재실행</ve-node>
+    <ve-node id="merge" at="2 3" sub="사용자 결정" key claim="4">rebuild → main</ve-node>
+    <ve-node id="measure" at="3 3" sub="캐시 · 콜드 · 독자" new claim="5">운영 측정</ve-node>
+    <ve-node id="cleanup" at="3 2" sub="옛 데이터 · 브랜치" claim="5">병합 뒤 정리</ve-node>
+    <ve-node id="strategy" at="3 1" sub="다음 작업" claim="5">프로젝트 글 전략</ve-node>
+    <ve-edge from="docs" to="verify" claim="1 2" label="PR → rebuild"/>
+    <ve-edge from="verify" to="preview" claim="2"/>
+    <ve-edge from="preview" to="merge" hot claim="4" label="만족하면"/>
+    <ve-edge from="ext" to="resync" claim="3"/>
+    <ve-edge from="resync" to="merge" hot claim="3 4" label="바로 전"/>
+    <ve-edge from="merge" to="measure" hot claim="5" label="운영 배포"/>
+    <ve-edge from="measure" to="cleanup" async claim="5" label="별도 작업"/>
+    <ve-edge from="cleanup" to="strategy" async claim="5"/>
+  </ve-flow>
+  <figcaption><span class="fig-n">Fig. 1</span>병합 전 두 줄(문서·확인, 운영 준비)이 모두 끝나야 사용자가 병합을 정한다.</figcaption>
+</figure>
+
+<ve-plan>
+
+  <ve-claim check="grep -n -i mcp README.md 결과 0줄. README 환경 변수 절과 .env.example이 코드가 읽는 변수와 같다. PUBLISHING이 /admin 앱 출간 순서를 말한다. pnpm lint 통과.">
+    <p>설명 문서 세 개가 재건 끝 상태를 말한다.</p>
+    <ve-calls title="고칠 곳 (11.3의 3·5, 원료는 각 단계 Plan · 작업 문서)">
+<script type="text/plain">
+~ README 한눈에 보기 · 핵심 구현 · 출간 흐름 · 구조 표       @ README.md:15
+~   "관리자 화면" · "Admin UI" 행: 최소 목록 → React 관리자 앱(5단계)
+~   "Astro와 React 역할 분리": 공개 페이지는 React 0, 관리자는 앱 하나
+-   MCP 설명 8곳: 추가 실험 · 핵심 구현 · 구조 · 설계 절 · 기술 스택 · 디렉터리 2줄 · 로컬 실행 · 범위   @ README.md:21
+~   디렉터리 · 기술 스택: pages/admin · api/admin · src/admin · 독자 흐름 · 연재(series) 정리
+~   범위: 권한은 ADMIN_UID, GitHub 보상 흐름 없음
+~ PUBLISHING "지금 상태(2단계 끝)" → /admin 앱 출간 순서 · 점검 명령 6개   @ PUBLISHING.md:8
+~ .env.example: 코드가 읽는 변수만 (아래 1.1)
+</script>
+    </ve-calls>
+
+    <ve-claim check="src 아래 import.meta.env · process.env 이름 목록과 .env.example 이름 목록이 같다(PUBLIC_ADMIN_EMAIL 제외 이유를 주석에 적음).">
+      <p>.env.example에서 읽지 않는 변수를 빼고 빠진 변수를 더한다.</p>
+      <ve-code title=".env.example 변수 이름 · 지금 → 바뀐 뒤 (값 없음)" lang="diff">
+<script type="text/plain">
+  PUBLIC_FIREBASE_API_KEY · AUTH_DOMAIN · PROJECT_ID · STORAGE_BUCKET · MESSAGING_SENDER_ID · APP_ID
+- PUBLIC_ADMIN_EMAIL      # 쓰이지 않는 함수 getClientAdminIdToken(호출 0곳)만 읽는다
+- PUBLIC_SITE_URL         # 코드가 읽지 않는다
+- GITHUB_TOKEN            # 코드가 읽지 않는다(옛 GitHub 출간)
++ FIREBASE_ADMIN_PROJECT_ID · FIREBASE_ADMIN_CLIENT_EMAIL · FIREBASE_ADMIN_PRIVATE_KEY
++ ADMIN_UID               # 관리자 식별(없으면 관리자 API 503)
++ BACKUP_DISPATCH_TOKEN   # 백업 저장소 알림(없으면 알림만 건너뜀)
+</script>
+      </ve-code>
+    </ve-claim>
+  </ve-claim>
+
+  <ve-claim check="lint 통과 · tsc 0 · 테스트 918 · 빌드 통과 · stage5-admin 252/252 · stage5-track 178/178 · smoke:api 106/106 · 왕복 69/69 · 공개 점검 1,380/0 + 324/0. 끝에 시험 데이터 0.">
+    <p>병합 전 검증 값이 5단계 끝 값과 같다.</p>
+    <ve-calls title="검증 순서 (로컬 · 문서 변경 뒤)">
+<script type="text/plain">
+~ pnpm lint · pnpm test · pnpm build · tsc --noEmit        -- 5단계 끝: 통과 · 918 · 통과 · 0
+~ 빌드 결과 서버 + 개발 서버에서 스모크
+~   stage5-admin.mjs 252/252 · stage5-track.mjs 178/178   @ scripts/smoke/stage5-admin.mjs
+~   pnpm smoke:api 106/106 · pnpm smoke:roundtrip 69/69    @ scripts/smoke/stage2-api.mjs
+~   공개 점검 stage4-public 1,380/0 + stage2-public 324/0  @ scripts/smoke/stage4-public.mjs
+?   쓰기 스모크는 운영 Firestore에 시험 데이터를 만들고 끝에 지운다
+</script>
+    </ve-calls>
+    <ve-ask id="testdata" q="운영 Firestore에 시험 데이터를 만드는 스모크와 미리보기 확인을 해도 될까요?">
+      <ve-opt value="yes" default note="5단계까지 같은 방식. 이름에 stage5-test">예, 표지를 붙여 만들고 끝에 지운다</ve-opt>
+      <ve-opt value="readonly" removes="2.1" note="쓰기 스모크와 PR-B·C 미리보기 확인을 건너뛴다">읽기만 하는 검사만 한다</ve-opt>
+    </ve-ask>
+
+    <ve-claim check="미리보기: 시험 카테고리 만들기 → 지우기, 동의어 태그 주소 301, 이미지 라이브러리 141칸, 폭·정렬 시험 글의 공개 sizes · height, 키 설정 저장 → 에디터 적용, 공개 페이지 방문 뒤 readerEvents · readerDaily 0 그대로, 독자 화면 빈 상태. 끝에 시험 데이터 0.">
+      <p>rebuild 미리보기에서 5단계 PR-B~D 몫을 확인한다.</p>
+      <ve-calls title="미리보기 확인 (11.3의 10, 5단계 작업 문서 7절 다음 것 4)">
+<script type="text/plain">
+~ PR-B: 분류 화면 시험 카테고리 stage5-test-cat 만들기 → 지우기 · 동의어 태그 301 · 이미지 141칸
+~ PR-C: stage5-test 글에 폭 480 · 가운데 이미지 → 발행 → 공개 sizes · height → 글 지우기
+~ PR-C: 키 설정 저장 → 에디터 적용 → 처음 상태(없음)로 되돌리기
+~ PR-D: 공개 페이지 몇 개 열기 → Admin SDK로 readerEvents · readerDaily 수 0 그대로 · 독자 화면 빈 상태
+</script>
+      </ve-calls>
+    </ve-claim>
+
+    <ve-claim check="사용자가 각 줄에 됨 · 안 됨을 답한다. 안 됨이면 원인을 찾고 병합 전에 고칠지 묻는다.">
+      <p>사용자가 실기기에서 로그인 · 복사 · 모바일 화면을 확인한다.</p>
+      <ve-mock w="440" label="사용자 확인 목록 (5단계 Plan 8.4의 17 · 8.5 D18)">
+        <div class="ui">
+          <div class="hd">사용자 몫 6줄 <small>미리보기 주소</small></div>
+          <div class="row"><span>로그아웃 뒤 글 상세에 "고치기"가 없다</span><span class="muted small">Chrome</span></div>
+          <div class="row"><span>코드 블록 복사 버튼</span><span class="muted small">Chrome · Safari</span></div>
+          <div class="row"><span>에디터 모바일 바</span><span class="muted small">iPhone Safari</span></div>
+          <div class="row"><span>관리자 목록 390px</span><span class="muted small">iPhone</span></div>
+          <div class="row"><span>관리자가 아닌 Google 계정 → 거부 화면</span><span class="muted small">아무 브라우저</span></div>
+          <div class="row"><span data-pin="1">이미지 메뉴: 폭 입력 → 바로 가운데</span><span class="muted small">Safari</span></div>
+        </div>
+        <ve-pin n="1">5단계 리뷰 B4는 앱 브라우저(Chromium)로 확인하지 못했다. 작업 문서 8절 5가 여기서 닫힌다.</ve-pin>
+      </ve-mock>
+    </ve-claim>
+  </ve-claim>
+
+  <ve-claim check="Vercel Production에 ADMIN_UID · BACKUP_DISPATCH_TOKEN이 있다(사용자 확인). 백업 저장소 export.mjs에 settings가 있고 다음 백업 실행이 성공한다. 병합 직전 두 시험 실행이 충돌 0 · 삭제 후보 0이다.">
+    <p>운영이 새 코드를 받을 준비를 병합 바로 전에 마친다.</p>
+    <ve-calls title="운영 준비 (2단계 Plan 15절 병합 직전 1~4, 11.3의 2·6·10)">
+<script type="text/plain">
+~ 사용자: Vercel → Settings → Environment Variables의 ADMIN_UID · BACKUP_DISPATCH_TOKEN에 Production 체크   -- 지금 Preview만(2단계 E4). 없으면 운영 관리자 503
+~ E3: 백업 저장소 crucial-sub/cruz-lab-content scripts/export.mjs에 { name: 'settings', subcollections: [] } 한 줄 · PR
+~ Auth 승인 도메인: 바꾸지 않는다 (아래 3.1)
+~ 직전 1: stage2-entries.mjs 시험 실행        @ scripts/migrate/stage2-entries.mjs:1   -- 오늘 14:26Z: create 0 · update 0 · conflict 0 · delete-candidate 0 · exclude 1(중복 글)
+~ 직전 2: stage4-projects.mjs --source-root (origin/main 임시 worktree)   @ scripts/migrate/stage4-projects.mjs:1   -- 오늘: skip 8 · conflict 0
+?   둘 다 0이 아니면: 보고서를 보이고 --apply 여부를 묻는다 (프로젝트 글은 --apply --base <개발 서버>)
+~ 직전 재실행부터 병합까지: 사용자는 옛 운영 CMS(www.cruzlab.dev/admin)로 글을 쓰지 않는다
+</script>
+    </ve-calls>
+    <ve-ask id="e3" q="백업 저장소에 settings 컬렉션을 더하는 PR(E3)을 언제 할까요?">
+      <ve-opt value="now" default note="한 줄. 병합 전에 settings/taxonomy가 백업된다">지금, 병합 전에</ve-opt>
+      <ve-opt value="later" note="그동안 카테고리 목록이 백업에 없다">병합 뒤로 미룬다</ve-opt>
+    </ve-ask>
+    <ve-ask id="dump" q="병합 직전 마이그레이션 시험 실행이 0건이면 어떻게 할까요?">
+      <ve-opt value="apply" default note="쓰는 문서 0. 병합 직전 Firestore 덤프가 남는다">--apply로 B1 덤프만 남긴다</ve-opt>
+      <ve-opt value="skip" note="병합 직전 덤프가 없다. 매일 백업만 있다">시험 실행만 하고 쓰지 않는다</ve-opt>
+    </ve-ask>
+
+    <ve-claim evidence="inferred" check="병합 뒤 www.cruzlab.dev/admin에서 관리자 Google 로그인이 된다. 안 되면 사용자가 승인 도메인에 www.cruzlab.dev를 더한다(되돌리기 쉬운 더하기).">
+      <p>www.cruzlab.dev 로그인은 승인 도메인 cruzlab.dev로 통한다.</p>
+      <ve-code src="node_modules/.pnpm/@firebase+auth@1.11.1_@firebase+app@0.14.6/node_modules/@firebase/auth/dist/esm/index-1970027f.js" lines="10186-10191" hl="10189-10190">
+        <ve-pin line="10189">오늘 읽은 승인 도메인은 localhost, cruz-lab.firebaseapp.com, cruz-lab.web.app, cruz-lab.vercel.app, cruzlab.dev, 미리보기 주소다. SDK는 <code>cruzlab.dev</code>를 하위 도메인까지 허용한다. 운영의 <code>cruzlab.dev</code>는 <code>www</code>로 307을 보낸다(오늘 확인).</ve-pin>
+      </ve-code>
+    </ve-claim>
+  </ve-claim>
+
+  <ve-claim check="main이 rebuild를 포함한다. 운영 배포가 성공하고 x-vercel-id에 icn1 함수가 보인다. 공개 점검을 운영 주소로 돌려 0 실패.">
+    <p>사용자가 rebuild를 main에 병합하고 운영이 새 코드로 바뀐다.</p>
+    <ve-calls title="병합 (사용자 확인 지점 2개)">
+<script type="text/plain">
+~ PR stage6/merge-prep → rebuild (문서 · 기록)           -- 사용자 병합
+~ PR rebuild → main (main에 없는 커밋 95개 + 위 PR)       -- 사용자 병합. main 쪽 새 커밋 0이라 충돌 없음
++   Vercel Production 배포: 함수 지역 iad1 → icn1        @ vercel.json:3
++   새 배포는 빈 CDN 캐시로 시작한다(프로젝트 재동기화는 퍼지를 못 한다)
+~ 되돌리기: Vercel Instant Rollback(이전 운영 배포). 데이터는 더하기만이라 옛 코드가 그대로 동작한다
+</script>
+    </ve-calls>
+    <ve-ask id="mergehow" q="rebuild → main PR을 어떤 방식으로 병합할까요?">
+      <ve-opt value="merge" default note="단계별 커밋 · 태그가 main 기록에 남는다">Create a merge commit</ve-opt>
+      <ve-opt value="squash" note="95개 커밋이 하나가 된다. 단계 기록은 rebuild에만">Squash and merge</ve-opt>
+    </ve-ask>
+  </ve-claim>
+
+  <ve-claim check="작업 문서에 재발행 첫 요청 x-vercel-cache 값, 콜드 3회 TTFB · render(기준 1.5초), readerDaily/{오늘} 생김과 관리자 방문 빠짐, 공개 스크립트 바이트가 있다. 정리 목록이 다음 작업 단위 브리프에 있다.">
+    <p>병합 뒤 운영 값을 재고, 정리는 별도 작업으로 넘긴다.</p>
+    <ve-calls title="병합 뒤 확인 (11.3의 4·7·8, 5단계 작업 문서 8절 9·11·12)">
+<script type="text/plain">
+~ 운영 www.cruzlab.dev/admin 로그인 (위 3.1의 마무리)               -- 사용자
+~ 재발행 첫 요청 x-vercel-cache: stage5-test 글 발행 → 공개 주소 첫 요청 → 글 지우기
+~ 콜드 글 상세 TTFB 3회: 쿼리로 CDN 우회, inst desc "req 1" · 작은 dur만 센다   @ src/lib/server/render-entry.ts
+?   1.5초를 넘고 render가 절반을 넘으면: 본문 미리 계산을 별도 작업으로
+~ 독자 흐름 첫 수집: readerDaily/{오늘} 생김 · 관리자 본인 방문 빠짐   @ src/lib/tracker/events.ts:16
+~ 공개 스크립트 크기 다시 재기(2,038바이트, 한도 2,048) · Server-Timing을 둘지 정하기
+</script>
+    </ve-calls>
+    <ve-ask id="after" q="병합 뒤 운영 측정을 어디서 할까요?">
+      <ve-opt value="here" default note="콜드 3회는 회마다 약 20분 쉬어야 한다">이 세션에서 병합 직후에</ve-opt>
+      <ve-opt value="next" note="측정 브리프를 문서에 남기고 새 세션">다음 작업 단위로 넘긴다</ve-opt>
+    </ve-ask>
+
+    <ve-claim check="다음 작업 단위 브리프에 아래 항목이 모두 있고, 각 항목에 사용자 확인 표시가 있다.">
+      <p>병합 뒤 정리는 사용자 확인 뒤 별도 작업 단위에서 한다.</p>
+      <ve-calls title="병합 뒤 정리 (2단계 Plan 15절 병합 직후 5, 11.3의 12)">
+<script type="text/plain">
+- 옛 posts · series 컬렉션 삭제 (백업 뒤)
+~ firestore.rules 클라이언트 접근 전부 거부 · storage.rules 클라이언트 쓰기 거부   @ storage.rules:13
+- 옛 인덱스 4개 · Storage series-covers/ 3개 · data/post-archive/
+- Vercel GITHUB_TOKEN · PUBLIC_ADMIN_EMAIL (+ 쓰지 않는 getClientAdminIdToken 함수)
+- 원격 브랜치: 3단계 6 · 4단계 7 · 5단계 stage5/* 7
+- Secret Manager GITHUB_TOKEN (2단계 E6) · 쓰지 않는 legacy 자산 26개(5.2 MB)
++ cruz-lab 프로젝트 글 작성 전략 (11.3의 9): 사용자와 함께, 그다음 작업 단위
+</script>
+      </ve-calls>
+    </ve-claim>
+  </ve-claim>
+
+  <ve-claim aux="shared">
+    <p>함께 쓰는 것: 운영 Firebase 하나를 모든 브랜치와 localhost가 쓴다.</p>
+    <ul>
+      <li>데이터 변경은 더하기만 한다. 옛 <code>posts</code> · <code>series</code>는 병합 뒤 정리 전까지 남는다. 옛 운영 코드가 계속 동작한다.</li>
+      <li>시험 데이터 이름에는 <code>stage5-test</code>를 붙이고 끝에 지운다. 사용자 초안 7편과 공개 글은 고치지 않는다.</li>
+      <li>오늘 읽은 수: <code>entries</code> 69, 옛 <code>posts</code> 56 · <code>series</code> 2, Storage 167(legacy 대상 130, <code>assets/</code> 37), 쓰지 않는 legacy 파일 26.</li>
+      <li>커밋 · 푸시 · PR · 병합 · <code>--apply</code> · 외부 설정은 모두 사용자 확인 뒤에 한다.</li>
+    </ul>
+  </ve-claim>
+
+  <ve-claim aux="scope">
+    <p>바뀌지 않는 것: 재건 뒤로 미룬 기능 15개와 열린 질문 11개. 병합을 막는 것은 없다.</p>
+    <div class="tbl-wrap">
+    <table class="later">
+      <caption style="text-align:left;font-weight:600;padding:4px 0">5단계 Plan 14절 상기 목록 (재건 뒤, 사용자가 원할 때)</caption>
+      <tr><th>항목</th><th>다시 물을 때</th><th>비용</th></tr>
+      <tr><td><b>cruz-lab 프로젝트 글 다시 쓰기와 작성 전략</b></td><td>병합이 끝난 뒤 바로</td><td>—</td></tr>
+      <tr><td>로그인 거부 화면의 "만든 과정 보기" 링크</td><td>위 글을 쓴 뒤</td><td>30분</td></tr>
+      <tr><td>링크 카드</td><td>재건 뒤</td><td>1~2일</td></tr>
+      <tr><td>드래그 핸들</td><td>블록 이동 명령을 써 본 뒤</td><td>반나절~1일</td></tr>
+      <tr><td>비공개 미리보기 링크</td><td>초안을 남에게 보일 일이 생길 때</td><td>반나절~1일</td></tr>
+      <tr><td>예약 발행</td><td>원할 때</td><td>1일</td></tr>
+      <tr><td>다른 날까지 같은 독자로 잇기</td><td>원할 때(동의 배너 필요)</td><td>1일+</td></tr>
+      <tr><td>Google Search Console 등록</td><td>원할 때</td><td>30분(사용자)</td></tr>
+      <tr><td>백업 Action 실패 알림</td><td>백업 실패가 문제가 될 때</td><td>반나절</td></tr>
+      <tr><td>슬래시 메뉴 순서 · 기본 보기 모드 설정</td><td>원할 때</td><td>반나절</td></tr>
+      <tr><td>전역 검색 팔레트</td><td>글 100편 넘음 또는 원할 때</td><td>1일</td></tr>
+      <tr><td>댓글(giscus)</td><td>원할 때</td><td>반나절</td></tr>
+      <tr><td>404 최신 글 3개</td><td>필요하면</td><td>반나절</td></tr>
+      <tr><td>editorJson v2</td><td>깊이 한도 문제가 생길 때</td><td>1일</td></tr>
+      <tr><td>본문 HTML · 목차 미리 계산</td><td>병합 뒤 운영 콜드 측정 결과로</td><td>1일</td></tr>
+    </table>
+    <table class="later">
+      <caption style="text-align:left;font-weight:600;padding:4px 0">5단계 작업 문서 8절 열린 질문 (2는 닫음)</caption>
+      <tr><th>#</th><th>질문</th><th>지금 판단 · 처리 시점</th></tr>
+      <tr><td>1</td><td>/admin 첫 화면이 에디터 CSS(gzip 11 KB)를 받는다</td><td>그대로 둔다</td></tr>
+      <tr><td>3</td><td>"쓰지 않는 것"에 이전 발행본에만 쓰는 이미지가 보인다(지우기는 막힘)</td><td>그대로 둔다</td></tr>
+      <tr><td>4</td><td>3단계 경고 띠의 라이트 테마 글자 대비가 낮다</td><td>그대로 둔다(고치면 클래스 한 줄)</td></tr>
+      <tr><td>5</td><td>Safari · Firefox 이미지 메뉴 동작</td><td>병합 전 사용자 확인(위 2.2)</td></tr>
+      <tr><td>6</td><td>이미지 메뉴(5줄)가 아래 단락을 덮는다</td><td>그대로 둔다</td></tr>
+      <tr><td>7</td><td>공개 수집 API에 요청 수 제한이 없다</td><td>그대로 둔다. 생기면 방화벽 규칙</td></tr>
+      <tr><td>8</td><td>페이지당 보내기 2번이라 탭을 오간 뒤 이벤트를 놓칠 수 있다</td><td>그대로 둔다. 읽음 비율이 낮으면 다시 본다</td></tr>
+      <tr><td>9</td><td>공개 스크립트 2 KB 한도의 남는 자리 10바이트</td><td>병합 뒤 다시 잰다(위 5)</td></tr>
+      <tr><td>10</td><td>에디터 미리보기의 SQL 함수 이름 색이 공개와 다를 수 있다</td><td>그대로 둔다(공개는 원본 엔진)</td></tr>
+      <tr><td>11</td><td>공개 응답의 Server-Timing을 언제까지 둘지</td><td>병합 뒤 측정 뒤 정한다(위 5)</td></tr>
+      <tr><td>12</td><td>운영 콜드 글 상세의 남은 몫</td><td>병합 뒤 3회 측정(위 5)</td></tr>
+    </table>
+    </div>
+  </ve-claim>
+
+</ve-plan>
+
+</body>
+</html>
