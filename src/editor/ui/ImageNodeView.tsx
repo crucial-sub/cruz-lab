@@ -1,8 +1,9 @@
 // 이미지 노드 뷰 (재건 3단계 D11 3·7·9, 5단계 D13)
 // - 업로드 중: blob 미리보기 위에 진행률. 실패하면 "다시 시도"·"삭제".
-// - 선택하면 작은 메뉴: 대체 텍스트, 캡션(title), 크기(작게·보통·크게), 폭(px)·정렬(5단계 D13).
-// - 크기 메뉴는 주소가 우리 버킷의 새 자산(assets/{id}/)일 때만 켠다. GET /api/admin/assets/{id}로 있는 변형을 확인한다.
-//   legacy 이미지(images/…)와 외부 주소는 메뉴가 비활성이다.
+// - 선택하면 작은 메뉴: 대체 텍스트, 캡션(title), 폭(px)·정렬(5단계 D13).
+// - 크기(작게·보통·크게 = 변형 파일 고르기, 3단계 D11 9)는 지웠다(main 병합 준비 작업 문서 6.6, 사용자 결정 2026-11-12).
+//   화면 크기를 바꾸지 않아 오해를 샀다. 이미지는 최대 변형으로 넣고, 공개 페이지가 srcset으로 기기에 맞는 파일을 고른다.
+//   크기는 폭(px) 입력과 데스크톱 가장자리 끌기로 정한다.
 // - 영상 주소(.webm·.mp4·.mov, 쿼리가 붙은 Firebase 주소 포함)는 공개 페이지와 같이 <video>로 그린다.
 // - uploadId 없이 src가 blob:인 노드(복사해 붙여넣은 자리표시)는 저장을 막는다. 지우기 버튼을 보인다(리뷰 6.2 지적 2).
 // - 폭·정렬(5단계 D13): 이미지만 있는 단락(isSoloImageAt)에서만 켠다. legacy·외부 이미지에도 된다. 영상은 끈다.
@@ -18,16 +19,7 @@ import {
   normalizeImageWidth,
   type ImageAlign,
 } from '@/editor/markdown/image-html';
-import { adminApi } from '@/editor/state/api';
 import { canRetryUpload } from '@/editor/upload/paste-drop';
-import {
-  IMAGE_SIZE_LABELS,
-  sizeOfUrl,
-  variantUrlFor,
-  type ImageSize,
-  type UploadedAsset,
-} from '@/editor/upload/image-size';
-import { assetIdFromUrl } from '@/lib/asset-url';
 import { isVideoUrl } from '@/lib/content/markdown';
 import { classNames } from './class-names';
 import {
@@ -39,8 +31,6 @@ import {
 } from './image-layout';
 import { commitFocusedInputIn, selectNodeWithoutFocus } from './touch-select';
 
-const BUCKET = (import.meta.env.PUBLIC_FIREBASE_STORAGE_BUCKET as string | undefined) ?? '';
-const SIZES: ImageSize[] = ['small', 'medium', 'large'];
 // 정렬 버튼. 왼쪽은 기본값(null)이다
 const ALIGNS: Array<{ value: ImageAlign | null; label: string }> = [
   { value: null, label: '왼쪽' },
@@ -48,18 +38,6 @@ const ALIGNS: Array<{ value: ImageAlign | null; label: string }> = [
   { value: 'right', label: '오른쪽' },
 ];
 
-// 자산 문서는 글 하나를 여는 동안 한 번만 읽는다
-const assetCache = new Map<string, Promise<UploadedAsset>>();
-
-function fetchAsset(id: string): Promise<UploadedAsset> {
-  let pending = assetCache.get(id);
-  if (!pending) {
-    pending = adminApi.getAsset(id).then((response) => response.asset);
-    pending.catch(() => assetCache.delete(id));
-    assetCache.set(id, pending);
-  }
-  return pending;
-}
 
 // 입력을 반영한 방법
 // - enter: Enter를 눌렀다. menu: 포커스가 같은 메뉴의 다른 칸·버튼으로 갔다. 이 둘은 이미지 선택을 지킨다(메뉴가 닫히지 않는다).
@@ -272,9 +250,6 @@ export function ImageNodeView({
   const align = normalizeImageAlign(node.attrs.align);
   const isVideo = isVideoUrl(src);
 
-  const assetId = uploadId || !BUCKET ? null : assetIdFromUrl(src, BUCKET);
-  const [asset, setAsset] = useState<UploadedAsset | null>(null);
-  const [assetFailed, setAssetFailed] = useState(false);
   // 끄는 동안의 화면 폭. 놓으면 null로 돌아가고 노드 속성이 폭을 정한다
   const [dragWidth, setDragWidth] = useState<number | null>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -316,23 +291,6 @@ export function ImageNodeView({
     };
   }, [isVideo]);
 
-  // 선택했을 때만 자산 문서를 읽는다
-  useEffect(() => {
-    if (!selected || !assetId || asset?.id === assetId) return;
-    let cancelled = false;
-    fetchAsset(assetId)
-      .then((loaded) => {
-        if (!cancelled) setAsset(loaded);
-      })
-      .catch(() => {
-        if (!cancelled) setAssetFailed(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selected, assetId, asset?.id]);
-
-  const currentSize = asset ? sizeOfUrl(asset, src) : null;
   // 복사해 붙여넣은 자리표시: 올릴 파일 정보가 없다
   const strayBlob = !uploadId && src.startsWith('blob:');
   const showMenu = selected && !uploadId && !strayBlob && editor.isEditable;
@@ -569,36 +527,6 @@ export function ImageNodeView({
             onCommit={(next, via) => commitAttributes({ title: next || null }, via)}
             pointerInMenu={pointerInMenu}
           />
-          <span className="flex items-center gap-1 text-xs text-text-secondary">
-            <span className="w-10 shrink-0">크기</span>
-            {SIZES.map((size) => {
-              const url = asset ? variantUrlFor(asset, size) : null;
-              const disabled = !url;
-              return (
-                <button
-                  key={size}
-                  type="button"
-                  className={classNames('editor-chip', currentSize === size && 'is-active')}
-                  disabled={disabled}
-                  title={
-                    !assetId
-                      ? '외부 주소나 옛 이미지는 크기를 고를 수 없습니다'
-                      : assetFailed
-                        ? '자산 정보를 읽지 못했습니다'
-                        : disabled
-                          ? '이 크기의 변형이 없습니다'
-                          : undefined
-                  }
-                  onClick={() => {
-                    commitPendingInput();
-                    if (url) updateAttributes({ src: url });
-                  }}
-                >
-                  {IMAGE_SIZE_LABELS[size]}
-                </button>
-              );
-            })}
-          </span>
           <AttrInput
             label="폭(px)"
             value={width === null ? '' : String(width)}

@@ -1,6 +1,6 @@
 // Storage 주소 → 객체 경로 → 자산 ID (재건 3단계 D11 9)
 // - 브라우저와 서버가 같이 쓴다. node:crypto를 쓰지 않는다(legacy ID 해시는 asset-refs.ts에 있다).
-// - 에디터의 이미지 크기 메뉴가 주소에서 자산 ID를 읽어 GET /api/admin/assets/{id}를 부른다.
+// - 공개 렌더(rehype-assets)와 자산 사용 기록이 주소에서 자산 ID를 읽는다.
 // - asset-refs.ts(서버·스크립트)는 이 파일의 함수를 가져다 다시 내보낸다.
 
 // Firebase 다운로드 URL: https://firebasestorage.googleapis.com/v0/b/<bucket>/o/<인코딩된 경로>?alt=media&token=…
