@@ -4,7 +4,7 @@
 - 근거: [감사 문서 11.3](./2026-11-06-blog-architecture-audit-2-problems-and-plan.md#113-브랜치와-되돌리기-전략-2026-11-06-결정) "main 병합 직전에 할 일" 1~12, [2단계 Plan 15절](./2026-11-07-stage2-data-model-and-server-plan.md#15-main-병합-직전직후-절차-2단계-이후-참고), [5단계 작업 문서 7·8절](./2026-11-11-stage5-admin-app.md#7-다음-작업), [5단계 Plan 14절](./2026-11-10-stage5-admin-app-plan.md#14-뒤로-미룬-것-상기-목록)
 - 순서표(visual plan): [visual-plans/2026-11-11-cruz-lab-main-merge-plan.html](./visual-plans/2026-11-11-cruz-lab-main-merge-plan.html) (소스 `.src.html`). 사용자가 2026-11-12에 기본값으로 승인했다.
 - 진행 기록: 감사 문서 11절 표, 11.12
-- 브랜치: `stage6/merge-prep`(`origin/rebuild` `aa874f5`에서 생성, PR #27 병합 뒤). 대상은 `rebuild`다.
+- 브랜치: `stage6/merge-prep`(`origin/rebuild` `aa874f5`에서 생성, PR #27 병합 뒤). 대상은 `rebuild`다. 커밋 `fec2b0f`, [PR #28](https://github.com/crucial-sub/cruz-lab/pull/28).
 
 ## 1. 현재 상황
 
@@ -17,8 +17,9 @@
 | 미리보기 확인(PR-B~D 몫) | 끝(5.4). 시험 데이터 0 |
 | E3 | PR 열림(4.2). 병합은 사용자 |
 | 실기기 확인 | 사용자가 했다(5.7). 이미지 메뉴 2건이 안 됨 → 원인을 찾아 고쳤다(6.2, 6.3). 다시 확인 남음 |
-| 코드 수정 | Shiki 한도(6.1), 이미지 속성 덮어쓰기(6.2), 노드 선택 중 루트 caret 색(6.3). 테스트 4개 더함. 커밋 전 |
-| 사용자 몫 | E3 병합, 커밋 · PR 확인, 고친 뒤 iPhone 다시 확인(7절). Vercel Production 변수는 끝 |
+| 코드 수정 | Shiki 한도(6.1), 이미지 속성 덮어쓰기(6.2), 노드 선택 중 루트 caret 색(6.3). 테스트 4개 더함 |
+| 커밋 · PR | 사용자 승인(2026-11-12) 뒤 커밋 `fec2b0f`, [PR #28](https://github.com/crucial-sub/cruz-lab/pull/28)(대상 `rebuild`). 병합은 사용자 |
+| 사용자 몫 | PR #28 병합, E3 병합, 고친 뒤 iPhone 다시 확인(7절). Vercel Production 변수는 끝 |
 | 병합 직전 재실행 · 병합 · 병합 뒤 측정 | 남음(7절) |
 | 찾은 문제 | 6절 4건(6.4는 재현되지 않음) |
 
@@ -268,7 +269,7 @@ Firebase Auth SDK는 승인 도메인을 하위 도메인까지 허용한다. `@
 2. ~~실기기 확인 6줄~~ 했다(5.7). 이미지 메뉴 2건은 고쳤다(6.2, 6.3).
 3. E3 PR [crucial-sub/cruz-lab-content#1](https://github.com/crucial-sub/cruz-lab-content/pull/1) 병합(사용자). 그 뒤 백업 Action을 한 번 수동 실행해 `raw/settings/taxonomy.json`을 본다(사용자 확인 뒤).
 4. ~~6.1 처리 결정~~ 고친다(사용자, 2026-11-12, 4.3).
-5. 이 작업(`stage6/merge-prep`)의 커밋 · 푸시 · PR(대상 `rebuild`) 확인(사용자). 문서와 코드 수정이 함께 들어간다.
+5. ~~커밋 · 푸시 · PR~~ 끝(커밋 `fec2b0f`, [PR #28](https://github.com/crucial-sub/cruz-lab/pull/28)). PR #28 병합(사용자). 문서와 코드 수정이 함께 들어간다.
 6. PR 병합 뒤 `rebuild` 미리보기에서: (a) Claude가 6.2의 재현 순서를 다시 보낸다(기대: 폭 200 · 가운데). (b) 사용자가 iPhone으로 이미지 메뉴 2건(누를 때 연두색 표시 없음, 폭 입력 → 바로 가운데)과 관리자 글 목록(`/admin`) 390px를 본다. (c) Claude가 노드 선택 중 루트 `caret-color`가 투명인지 읽는다.
 
 **병합 바로 전 (Claude, 사용자 확인 뒤).**
