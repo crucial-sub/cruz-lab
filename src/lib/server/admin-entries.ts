@@ -41,6 +41,7 @@ import {
   REVISIONS_SUBCOLLECTION,
 } from './entries';
 import { getServerDb } from './firebase-server';
+import { readEntryVisits } from './reader-store';
 import { getTaxonomy } from './taxonomy-store';
 
 type PublishAction = 'publish' | 'hide' | 'unhide' | 'delete' | 'restore';
@@ -183,7 +184,7 @@ export interface AdminListItem {
   draftDevice: string | null;
   // 발행본이 없고 제목·설명·본문이 모두 빈 초안(5단계 D10). 서버가 계산한다(본문을 보내지 않는다)
   isEmptyDraft: boolean;
-  // 최근 30일 독자(방문) 수. 독자 흐름(D20, PR-D) 전에는 null이다
+  // 최근 30일(오늘 포함, 서울 날짜) 방문 수(D20 readerDaily의 글별 visits 합). 기록이 없으면 0, 요약을 읽지 못하면 null
   readers30: number | null;
   // 발행본의 공개 주소(발행본 slug 기준). 발행본이 없거나 주소가 없으면 null.
   // 숨김 글도 값을 준다(다시 보이면 이 주소다). 화면은 발행 상태일 때만 링크를 보인다(5단계 D10 행 메뉴)
@@ -239,13 +240,15 @@ async function findBlankDraftBodies(): Promise<Set<string>> {
 // - title·slug·분류는 초안 값을 준다. 정렬은 updatedAt 내림차순.
 // - counts는 kind 조건만 적용한 상태별 수다(status·q 조건 전). 화면의 탭 수에 쓴다.
 // - q는 제목·slug 부분 일치다(메모리에서 거른다. 대소문자 무시).
-// - 5단계: isEmptyDraft(발행본 없음 + 제목·설명·본문이 빔)와 readers30(PR-D 전에는 null)을 더한다.
+// - 5단계: isEmptyDraft(발행본 없음 + 제목·설명·본문이 빔)와 readers30(최근 30일 방문 수, D20)을 더한다.
+//   readers30은 날짜 요약 문서(readerDaily) 30개 안을 읽는다. 읽기에 실패해도 목록은 돌려준다(값 null).
 export async function listEntriesForAdmin(query: AdminListQuery) {
-  const [snapshot, blankBodies, taxonomy] = await Promise.all([
+  const [snapshot, blankBodies, taxonomy, visits30] = await Promise.all([
     entriesRef().select(...ADMIN_LIST_FIELDS).get(),
     findBlankDraftBodies(),
     // 메모 없이 읽는다: 다른 인스턴스에서 방금 바꾼 카테고리 이름이 목록에 바로 보이게(PR-B 리뷰 B2)
     getTaxonomy({ fresh: true }),
+    readEntryVisits(30),
   ]);
   const items: AdminListItem[] = [];
   for (const docSnap of snapshot.docs) {
@@ -275,7 +278,7 @@ export async function listEntriesForAdmin(query: AdminListQuery) {
         data.published == null &&
         blankBodies.has(docSnap.id) &&
         !(typeof draft.title === 'string' && draft.title.trim()),
-      readers30: null,
+      readers30: visits30 ? (visits30.get(docSnap.id) ?? 0) : null,
       publicPath:
         status !== 'draft' && typeof data.published?.slug === 'string'
           ? publicPathFor(kind, data.published.slug, data.published.series ?? null)

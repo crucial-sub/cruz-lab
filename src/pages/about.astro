@@ -6,6 +6,7 @@
 // - 프로젝트 목록은 이 파일에 직접 적었다. 4단계 PR-C(T6)가 프로젝트 데이터를 entries로 옮겨도
 //   이 페이지는 Firestore를 읽지 않는다. 주소(/projects/<key>)는 바뀌지 않는다.
 // - 3단계까지 홈에 있던 히어로 3문단, 경력 아코디언, 스킬 로고 그리드, 연락처 구역을 이 페이지로 줄여 옮겼다.
+// - 5단계 D20: 맨 아래에 익명 방문 수 안내 한 줄. 이 페이지의 글투(합니다체)로 쓴다. 이력서 PDF 누름은 독자 흐름이 센다.
 export const prerender = true;
 
 import resumeUrl from '@/assets/resume.pdf?url';
@@ -151,6 +152,8 @@ const CONTACTS = [
         </li>
       </ul>
     </section>
+
+    <p class="about-privacy">이 사이트는 쿠키·개인정보 없이 익명 방문 수를 셉니다.</p>
   </article>
 </BaseLayout>
 
@@ -187,6 +190,12 @@ const CONTACTS = [
   }
   .about-lead {
     margin: 0;
+    word-break: keep-all;
+  }
+  .about-privacy {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
     word-break: keep-all;
   }
   .about-section {

@@ -5,6 +5,7 @@
 //   빈 404 응답을 돌려주면 운영(Vercel)에서는 Astro가 /404.html을 네트워크로 다시 받아 붙인다.
 //   rebuild 미리보기처럼 로그인 보호가 걸린 배포에서는 그 요청이 막힐 수 있다(4단계 PR-B 리뷰 중요 3).
 // - 최신 글 목록은 넣지 않는다(Plan 2.3). 고정 링크 4개만 둔다.
+// - 5단계 D20: data-not-found가 있으면 독자 흐름 수집 스크립트가 view 대신 404 이벤트를 보낸다(없는 주소 상위).
 interface Props {
   title?: string;
   message?: string;
@@ -23,7 +24,7 @@ const LINKS = [
 ];
 ---
 
-<section class="not-found" aria-labelledby="not-found-title">
+<section class="not-found" aria-labelledby="not-found-title" data-not-found>
   <p class="not-found-code">404</p>
   <h1 id="not-found-title">{title}</h1>
   <p class="not-found-text">{message}</p>

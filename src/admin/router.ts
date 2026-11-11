@@ -4,7 +4,7 @@
 // - 화면을 만든 주소만 안다. 모르는 주소는 첫 화면(/admin)으로 바꾼다.
 //   5단계 PR-A의 화면: 첫 화면·목록(/admin), 에디터(/admin/edit/<id>), 출간 기록(/admin/log).
 //   PR-B의 화면: 이미지(/admin/assets), 분류(/admin/taxonomy), 연재·프로젝트(/admin/series).
-//   PR-C의 화면: 설정(/admin/settings). 독자 화면은 PR-D가 이 표에 더한다.
+//   PR-C의 화면: 설정(/admin/settings). PR-D의 화면: 독자(/admin/readers), 글 하나의 독자(/admin/readers/<id>).
 // - /admin/login은 이 앱이 아니다(세션 없이 여는 Astro 페이지).
 
 export type AdminRoute =
@@ -13,14 +13,17 @@ export type AdminRoute =
   | { name: 'assets' }
   | { name: 'taxonomy' }
   | { name: 'series' }
+  | { name: 'readers' }
+  | { name: 'entryReaders'; id: string }
   | { name: 'log' }
   | { name: 'settings' };
 
-// 쿼리 없는 화면의 주소 (PR-B가 이미지·분류·연재를, PR-C가 설정을 더했다)
+// 쿼리 없는 화면의 주소 (PR-B가 이미지·분류·연재를, PR-C가 설정을, PR-D가 독자를 더했다)
 const SIMPLE_ROUTES = {
   '/admin/assets': 'assets',
   '/admin/taxonomy': 'taxonomy',
   '/admin/series': 'series',
+  '/admin/readers': 'readers',
   '/admin/log': 'log',
   '/admin/settings': 'settings',
 } as const satisfies Record<string, AdminRoute['name']>;
@@ -46,15 +49,17 @@ export function parseAdminPath(pathname: string, search = ''): AdminRoute | null
     return { name: SIMPLE_ROUTES[path as keyof typeof SIMPLE_ROUTES] } as { name: SimpleRouteName };
   }
 
-  const edit = /^\/admin\/edit\/([^/]+)$/.exec(path);
-  if (edit) {
+  // 글 ID를 받는 화면: 에디터, 글 하나의 독자(PR-D)
+  const withId = /^\/admin\/(edit|readers)\/([^/]+)$/.exec(path);
+  if (withId) {
     let id: string;
     try {
-      id = decodeURIComponent(edit[1]);
+      id = decodeURIComponent(withId[2]);
     } catch {
       return null;
     }
-    return ENTRY_ID_PATTERN.test(id) ? { name: 'edit', id } : null;
+    if (!ENTRY_ID_PATTERN.test(id)) return null;
+    return withId[1] === 'edit' ? { name: 'edit', id } : { name: 'entryReaders', id };
   }
   return null;
 }
@@ -72,6 +77,10 @@ export function adminPathOf(route: AdminRoute): string {
       return '/admin/taxonomy';
     case 'series':
       return '/admin/series';
+    case 'readers':
+      return '/admin/readers';
+    case 'entryReaders':
+      return entryReadersPath(route.id);
     case 'log':
       return '/admin/log';
     case 'settings':
@@ -82,6 +91,11 @@ export function adminPathOf(route: AdminRoute): string {
 // 에디터 주소
 export function editPath(id: string): string {
   return adminPathOf({ name: 'edit', id });
+}
+
+// 글 하나의 독자 화면 주소(D20, 목록 행 메뉴 "독자 보기")
+export function entryReadersPath(id: string): string {
+  return `/admin/readers/${encodeURIComponent(id)}`;
 }
 
 // 쿼리 문자열을 '?a=b' 또는 ''로 맞춘다
@@ -142,6 +156,10 @@ export function documentTitleOf(route: AdminRoute): string {
       return '분류 | Cruz Lab 관리';
     case 'series':
       return '연재·프로젝트 | Cruz Lab 관리';
+    case 'readers':
+      return '독자 | Cruz Lab 관리';
+    case 'entryReaders':
+      return '글 독자 | Cruz Lab 관리';
     case 'log':
       return '출간 기록 | Cruz Lab 관리';
     case 'settings':

@@ -4,6 +4,7 @@ import {
   adminPathOf,
   documentTitleOf,
   editPath,
+  entryReadersPath,
   isSameRoute,
   parseAdminPath,
   routeForLinkClick,
@@ -43,7 +44,6 @@ describe('parseAdminPath', () => {
   it('만들지 않은 화면과 옛 주소는 모른다(앱이 첫 화면으로 바꾼다)', () => {
     expect(parseAdminPath('/admin/posts')).toBeNull();
     expect(parseAdminPath('/admin/posts/new')).toBeNull();
-    expect(parseAdminPath('/admin/readers')).toBeNull();
     expect(parseAdminPath('/admin/login')).toBeNull();
     expect(parseAdminPath('/blog/abc')).toBeNull();
   });
@@ -60,9 +60,45 @@ describe('PR-B 화면 주소(5단계 D12·D1·D2)', () => {
   });
 });
 
+describe('PR-D 화면 주소(5단계 D20)', () => {
+  it('독자·글 하나의 독자 주소를 안다', () => {
+    expect(parseAdminPath('/admin/readers')).toEqual({ name: 'readers' });
+    expect(parseAdminPath('/admin/readers/')).toEqual({ name: 'readers' });
+    expect(parseAdminPath('/admin/readers/AbC123xyz')).toEqual({ name: 'entryReaders', id: 'AbC123xyz' });
+    const hangul = 'project-pintos-스레드';
+    expect(parseAdminPath(`/admin/readers/${encodeURIComponent(hangul)}`)).toEqual({ name: 'entryReaders', id: hangul });
+    expect(entryReadersPath(hangul)).toBe(`/admin/readers/${encodeURIComponent(hangul)}`);
+    expect(documentTitleOf({ name: 'readers' })).toBe('독자 | Cruz Lab 관리');
+    expect(documentTitleOf({ name: 'entryReaders', id: 'a' })).toBe('글 독자 | Cruz Lab 관리');
+  });
+
+  it('틀린 글 ID와 더 깊은 주소는 받지 않는다', () => {
+    expect(parseAdminPath('/admin/readers/a%2Fb')).toBeNull();
+    expect(parseAdminPath('/admin/readers/..')).toBeNull();
+    expect(parseAdminPath('/admin/readers/a/b')).toBeNull();
+  });
+
+  it('앱 링크 클릭으로 받는다', () => {
+    const route = routeForLinkClick({
+      button: 0,
+      metaKey: false,
+      ctrlKey: false,
+      shiftKey: false,
+      altKey: false,
+      defaultPrevented: false,
+      target: null,
+      download: false,
+      href: '/admin/readers/abc',
+      currentOrigin: 'https://x.test',
+      currentPath: '/admin',
+    });
+    expect(route).toEqual({ name: 'entryReaders', id: 'abc' });
+  });
+});
+
 describe('adminPathOf', () => {
   it('화면 → 주소 → 화면이 같다', () => {
-    for (const path of ['/admin', '/admin?status=hidden&q=a', '/admin/edit/abc', '/admin/log', '/admin/assets', '/admin/taxonomy', '/admin/series']) {
+    for (const path of ['/admin', '/admin?status=hidden&q=a', '/admin/edit/abc', '/admin/log', '/admin/assets', '/admin/taxonomy', '/admin/series', '/admin/readers', '/admin/readers/abc']) {
       const url = new URL(path, 'https://x.test');
       const route = parseAdminPath(url.pathname, url.search)!;
       expect(adminPathOf(route)).toBe(path);

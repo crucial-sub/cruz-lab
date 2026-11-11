@@ -22,7 +22,7 @@
 //   12. 설정(T10, D14): settings/editor 읽기·쓰기, 낡은 version 409, 막는 키·충돌·모르는 명령 422, 기본값과 같은 줄 빼기.
 //       끝에 처음 상태로 되돌린다(처음에 문서가 없었으면 지운다).
 //   13. 이미지 세부 조절(T9, D13): <p align><img width>·<img width>를 쓴 시험 글을 발행하면 공개 페이지가 그대로 그린다.
-// - 독자 검사는 PR-D가 더한다(Plan 8.1).
+// - 독자 흐름(T12, D20) 검사는 scripts/smoke/stage5-track.mjs에 있다(Plan 8.1).
 
 import { createHash } from 'node:crypto';
 import process from 'node:process';
@@ -191,7 +191,8 @@ async function checkList() {
   const items = res.json?.items ?? [];
   check(items.length > 0, '목록이 비었다');
   check(items.every((item) => typeof item.isEmptyDraft === 'boolean'), '목록: isEmptyDraft가 불리언이 아니다');
-  check(items.every((item) => item.readers30 === null), '목록: readers30은 PR-D 전까지 null');
+  // PR-D(D20): 최근 30일 방문 수. 독자 요약을 읽으면 0 이상 정수다(시험 방문 값은 stage5-track.mjs가 본다)
+  check(items.every((item) => Number.isInteger(item.readers30) && item.readers30 >= 0), '목록: readers30은 0 이상 정수');
   check(
     items.every((item) => (item.status === 'draft' ? item.publicPath === null : true)),
     '목록: 초안에 publicPath가 있다',
