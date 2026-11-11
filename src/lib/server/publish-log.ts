@@ -40,6 +40,11 @@ export function serializeLogRow(docSnap: QueryDocumentSnapshot<DocumentData>): P
     at: isTimestampLike(data.at) ? toDateValue(data.at).toISOString() : new Date(0).toISOString(),
     revision: typeof data.revision === 'number' ? data.revision : null,
     ...readSideEffects(data),
+    op: typeof data.op === 'string' ? data.op : null,
+    from: typeof data.from === 'string' ? data.from : null,
+    to: typeof data.to === 'string' ? data.to : null,
+    affected: Array.isArray(data.affected) ? data.affected.filter((id: unknown): id is string => typeof id === 'string') : [],
+    purged: Array.isArray(data.purged) ? data.purged.filter((id: unknown): id is string => typeof id === 'string') : [],
   };
 }
 
@@ -72,6 +77,19 @@ export async function readLatestLogForEntry(entryId: string): Promise<PublishLog
   const items = snapshot.docs.map(serializeLogRow);
   items.sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
   return items[0] ?? null;
+}
+
+// 묶음 줄(분류·연재)의 다시 비우기 대상: 최근 7일 안에 퍼지가 실패한 그 묶음 줄들이 비우려던 글 ID를 모두 모은다
+// (purged가 없는 옛 모양이면 affected를 쓴다)
+export async function readGroupPurgeTargets(entryId: string, nowMs = Date.now()): Promise<string[]> {
+  const since = Timestamp.fromMillis(nowMs - ALERT_WINDOW_MS);
+  const snapshot = await logRef().where('entryId', '==', entryId).get();
+  const ids = new Set<string>();
+  for (const item of snapshot.docs.map(serializeLogRow)) {
+    if (Date.parse(item.at) < since.toMillis() || item.purge !== 'failed') continue;
+    for (const id of item.purged.length > 0 ? item.purged : item.affected) ids.add(id);
+  }
+  return [...ids].sort();
 }
 
 export interface SideEffectResults {

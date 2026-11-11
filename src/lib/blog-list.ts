@@ -1,6 +1,7 @@
 // 글 목록 화면 도우미 (재건 4단계 D11·D17·D19)
 // - /blog, /blog/category/<key>, /blog/tag/<tag>, 홈이 쓴다. 순수 함수만 둔다(Firestore를 읽지 않는다).
-// - 카테고리 탭: 발행 글이 있는 카테고리만. 글 수 많은 순, 같으면 taxonomy 순서(D17).
+// - 카테고리 탭: 발행 글이 있는 카테고리만. 글 수 많은 순, 같으면 분류 순서(D17).
+//   5단계 D1: 카테고리 목록은 데이터(settings/taxonomy)다. 순서는 부르는 쪽이 넘긴다. 표시 이름은 글 값(categoryLabel)이다.
 // - 태그 칩: 발행 글에 쓰인 태그. 글 수 많은 순, 같으면 이름순.
 // - 대표 카드: 목록의 첫 글(최신 글). 나머지를 연도 묶음으로 나눈다(D19).
 // - 행 묶음: 날짜 내림차순 한 줄기를 서울 연도로 나눈다. 연도가 바뀌는 첫 행 앞에 머리가 온다.
@@ -10,7 +11,6 @@ import type { SeriesRef } from './entry-schema.ts';
 import { seoulYear } from './date-format.ts';
 import { categoryPath, tagPath } from './public-paths.ts';
 import { normalizeSearchText } from './search-filter.ts';
-import { CATEGORIES, type CategoryKey } from './taxonomy.ts';
 
 // 목록이 쓰는 글 값 (content-posts.ts의 ContentPost와 모양이 맞는다)
 export interface ListPost {
@@ -19,7 +19,7 @@ export interface ListPost {
   description: string;
   slug: string;
   tags: string[];
-  category: CategoryKey | null;
+  category: string | null;
   categoryLabel: string;
   series: SeriesRef | null;
   pubDate: Date;
@@ -34,7 +34,7 @@ export interface ListSeries {
 }
 
 export interface CategoryTab {
-  key: CategoryKey;
+  key: string;
   label: string;
   count: number;
   href: string;
@@ -58,19 +58,21 @@ export interface YearGroup<T extends ListPost = ListPost> {
 }
 
 // 카테고리 탭 (전체 탭은 화면이 따로 그린다)
-export function buildCategoryTabs(posts: readonly ListPost[]): CategoryTab[] {
-  const counts = new Map<CategoryKey, number>();
+// - order: 분류 데이터의 카테고리 key 순서. 목록에 없는 key(기본값으로 읽은 경우 등)는 그 뒤에 key 이름순이다
+export function buildCategoryTabs(posts: readonly ListPost[], order: readonly string[]): CategoryTab[] {
+  const counts = new Map<string, { count: number; label: string }>();
   for (const post of posts) {
-    if (post.category) counts.set(post.category, (counts.get(post.category) ?? 0) + 1);
+    if (!post.category) continue;
+    const current = counts.get(post.category);
+    counts.set(post.category, { count: (current?.count ?? 0) + 1, label: current?.label || post.categoryLabel || post.category });
   }
-  return CATEGORIES.map((category, order) => ({
-    key: category.key as CategoryKey,
-    label: category.label as string,
-    count: counts.get(category.key) ?? 0,
-    order,
-  }))
-    .filter((tab) => tab.count > 0)
-    .sort((a, b) => b.count - a.count || a.order - b.order)
+  const rank = (key: string) => {
+    const index = order.indexOf(key);
+    return index === -1 ? order.length : index;
+  };
+  return [...counts.entries()]
+    .map(([key, { count, label }]) => ({ key, label, count }))
+    .sort((a, b) => b.count - a.count || rank(a.key) - rank(b.key) || a.key.localeCompare(b.key))
     .map(({ key, label, count }) => ({ key, label, count, href: categoryPath(key) }));
 }
 

@@ -39,6 +39,7 @@ function spyActions(): CommandActions {
     publish: vi.fn(),
     togglePanel: vi.fn(),
     openPalette: vi.fn(),
+    openRevisions: vi.fn(),
   };
 }
 

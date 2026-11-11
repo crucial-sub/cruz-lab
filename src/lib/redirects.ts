@@ -3,11 +3,11 @@
 // - 한글 경로는 decodeURIComponent 뒤 NFC로 비교한다.
 // - /blog/<옛 slug> → 새 slug는 글 페이지가 slugHistory로 처리한다(Firestore 조회가 필요해서).
 
-// - 4단계(D11): 카테고리와 뜻이 같은 태그 주소(/blog/tag/javascript, /blog/tag/운영체제 …)는
-//   /blog/category/<key>로 보낸다. 대소문자·공백이 다른 주소도 한 번에 카테고리로 간다.
+// - 4단계(D11)의 "카테고리와 뜻이 같은 태그 주소 → 카테고리 목록"은 5단계 PR-B부터 태그 페이지가 한다.
+//   동의어는 이제 데이터(settings/taxonomy)이고 미들웨어는 Firestore를 읽지 않는다(PR-B 리뷰 S2).
+//   여기서는 태그 주소의 정규화(대소문자·공백·NFC·코드 별칭)만 한다.
 
-import { categoryPath } from './public-paths.ts';
-import { categoryForSynonymTag, normalizeTag } from './taxonomy.ts';
+import { normalizeTag } from './taxonomy.ts';
 
 // 옛 연재 주소 → 새 주소
 const LEGACY_SERIES_REDIRECTS: Readonly<Record<string, string>> = {
@@ -43,9 +43,6 @@ export function findPublicRedirect(pathname: string): string | null {
     if (!decoded) return null;
     const normalized = normalizeTag(decoded);
     if (!normalized) return null;
-    // 카테고리와 같은 뜻의 태그 → 카테고리 목록 (4단계 D11)
-    const category = categoryForSynonymTag(normalized);
-    if (category) return categoryPath(category);
     // 같은 값이라도 NFD로 들어왔으면(바이트가 다르면) NFC 주소로 보낸다
     if (normalized === decoded && decodeURIComponent(raw) === decoded) return null;
     return `/blog/tag/${encodeURIComponent(normalized)}`;

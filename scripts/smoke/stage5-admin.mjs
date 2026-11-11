@@ -1,4 +1,4 @@
-// 재건 5단계 관리자 앱 스모크 테스트 (Plan 8.1, PR-A 몫: T1~T4)
+// 재건 5단계 관리자 앱 스모크 테스트 (Plan 8.1, PR-A 몫: T1~T4, PR-B 몫: T5~T8)
 //
 // 실행: node --env-file=.env scripts/smoke/stage5-admin.mjs [--base http://localhost:4329]
 //
@@ -13,11 +13,20 @@
 //   5. 알림 계산과 다시 시도 API(로컬 퍼지는 skipped라 실패를 지우지 않는다)
 //   6. 관리자가 아닌 계정의 세션 요청 → 403 → 그 인증 사용자 삭제(D4)
 //   7. 공개 입구(D4): 푸터 "관리"(nofollow), 관리자 전용 "고치기"는 기본 hidden, 관리자 표시 스크립트, Set-Cookie 없음
-// - PR-B~PR-E가 자산 목록·설정·분류·연재·리비전 검사를 더한다(Plan 8.1).
+//   8. 이미지 라이브러리(T5): 자산 목록, 시험 이미지 1장 올리기 → 쓰지 않음 → 시험 실행 → 지우기, legacy는 후보 아님
+//   9. 분류(T6): 시험 카테고리 만들기(첫 저장은 기존 10개 그대로)·이름·key 바꾸기(옛 주소 301)·글 옮기기·합치기·지우기,
+//      시험 태그 바꾸기(옛 주소 301)·되돌리기, 목록에 없는 카테고리 저장 거부
+//   10. 연재·프로젝트(T7): 목록, 시험 프로젝트 만들기·고치기·첫 Part 발행(/projects)·지우기, kind project 새 글
+//   11. 리비전(T8): 판 목록·한 판·가져오기(충돌 409)·초안 버리기로 원래대로
+//   분류·연재 시험은 시험 글·시험 카테고리·시험 태그·시험 프로젝트만 쓴다. 끝에 settings/taxonomy에서 시험 값을 뺀다.
+// - 설정(키맵)·독자 검사는 PR-C·PR-D가 더한다(Plan 8.1).
 
+import { createHash } from 'node:crypto';
 import process from 'node:process';
 import { getAuth } from 'firebase-admin/auth';
 import { Timestamp } from 'firebase-admin/firestore';
+import sharp from 'sharp';
+import { CATEGORIES } from '../../src/lib/taxonomy.ts';
 import { initAdmin, parseArgs } from '../migrate/lib/admin.mjs';
 
 const args = parseArgs();
@@ -35,7 +44,7 @@ function check(condition, message) {
 }
 
 // 이 실행이 만든 것 (정리 대상)
-const created = { entryIds: new Set(), logIds: new Set(), userIds: new Set() };
+const created = { entryIds: new Set(), logIds: new Set(), userIds: new Set(), assetIds: new Set(), seriesKeys: new Set() };
 
 // ───────────── HTTP 도구 ─────────────
 
@@ -349,6 +358,363 @@ async function publishLogFlow(db) {
 }
 
 // 5. 관리자가 아닌 계정 (D4): 403 → 그 인증 사용자 삭제
+// ───────────── PR-B (T5~T8) ─────────────
+
+// 시험 글 하나를 만들고 내용을 저장한다. 버전을 돌려준다
+async function createTestEntry(kind, content) {
+  const createdRes = await api('POST', '/api/admin/posts', { body: { kind } });
+  check(createdRes.status === 201, `시험 ${kind} 생성: 201 (${createdRes.status} ${createdRes.text})`);
+  const id = createdRes.json?.id;
+  if (!id) throw new Error(`시험 글 생성 실패: ${createdRes.text}`);
+  created.entryIds.add(id);
+  const save = await api('PUT', `/api/admin/posts/${id}/draft`, { body: { baseVersion: 1, device: TEST_MARK, draft: content } });
+  check(save.status === 200, `시험 글 저장: 200 (${save.status} ${save.text})`);
+  return { id, version: save.json?.version };
+}
+
+async function publishTest(id, version) {
+  const response = await api('POST', `/api/admin/posts/${id}/publish`, { body: { draftVersion: version } });
+  check(response.status === 200, `시험 글 발행: 200 (${response.status} ${response.text})`);
+  return response.json;
+}
+
+async function entryOf(id) {
+  return (await api('GET', `/api/admin/posts/${id}`)).json;
+}
+
+// 8. 이미지 라이브러리 (T5, D12)
+async function checkAssets(db, bucket) {
+  const total = (await withRetry('자산 수', () => db.collection('assets').count().get())).data().count;
+  const list = await api('GET', '/api/admin/assets');
+  check(list.status === 200 && Array.isArray(list.json?.items), `자산 목록: 200 (${list.status})`);
+  const items = list.json?.items ?? [];
+  check(items.length === total, `자산 목록: 문서 수와 같다 (${items.length}/${total})`);
+  check(items.every((item) => typeof item.id === 'string' && typeof item.thumbUrl === 'string' && Array.isArray(item.usedBy) && ['image', 'video'].includes(item.kind)), '자산 목록: 줄 모양');
+  const times = items.map((item) => item.uploadedAt ?? '');
+  check(times.every((value, index) => index === 0 || times[index - 1] >= value), '자산 목록: 올린 때 최신순');
+  check(items.filter((item) => item.legacy && item.variants.length === 0).every((item) => item.thumbUrl === item.url), 'legacy 썸네일은 원본 주소다');
+  check(items.filter((item) => !item.legacy && item.variants.some((variant) => variant.name === 'w480')).every((item) => item.thumbUrl === item.variants.find((variant) => variant.name === 'w480').url), '새 자산 썸네일은 w480이다');
+  const unusedLegacy = items.filter((item) => item.legacy && item.usedBy.length === 0);
+  console.log(`자산 ${items.length}개, 쓰지 않는 legacy ${unusedLegacy.length}개`);
+  const noCookie = await api('GET', '/api/admin/assets', { cookie: false });
+  check(noCookie.status === 401, `자산 목록: 쿠키 없으면 401 (${noCookie.status})`);
+
+  // 시험 이미지 1장: 올리기 → 목록에 "쓰지 않음" → 시험 실행 → 지우기
+  const png = await sharp({ create: { width: 640, height: 400, channels: 3, background: { r: 200, g: 80, b: 40 } } }).png().toBuffer();
+  const sha256 = createHash('sha256').update(png).digest('hex');
+  const urlResponse = await api('POST', '/api/admin/assets/upload-url', {
+    body: { fileName: `${TEST_MARK}-${RUN_ID}.png`, contentType: 'image/png', bytes: png.length, sha256 },
+  });
+  check(urlResponse.status === 200 && urlResponse.json?.uploadUrl, `시험 이미지 업로드 주소: 200 (${urlResponse.status} ${urlResponse.text})`);
+  const { assetId, uploadUrl, requiredHeaders } = urlResponse.json ?? {};
+  if (!assetId) return;
+  created.assetIds.add(assetId);
+  await withRetry('시험 이미지 PUT', async () => {
+    const put = await fetch(uploadUrl, { method: 'PUT', headers: requiredHeaders, body: png });
+    if (!put.ok) throw new Error(`PUT ${put.status}`);
+  });
+  const finalize = await api('POST', `/api/admin/assets/${assetId}/finalize`);
+  check(finalize.status === 200 && finalize.json?.asset?.status === 'ready', `시험 이미지 finalize: 200 (${finalize.status} ${finalize.text})`);
+  const after = (await api('GET', '/api/admin/assets')).json?.items ?? [];
+  const mine = after.find((item) => item.id === assetId);
+  check(mine && mine.usedBy.length === 0 && mine.orphanedAt && !mine.legacy && mine.kind === 'image', '시험 이미지: 목록 맨 앞쪽, 쓰지 않음·고아 표시');
+  check(after[0]?.id === assetId, '시험 이미지: 가장 최근에 올린 자산이다');
+  if (unusedLegacy[0]) {
+    const legacyDry = await api('POST', '/api/admin/assets/purge', { body: { dryRun: true, minOrphanDays: 0, ids: [unusedLegacy[0].id] } });
+    check(legacyDry.status === 200 && legacyDry.json?.candidates?.length === 0, 'legacy는 정리 후보가 아니다(main 병합 뒤)');
+  }
+  const dry = await api('POST', '/api/admin/assets/purge', { body: { dryRun: true, minOrphanDays: 0, ids: [assetId] } });
+  check(dry.status === 200 && dry.json?.candidates?.some((candidate) => candidate.id === assetId) && dry.json?.deleted?.length === 0, `시험 실행: 후보에 있고 지우지 않는다 (${dry.text.slice(0, 120)})`);
+  const purge = await api('POST', '/api/admin/assets/purge', { body: { dryRun: false, minOrphanDays: 0, ids: [assetId] } });
+  check(purge.status === 200 && purge.json?.deleted?.includes(assetId), `지우기: deleted에 있다 (${purge.text.slice(0, 120)})`);
+  const [files] = await withRetry('시험 이미지 파일 확인', () => bucket.getFiles({ prefix: `assets/${assetId}/` }));
+  check(files.length === 0, `지우기: Storage 파일 0 (${files.length})`);
+  const final = (await api('GET', '/api/admin/assets')).json?.items ?? [];
+  check(!final.some((item) => item.id === assetId) && final.length === total, '지우기 뒤 목록에서 빠지고 수가 처음과 같다');
+}
+
+// 9. 분류 (T6, D1)
+async function checkTaxonomy(db) {
+  const first = await api('GET', '/api/admin/taxonomy');
+  check(first.status === 200 && Array.isArray(first.json?.categories), `분류 읽기: 200 (${first.status})`);
+  const view = first.json;
+  const defaults = CATEGORIES.map((category) => ({ key: category.key, label: category.label, synonymTags: [...category.synonymTags] }));
+  const shape = (categories) => categories.map(({ key, label, synonymTags }) => ({ key, label, synonymTags }));
+  if (!view.stored) check(JSON.stringify(shape(view.categories)) === JSON.stringify(defaults), '문서가 없으면 코드 기본값 10개를 보인다');
+  check(view.tags.some((row) => row.tag === 'pintos' && row.entryCount >= 5), '태그 목록: pintos가 있다');
+  const list = await api('GET', '/api/admin/posts');
+  check(list.json?.items?.filter((item) => item.category).every((item) => typeof item.categoryLabel === 'string' && item.categoryLabel), '목록: categoryLabel이 있다');
+
+  const key = `${TEST_MARK}-c${RUN_ID}`;
+  const keyB = `${key}-b`;
+  const keyC = `${key}-c`;
+  const tag = `${TEST_MARK}-t${RUN_ID}`;
+  let version = view.version;
+  const cat = (body, baseVersion = version) => api('POST', '/api/admin/taxonomy/categories', { body: { ...body, baseVersion } });
+
+  // 만들기 (첫 저장이면 기존 10개 + 시험 1개)
+  const create = await cat({ op: 'create', key, label: `시험 ${RUN_ID}` });
+  check(create.status === 200 && create.json?.version === version + 1, `카테고리 만들기: 200 (${create.status} ${create.text})`);
+  version = create.json?.version ?? version;
+  const afterCreate = (await api('GET', '/api/admin/taxonomy')).json;
+  check(afterCreate?.stored === true, '만들기 뒤 문서가 있다');
+  if (!view.stored) {
+    check(JSON.stringify(shape(afterCreate.categories.slice(0, 10))) === JSON.stringify(defaults), '첫 저장: 앞 10개가 코드 기본값과 같다(순서·이름·동의어)');
+  }
+  check((await cat({ op: 'create', key, label: '중복' })).status === 400, '같은 key 만들기: 400');
+  check((await cat({ op: 'create', key: 'Bad Key', label: 'x' })).status === 400, '틀린 key: 400');
+  check((await cat({ op: 'create', key: `${key}-x`, label: 'x' }, version - 1)).status === 409, '낡은 version: 409');
+  const createC = await cat({ op: 'create', key: keyC, label: `시험C ${RUN_ID}` });
+  version = createC.json?.version ?? version;
+
+  // 시험 글 2편: 시험 카테고리 + 시험 태그로 발행
+  const content = (n) => ({
+    title: `${TEST_MARK} 분류 ${n} ${RUN_ID}`,
+    description: '재건 5단계 분류 스모크 시험 글이다. 곧 지운다.',
+    slug: `${TEST_MARK}-tax${n}-${RUN_ID}`,
+    category: key,
+    tags: [tag],
+    series: null,
+    cover: { kind: 'generated' },
+    markdown: '분류 스모크 본문이다.',
+    editorJson: null,
+  });
+  const posts = [];
+  for (const n of [1, 2]) {
+    const entry = await createTestEntry('post', content(n));
+    await publishTest(entry.id, entry.version);
+    posts.push(entry.id);
+  }
+  const unknown = await api('PUT', `/api/admin/posts/${posts[0]}/draft`, {
+    body: { baseVersion: (await entryOf(posts[0])).draft.version, device: TEST_MARK, draft: { ...content(1), category: `${TEST_MARK}-none` } },
+  });
+  check(unknown.status === 400, `목록에 없는 카테고리로 저장: 400 (${unknown.status})`);
+  const catPage = await page(`/blog/category/${key}`);
+  check(catPage.status === 200 && catPage.text.includes(`시험 ${RUN_ID}`), `공개 카테고리 목록: 200, 이름 (${catPage.status})`);
+
+  // 이름 바꾸기
+  const rename = await cat({ op: 'rename', key, label: `시험 이름 ${RUN_ID}` });
+  check(rename.status === 200, `이름 바꾸기: 200 (${rename.status} ${rename.text})`);
+  version = rename.json?.version ?? version;
+  check((await page(`/blog/category/${key}`)).text.includes(`시험 이름 ${RUN_ID}`), '이름 바꾸기 뒤 공개 목록의 이름이 바뀐다');
+
+  // key 바꾸기: 시험 실행 → 실행 → 옛 주소 301
+  const beforeVersion = (await entryOf(posts[0])).draft.version;
+  const rekeyDry = await cat({ op: 'rekey', key, newKey: keyB, dryRun: true });
+  check(rekeyDry.status === 200 && rekeyDry.json?.affected?.length === 2 && rekeyDry.json?.version === version, `key 바꾸기 시험 실행: 대상 2편, 쓰지 않음 (${rekeyDry.text.slice(0, 120)})`);
+  const rekey = await cat({ op: 'rekey', key, newKey: keyB });
+  check(rekey.status === 200 && rekey.json?.affected?.length === 2, `key 바꾸기: 200 (${rekey.status} ${rekey.text.slice(0, 120)})`);
+  version = rekey.json?.version ?? version;
+  const moved = await entryOf(posts[0]);
+  check(moved.draft.category === keyB && moved.published.category === keyB, 'key 바꾸기: 초안·발행본 key가 바뀐다');
+  check(moved.draft.version === beforeVersion + 1 && moved.hasUnpublishedChanges === false && moved.published.revision === 1, 'key 바꾸기: 초안 버전 +1, 변경 있음 없음, 새 판 없음');
+  const oldPage = await page(`/blog/category/${key}`);
+  check(oldPage.status === 301 && (oldPage.headers.get('location') ?? '').endsWith(`/blog/category/${keyB}`), `옛 카테고리 주소: 301 → 새 key (${oldPage.status} ${oldPage.headers.get('location')})`);
+  check((await page(`/blog/category/${keyB}`)).status === 200, '새 카테고리 주소: 200');
+  const rekeyLog = (await logsFor(db, 'taxonomy')).filter((row) => row.slug === keyB && row.op === 'rekey');
+  check(rekeyLog.length === 1 && rekeyLog[0].affected?.length === 2 && rekeyLog[0].from === key, '기록: category rekey 줄(대상 2편, 옛 key)');
+
+  // 글 옮기기 → 합치기 → 쓰는 카테고리 지우기 거부
+  const move = await cat({ op: 'move', ids: [posts[0]], to: keyC });
+  check(move.status === 200 && move.json?.affected?.length === 1, `글 옮기기: 200 (${move.status} ${move.text.slice(0, 120)})`);
+  version = move.json?.version ?? version;
+  check((await entryOf(posts[0])).published.category === keyC, '글 옮기기: 발행본 key가 바뀐다');
+  const rekeyExisting = await cat({ op: 'rekey', key: keyC, newKey: keyB });
+  check(rekeyExisting.status === 400, `있는 key로 key 바꾸기: 400(합치기는 merge) (${rekeyExisting.status})`);
+  const merge = await cat({ op: 'merge', key: keyC, into: keyB });
+  check(merge.status === 200 && merge.json?.affected?.length === 1, `합치기: 200 (${merge.status} ${merge.text.slice(0, 120)})`);
+  version = merge.json?.version ?? version;
+  const merged = (await api('GET', '/api/admin/taxonomy')).json;
+  check(!merged.categories.some((category) => category.key === keyC) && merged.categoryAliases[keyC] === keyB && merged.categoryAliases[key] === keyB, '합치기: 옛 카테고리가 사라지고 별칭이 남는다');
+  const inUse = await cat({ op: 'delete', key: keyB });
+  check(inUse.status === 409 && inUse.json?.error?.code === 'CATEGORY_IN_USE', `쓰는 카테고리 지우기: 409 (${inUse.status})`);
+
+  // 태그 바꾸기 → 옛 태그 주소 301 → 되돌리기
+  const tagB = `${tag}-b`;
+  const tagDry = await api('POST', '/api/admin/taxonomy/tags', { body: { from: tag, to: tagB, baseVersion: version, dryRun: true } });
+  check(tagDry.status === 200 && tagDry.json?.affected?.length === 2, `태그 바꾸기 시험 실행: 대상 2편 (${tagDry.text.slice(0, 120)})`);
+  const retag = await api('POST', '/api/admin/taxonomy/tags', { body: { from: tag, to: tagB, baseVersion: version } });
+  check(retag.status === 200, `태그 바꾸기: 200 (${retag.status} ${retag.text.slice(0, 120)})`);
+  version = retag.json?.version ?? version;
+  check((await entryOf(posts[1])).published.tags.join() === tagB, '태그 바꾸기: 발행본 태그가 바뀐다');
+  const oldTag = await page(`/blog/tag/${encodeURIComponent(tag)}`);
+  check(oldTag.status === 301 && (oldTag.headers.get('location') ?? '').endsWith(`/blog/tag/${encodeURIComponent(tagB)}`), `옛 태그 주소: 301 (${oldTag.status})`);
+  const synonym = await api('POST', '/api/admin/taxonomy/tags', { body: { from: tagB, to: '운영체제', baseVersion: version } });
+  check(synonym.status === 400, `카테고리 동의어로 바꾸기: 400 (${synonym.status})`);
+  const revert = await api('POST', '/api/admin/taxonomy/tags', { body: { from: tagB, to: tag, baseVersion: version } });
+  check(revert.status === 200, `태그 되돌리기: 200 (${revert.status})`);
+  version = revert.json?.version ?? version;
+  const reverted = (await api('GET', '/api/admin/taxonomy')).json;
+  check(reverted.tagAliases[tagB] === tag && reverted.tagAliases[tag] === undefined, '태그 되돌리기: 별칭이 뒤집힌다(돌아온 이름은 별칭이 아니다)');
+  check((await page(`/blog/tag/${encodeURIComponent(tag)}`)).status === 200, '되돌린 태그 주소: 200');
+
+  // 글을 지우고 시험 카테고리를 지운다
+  for (const id of posts) {
+    const response = await api('DELETE', `/api/admin/posts/${id}`, { body: { confirm: id } });
+    check(response.status === 200, `시험 글 삭제: 200 (${response.status})`);
+  }
+  const remove = await cat({ op: 'delete', key: keyB });
+  check(remove.status === 200, `빈 카테고리 지우기: 200 (${remove.status} ${remove.text.slice(0, 120)})`);
+  const final = (await api('GET', '/api/admin/taxonomy')).json;
+  check(!final.categories.some((category) => category.key.includes(TEST_MARK)) && !Object.values(final.categoryAliases).some((target) => target.includes(TEST_MARK)), '지우기: 시험 카테고리와 그리로 가던 별칭이 사라진다');
+}
+
+// 10. 연재·프로젝트 (T7, D2)
+async function checkSeries(db) {
+  const metaCount = (await withRetry('seriesMeta 수', () => db.collection('seriesMeta').count().get())).data().count;
+  const list = await api('GET', '/api/admin/series');
+  check(list.status === 200 && Array.isArray(list.json?.items), `연재 목록: 200 (${list.status})`);
+  const items = list.json?.items ?? [];
+  check(items.filter((item) => item.hasMeta).length === metaCount, `연재 목록: 문서 ${metaCount}개를 모두 보인다`);
+  const firstSeries = items.findIndex((item) => !item.project);
+  check(firstSeries === -1 || items.slice(firstSeries).every((item) => !item.project), '연재 목록: 프로젝트가 먼저다');
+  check(items.find((item) => item.key === 'pintos')?.parts.length >= 5, '연재 목록: pintos 편 목록');
+
+  const key = `${TEST_MARK}-p${RUN_ID}`;
+  created.seriesKeys.add(key);
+  check((await api('POST', '/api/admin/projects', { body: { key: 'Bad Key', title: 'x' } })).status === 400, '새 프로젝트: 틀린 key 400');
+  const project = await api('POST', '/api/admin/projects', { body: { key, title: `${TEST_MARK} 프로젝트 ${RUN_ID}` } });
+  check(project.status === 201 && project.json?.id, `새 프로젝트: 201 (${project.status} ${project.text})`);
+  const partId = project.json?.id;
+  if (!partId) return;
+  created.entryIds.add(partId);
+  check((await api('POST', '/api/admin/projects', { body: { key, title: 'x' } })).status === 409, '새 프로젝트: 같은 key 409');
+  const part = await entryOf(partId);
+  check(part.kind === 'project' && part.draft.series?.key === key && part.draft.series?.order === 1, '새 프로젝트: 첫 Part 초안(kind project, 순서 1)');
+  const meta = (await withRetry('시험 프로젝트 문서', () => db.collection('seriesMeta').doc(key).get())).data();
+  const maxOrder = Math.max(-1, ...items.filter((item) => item.project).map((item) => item.project.order));
+  check(meta?.project?.order === maxOrder + 1 && meta?.project?.featured === false, `새 프로젝트: 순서 ${maxOrder + 1}, 대표 아님`);
+
+  const row = (await api('GET', '/api/admin/series')).json?.items?.find((item) => item.key === key);
+  check(row?.hasMeta && row.parts.length === 1 && row.project, '목록: 새 프로젝트와 첫 Part');
+  const projectBody = { longDescription: '시험 긴 설명', tags: ['시험'], tech: ['Astro'], github: 'https://github.com/crucial-sub/cruz-lab', featured: false, order: maxOrder + 1, startDate: '2026-11' };
+  const stale = await api('PUT', `/api/admin/series/${key}`, { body: { baseVersion: '1.000000000', title: 'x', description: '', project: projectBody } });
+  check(stale.status === 409, `연재 고치기: 낡은 version 409 (${stale.status})`);
+  const noProject = await api('PUT', `/api/admin/series/${key}`, { body: { baseVersion: row?.version ?? null, title: 'x', description: '' } });
+  check(noProject.status === 400, `프로젝트 칸 없이 고치기: 400 (${noProject.status})`);
+  const save = await api('PUT', `/api/admin/series/${key}`, {
+    body: { baseVersion: row?.version ?? null, title: `${TEST_MARK} 고친 프로젝트 ${RUN_ID}`, description: '시험 설명', project: projectBody },
+  });
+  check(save.status === 200 && typeof save.json?.version === 'string' && save.json.version !== row?.version, `연재 고치기: 200, 새 version (${save.status} ${save.text.slice(0, 120)})`);
+  const saved = (await withRetry('고친 문서', () => db.collection('seriesMeta').doc(key).get())).data();
+  check(saved?.title === `${TEST_MARK} 고친 프로젝트 ${RUN_ID}` && saved?.project?.tech?.[0] === 'Astro' && saved?.project?.startDate === '2026-11', '연재 고치기: 문서가 바뀐다');
+
+  // 첫 Part 발행 → /projects에 보인다
+  const partContent = {
+    title: `${TEST_MARK} Part 1 ${RUN_ID}`,
+    description: '재건 5단계 프로젝트 스모크 시험 글이다. 곧 지운다.',
+    slug: `${TEST_MARK}-part-${RUN_ID}`,
+    category: null,
+    tags: [],
+    series: { key, order: 1 },
+    cover: { kind: 'generated' },
+    markdown: '프로젝트 스모크 본문이다.',
+    editorJson: null,
+  };
+  const partSave = await api('PUT', `/api/admin/posts/${partId}/draft`, { body: { baseVersion: part.draft.version, device: TEST_MARK, draft: partContent } });
+  check(partSave.status === 200, `첫 Part 저장: 200 (${partSave.status} ${partSave.text})`);
+  await publishTest(partId, partSave.json?.version);
+  const projectsPage = await page('/projects');
+  check(projectsPage.status === 200 && projectsPage.text.includes(`${TEST_MARK} 고친 프로젝트 ${RUN_ID}`), '/projects에 새 프로젝트가 보인다');
+  const projectPage = await page(`/projects/${key}`);
+  check(projectPage.status === 302, `/projects/<key>: 첫 Part로 302 (${projectPage.status})`);
+
+  const nowRow = (await api('GET', '/api/admin/series')).json?.items?.find((item) => item.key === key);
+  const inUse = await api('DELETE', `/api/admin/series/${key}`, { body: { baseVersion: nowRow?.version ?? null } });
+  check(inUse.status === 409, `글이 있는 연재 정보 지우기: 409 (${inUse.status})`);
+  const deletePart = await api('DELETE', `/api/admin/posts/${partId}`, { body: { confirm: partId } });
+  check(deletePart.status === 200, `첫 Part 삭제: 200 (${deletePart.status})`);
+  const removeMeta = await api('DELETE', `/api/admin/series/${key}`, { body: { baseVersion: nowRow?.version ?? null } });
+  check(removeMeta.status === 200, `빈 연재 정보 지우기: 200 (${removeMeta.status} ${removeMeta.text})`);
+  check(!(await withRetry('지운 문서', () => db.collection('seriesMeta').doc(key).get())).exists, '연재 정보 문서가 없다');
+  check((await page('/projects')).text.includes(`${TEST_MARK} 고친 프로젝트`) === false, '/projects에서 사라진다');
+
+  // project 글도 새 글 API로 만든다(CREATABLE_KINDS)
+  const plain = await api('POST', '/api/admin/posts', { body: { kind: 'project' } });
+  check(plain.status === 201, `kind project 새 글: 201 (${plain.status})`);
+  if (plain.json?.id) {
+    created.entryIds.add(plain.json.id);
+    await api('DELETE', `/api/admin/posts/${plain.json.id}`, { body: { confirm: plain.json.id } });
+  }
+}
+
+// 시험 이미지 1장을 올린다(업로드 주소 → PUT → finalize). { assetId, url }
+async function uploadTestImage(color) {
+  const png = await sharp({ create: { width: 320, height: 200, channels: 3, background: color } }).png().toBuffer();
+  const sha256 = createHash('sha256').update(png).digest('hex');
+  const urlResponse = await api('POST', '/api/admin/assets/upload-url', {
+    body: { fileName: `${TEST_MARK}-rev-${RUN_ID}.png`, contentType: 'image/png', bytes: png.length, sha256 },
+  });
+  const { assetId, uploadUrl, requiredHeaders } = urlResponse.json ?? {};
+  if (!assetId) throw new Error(`시험 이미지 업로드 주소 실패: ${urlResponse.text}`);
+  created.assetIds.add(assetId);
+  await withRetry('시험 이미지 PUT', async () => {
+    const put = await fetch(uploadUrl, { method: 'PUT', headers: requiredHeaders, body: png });
+    if (!put.ok) throw new Error(`PUT ${put.status}`);
+  });
+  const finalize = await api('POST', `/api/admin/assets/${assetId}/finalize`);
+  if (finalize.status !== 200) throw new Error(`시험 이미지 finalize 실패: ${finalize.text}`);
+  return { assetId, url: finalize.json.asset.url };
+}
+
+// 11. 리비전 (T8, D3)
+async function checkRevisions(db) {
+  // 1판에만 쓰는 이미지: 2판에서 빼도 정리 대상이 아니다(리비전이 쓴다, PR-B 리뷰 S1)
+  const image = await uploadTestImage({ r: 90, g: 40, b: 160 });
+  const content = (title) => ({
+    title,
+    description: '재건 5단계 리비전 스모크 시험 글이다. 곧 지운다.',
+    slug: `${TEST_MARK}-rev-${RUN_ID}`,
+    category: 'retrospective',
+    tags: [],
+    series: null,
+    cover: { kind: 'generated' },
+    markdown: `본문 ${title}`,
+    editorJson: null,
+  });
+  const first = `${TEST_MARK} 1판 ${RUN_ID}`;
+  const second = `${TEST_MARK} 2판 ${RUN_ID}`;
+  const { id, version } = await createTestEntry('post', { ...content(first), markdown: `본문 ${first}\n\n![시험](${image.url})` });
+  await publishTest(id, version);
+  const save2 = await api('PUT', `/api/admin/posts/${id}/draft`, { body: { baseVersion: version, device: TEST_MARK, draft: content(second) } });
+  await publishTest(id, save2.json?.version);
+
+  const revisionOnly = await api('POST', '/api/admin/assets/purge', { body: { dryRun: true, minOrphanDays: 0, ids: [image.assetId] } });
+  check(
+    revisionOnly.status === 200 && revisionOnly.json?.candidates?.length === 0 && revisionOnly.json?.kept?.some((row) => row.id === image.assetId),
+    `1판에만 쓰는 이미지: 정리 대상이 아니다(kept) (${revisionOnly.text.slice(0, 160)})`,
+  );
+
+  const list = await api('GET', `/api/admin/posts/${id}/revisions`);
+  check(list.status === 200 && list.json?.items?.map((item) => item.revision).join() === '2,1', `판 목록: 최신 먼저 (${list.text.slice(0, 160)})`);
+  check(list.json?.items?.[0]?.current === true && list.json?.items?.[1]?.current === false && list.json?.items?.[1]?.title === first, '판 목록: 지금 발행본 표시와 제목');
+  const one = await api('GET', `/api/admin/posts/${id}/revisions/1`);
+  check(one.status === 200 && one.json?.content?.title === first && one.json?.content?.markdown.startsWith(`본문 ${first}`), '1판 읽기: 본문 포함');
+  check((await api('GET', `/api/admin/posts/${id}/revisions/9`)).status === 404, '없는 판: 404');
+  check((await api('GET', `/api/admin/posts/${id}/revisions/x`)).status === 400, '틀린 판 번호: 400');
+  check((await api('GET', `/api/admin/posts/${TEST_MARK}-none-${RUN_ID}/revisions`)).status === 404, '없는 글의 판 목록: 404');
+
+  const before = await entryOf(id);
+  const stale = await api('POST', `/api/admin/posts/${id}/revisions/1/restore`, { body: { baseVersion: before.draft.version - 1 } });
+  check(stale.status === 409 && stale.json?.error?.code === 'DRAFT_CONFLICT', `낡은 버전으로 가져오기: 409 (${stale.status})`);
+  const restore = await api('POST', `/api/admin/posts/${id}/revisions/1/restore`, { body: { baseVersion: before.draft.version } });
+  check(restore.status === 200 && restore.json?.version === before.draft.version + 1, `1판 가져오기: 200, 버전 +1 (${restore.status} ${restore.text})`);
+  const restored = await entryOf(id);
+  check(restored.draft.title === first && restored.published.title === second && restored.published.revision === 2, '가져오기: 초안만 1판, 발행본은 2판 그대로');
+  check(restored.hasUnpublishedChanges === true, '가져오기 뒤 발행 뒤 변경 있음');
+  const restoreRow = (await logsFor(db, id)).find((row) => row.action === 'restore');
+  check(restoreRow?.revision === 1 && restoreRow?.title === first, '기록: restore 줄(가져온 판 1)');
+  const discard = await api('POST', `/api/admin/posts/${id}/draft/discard`, { body: { baseVersion: restored.draft.version } });
+  check(discard.status === 200, `초안 버리기로 원래대로: 200 (${discard.status})`);
+  const back = await entryOf(id);
+  check(back.draft.title === second && back.hasUnpublishedChanges === false, '초안 버리기 뒤 2판 내용, 변경 없음');
+  const response = await api('DELETE', `/api/admin/posts/${id}`, { body: { confirm: id } });
+  check(response.status === 200, `리비전 시험 글 삭제: 200 (${response.status})`);
+  // 글을 지우면 리비전도 지워진다. 이제 시험 이미지를 지울 수 있다
+  const purge = await api('POST', '/api/admin/assets/purge', { body: { dryRun: false, minOrphanDays: 0, ids: [image.assetId] } });
+  check(purge.status === 200 && purge.json?.deleted?.includes(image.assetId), `글 삭제 뒤 시험 이미지 지우기 (${purge.text.slice(0, 120)})`);
+}
+
 async function rejectNonAdmin() {
   const uid = `${TEST_MARK}-${RUN_ID}`;
   created.userIds.add(uid);
@@ -392,7 +758,7 @@ async function cleanupStep(label, run) {
 
 // 남은 시험 데이터를 지운다 (한 단계가 실패해도 끝까지 한다)
 // - 일부러 넣은 실패 줄을 먼저 지운다. 남으면 관리자 앱에 가짜 알림 띠가 7일 동안 보인다.
-async function cleanup(db) {
+async function cleanup(db, bucket) {
   const leftovers = [];
   for (const logId of created.logIds) {
     await cleanupStep(`시험 줄 정리 ${logId}`, async () => {
@@ -413,6 +779,70 @@ async function cleanup(db) {
       for (const log of logs.docs) await log.ref.delete();
     });
   }
+  // 추적하지 못한 시험 글도 찾는다: 요청은 커밋됐지만 응답을 받지 못한 경우(네트워크 끊김, PR-B 리뷰 S11).
+  // 시험 표지(stage5-test)가 ID·제목·slug·연재 key·기기 이름에 있는 글만 고른다(사용자 글에는 없다)
+  await cleanupStep('표지 붙은 시험 글 찾기', async () => {
+    const snapshot = await db
+      .collection('entries')
+      .select('draft.title', 'draft.slug', 'draft.series', 'draft.device', 'published.slug')
+      .get();
+    for (const docSnap of snapshot.docs) {
+      const data = docSnap.data();
+      const marks = [docSnap.id, data.draft?.title, data.draft?.slug, data.draft?.series?.key, data.draft?.device, data.published?.slug];
+      if (marks.some((value) => typeof value === 'string' && value.includes(TEST_MARK)) && !created.entryIds.has(docSnap.id)) {
+        leftovers.push(`entries/${docSnap.id}(추적 밖)`);
+        await db.recursiveDelete(docSnap.ref);
+        const logs = await db.collection('publishLog').where('entryId', '==', docSnap.id).get();
+        for (const log of logs.docs) await log.ref.delete();
+      }
+    }
+  });
+  // PR-B: 시험 이미지, 시험 프로젝트 정보, 분류·연재 줄, 분류 문서의 시험 값
+  for (const assetId of created.assetIds) {
+    await cleanupStep(`시험 이미지 정리 ${assetId}`, async () => {
+      const [files] = await bucket.getFiles({ prefix: `assets/${assetId}/` });
+      if (files.length > 0) {
+        leftovers.push(`Storage assets/${assetId}/ ${files.length}개`);
+        await bucket.deleteFiles({ prefix: `assets/${assetId}/` });
+      }
+      const ref = db.collection('assets').doc(assetId);
+      if ((await ref.get()).exists) {
+        leftovers.push(`assets/${assetId}`);
+        await ref.delete();
+      }
+    });
+  }
+  for (const key of created.seriesKeys) {
+    await cleanupStep(`시험 연재 정보 정리 ${key}`, async () => {
+      const ref = db.collection('seriesMeta').doc(key);
+      if ((await ref.get()).exists) {
+        leftovers.push(`seriesMeta/${key}`);
+        await ref.delete();
+      }
+    });
+  }
+  await cleanupStep('분류·연재 시험 줄 정리', async () => {
+    for (const entryId of ['taxonomy', 'series']) {
+      const rows = await db.collection('publishLog').where('entryId', '==', entryId).get();
+      for (const row of rows.docs) {
+        const data = row.data();
+        if (String(data.slug ?? '').includes(TEST_MARK) || String(data.title ?? '').includes(TEST_MARK)) await row.ref.delete();
+      }
+    }
+  });
+  await cleanupStep('분류 문서의 시험 값 정리', async () => {
+    const ref = db.collection('settings').doc('taxonomy');
+    const snapshot = await ref.get();
+    if (!snapshot.exists) return;
+    const data = snapshot.data();
+    const isTest = (value) => String(value).includes(TEST_MARK);
+    const categories = data.categories.filter((category) => !isTest(category.key));
+    const clean = (aliases) => Object.fromEntries(Object.entries(aliases ?? {}).filter(([from, to]) => !isTest(from) && !isTest(to)));
+    const next = { ...data, categories, categoryAliases: clean(data.categoryAliases), tagAliases: clean(data.tagAliases) };
+    if (JSON.stringify([next.categories, next.categoryAliases, next.tagAliases]) === JSON.stringify([data.categories, data.categoryAliases, data.tagAliases])) return;
+    leftovers.push('settings/taxonomy 시험 값');
+    await ref.set({ ...next, version: data.version + 1, updatedAt: Timestamp.now() });
+  });
   await cleanupStep('없는 글 기록 정리', async () => {
     const noneLogs = await db.collection('publishLog').where('entryId', '==', `${TEST_MARK}-none-${RUN_ID}`).get();
     for (const log of noneLogs.docs) await log.ref.delete();
@@ -436,16 +866,16 @@ async function cleanup(db) {
 }
 
 async function main() {
-  const { db } = initAdmin();
+  const { db, bucket } = initAdmin();
   console.log(`기준 ${BASE}, 실행 ID ${RUN_ID}`);
-  const [entriesBefore, logBefore] = await withRetry('처음 수 세기', () =>
-    Promise.all([db.collection('entries').count().get(), db.collection('publishLog').count().get()]),
-  );
+  const counted = () =>
+    Promise.all(['entries', 'publishLog', 'assets', 'seriesMeta'].map((name) => db.collection(name).count().get()));
+  const [entriesBefore, logBefore, assetsBefore, seriesBefore] = await withRetry('처음 수 세기', counted);
 
   // Ctrl+C로 멈춰도 시험 데이터를 지우고 끝낸다(finally는 신호로 끝날 때 돌지 않는다)
   process.once('SIGINT', () => {
     console.log('중단 신호: 시험 데이터를 지우고 끝낸다');
-    cleanup(db).finally(() => process.exit(130));
+    cleanup(db, bucket).finally(() => process.exit(130));
   });
 
   let leftovers = [];
@@ -456,19 +886,30 @@ async function main() {
     console.log(`목록 ${items.length}행, 빈 초안 ${items.filter((item) => item.isEmptyDraft).length}편`);
     await checkPublicEntrance(items);
     await publishLogFlow(db);
+    await checkAssets(db, bucket);
+    await checkTaxonomy(db);
+    await checkSeries(db);
+    await checkRevisions(db);
     await rejectNonAdmin();
     await signOut();
   } catch (error) {
     failures.push(`중단: ${error instanceof Error ? error.stack : String(error)}`);
   } finally {
-    leftovers = await cleanup(db);
+    leftovers = await cleanup(db, bucket);
   }
 
-  const [entriesAfter, logAfter] = await withRetry('끝 수 세기', () =>
-    Promise.all([db.collection('entries').count().get(), db.collection('publishLog').count().get()]),
-  );
+  const [entriesAfter, logAfter, assetsAfter, seriesAfter] = await withRetry('끝 수 세기', counted);
   check(entriesAfter.data().count === entriesBefore.data().count, `entries 수가 처음과 다르다 (${entriesBefore.data().count} → ${entriesAfter.data().count})`);
   check(logAfter.data().count === logBefore.data().count, `publishLog 수가 처음과 다르다 (${logBefore.data().count} → ${logAfter.data().count})`);
+  check(assetsAfter.data().count === assetsBefore.data().count, `assets 수가 처음과 다르다 (${assetsBefore.data().count} → ${assetsAfter.data().count})`);
+  check(seriesAfter.data().count === seriesBefore.data().count, `seriesMeta 수가 처음과 다르다 (${seriesBefore.data().count} → ${seriesAfter.data().count})`);
+  // 분류 문서가 있으면 시험 값이 없고, 기존 10개가 그대로다(Plan 7절 T6 주의)
+  const taxonomyDoc = await withRetry('분류 문서 확인', () => db.collection('settings').doc('taxonomy').get());
+  if (taxonomyDoc.exists) {
+    const keys = taxonomyDoc.get('categories').map((category) => category.key);
+    check(!JSON.stringify(taxonomyDoc.data()).includes(TEST_MARK), '분류 문서에 시험 값이 남았다');
+    check(CATEGORIES.every((category) => keys.includes(category.key)), `분류 문서에 기존 카테고리가 빠졌다 (${keys.join(',')})`);
+  }
   if (leftovers.length > 0) console.log(`정리 단계가 지운 남은 데이터: ${leftovers.join(', ')}`);
 
   console.log(`검사 ${checks}건, 실패 ${failures.length}건`);

@@ -16,7 +16,6 @@ import {
   type PublicEntry,
   type PublicEntrySummary,
 } from '@/lib/server/entries';
-import type { CategoryKey } from '@/lib/taxonomy';
 
 // 목록·카드·이전다음이 쓰는 글 값 (본문 없음)
 // - 4단계 PR-B: 옛 React 카드가 쓰던 content·heroImage·heroVideo·isPublic 칸을 지웠다(리뷰 경미 9).
@@ -30,7 +29,7 @@ export interface ContentPost {
   pubDate: Date;
   updatedDate: Date;
   readingTime: number;
-  category: CategoryKey | null;
+  category: string | null;
   categoryLabel: string;
   series: SeriesRef | null;
 }

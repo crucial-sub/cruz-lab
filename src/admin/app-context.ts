@@ -4,6 +4,7 @@
 
 import { createContext, useContext } from 'react';
 import { ApiClientError, redirectToLogin } from '@/editor/state/api';
+import type { EntryKind } from '@/lib/entry-schema';
 import type { AdminListItem } from '@/lib/server/admin-entries';
 import type { AdminRoute } from './router';
 import type { ToastState } from './ui';
@@ -22,6 +23,8 @@ export interface AdminContextValue {
   // 목록을 받는다. 이미 받았으면 그대로 쓴다(force면 다시 받는다). 실패하면 null
   loadList(force?: boolean): Promise<AdminListItem[] | null>;
   patchItem(id: string, patch: Partial<AdminListItem>): void;
+  // 새로 만든 글의 빈 줄을 목록에 넣는다(다시 받지 않는다). 새 프로젝트(5단계 D2)가 연재 값을 함께 준다
+  addItem(id: string, kind: EntryKind, series?: AdminListItem['series']): void;
   removeItem(id: string): void;
   showToast(tone: ToastState['tone'], message: string): void;
   logout(): Promise<void>;

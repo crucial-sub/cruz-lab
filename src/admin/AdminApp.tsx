@@ -19,14 +19,18 @@ import {
 } from 'react';
 import type { EditorEntryUpdate, EditorHost } from '@/editor/ui/EditorApp';
 import { redirectToLogin, ApiClientError } from '@/editor/state/api';
+import type { EntryKind } from '@/lib/entry-schema';
 import type { AdminListItem } from '@/lib/server/admin-entries';
 import { clearAdminHint, writeAdminHint } from './admin-hint';
 import { appApi } from './api';
 import { AdminContext, errorMessage, type AdminContextValue, type ListLoad } from './app-context';
 import { loadEditor, preloadEditor } from './editor-loader';
+import { AssetsScreen } from './assets/AssetsScreen';
 import { HomeScreen } from './home/HomeScreen';
 import { AdminLayout } from './layout/AdminLayout';
 import { LogScreen } from './log/LogScreen';
+import { SeriesScreen } from './series/SeriesScreen';
+import { TaxonomyScreen } from './taxonomy/TaxonomyScreen';
 import {
   ADMIN_HOME_PATH,
   adminPathOf,
@@ -225,16 +229,20 @@ export default function AdminApp({ sessionExpiresAt }: { sessionExpiresAt: strin
   }, [navigate]);
 
   // 목록을 받는다. 이미 받았으면 그대로 쓴다(force면 다시 받는다)
+  // - force는 진행 중인 요청을 다시 쓰지 않는다. 그 요청은 바꾸기 전에 시작됐을 수 있다(PR-B 리뷰 B2).
+  //   늦게 끝난 옛 요청이 새 결과를 덮지 않게 가장 최근 요청만 상태에 쓴다.
+  const listSeqRef = useRef(0);
   const loadList = useCallback(
     async (force = false): Promise<AdminListItem[] | null> => {
       const known = listRef.current;
       if (!force && known.phase === 'ready') return known.items;
-      if (listRequestRef.current) return listRequestRef.current;
+      if (!force && listRequestRef.current) return listRequestRef.current;
       if (!force) setList({ phase: 'loading' });
+      const seq = ++listSeqRef.current;
       const request = appApi
         .listEntries()
         .then((response) => {
-          setList({ phase: 'ready', items: response.items });
+          if (seq === listSeqRef.current) setList({ phase: 'ready', items: response.items });
           return response.items;
         })
         .catch((error: unknown) => {
@@ -247,7 +255,7 @@ export default function AdminApp({ sessionExpiresAt }: { sessionExpiresAt: strin
           return null;
         })
         .finally(() => {
-          listRequestRef.current = null;
+          if (listRequestRef.current === request) listRequestRef.current = null;
         });
       listRequestRef.current = request;
       return request;
@@ -275,7 +283,8 @@ export default function AdminApp({ sessionExpiresAt }: { sessionExpiresAt: strin
   }, []);
 
   // 새 글을 만든 뒤 목록에 그 줄을 넣는다(다시 받지 않는다)
-  const addCreated = useCallback((id: string, kind: 'post' | 'note') => {
+  // - 새 프로젝트(5단계 D2)는 첫 Part 초안의 연재 값을 함께 넣는다
+  const addCreated = useCallback((id: string, kind: EntryKind, series: AdminListItem['series'] = null) => {
     const now = new Date().toISOString();
     setList((current) =>
       current.phase === 'ready'
@@ -289,8 +298,9 @@ export default function AdminApp({ sessionExpiresAt }: { sessionExpiresAt: strin
                 title: '',
                 slug: '',
                 category: null,
+                categoryLabel: null,
                 tags: [],
-                series: null,
+                series,
                 updatedAt: now,
                 publishedAt: null,
                 hasUnpublishedChanges: false,
@@ -328,10 +338,11 @@ export default function AdminApp({ sessionExpiresAt }: { sessionExpiresAt: strin
       loadList,
       patchItem,
       removeItem,
+      addItem: addCreated,
       showToast,
       logout,
     }),
-    [route, navigate, replaceSearch, list, loadList, patchItem, removeItem, showToast, logout],
+    [route, navigate, replaceSearch, list, loadList, patchItem, removeItem, addCreated, showToast, logout],
   );
 
   // 에디터 연결부. 한 번만 만든다(에디터가 다시 그려지지 않게)
@@ -398,9 +409,16 @@ export default function AdminApp({ sessionExpiresAt }: { sessionExpiresAt: strin
       </EditorLoadBoundary>
     );
   } else {
+    const screens: Record<Exclude<AdminRoute['name'], 'edit'>, React.ReactNode> = {
+      home: <HomeScreen onCreate={createAndEdit} />,
+      assets: <AssetsScreen />,
+      taxonomy: <TaxonomyScreen />,
+      series: <SeriesScreen />,
+      log: <LogScreen />,
+    };
     screen = (
       <AdminLayout current={route.name} onCreate={createAndEdit}>
-        {route.name === 'home' ? <HomeScreen onCreate={createAndEdit} /> : <LogScreen />}
+        {screens[route.name]}
       </AdminLayout>
     );
   }

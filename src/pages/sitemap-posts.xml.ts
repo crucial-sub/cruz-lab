@@ -10,6 +10,7 @@ import {
 } from '@/lib/content-posts';
 import { notePath, projectPostPath, seriesPath } from '@/lib/public-paths';
 import { POSTS_CACHE_TAG } from '@/lib/server/cache-headers';
+import { getTaxonomy } from '@/lib/server/taxonomy-store';
 import { blogPath } from '@/lib/slug-lookup';
 
 // XML 본문에 넣을 값의 특수문자 이스케이프
@@ -43,7 +44,7 @@ export async function GET(context: APIContext) {
 
   const entries = [
     ...posts.map((post) => ({ path: blogPath(post.slug), lastmod: post.updatedDate })),
-    ...buildCategoryTabs(posts).map((tab) => ({
+    ...buildCategoryTabs(posts, (await getTaxonomy()).categories.map((category) => category.key)).map((tab) => ({
       path: tab.href,
       lastmod: latest(posts.filter((post) => post.category === tab.key).map((post) => post.updatedDate)),
     })),

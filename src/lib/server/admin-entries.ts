@@ -23,6 +23,7 @@ import {
 import {
   ENTRY_KINDS,
   ENTRY_STATUSES,
+  entryContentSchema,
   entryDocSchema,
   isTimestampLike,
   toDateValue,
@@ -30,6 +31,7 @@ import {
   type EntryKind,
   type EntryStatus,
 } from '@/lib/entry-schema';
+import { alignContentTaxonomy, categoryLabelIn } from '@/lib/taxonomy';
 import { ApiError, zodIssues } from './api-response';
 import { collectUsedAssetIds, syncAssetUsage } from './asset-usage';
 import {
@@ -39,8 +41,9 @@ import {
   REVISIONS_SUBCOLLECTION,
 } from './entries';
 import { getServerDb } from './firebase-server';
+import { getTaxonomy } from './taxonomy-store';
 
-type PublishAction = 'publish' | 'hide' | 'unhide' | 'delete';
+type PublishAction = 'publish' | 'hide' | 'unhide' | 'delete' | 'restore';
 
 // ───────────── 공통 도구 ─────────────
 
@@ -170,6 +173,8 @@ export interface AdminListItem {
   title: string;
   slug: string;
   category: string | null;
+  // 카테고리 표시 이름(데이터 분류, 5단계 D1). 카테고리가 없으면 null, 목록에 없는 key면 key다
+  categoryLabel: string | null;
   tags: string[];
   series: { key: string; order: number } | null;
   updatedAt: string | null;
@@ -236,9 +241,11 @@ async function findBlankDraftBodies(): Promise<Set<string>> {
 // - q는 제목·slug 부분 일치다(메모리에서 거른다. 대소문자 무시).
 // - 5단계: isEmptyDraft(발행본 없음 + 제목·설명·본문이 빔)와 readers30(PR-D 전에는 null)을 더한다.
 export async function listEntriesForAdmin(query: AdminListQuery) {
-  const [snapshot, blankBodies] = await Promise.all([
+  const [snapshot, blankBodies, taxonomy] = await Promise.all([
     entriesRef().select(...ADMIN_LIST_FIELDS).get(),
     findBlankDraftBodies(),
+    // 메모 없이 읽는다: 다른 인스턴스에서 방금 바꾼 카테고리 이름이 목록에 바로 보이게(PR-B 리뷰 B2)
+    getTaxonomy({ fresh: true }),
   ]);
   const items: AdminListItem[] = [];
   for (const docSnap of snapshot.docs) {
@@ -255,6 +262,7 @@ export async function listEntriesForAdmin(query: AdminListQuery) {
       title: typeof draft.title === 'string' ? draft.title : '',
       slug: typeof draft.slug === 'string' ? draft.slug : '',
       category: typeof draft.category === 'string' ? draft.category : null,
+      categoryLabel: typeof draft.category === 'string' ? categoryLabelIn(taxonomy, draft.category) : null,
       tags: Array.isArray(draft.tags) ? draft.tags.filter((tag: unknown) => typeof tag === 'string') : [],
       series: draft.series && typeof draft.series.key === 'string' ? draft.series : null,
       updatedAt: updatedAt ? updatedAt.toISOString() : null,
@@ -292,11 +300,10 @@ export async function listEntriesForAdmin(query: AdminListQuery) {
 
 // ───────────── 새 초안 ─────────────
 
-// 빈 초안을 만든다 (Plan 6.3 POST). slug와 카테고리는 발행할 때 필요하다
-export async function createEntry(kind: (typeof CREATABLE_KINDS)[number]) {
-  const now = new Date();
-  const ref = entriesRef().doc();
-  const doc = {
+// 빈 초안 문서 (새 글, 새 프로젝트의 첫 Part)
+// - 5단계 D2: series를 주면 초안에 연재 값을 넣는다(새 프로젝트: { key, order: 1 })
+export function newEntryDoc(kind: (typeof CREATABLE_KINDS)[number], now: Date, series: { key: string; order: number } | null = null) {
+  return {
     kind,
     status: 'draft' as const,
     createdAt: now,
@@ -304,10 +311,21 @@ export async function createEntry(kind: (typeof CREATABLE_KINDS)[number]) {
     publishedAt: null,
     lastPublishedAt: null,
     slugHistory: [],
-    draft: { ...emptyEntryContent(), version: 1, updatedAt: now, device: null, editorJson: null },
+    draft: { ...emptyEntryContent(), series, version: 1, updatedAt: now, device: null, editorJson: null },
     published: null,
     legacy: null,
   };
+}
+
+// 쓰기 직전 새 글 문서를 검사한다(다른 서버 모듈이 트랜잭션 안에서 만들 때)
+export function assertValidNewEntry(id: string, doc: unknown): void {
+  assertValidEntry(id, doc);
+}
+
+// 빈 초안을 만든다 (Plan 6.3 POST). slug와 카테고리는 발행할 때 필요하다
+export async function createEntry(kind: (typeof CREATABLE_KINDS)[number]) {
+  const ref = entriesRef().doc();
+  const doc = newEntryDoc(kind, new Date());
   assertValidEntry(ref.id, doc);
   await ref.create(doc);
   return { id: ref.id, draft: { version: 1 } };
@@ -343,6 +361,8 @@ export interface SaveDraftInput {
   baseVersion: number;
   device: string | null;
   draft: NormalizedDraft;
+  // 목록에 없는 카테고리면 버전 검사 뒤에 400으로 거절한다(5단계 D1, PR-B 리뷰 S5)
+  rejectUnknownCategory?: boolean;
 }
 
 // 초안 저장 (Plan 6.3 PUT draft)
@@ -353,6 +373,11 @@ export async function saveDraft(id: string, input: SaveDraftInput) {
   const result = await getServerDb().runTransaction(async (tx) => {
     const { ref, entry } = await readEntryInTx(tx, id);
     if (entry.draft.version !== input.baseVersion) throw draftConflict(entry);
+    if (input.rejectUnknownCategory) {
+      throw new ApiError(400, 'INVALID_REQUEST', '초안 값이 올바르지 않습니다.', [
+        { field: 'category', message: '목록에 없는 카테고리입니다' },
+      ]);
+    }
 
     const { editorJson, ...content } = input.draft;
     const draft = {
@@ -424,6 +449,8 @@ async function findSlugConflicts(tx: Transaction, id: string, slug: string): Pro
 // 4. 트랜잭션 밖: assets.usedBy (CDN 퍼지는 경로 처리기가 한다).
 export async function publishEntry(id: string, draftVersion: number) {
   const now = new Date();
+  // 5단계 D1: 카테고리가 목록(데이터)에 있는지도 본다
+  const taxonomy = await getTaxonomy({ strict: true });
   const result = await getServerDb().runTransaction(async (tx) => {
     const { ref, entry } = await readEntryInTx(tx, id);
     if (entry.draft.version !== draftVersion) throw draftConflict(entry);
@@ -435,6 +462,7 @@ export async function publishEntry(id: string, draftVersion: number) {
       currentPublishedSlug: previousSlug,
       ownSlugHistory: entry.slugHistory,
       now,
+      taxonomy,
     });
     const issues = check.ok ? await findSlugConflicts(tx, id, check.content.slug) : check.issues;
     if (!check.ok || issues.length > 0) {
@@ -481,6 +509,98 @@ export async function publishEntry(id: string, draftVersion: number) {
     assetUsage,
     logId: result.logId,
   };
+}
+
+// ───────────── 리비전 (5단계 D3) ─────────────
+
+// 리비전 문서 = 그때의 발행본 + publishedAt (publishEntry가 쓴다)
+function revisionsRef(id: string) {
+  return entriesRef().doc(id).collection(REVISIONS_SUBCOLLECTION);
+}
+
+// 글이 있는지 본다(이름표 칸만). 없으면 404
+async function assertEntryExists(id: string): Promise<{ currentRevision: number | null }> {
+  const ref = entriesRef().doc(id);
+  const [snapshot] = await ref.firestore.getAll(ref, { fieldMask: ['published.revision'] });
+  if (!snapshot?.exists) throw new ApiError(404, 'NOT_FOUND', '글이 없습니다.');
+  const revision = snapshot.get('published.revision');
+  return { currentRevision: typeof revision === 'number' ? revision : null };
+}
+
+// 이전 발행본 목록 (GET /api/admin/posts/{id}/revisions). 최신 판이 먼저다. 본문은 보내지 않는다
+export async function listRevisions(id: string) {
+  const [{ currentRevision }, snapshot] = await Promise.all([
+    assertEntryExists(id),
+    revisionsRef(id).select('revision', 'title', 'slug', 'publishedAt', 'fromDraftVersion', 'wordCount').get(),
+  ]);
+  const items = snapshot.docs
+    .map((docSnap) => {
+      const revision = docSnap.get('revision');
+      return {
+        revision: typeof revision === 'number' ? revision : Number(docSnap.id),
+        title: String(docSnap.get('title') ?? ''),
+        slug: String(docSnap.get('slug') ?? ''),
+        publishedAt: toIso(docSnap.get('publishedAt')),
+        wordCount: typeof docSnap.get('wordCount') === 'number' ? (docSnap.get('wordCount') as number) : null,
+      };
+    })
+    .filter((item) => Number.isInteger(item.revision) && item.revision > 0)
+    .sort((a, b) => b.revision - a.revision)
+    .map((item) => ({ ...item, current: item.revision === currentRevision }));
+  return { items, currentRevision };
+}
+
+// 리비전 문서를 읽어 내용 칸으로. 없거나 깨졌으면 404·500
+function revisionContent(id: string, revision: number, data: DocumentData | undefined) {
+  if (!data) throw new ApiError(404, 'NOT_FOUND', '그 판이 없습니다.');
+  const parsed = entryContentSchema.safeParse(pickEntryContent(data as never));
+  if (!parsed.success) {
+    throw new ApiError(500, 'CORRUPT_REVISION', `저장된 판이 스키마와 맞지 않습니다: ${id}/${revision}`, zodIssues(parsed.error));
+  }
+  return parsed.data;
+}
+
+// 이전 발행본 하나 (GET /api/admin/posts/{id}/revisions/{rev}). 본문 포함
+export async function getRevision(id: string, revision: number) {
+  const [{ currentRevision }, snapshot] = await Promise.all([
+    assertEntryExists(id),
+    revisionsRef(id).doc(String(revision)).get(),
+  ]);
+  const content = revisionContent(id, revision, snapshot.exists ? snapshot.data() : undefined);
+  return { revision, current: revision === currentRevision, publishedAt: toIso(snapshot.get('publishedAt')), content };
+}
+
+// 이전 발행본을 초안으로 가져온다 (POST /api/admin/posts/{id}/revisions/{rev}/restore)
+// - 초안 버전 + 1. baseVersion이 지금 초안 버전과 다르면 409(충돌 검사 그대로, D3).
+// - 발행본·리비전은 바꾸지 않는다. 되돌리려면 "초안 버리기"(발행본 내용으로)를 쓴다.
+// - publishLog에 restore 줄(가져온 판 번호)을 남긴다.
+export async function restoreRevision(id: string, revision: number, baseVersion: number) {
+  const now = new Date();
+  const taxonomy = await getTaxonomy({ strict: true });
+  const result = await getServerDb().runTransaction(async (tx) => {
+    const { ref, entry } = await readEntryInTx(tx, id);
+    const revisionSnap = await tx.get(ref.collection(REVISIONS_SUBCOLLECTION).doc(String(revision)));
+    if (entry.draft.version !== baseVersion) throw draftConflict(entry);
+    const content = alignContentTaxonomy(
+      revisionContent(id, revision, revisionSnap.exists ? revisionSnap.data() : undefined),
+      taxonomy,
+    );
+    const draft = { ...content, version: entry.draft.version + 1, updatedAt: now, device: null, editorJson: null };
+    assertValidEntry(id, { ...entry, draft, updatedAt: now });
+    tx.update(ref, { draft, updatedAt: now });
+    addPublishLog(tx, {
+      entryId: id,
+      action: 'restore',
+      slug: entry.published?.slug ?? content.slug,
+      title: content.title,
+      at: now,
+      revision,
+    });
+    return { version: draft.version, draft, published: entry.published };
+  });
+
+  const { assetUsage } = await syncAssetUsageSafely(id, collectUsedAssetIds([result.draft, result.published]));
+  return { version: result.version, revision, updatedAt: now.toISOString(), assetUsage };
 }
 
 // ───────────── 숨김 / 다시 보임 ─────────────

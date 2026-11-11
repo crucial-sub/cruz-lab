@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ALERT_WINDOW_MS,
   computePublishAlerts,
+  isGroupLogEntry,
   readSideEffects,
   type PublishLogItem,
 } from '@/lib/publish-log';
@@ -25,6 +26,11 @@ function row(patch: Partial<PublishLogItem>): PublishLogItem {
     backup: null,
     assetUsage: null,
     retried: [],
+    op: null,
+    from: null,
+    to: null,
+    affected: [],
+    purged: [],
     ...patch,
   };
 }
@@ -151,5 +157,21 @@ describe('readSideEffects', () => {
       retried: ['purge'],
     });
     expect(readSideEffects({})).toEqual({ purge: null, backup: null, assetUsage: null, retried: [] });
+  });
+});
+
+describe('묶음 줄(분류·연재) 알림 (5단계 PR-B 리뷰 S3)', () => {
+  it('뒤의 다른 분류 동작이 성공해도 앞 동작의 퍼지 실패는 남는다. 다시 시도 줄만 지운다', () => {
+    const failed = row({ entryId: 'taxonomy', action: 'category', op: 'rename', purge: 'failed', at: minutesAgo(30), purged: ['a'] });
+    const later = row({ entryId: 'taxonomy', action: 'retag', purge: 'ok', at: minutesAgo(20) });
+    expect(computePublishAlerts([failed, later], NOW).purge.map((alert) => alert.entryId)).toEqual(['taxonomy']);
+    const retried = row({ entryId: 'taxonomy', action: 'retry', retried: ['purge'], purge: 'ok', at: minutesAgo(10) });
+    expect(computePublishAlerts([failed, later, retried], NOW).purge).toEqual([]);
+  });
+
+  it('isGroupLogEntry: taxonomy·series만 묶음이다', () => {
+    expect(isGroupLogEntry('taxonomy')).toBe(true);
+    expect(isGroupLogEntry('series')).toBe(true);
+    expect(isGroupLogEntry('abc')).toBe(false);
   });
 });

@@ -8,9 +8,10 @@ import type { DocumentData, QueryDocumentSnapshot } from 'firebase-admin/firesto
 import type { RenderAsset, RenderAssetVariant } from '@/lib/content/rehype-assets';
 import { projectMetaSchema, type Cover, type EntryKind, type ProjectMeta, type SeriesRef } from '@/lib/entry-schema';
 import { chooseSlugLookup } from '@/lib/slug-lookup';
-import { getCategoryLabel, type CategoryKey } from '@/lib/taxonomy';
+import { categoryLabelIn, type TaxonomyData } from '@/lib/taxonomy';
 import { getServerDb } from './firebase-server';
 import { invalidateMemo, memoize } from './memo-cache';
+import { getTaxonomy } from './taxonomy-store';
 
 export const ENTRIES_COLLECTION = 'entries';
 export const REVISIONS_SUBCOLLECTION = 'revisions';
@@ -32,7 +33,7 @@ export interface PublicEntrySummary {
   title: string;
   description: string;
   slug: string;
-  category: CategoryKey | null;
+  category: string | null;
   categoryLabel: string;
   tags: string[];
   series: SeriesRef | null;
@@ -81,14 +82,15 @@ function toDate(value: unknown, fallback: Date): Date {
 }
 
 // 문서 → 공개 요약. 발행본이 없거나 깨졌으면 null
-function toSummary(docSnap: QueryDocumentSnapshot<DocumentData>): PublicEntrySummary | null {
+// - 카테고리 표시 이름은 데이터 분류(settings/taxonomy, 5단계 D1)에서 찾는다. 목록에 없으면 key다
+function toSummary(docSnap: QueryDocumentSnapshot<DocumentData>, taxonomy: TaxonomyData): PublicEntrySummary | null {
   const data = docSnap.data();
   const published = data.published;
   if (data.status !== 'published' || !published || typeof published.slug !== 'string' || !published.slug) {
     return null;
   }
   const publishedAt = toDate(data.publishedAt, new Date(0));
-  const category = typeof published.category === 'string' ? (published.category as CategoryKey) : null;
+  const category = typeof published.category === 'string' ? published.category : null;
   return {
     id: docSnap.id,
     kind: (data.kind as EntryKind) ?? 'post',
@@ -96,7 +98,7 @@ function toSummary(docSnap: QueryDocumentSnapshot<DocumentData>): PublicEntrySum
     description: typeof published.description === 'string' ? published.description : '',
     slug: published.slug,
     category,
-    categoryLabel: category ? getCategoryLabel(category) : '',
+    categoryLabel: category ? categoryLabelIn(taxonomy, category) : '',
     tags: Array.isArray(published.tags) ? published.tags.filter((tag: unknown) => typeof tag === 'string') : [],
     series: published.series && typeof published.series.key === 'string' ? (published.series as SeriesRef) : null,
     cover: published.cover?.kind === 'image' ? (published.cover as Cover) : { kind: 'generated' },
@@ -107,8 +109,8 @@ function toSummary(docSnap: QueryDocumentSnapshot<DocumentData>): PublicEntrySum
 }
 
 // 문서 → 본문이 있는 공개 글. 발행본이 없거나 깨졌으면 null
-function toPublicEntry(docSnap: QueryDocumentSnapshot<DocumentData>): PublicEntry | null {
-  const summary = toSummary(docSnap);
+function toPublicEntry(docSnap: QueryDocumentSnapshot<DocumentData>, taxonomy: TaxonomyData): PublicEntry | null {
+  const summary = toSummary(docSnap, taxonomy);
   if (!summary) return null;
   const published = docSnap.data().published;
   const markdown = published?.markdown;
@@ -124,13 +126,12 @@ function toPublicEntry(docSnap: QueryDocumentSnapshot<DocumentData>): PublicEntr
 // - 홈, 블로그, 태그, 연재, RSS, 사이트맵이 한 요청에서 여러 번 부르므로 메모리 캐시로 한 번만 조회한다.
 export async function listPublishedEntries(): Promise<PublicEntrySummary[]> {
   return memoize(`${ENTRIES_MEMO_PREFIX}list`, async () => {
-    const snapshot = await getServerDb()
-      .collection(ENTRIES_COLLECTION)
-      .where('status', '==', 'published')
-      .select(...LIST_FIELDS)
-      .get();
+    const [snapshot, taxonomy] = await Promise.all([
+      getServerDb().collection(ENTRIES_COLLECTION).where('status', '==', 'published').select(...LIST_FIELDS).get(),
+      getTaxonomy(),
+    ]);
     return snapshot.docs
-      .map(toSummary)
+      .map((docSnap) => toSummary(docSnap, taxonomy))
       .filter((entry): entry is PublicEntrySummary => entry !== null)
       .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
   });
@@ -141,13 +142,12 @@ export async function listPublishedEntries(): Promise<PublicEntrySummary[]> {
 // - 등호 조건 둘(status, kind)만 쓴다. 정렬은 메모리에서 한다(복합 색인이 필요 없다).
 export async function listPublishedNoteEntries(): Promise<PublicEntry[]> {
   return memoize(`${ENTRIES_MEMO_PREFIX}notes`, async () => {
-    const snapshot = await getServerDb()
-      .collection(ENTRIES_COLLECTION)
-      .where('status', '==', 'published')
-      .where('kind', '==', 'note')
-      .get();
+    const [snapshot, taxonomy] = await Promise.all([
+      getServerDb().collection(ENTRIES_COLLECTION).where('status', '==', 'published').where('kind', '==', 'note').get(),
+      getTaxonomy(),
+    ]);
     return snapshot.docs
-      .map(toPublicEntry)
+      .map((docSnap) => toPublicEntry(docSnap, taxonomy))
       .filter((entry): entry is PublicEntry => entry !== null)
       .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
   });
@@ -166,9 +166,12 @@ export type PublicSlugLookup =
 export async function findPublishedEntryBySlug(slug: string): Promise<PublicSlugLookup> {
   return memoize(`${ENTRIES_MEMO_PREFIX}slug:${slug}`, async () => {
     const db = getServerDb();
-    const direct = await db.collection(ENTRIES_COLLECTION).where('published.slug', '==', slug).get();
+    const [direct, taxonomy] = await Promise.all([
+      db.collection(ENTRIES_COLLECTION).where('published.slug', '==', slug).get(),
+      getTaxonomy(),
+    ]);
     const directItems = direct.docs.flatMap((docSnap) => {
-      const entry = toPublicEntry(docSnap);
+      const entry = toPublicEntry(docSnap, taxonomy);
       return entry ? [entry] : [];
     });
 
@@ -181,7 +184,7 @@ export async function findPublishedEntryBySlug(slug: string): Promise<PublicSlug
         .select(...LIST_FIELDS)
         .get();
       historyItems = history.docs
-        .map(toSummary)
+        .map((docSnap) => toSummary(docSnap, taxonomy))
         .filter((entry): entry is PublicEntrySummary => entry !== null)
         .map((entry) => ({ ...entry, markdown: '', revision: 0 }));
     }
@@ -203,9 +206,21 @@ export async function findPublishedEntryBySlug(slug: string): Promise<PublicSlug
 // - 메모리 캐시를 쓰지 않는다(PR-C 리뷰 경미 12). OG는 CDN이 하루 저장하므로, 재발행 퍼지 직후 다른 인스턴스의
 //   낡은 메모로 그린 그림이 다시 하루 저장되면 안 된다. 요청은 CDN에서 대부분 끝나 조회가 드물다.
 export async function getPublishedEntryById(id: string): Promise<PublicEntry | null> {
-  const snapshot = await getServerDb().collection(ENTRIES_COLLECTION).doc(id).get();
+  // 분류도 메모 없이 읽는다(5단계 PR-B 리뷰 S4: 카테고리 이름·key를 바꾼 직후 낡은 이름으로 그린 OG가 하루 남지 않게)
+  const [snapshot, taxonomy] = await Promise.all([
+    getServerDb().collection(ENTRIES_COLLECTION).doc(id).get(),
+    getTaxonomy({ fresh: true }),
+  ]);
   if (!snapshot.exists) return null;
-  return toPublicEntry(snapshot as QueryDocumentSnapshot<DocumentData>);
+  return toPublicEntry(snapshot as QueryDocumentSnapshot<DocumentData>, taxonomy);
+}
+
+// 연재 제목 하나를 메모 없이 읽는다 (OG 이미지, 5단계 PR-B 리뷰 S4: 연재 제목을 화면에서 고칠 수 있다)
+// - 문서가 없거나 제목이 비면 key를 돌려준다
+export async function getSeriesTitleFresh(key: string): Promise<string> {
+  const snapshot = await getServerDb().collection(SERIES_META_COLLECTION).doc(key).get();
+  const title = snapshot.exists ? snapshot.get('title') : null;
+  return typeof title === 'string' && title ? title : key;
 }
 
 // 연재 제목·설명과 프로젝트 정보 (seriesMeta/{key})

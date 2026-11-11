@@ -26,7 +26,13 @@ import {
 import { assetDocSchema, isTimestampLike, toDateValue, type AssetDoc, type AssetVariant } from '@/lib/entry-schema';
 import { ApiError, zodIssues } from './api-response';
 import { collectUsedAssetIds } from './asset-usage';
-import { ASSETS_COLLECTION, ENTRIES_COLLECTION, LEGACY_POSTS_COLLECTION, LEGACY_SERIES_COLLECTION } from './entries';
+import {
+  ASSETS_COLLECTION,
+  ENTRIES_COLLECTION,
+  LEGACY_POSTS_COLLECTION,
+  LEGACY_SERIES_COLLECTION,
+  REVISIONS_SUBCOLLECTION,
+} from './entries';
 import { getServerBucket, getServerDb, getStorageBucketName } from './firebase-server';
 
 // main 병합 전에는 legacy 자산을 정리 대상에서 뺀다(D6, Claude 판단).
@@ -308,13 +314,15 @@ interface PurgeCandidate {
 
 // 지금 어느 글이든 쓰는 자산 ID를 모두 모은다 (지우기 직전 재검사, D6)
 // - entries의 초안·발행본 본문과 표지
+// - entries/*/revisions의 이전 발행본 본문과 표지(5단계 D3: 이전 판을 미리 보고 가져올 수 있다. PR-B 리뷰 S1)
 // - 옛 posts의 본문과 heroImage(heroVideo 포함)
 // - 옛 series의 coverImage
 async function collectAllReferencedAssetIds(): Promise<Set<string>> {
   const db = getServerDb();
   const bucket = getStorageBucketName();
-  const [entries, legacyPosts, legacySeries] = await Promise.all([
+  const [entries, revisions, legacyPosts, legacySeries] = await Promise.all([
     db.collection(ENTRIES_COLLECTION).select('draft', 'published').get(),
+    db.collectionGroup(REVISIONS_SUBCOLLECTION).select('markdown', 'cover').get(),
     db.collection(LEGACY_POSTS_COLLECTION).select('content', 'heroImage', 'heroVideo').get(),
     db.collection(LEGACY_SERIES_COLLECTION).select('coverImage').get(),
   ]);
@@ -322,6 +330,11 @@ async function collectAllReferencedAssetIds(): Promise<Set<string>> {
   const ids = new Set<string>();
   for (const docSnap of entries.docs) {
     for (const id of collectUsedAssetIds([docSnap.get('draft'), docSnap.get('published')])) ids.add(id);
+  }
+  for (const docSnap of revisions.docs) {
+    // entries 아래의 revisions만 본다
+    if (docSnap.ref.parent.parent?.parent?.id !== ENTRIES_COLLECTION) continue;
+    for (const id of collectUsedAssetIds([docSnap.data() as never])) ids.add(id);
   }
 
   // 옛 문서의 주소 하나 → 자산 ID
@@ -415,4 +428,108 @@ export async function purgeAssets(input: PurgeInput) {
     deleted,
     kept,
   };
+}
+
+// ───────────── 이미지 라이브러리 목록 (재건 5단계 D12) ─────────────
+
+// 목록 한 칸의 변형 하나
+export interface AdminAssetVariantItem {
+  name: 'w480' | 'w960' | 'w1600' | 'max';
+  width: number;
+  height: number;
+  bytes: number;
+  url: string;
+}
+
+// 이미지 라이브러리의 자산 한 개 (시각은 ISO 문자열)
+export interface AdminAssetItem {
+  id: string;
+  url: string; // pending이면 ''
+  thumbUrl: string; // 격자 칸 그림 주소
+  contentType: string;
+  kind: 'image' | 'video';
+  bytes: number;
+  width: number | null;
+  height: number | null;
+  legacy: boolean;
+  status: 'pending' | 'ready';
+  usedBy: string[];
+  orphanedAt: string | null;
+  uploadedAt: string | null;
+  variants: AdminAssetVariantItem[];
+}
+
+// 변형 이름의 순서 (작은 것부터)
+const VARIANT_NAMES = ['w480', 'w960', 'w1600', 'max'] as const;
+
+// 있는 변형만 작은 것부터 늘어놓는다
+function variantItemsOf(asset: AssetDoc): AdminAssetVariantItem[] {
+  const variants = asset.variants;
+  if (!variants) return [];
+  const items: AdminAssetVariantItem[] = [];
+  for (const name of VARIANT_NAMES) {
+    const variant = variants[name];
+    if (!variant) continue;
+    items.push({ name, width: variant.width, height: variant.height, bytes: variant.bytes, url: variant.url });
+  }
+  return items;
+}
+
+// 격자 칸 그림 주소
+// - 새 자산: w480 변형. 없으면 가장 작은 변형. 변형이 없으면 원본.
+// - legacy(변형 없음): 원본. legacy용 작은 변형은 만들지 않는다(데이터 쓰기다, D12).
+function thumbUrlOf(asset: AssetDoc, variants: AdminAssetVariantItem[]): string {
+  if (asset.variants?.w480) return asset.variants.w480.url;
+  const smallest = [...variants].sort((a, b) => a.width - b.width)[0];
+  return smallest?.url ?? asset.url;
+}
+
+// 자산 문서 → 목록 한 칸
+function toAdminAssetItem(id: string, asset: AssetDoc): AdminAssetItem {
+  const variants = variantItemsOf(asset);
+  // 옛 영상 형식(video/quicktime 등)도 영상으로 본다. 격자가 영상 파일을 <img>로 받지 않게 한다
+  const video = isVideoContentType(asset.contentType) || asset.contentType.startsWith('video/');
+  return {
+    id,
+    url: asset.url,
+    thumbUrl: thumbUrlOf(asset, variants),
+    contentType: asset.contentType,
+    kind: video ? 'video' : 'image',
+    bytes: asset.bytes,
+    width: asset.width ?? asset.variants?.max.width ?? null,
+    height: asset.height ?? asset.variants?.max.height ?? null,
+    legacy: asset.legacy,
+    status: asset.status,
+    usedBy: asset.usedBy,
+    orphanedAt: toIso(asset.orphanedAt),
+    uploadedAt: toIso(asset.uploadedAt),
+    variants,
+  };
+}
+
+// 자산 전부 (GET /api/admin/assets). 읽기만 한다
+// - assets 문서를 한 번에 읽는다. 자산 문서에는 본문 칸이 없다.
+// - 올린 때 최신순. 같으면 ID 순. 올린 때가 없으면 맨 뒤.
+// - 스키마와 맞지 않는 문서는 목록에서 빼고 ID를 로그에 남긴다. 한 문서 때문에 목록 전체가 깨지지 않게 한다.
+// - 글 제목은 주지 않는다. 앱이 글 목록 API 결과로 usedBy를 제목으로 바꾼다.
+export async function listAssetsForAdmin(): Promise<{ items: AdminAssetItem[] }> {
+  const snapshot = await assetsRef().get();
+  const items: AdminAssetItem[] = [];
+  for (const docSnap of snapshot.docs) {
+    const result = assetDocSchema.safeParse(docSnap.data());
+    if (!result.success) {
+      console.error(`[admin-assets] 스키마와 맞지 않는 자산 문서를 목록에서 뺐습니다: ${docSnap.id}`);
+      continue;
+    }
+    items.push(toAdminAssetItem(docSnap.id, result.data));
+  }
+  items.sort((a, b) => {
+    if (a.uploadedAt !== b.uploadedAt) {
+      if (a.uploadedAt === null) return 1;
+      if (b.uploadedAt === null) return -1;
+      return a.uploadedAt < b.uploadedAt ? 1 : -1;
+    }
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
+  return { items };
 }

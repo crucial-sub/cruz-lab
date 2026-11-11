@@ -1,11 +1,24 @@
 // 공개 페이지 주소와 사이트 이름 (재건 4단계 D11)
 // - 페이지·사이트맵·리다이렉트가 같은 함수로 주소를 만든다. 주소 규칙은 이 파일에만 둔다.
 // - 돌려주는 주소는 인코딩된 경로다(한글 태그·slug는 %XX). href와 Location에 그대로 쓴다.
-// - 글 주소는 slug-lookup.ts의 blogPath, kind별 주소 규칙(발행 API·에디터)은 entry-rules.ts의 publicPathFor다.
+// - 글 주소는 slug-lookup.ts의 blogPath, kind별 주소 규칙(발행 API·에디터)은 이 파일의 publicPathFor다(entry-rules가 다시 내보낸다).
+// - 이 파일은 다른 모듈을 가져오지 않는다. 관리자 앱 화면이 가져와도 zod 등이 딸려 오지 않게 한다(5단계 PR-B).
 // - 상대 경로 import에 `.ts`를 붙인다(redirects.ts가 가져온다. 다른 공유 모듈과 같은 규칙).
 
-import { publicPathFor } from './entry-rules.ts';
-import type { CategoryKey } from './taxonomy.ts';
+// 공개 주소를 만든다 (인코딩하지 않은 경로). kind는 문자열로 받는다(entry-schema를 가져오지 않는다)
+// - post: /blog/<slug> (2단계 D4)
+// - note: /notes/<slug> (4단계 D12)
+// - project: /projects/<프로젝트 key>/<slug> (4단계 D1). 프로젝트 key는 연재 key다. 연재가 없으면 주소가 없다(null)
+export function publicPathFor(
+  kind: 'post' | 'note' | 'project',
+  slug: string,
+  series: { key: string } | null = null,
+): string | null {
+  if (kind === 'post') return `/blog/${slug}`;
+  if (kind === 'note') return `/notes/${slug}`;
+  if (kind === 'project') return series?.key ? `/projects/${series.key}/${slug}` : null;
+  return null;
+}
 
 // 사이트 이름과 기본 설명 (3단계까지는 src/consts.ts)
 export const SITE_TITLE = 'Cruz Lab';
@@ -15,7 +28,7 @@ export const SITE_DESCRIPTION = 'Cruz의 개발 블로그 - 프론트엔드, 시
 export const BLOG_INDEX_PATH = '/blog';
 
 // 카테고리 목록 주소 (D11). 카테고리와 같은 뜻의 태그 주소는 미들웨어가 이 주소로 301한다
-export function categoryPath(key: CategoryKey): string {
+export function categoryPath(key: string): string {
   return `/blog/category/${encodeURIComponent(key)}`;
 }
 

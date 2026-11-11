@@ -5,12 +5,11 @@
 // - 태그 페이지에서는 어느 탭도 현재가 아니다(current = null).
 import type { CategoryTab } from '@/lib/blog-list';
 import { BLOG_INDEX_PATH } from '@/lib/public-paths';
-import type { CategoryKey } from '@/lib/taxonomy';
 
 interface Props {
   tabs: CategoryTab[];
   total: number;
-  current: CategoryKey | 'all' | null;
+  current: string | 'all' | null;
 }
 
 const { tabs, total, current } = Astro.props;

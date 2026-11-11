@@ -1,20 +1,45 @@
 ---
 // 태그 목록 /blog/tag/<tag> (재건 4단계 D11·D17)
 // - 정규화되지 않은 태그 주소(/blog/tag/CSAPP 등)는 미들웨어가 301로 보낸다(2단계 Plan 7.4).
-// - 카테고리와 같은 뜻의 태그(javascript, 운영체제 …)는 미들웨어가 /blog/category/<key>로 301한다(4단계 D11).
+// - 카테고리와 같은 뜻의 태그(javascript, 운영체제 …)는 이 페이지가 데이터 동의어(settings/taxonomy)를 보고
+//   /blog/category/<key>로 301한다(4단계 D11, 5단계 PR-B 리뷰 S2: 미들웨어는 정규화만 한다).
 // - 발행 글에 없는 태그는 404다(3단계까지는 빈 목록 200). 안내 화면을 직접 그리고 CDN에 저장하지 않는다.
+// - 5단계 D1: 이름을 바꾸거나 합친 옛 태그(tagAliases)는 글이 없을 때 새 태그 주소로 301한다.
 import BlogList from '@/components/blog/BlogList.astro';
 import NotFound from '@/components/NotFound.astro';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { getPublishedContentPosts, getPublishedSeriesList } from '@/lib/content-posts';
 import { setPublicPageCache } from '@/lib/server/cache-headers';
+import { categoryPath, tagPath } from '@/lib/public-paths';
 import { markNotFound } from '@/lib/server/not-found';
+import { getTaxonomy } from '@/lib/server/taxonomy-store';
 
 export const prerender = false;
 
 const tag = Astro.params.tag ?? '';
-const [allPosts, seriesList] = await Promise.all([getPublishedContentPosts(), getPublishedSeriesList()]);
+const [allPosts, seriesList, taxonomy] = await Promise.all([
+  getPublishedContentPosts(),
+  getPublishedSeriesList(),
+  getTaxonomy(),
+]);
+
+// 카테고리 동의어 태그면 그 카테고리 목록으로 301
+const synonymOf = taxonomy.categories.find((category) => category.synonymTags.includes(tag));
+if (synonymOf) {
+  const response = Astro.redirect(categoryPath(synonymOf.key), 301);
+  setPublicPageCache(response.headers);
+  return response;
+}
+
 const posts = allPosts.filter((post) => post.tags.includes(tag));
+
+// 옛 태그면 새 태그 주소로 301
+const aliasTarget = posts.length === 0 ? taxonomy.tagAliases[tag] : undefined;
+if (aliasTarget) {
+  const response = Astro.redirect(tagPath(aliasTarget), 301);
+  setPublicPageCache(response.headers);
+  return response;
+}
 
 const found = posts.length > 0;
 if (found) {

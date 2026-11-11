@@ -89,6 +89,8 @@ import { createUiExtensions } from './editor-extensions';
 import { MetaPanel } from './MetaPanel';
 import { MobileBar } from './MobileBar';
 import { PreviewMode } from './PreviewMode';
+import { RevisionsDialog, revisionsApi } from './RevisionsDialog';
+import { CategoryConflict, createCategory, loadClassOptions, type ClassOptions } from './class-options';
 import { SourceMode } from './SourceMode';
 import { Toolbar } from './Toolbar';
 import { TopBar, type ViewMode } from './TopBar';
@@ -124,6 +126,8 @@ export interface EditorEntryUpdate {
   title: string;
   slug: string;
   category: string | null;
+  // 카테고리 표시 이름(5단계 D1). 분류 목록을 받지 못했으면 null(목록이 아는 이름을 쓴다)
+  categoryLabel: string | null;
   tags: string[];
   series: { key: string; order: number } | null;
   status: EntryStatus;
@@ -165,6 +169,7 @@ type DialogState =
   | { kind: 'device' }
   | { kind: 'link'; href: string }
   | { kind: 'math'; target: MathTarget }
+  | { kind: 'revisions' }
   | null;
 
 // "지금 저장"이 끝나지 않았을 때의 안내
@@ -278,6 +283,10 @@ export default function EditorApp({ entryId, host }: { entryId: string; host?: E
   const [panelOpen, setPanelOpen] = useState(() => window.innerWidth >= 1024);
   const [device, setDevice] = useState(() => readDeviceName(localStorage, navigator.userAgent));
   const [busy, setBusy] = useState<string | null>(null);
+  // 메타 패널의 카테고리 목록·태그 제안·연재 key 제안(5단계 D1·D2). 받지 못했으면 null(코드 기본값으로 연다)
+  const [classOptions, setClassOptions] = useState<ClassOptions | null>(null);
+  const classOptionsRef = useRef<ClassOptions | null>(null);
+  classOptionsRef.current = classOptions;
   const [coverUploading, setCoverUploading] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [save, dispatch] = useReducer(autosaveReducer, 1, initialAutosaveState);
@@ -332,6 +341,7 @@ export default function EditorApp({ entryId, host }: { entryId: string; host?: E
           publish: () => actionsRef.current?.publish(),
           togglePanel: () => actionsRef.current?.togglePanel(),
           openPalette: () => actionsRef.current?.openPalette(),
+          openRevisions: () => actionsRef.current?.openRevisions(),
         }),
         KEYMAP_OVERRIDES,
       ),
@@ -599,6 +609,19 @@ export default function EditorApp({ entryId, host }: { entryId: string; host?: E
     };
   }, [editor, entryId, applyEntry, controller, syncViewTexts, goTo]);
 
+  // 분류 선택지(5단계 D1·D2): 글과 따로 받는다. 받지 못하면 메타 패널은 코드 기본 카테고리로 연다
+  useEffect(() => {
+    let cancelled = false;
+    loadClassOptions()
+      .then((options) => {
+        if (!cancelled) setClassOptions(options);
+      })
+      .catch((error: unknown) => console.error('[editor] 분류 선택지를 받지 못했습니다', error));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // 앱 안에서 떠나기 전: 저장을 비우고, 실패하면 떠날지 묻는다. 떠나면 목록 한 줄을 고칠 값을 알린다(5단계 D9)
   useEffect(() => {
     if (!host) return;
@@ -624,6 +647,9 @@ export default function EditorApp({ entryId, host }: { entryId: string; host?: E
           title: current.title,
           slug: current.slug,
           category: current.category,
+          categoryLabel: current.category
+            ? (classOptionsRef.current?.categories.find((category) => category.key === current.category)?.label ?? null)
+            : null,
           tags: [...current.tags],
           series: current.series ? { ...current.series } : null,
           status: info.status,
@@ -928,11 +954,43 @@ export default function EditorApp({ entryId, host }: { entryId: string; host?: E
         controller.enterConflict(conflictOf(error));
       } else {
         showToast('error', messageOf(error));
+        // 저장 타이머를 멈췄다. 저장하지 않은 변경이 있으면 다시 예약한다(PR-B 리뷰 B4)
+        if (controller.hasPending()) controller.markChanged();
       }
     } finally {
       setBusy(null);
     }
   }, [applyEntry, controller, editor, entry?.published, entryId, showToast]);
+
+  // 이전 발행본을 초안으로 가져온다(5단계 D3). 초안 버리기와 같이 저장을 멈추고 비운 뒤 서버가 바꾼 초안을 다시 연다
+  const restoreRevision = useCallback(
+    async (revision: number) => {
+      if (!editor) return;
+      if (!window.confirm(`${revision}판을 초안으로 가져옵니다. 지금 초안과 저장하지 않은 변경은 사라집니다.`)) return;
+      setBusy('restore');
+      try {
+        controller.dispose();
+        await controller.idle();
+        await revisionsApi.restore(entryId, revision, controller.version);
+        const data = await adminApi.getEntry(entryId);
+        await applyEntry(editor, data, { clearOffline: true });
+        setDialog(null);
+        showToast('success', `${revision}판을 초안으로 가져왔습니다. 발행하면 공개 글이 바뀝니다.`);
+      } catch (error) {
+        if (error instanceof ApiClientError && error.status === 409 && error.code === 'DRAFT_CONFLICT') {
+          setDialog(null);
+          controller.enterConflict(conflictOf(error));
+        } else {
+          showToast('error', messageOf(error));
+          // 저장 타이머를 멈췄다. 저장하지 않은 변경이 있으면 다시 예약한다(PR-B 리뷰 B4)
+          if (controller.hasPending()) controller.markChanged();
+        }
+      } finally {
+        setBusy(null);
+      }
+    },
+    [applyEntry, controller, editor, entryId, showToast],
+  );
 
   const deleteEntry = useCallback(async () => {
     setBusy('delete');
@@ -1130,6 +1188,10 @@ export default function EditorApp({ entryId, host }: { entryId: string; host?: E
     publish: () => void publish(),
     togglePanel: () => setPanelOpen((open) => !open),
     openPalette: () => setPaletteOpen((open) => !open),
+    openRevisions: () => {
+      if (entryInfoRef.current?.published) setDialog({ kind: 'revisions' });
+      else showToast('info', '발행한 판이 없습니다.');
+    },
   };
 
   // 페이지 범위 키(저장·발행·모드·패널·팔레트). 소스·미리보기 모드와 제목 칸에서도 돈다
@@ -1201,6 +1263,7 @@ export default function EditorApp({ entryId, host }: { entryId: string; host?: E
         publicUrl={publicUrl}
         onToggleVisibility={entry?.published ? toggleVisibility : null}
         onDiscardDraft={entry?.published ? discardDraft : null}
+        onOpenRevisions={entry?.published ? () => setDialog({ kind: 'revisions' }) : null}
         onDelete={() => setDialog({ kind: 'delete' })}
         onDeviceName={() => setDialog({ kind: 'device' })}
         onToggleTheme={toggleTheme}
@@ -1267,6 +1330,17 @@ export default function EditorApp({ entryId, host }: { entryId: string; host?: E
             onJumpToHeading={jumpToHeading}
             onPublish={publish}
             publishing={busy === 'publish'}
+            classOptions={classOptions}
+            onCreateCategory={async (label, key) => {
+              if (!classOptions) throw new Error('분류 목록을 아직 받지 못했습니다.');
+              try {
+                setClassOptions(await createCategory(classOptions, label, key));
+              } catch (error) {
+                // 다른 곳에서 분류가 바뀌었다(409): 새 선택지로 바꾸고 문구를 보인다(PR-B 리뷰 B3)
+                if (error instanceof CategoryConflict && error.options) setClassOptions(error.options);
+                throw error;
+              }
+            }}
           />
         )}
       </div>
@@ -1346,6 +1420,14 @@ export default function EditorApp({ entryId, host }: { entryId: string; host?: E
           busy={busy === 'delete'}
           onCancel={() => setDialog(null)}
           onConfirm={deleteEntry}
+        />
+      )}
+      {dialog?.kind === 'revisions' && (
+        <RevisionsDialog
+          entryId={entryId}
+          busy={busy === 'restore'}
+          onRestore={(revision) => void restoreRevision(revision)}
+          onClose={() => setDialog(null)}
         />
       )}
       {dialog?.kind === 'device' && (
