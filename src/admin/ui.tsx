@@ -81,6 +81,84 @@ export function ConfirmDialog({
   );
 }
 
+// 입력 대화상자 (분류·연재 화면, 5단계 PR-B). 처음 열 때 첫 입력 칸에 초점을 둔다. Esc·취소로 닫는다
+// - 제출은 form submit이다(Enter로 낸다). error는 입력 칸 아래에 보인다
+export function FormDialog({
+  title,
+  children,
+  submitLabel,
+  busy = false,
+  error = null,
+  wide = false,
+  onSubmit,
+  onCancel,
+}: {
+  title: string;
+  children: React.ReactNode;
+  submitLabel: string;
+  busy?: boolean;
+  error?: string | null;
+  wide?: boolean;
+  onSubmit: () => void;
+  onCancel: () => void;
+}) {
+  const formRef = useRef<HTMLFormElement>(null);
+  const titleId = useId();
+  const latest = useRef({ busy, onCancel });
+  latest.current = { busy, onCancel };
+  useEffect(() => {
+    formRef.current?.querySelector<HTMLElement>('input, select, textarea')?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !latest.current.busy) latest.current.onCancel();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+    >
+      <form
+        ref={formRef}
+        className={classNames(
+          'max-h-[90vh] w-full overflow-y-auto rounded-lg border border-border bg-bg-surface p-5 shadow-popover',
+          wide ? 'max-w-2xl' : 'max-w-md',
+        )}
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!busy) onSubmit();
+        }}
+      >
+        <h2 id={titleId} className="text-lg font-semibold text-text-primary">
+          {title}
+        </h2>
+        <div className="mt-3 space-y-3 text-sm text-text-secondary">{children}</div>
+        {error && (
+          <p role="alert" className="mt-3 text-sm text-red-600 dark:text-red-400">
+            {error}
+          </p>
+        )}
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" className={secondaryButton} onClick={onCancel} disabled={busy}>
+            취소
+          </button>
+          <button type="submit" className={primaryButton} disabled={busy}>
+            {busy ? '처리 중…' : submitLabel}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// 입력 칸 공통 모양(관리자 앱 폼)
+export const inputClass =
+  'w-full rounded-md border border-border bg-bg-app px-2.5 py-1.5 text-sm text-text-primary placeholder:text-text-secondary/60 focus:border-brand';
+
 export interface ToastState {
   tone: 'info' | 'success' | 'error';
   message: string;

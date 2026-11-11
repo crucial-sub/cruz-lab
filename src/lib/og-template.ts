@@ -58,6 +58,7 @@ export function ogTitleFontSize(title: string): number {
 export interface OgCardInput {
   label: string; // 왼쪽 위 라벨
   paletteKey: string; // 색 계열을 정하는 값(카드 커버와 같은 규칙: 카테고리 표시 이름)
+  paletteCategory?: string | null; // 카테고리 key. 있으면 팔레트를 key로 고른다(카드 커버와 같다, 5단계 PR-B)
   seed: string; // 블롭 배치를 정하는 값(slug)
   title: string;
   description: string;
@@ -103,7 +104,7 @@ export function buildOgTree(raw: OgCardInput): OgNode {
     title: ogText(raw.title),
     description: ogText(raw.description),
   };
-  const { palette, blobPositions } = getCoverTheme(input.paletteKey, [], input.seed);
+  const { palette, blobPositions } = getCoverTheme(input.paletteKey, [], input.seed, input.paletteCategory ?? null);
   const mesh = blobPositions
     .map(
       (blob, i) =>
@@ -237,6 +238,7 @@ export interface OgEntryLike {
   title: string;
   description: string;
   slug: string;
+  category?: string | null;
   categoryLabel: string;
   tags: string[];
   series: { key: string; order: number } | null;
@@ -277,6 +279,7 @@ export function ogInputForEntry(
   return {
     label,
     paletteKey: label,
+    paletteCategory: entry.category ?? null,
     seed: entry.slug,
     title: entry.title,
     description: entry.description,

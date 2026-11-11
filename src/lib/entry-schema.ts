@@ -3,7 +3,14 @@
 // - Node 스크립트도 가져오므로 상대 경로 import에 `.ts`를 붙인다.
 
 import { z } from 'zod';
-import { CATEGORY_KEYS, isNormalizedTag, MAX_TAGS, SERIES_KEY_PATTERN } from './taxonomy.ts';
+import {
+  CATEGORY_KEY_PATTERN,
+  MAX_CATEGORY_KEY_LENGTH,
+  MAX_CATEGORY_LABEL_LENGTH,
+  MAX_TAGS,
+  normalizeTag,
+  SERIES_KEY_PATTERN,
+} from './taxonomy.ts';
 
 // Firestore Timestamp 또는 Date
 // - 읽은 문서는 Timestamp(toDate가 있음), 쓰기 전 값은 Date다.
@@ -37,10 +44,17 @@ export type EntryKind = (typeof ENTRY_KINDS)[number];
 export const ENTRY_STATUSES = ['draft', 'published', 'hidden'] as const;
 export type EntryStatus = (typeof ENTRY_STATUSES)[number];
 
-export const categoryKeySchema = z.enum(CATEGORY_KEYS);
+// 카테고리 key는 형식만 검사한다(5단계 D1). "목록에 있는 key인가"는 초안 저장·발행 API가 getTaxonomy()로 본다.
+// 저장된 문서를 읽을 때 모르는 key도 받는다(깨진 문서로 보지 않는다)
+export const categoryKeySchema = z
+  .string()
+  .max(MAX_CATEGORY_KEY_LENGTH)
+  .regex(CATEGORY_KEY_PATTERN, { message: '카테고리 key는 영문 소문자, 숫자, -만 씁니다' });
 
+// 태그는 형식(정규화 결과와 같은 값)만 검사한다. 카테고리 동의어 검사는 저장 API가 데이터 동의어로 한다(5단계 D1).
+// 동의어를 가진 카테고리를 지우면 그 동의어가 보통 태그가 되기 때문이다
 export const tagsSchema = z
-  .array(z.string().refine(isNormalizedTag, { message: '정규화되지 않은 태그입니다' }))
+  .array(z.string().refine((tag) => tag.length > 0 && normalizeTag(tag) === tag, { message: '정규화되지 않은 태그입니다' }))
   .max(MAX_TAGS, { message: `태그는 ${MAX_TAGS}개까지입니다` });
 
 export const seriesRefSchema = z.object({
@@ -158,12 +172,17 @@ export type EntryDoc = z.infer<typeof entryDocSchema>;
 // - 커버 이미지는 저장하지 않는다. 카드와 OG는 코드 커버다(U14).
 // - startDate·endDate는 'YYYY-MM'(옛 project.md 값 그대로. 날짜까지는 없다).
 export const PROJECT_MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+// 프로젝트 링크는 http·https만 받는다(공개 /projects가 href로 그린다. javascript: 등을 막는다, 5단계 PR-B 리뷰 S8)
+const httpUrlSchema = z
+  .string()
+  .url()
+  .refine((value) => /^https?:\/\//i.test(value), { message: 'http 또는 https 주소만 씁니다' });
 export const projectMetaSchema = z.object({
   longDescription: z.string(),
   tags: z.array(z.string().min(1)),
   tech: z.array(z.string().min(1)),
-  github: z.string().url().optional(),
-  demo: z.string().url().optional(),
+  github: httpUrlSchema.optional(),
+  demo: httpUrlSchema.optional(),
   featured: z.boolean(),
   order: z.number().int().nonnegative(),
   startDate: z.string().regex(PROJECT_MONTH_PATTERN).optional(),
@@ -214,3 +233,21 @@ export const assetDocSchema = z.object({
   uploadedAt: timestampSchema,
 });
 export type AssetDoc = z.infer<typeof assetDocSchema>;
+
+// settings/taxonomy (재건 5단계 D1)
+// - 카테고리 목록(표시 이름·주소 key·동의어 태그)과 옛 key·옛 태그 별칭.
+// - version은 저장할 때마다 1 오른다. 화면이 받은 version과 다르면 409다(다른 곳에서 먼저 바꿨다).
+export const taxonomyCategorySchema = z.object({
+  key: categoryKeySchema,
+  label: z.string().trim().min(1).max(MAX_CATEGORY_LABEL_LENGTH),
+  synonymTags: z.array(z.string().min(1)),
+});
+
+export const taxonomyDocSchema = z.object({
+  categories: z.array(taxonomyCategorySchema).min(1),
+  categoryAliases: z.record(z.string(), categoryKeySchema),
+  tagAliases: z.record(z.string(), z.string().min(1)),
+  version: z.number().int().positive(),
+  updatedAt: timestampSchema,
+});
+export type TaxonomyDoc = z.infer<typeof taxonomyDocSchema>;

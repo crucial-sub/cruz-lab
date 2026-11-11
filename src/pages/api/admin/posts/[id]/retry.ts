@@ -5,15 +5,17 @@
 // - 결과를 새 publishLog 줄(action: retry)에 적는다. 성공하면 알림 띠에서 그 글이 사라진다.
 //   로컬(Vercel 밖)의 퍼지는 skipped다. skipped는 실패를 지우지 않는다.
 // - 글도 없고 기록도 없으면 404.
+// - PR-B: 분류·연재 줄(entryId 'taxonomy'·'series')은 글이 아니다. 최근 7일 안에 퍼지가 실패한 그 묶음 줄들이
+//   비우려던 글(purged)과 목록 캐시를 비운다. 백업 알림은 publish로 보낸다(백업 Action은 컬렉션 전체를 내보낸다).
 
 import type { APIRoute } from 'astro';
 import { z } from 'zod';
-import type { RetryTarget } from '@/lib/publish-log';
+import { isGroupLogEntry, type RetryTarget } from '@/lib/publish-log';
 import { getEntryLabel } from '@/lib/server/admin-entries';
 import { ApiError, jsonResponse, parseJsonBody, withAdminApi } from '@/lib/server/api-response';
 import { notifyContentChanged, type BackupResult } from '@/lib/server/backup-dispatch';
-import { purgePublicCache, type PurgeResult } from '@/lib/server/cdn-purge';
-import { addRetryLog, readLatestLogForEntry } from '@/lib/server/publish-log';
+import { purgePublicCache, purgePublicCacheMany, type PurgeResult } from '@/lib/server/cdn-purge';
+import { addRetryLog, readGroupPurgeTargets, readLatestLogForEntry } from '@/lib/server/publish-log';
 
 export const prerender = false;
 
@@ -40,11 +42,11 @@ export const POST: APIRoute = withAdminApi(async ({ params, request }) => {
   let backup: BackupResult | undefined;
   if (body.purge) {
     retried.push('purge');
-    purge = await purgePublicCache(id);
+    purge = isGroupLogEntry(id) ? await purgePublicCacheMany(await readGroupPurgeTargets(id)) : await purgePublicCache(id);
   }
   if (body.backup) {
     retried.push('backup');
-    backup = await notifyContentChanged({ entryId: id, action: exists ? 'publish' : 'delete' });
+    backup = await notifyContentChanged({ entryId: id, action: exists || isGroupLogEntry(id) ? 'publish' : 'delete' });
   }
 
   const logId = await addRetryLog({

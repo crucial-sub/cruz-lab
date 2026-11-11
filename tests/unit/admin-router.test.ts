@@ -43,15 +43,27 @@ describe('parseAdminPath', () => {
   it('만들지 않은 화면과 옛 주소는 모른다(앱이 첫 화면으로 바꾼다)', () => {
     expect(parseAdminPath('/admin/posts')).toBeNull();
     expect(parseAdminPath('/admin/posts/new')).toBeNull();
-    expect(parseAdminPath('/admin/assets')).toBeNull();
+    expect(parseAdminPath('/admin/readers')).toBeNull();
+    expect(parseAdminPath('/admin/settings')).toBeNull();
     expect(parseAdminPath('/admin/login')).toBeNull();
     expect(parseAdminPath('/blog/abc')).toBeNull();
   });
 });
 
+describe('PR-B 화면 주소(5단계 D12·D1·D2)', () => {
+  it('이미지·분류·연재 주소를 안다. 끝의 /도 받는다', () => {
+    expect(parseAdminPath('/admin/assets')).toEqual({ name: 'assets' });
+    expect(parseAdminPath('/admin/taxonomy/')).toEqual({ name: 'taxonomy' });
+    expect(parseAdminPath('/admin/series')).toEqual({ name: 'series' });
+    expect(parseAdminPath('/admin/series/abc')).toBeNull();
+    expect(parseAdminPath('/admin/constructor')).toBeNull();
+    expect(parseAdminPath('/admin/toString')).toBeNull();
+  });
+});
+
 describe('adminPathOf', () => {
   it('화면 → 주소 → 화면이 같다', () => {
-    for (const path of ['/admin', '/admin?status=hidden&q=a', '/admin/edit/abc', '/admin/log']) {
+    for (const path of ['/admin', '/admin?status=hidden&q=a', '/admin/edit/abc', '/admin/log', '/admin/assets', '/admin/taxonomy', '/admin/series']) {
       const url = new URL(path, 'https://x.test');
       const route = parseAdminPath(url.pathname, url.search)!;
       expect(adminPathOf(route)).toBe(path);

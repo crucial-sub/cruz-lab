@@ -24,6 +24,7 @@ const { post, badge } = Astro.props;
   <div class="post-featured-cover">
     <PostCover
       categoryLabel={post.categoryLabel}
+      category={post.category}
       tags={post.tags}
       slug={post.slug}
       date={post.pubDate}

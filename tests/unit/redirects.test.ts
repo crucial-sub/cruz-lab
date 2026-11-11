@@ -18,16 +18,12 @@ describe('findPublicRedirect', () => {
     expect(findPublicRedirect('/blog/tag/CSAPP')).toBe('/blog/tag/csapp');
   });
 
-  it('카테고리와 같은 뜻의 태그 주소는 카테고리 목록으로 보낸다 (4단계 D11)', () => {
-    expect(findPublicRedirect('/blog/tag/javascript')).toBe('/blog/category/javascript');
-    expect(findPublicRedirect(enc('/blog/tag/운영체제'))).toBe('/blog/category/os');
-    expect(findPublicRedirect('/blog/tag/reactnative')).toBe('/blog/category/react-native');
-    expect(findPublicRedirect('/blog/tag/react-native')).toBe('/blog/category/react-native');
-    expect(findPublicRedirect(enc('/blog/tag/에세이'))).toBe('/blog/category/retrospective');
-    // 정규화가 필요한 주소도 한 번에 카테고리로 간다(태그 주소를 거치지 않는다)
-    expect(findPublicRedirect('/blog/tag/JavaScript')).toBe('/blog/category/javascript');
-    expect(findPublicRedirect(enc('/blog/tag/React Native'))).toBe('/blog/category/react-native');
-    expect(findPublicRedirect('/blog/tag/javascript/')).toBe('/blog/category/javascript');
+  it('카테고리 동의어 태그는 미들웨어가 정규화만 한다. 카테고리로는 태그 페이지가 데이터로 보낸다 (5단계 PR-B 리뷰 S2)', () => {
+    expect(findPublicRedirect('/blog/tag/javascript')).toBeNull();
+    expect(findPublicRedirect(enc('/blog/tag/운영체제'))).toBeNull();
+    expect(findPublicRedirect('/blog/tag/JavaScript')).toBe('/blog/tag/javascript');
+    expect(findPublicRedirect(enc('/blog/tag/React Native'))).toBe('/blog/tag/react-native');
+    expect(findPublicRedirect('/blog/tag/javascript/')).toBeNull();
   });
 
   it('한글 NFD 주소는 NFC로 보낸다', () => {

@@ -90,8 +90,14 @@ export function HomeScreen({ onCreate }: { onCreate: (kind: 'post' | 'note') => 
   };
 
   const items = list.phase === 'ready' ? list.items : [];
+  // 카테고리 표시 이름: 서버가 목록에 준 값(데이터 분류, 5단계 D1). 없으면 코드 기본값·key
+  const categoryLabel = useMemo(() => {
+    const labels = new Map<string, string>();
+    for (const item of items) if (item.category && item.categoryLabel) labels.set(item.category, item.categoryLabel);
+    return (key: string) => labels.get(key) ?? getCategoryLabel(key);
+  }, [items]);
   const filtered = useMemo(
-    () => filterEntries(items, { ...state, q: query }, getCategoryLabel, emptyOnly),
+    () => filterEntries(items, { ...state, q: query }, categoryLabel, emptyOnly),
     [items, state, query, emptyOnly],
   );
   const continueItems = useMemo(() => pickContinueItems(items), [items]);
@@ -293,7 +299,7 @@ export function HomeScreen({ onCreate }: { onCreate: (kind: 'post' | 'note') => 
           {list.phase === 'ready' ? (
             <EntryTable
               items={filtered.items}
-              categoryLabel={getCategoryLabel}
+              categoryLabel={categoryLabel}
               now={now}
               actions={{
                 onToggleVisibility: (item) => void toggleVisibility(item),

@@ -12,7 +12,17 @@ import {
   type EntryPublished,
   type EntryStatus,
 } from './entry-schema.ts';
-import { CATEGORY_KEYS, MAX_TAGS, buildNoteSlug, isValidSlug, normalizeTags } from './taxonomy.ts';
+import {
+  MAX_CATEGORY_KEY_LENGTH,
+  CATEGORY_KEY_PATTERN,
+  MAX_TAGS,
+  buildNoteSlug,
+  defaultTaxonomy,
+  hasCategoryIn,
+  isValidSlug,
+  normalizeTagsIn,
+  type TaxonomyData,
+} from './taxonomy.ts';
 import { calculateReadingTime, countWords } from '../utils/readingTime.ts';
 
 // 초안 크기 상한 (Plan 4.1: 문서 한도 1 MiB, 초안은 900 KB를 넘으면 거부)
@@ -22,8 +32,9 @@ export const MAX_TITLE_LENGTH = 120;
 // 기기 이름 길이 상한
 export const MAX_DEVICE_LENGTH = 60;
 
-// API로 새로 만들 수 있는 kind. project는 4단계에서 옮긴다(D11)
-export const CREATABLE_KINDS = ['post', 'note'] as const;
+// API로 새로 만들 수 있는 kind (POST /api/admin/posts)
+// - 5단계 D2: project를 더했다. 새 프로젝트 화면(POST /api/admin/projects)이 연재 key를 함께 넣어 만든다
+export const CREATABLE_KINDS = ['post', 'note', 'project'] as const;
 
 // 초안 저장 요청의 draft 값 (PUT /api/admin/posts/{id}/draft)
 // - 형식만 검사한다. 필수 값은 발행할 때 검사한다.
@@ -32,7 +43,8 @@ export const draftInputSchema = z.object({
   title: z.string().max(1000),
   description: z.string().max(5000),
   slug: z.string().max(300),
-  category: z.enum(CATEGORY_KEYS).nullable(),
+  // 형식만 본다. 목록에 있는 key인지는 API가 데이터(getTaxonomy)로 검사한다(5단계 D1)
+  category: z.string().max(MAX_CATEGORY_KEY_LENGTH).regex(CATEGORY_KEY_PATTERN).nullable(),
   tags: z.array(z.string().max(100)).max(20),
   series: seriesRefSchema.nullable(),
   cover: coverSchema,
@@ -51,19 +63,31 @@ export type NormalizedDraft = EntryContent & { editorJson: Record<string, unknow
 
 // 초안 입력을 저장할 값으로 바꾼다
 // - 태그를 정규화한다(D2 규칙 1~6). 3개를 넘으면 실패한다.
+// - 5단계 D1: 데이터 분류(taxonomy)의 동의어·별칭으로 정규화한다. taxonomy를 주지 않으면 코드 기본값이다.
+// - 카테고리: 목록에 없고 옛 key 별칭이면 새 key로 바꾼다(key 바꾸기 뒤 열린 에디터·보관 초안, PR-B 리뷰 S5).
+//   그래도 목록에 없으면 unknownCategory를 참으로 돌려준다. 거절은 저장 API가 버전 검사 뒤에 한다(409가 먼저다).
 // - 직렬화한 크기가 900 KB를 넘으면 실패한다.
 export function normalizeDraftInput(
   input: DraftInput,
-): { ok: true; draft: NormalizedDraft } | { ok: false; status: 400 | 413; issues: FieldIssue[] } {
-  const tags = normalizeTags(input.tags);
+  taxonomy: TaxonomyData = defaultTaxonomy(),
+):
+  | { ok: true; draft: NormalizedDraft; unknownCategory: boolean }
+  | { ok: false; status: 400 | 413; issues: FieldIssue[] } {
+  const tags = normalizeTagsIn(taxonomy, input.tags);
   if (tags.length > MAX_TAGS) {
     return { ok: false, status: 400, issues: [{ field: 'tags', message: `태그는 ${MAX_TAGS}개까지입니다` }] };
   }
+  let category = input.category;
+  if (category !== null && !hasCategoryIn(taxonomy, category)) {
+    const alias = taxonomy.categoryAliases[category];
+    if (alias && hasCategoryIn(taxonomy, alias)) category = alias;
+  }
+  const unknownCategory = category !== null && !hasCategoryIn(taxonomy, category);
   const draft: NormalizedDraft = {
     title: input.title,
     description: input.description,
     slug: input.slug,
-    category: input.category,
+    category,
     tags,
     series: input.series,
     cover: input.cover,
@@ -78,7 +102,7 @@ export function normalizeDraftInput(
       issues: [{ field: 'draft', message: `초안이 ${MAX_DRAFT_BYTES} 바이트를 넘습니다 (${bytes})` }],
     };
   }
-  return { ok: true, draft };
+  return { ok: true, draft, unknownCategory };
 }
 
 // 빈 초안 내용 (POST /api/admin/posts)
@@ -115,6 +139,8 @@ export interface PublishCheckInput {
   currentPublishedSlug: string | null; // 지금 발행본의 slug
   ownSlugHistory?: readonly string[]; // 이 글의 예전 slug
   now: Date;
+  // 5단계 D1: 카테고리 목록(데이터). 주면 카테고리가 목록에 있는지도 본다
+  taxonomy?: TaxonomyData;
 }
 
 // 발행 검사 (Plan 6.3 2단계, D4 kind별 규칙)
@@ -130,6 +156,7 @@ export function checkPublishable({
   currentPublishedSlug,
   ownSlugHistory = [],
   now,
+  taxonomy,
 }: PublishCheckInput): { ok: true; content: EntryContent } | { ok: false; issues: FieldIssue[] } {
   const issues: FieldIssue[] = [];
   const title = draft.title.trim();
@@ -162,6 +189,9 @@ export function checkPublishable({
   }
   if (draft.tags.length > MAX_TAGS) {
     issues.push({ field: 'tags', message: `태그는 ${MAX_TAGS}개까지입니다` });
+  }
+  if (taxonomy && draft.category && !hasCategoryIn(taxonomy, draft.category)) {
+    issues.push({ field: 'category', message: '목록에 없는 카테고리입니다' });
   }
   if (draft.series) {
     const series = seriesRefSchema.safeParse(draft.series);
@@ -215,6 +245,22 @@ export function hasUnpublishedChanges(
   return published !== null && draftVersion !== published.fromDraftVersion;
 }
 
+// 분류·연재 일괄 바꾸기 뒤의 버전 (5단계 D1)
+// - 초안 version을 1 올린다. 열린 에디터가 옛 값으로 덮어쓰지 않고 충돌(409)을 받는다.
+// - "발행 뒤 변경"이 없던 글(draft.version == fromDraftVersion)은 발행본도 같이 바뀌므로 fromDraftVersion도 맞춘다.
+//   변경이 있던 글은 fromDraftVersion을 그대로 둔다(여전히 변경 있음).
+export function nextVersionsForBulkEdit(
+  draftVersion: number,
+  published: { fromDraftVersion: number } | null,
+): { draftVersion: number; fromDraftVersion: number | null } {
+  const next = draftVersion + 1;
+  if (!published) return { draftVersion: next, fromDraftVersion: null };
+  return {
+    draftVersion: next,
+    fromDraftVersion: published.fromDraftVersion === draftVersion ? next : published.fromDraftVersion,
+  };
+}
+
 // 숨김 / 다시 보임 전이 (Plan 6.3 상태 변화 표)
 // - 발행본이 없으면(draft) 바꿀 수 없다(409).
 // - 이미 그 상태면 changed = false.
@@ -233,17 +279,12 @@ export function reservesSlug(status: EntryStatus): boolean {
   return status === 'published' || status === 'hidden';
 }
 
-// 공개 주소를 만든다 (인코딩하지 않은 경로)
-// - post: /blog/<slug> (2단계 D4)
-// - note: /notes/<slug> (4단계 D12)
-// - project: /projects/<프로젝트 key>/<slug> (4단계 D1). 프로젝트 key는 연재 key다. 연재가 없으면 주소가 없다(null)
-export function publicPathFor(
-  kind: EntryKind,
-  slug: string,
-  series: { key: string } | null = null,
-): string | null {
-  if (kind === 'post') return `/blog/${slug}`;
-  if (kind === 'note') return `/notes/${slug}`;
-  if (kind === 'project') return series?.key ? `/projects/${series.key}/${slug}` : null;
-  return null;
+// 공개 주소 규칙 publicPathFor는 public-paths.ts에 있다(가져오는 모듈이 없어 관리자 앱 첫 청크가 zod를 받지 않는다, 5단계 PR-B).
+// 이 파일을 쓰던 곳(발행 API·에디터·관리자 목록)을 위해 다시 내보낸다
+export { publicPathFor } from './public-paths.ts';
+
+// 주소의 판 번호(리비전, 5단계 D3)를 읽는다. 1 이상의 정수(6자리까지)가 아니면 null
+export function parseRevisionNumber(value: string | undefined): number | null {
+  if (!value || !/^[1-9]\d{0,5}$/.test(value)) return null;
+  return Number(value);
 }

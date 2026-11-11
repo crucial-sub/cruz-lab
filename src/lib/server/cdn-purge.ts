@@ -32,3 +32,23 @@ export async function purgePublicCache(entryId: string): Promise<PurgeResult> {
     return 'failed';
   }
 }
+
+// 한 번에 비울 글 태그 수. Vercel 퍼지 요청 하나에 태그를 너무 많이 싣지 않게 나눈다
+const PURGE_TAG_CHUNK = 50;
+
+// 여러 글이 함께 바뀐 뒤(분류·연재 바꾸기, 5단계 D1·D2) 공개 캐시를 비운다
+// - 글 상세 태그는 나눠서 지우고, 목록 태그는 한 번 무효화한다. 글이 0편이어도 목록은 비운다.
+export async function purgePublicCacheMany(entryIds: readonly string[]): Promise<PurgeResult> {
+  invalidateEntriesCache();
+  if (!isOnVercel()) return 'skipped';
+  try {
+    const tags = [...new Set(entryIds)].map(postCacheTag);
+    const chunks: string[][] = [];
+    for (let index = 0; index < tags.length; index += PURGE_TAG_CHUNK) chunks.push(tags.slice(index, index + PURGE_TAG_CHUNK));
+    await Promise.all([...chunks.map((chunk) => dangerouslyDeleteByTag(chunk)), invalidateByTag(POSTS_CACHE_TAG)]);
+    return 'ok';
+  } catch (error) {
+    console.error('[cdn-purge] 여러 글 캐시 태그 퍼지 실패', error);
+    return 'failed';
+  }
+}

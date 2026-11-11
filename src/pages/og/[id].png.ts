@@ -6,7 +6,7 @@ import type { APIRoute } from 'astro';
 import { firstLineExcerpt } from '@/lib/content/excerpt';
 import { isOgEntryId, ogInputForEntry } from '@/lib/og-template';
 import { POSTS_CACHE_TAG, postCacheTag } from '@/lib/server/cache-headers';
-import { getPublishedEntryById, listSeriesMeta } from '@/lib/server/entries';
+import { getPublishedEntryById, getSeriesTitleFresh } from '@/lib/server/entries';
 import { OG_CACHE_CONTROL, renderOgPng } from '@/lib/server/og-image';
 
 export const prerender = false;
@@ -25,10 +25,8 @@ export const GET: APIRoute = async ({ params }) => {
   const entry = await getPublishedEntryById(id);
   if (!entry) return notFound();
 
-  const projectTitle =
-    entry.kind === 'project' && entry.series
-      ? (await listSeriesMeta()).get(entry.series.key)?.title
-      : undefined;
+  // 프로젝트 제목은 메모 없이 읽는다(화면에서 고친 직후 낡은 제목으로 그린 OG가 하루 남지 않게)
+  const projectTitle = entry.kind === 'project' && entry.series ? await getSeriesTitleFresh(entry.series.key) : undefined;
   const png = await renderOgPng(
     ogInputForEntry(entry, {
       noteFirstLine: entry.kind === 'note' ? firstLineExcerpt(entry.markdown) : undefined,

@@ -21,6 +21,8 @@ export interface TopBarProps {
   publicUrl: string | null;
   onToggleVisibility: (() => void) | null;
   onDiscardDraft: (() => void) | null;
+  // 이전 발행본 대화상자(5단계 D3). 발행본이 없으면 null
+  onOpenRevisions: (() => void) | null;
   onDelete: () => void;
   onDeviceName: () => void;
   onToggleTheme: () => void;
@@ -176,6 +178,7 @@ export function TopBar(props: TopBarProps) {
                 props.entryStatus === 'hidden' ? '다시 보이기' : '숨기기',
                 props.onToggleVisibility,
               )}
+            {props.onOpenRevisions && item('이전 발행본', props.onOpenRevisions)}
             {props.onDiscardDraft && item('초안 버리기', props.onDiscardDraft)}
             {item('삭제', props.onDelete, true)}
             <hr className="my-1 border-border" />

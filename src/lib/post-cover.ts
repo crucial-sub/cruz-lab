@@ -117,13 +117,16 @@ export function getCoverPalette(label: string): CoverPalette {
   return HASH_PALETTES[hashString(lower) % HASH_PALETTES.length];
 }
 
+// - categoryKey를 주면 팔레트를 key로 고른다(5단계 D1: 화면에서 카테고리 이름을 바꿔도 색이 같다, PR-B 리뷰 S10)
 export function getCoverTheme(
   categoryLabel: string | null | undefined,
   tags: string[],
   slug: string,
+  categoryKey: string | null = null,
 ): CoverTheme {
   const label = getCoverLabel(categoryLabel, tags);
-  const palette = getCoverPalette(label);
+  const byKey = categoryKey ? (CATEGORY_PALETTES as Readonly<Record<string, CoverPalette>>)[categoryKey] : undefined;
+  const palette = byKey ?? getCoverPalette(label);
   // 블롭 배치는 글마다 다르게 한다
   const rand = seededRandom(hashString(slug));
   const blobPositions = [0, 1, 2].map(() => ({

@@ -18,6 +18,7 @@ function item(patch: Partial<AdminListItem> & { id: string }): AdminListItem {
     title: '',
     slug: '',
     category: null,
+    categoryLabel: null,
     tags: [],
     series: null,
     updatedAt: '2026-03-31T11:47:00.000Z',

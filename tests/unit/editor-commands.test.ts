@@ -25,6 +25,7 @@ function spyActions(): CommandActions {
     publish: vi.fn(),
     togglePanel: vi.fn(),
     openPalette: vi.fn(),
+    openRevisions: vi.fn(),
   };
 }
 
@@ -118,6 +119,7 @@ describe('레지스트리 형태', () => {
         'mode-preview',
         'mode-source',
         'publish',
+        'revisions',
         'save-now',
         'toggle-panel',
       ].sort(),

@@ -12,11 +12,15 @@ import {
 import { firstLineExcerpt } from '@/lib/content/excerpt';
 import { formatSeoulMonthDay, seoulYear } from '@/lib/date-format';
 import { matchesSearch, normalizeSearchText } from '@/lib/search-filter';
-import type { CategoryKey } from '@/lib/taxonomy';
+import { CATEGORIES } from '@/lib/taxonomy';
+
+// 코드 기본값의 이름과 순서(테스트는 분류 데이터 대신 쓴다)
+const LABELS: Record<string, string> = Object.fromEntries(CATEGORIES.map((category) => [category.key, category.label]));
+const ORDER = CATEGORIES.map((category) => category.key);
 
 function post(
   id: string,
-  category: CategoryKey | null,
+  category: string | null,
   tags: string[],
   iso = '2025-12-01T03:00:00Z',
 ): ListPost {
@@ -27,7 +31,7 @@ function post(
     slug: `${id}-slug`,
     tags,
     category,
-    categoryLabel: category ?? '',
+    categoryLabel: category ? (LABELS[category] ?? category) : '',
     series: null,
     pubDate: new Date(iso),
     readingTime: 3,
@@ -36,13 +40,10 @@ function post(
 
 describe('buildCategoryTabs', () => {
   it('발행 글이 있는 카테고리만, 글 수 많은 순, 같으면 taxonomy 순서', () => {
-    const tabs = buildCategoryTabs([
-      post('a', 'os', []),
-      post('b', 'javascript', []),
-      post('c', 'javascript', []),
-      post('d', 'ai', []),
-      post('e', null, []),
-    ]);
+    const tabs = buildCategoryTabs(
+      [post('a', 'os', []), post('b', 'javascript', []), post('c', 'javascript', []), post('d', 'ai', []), post('e', null, [])],
+      ORDER,
+    );
     expect(tabs.map((tab) => [tab.key, tab.count])).toEqual([
       ['javascript', 2],
       ['ai', 1],
@@ -52,6 +53,16 @@ describe('buildCategoryTabs', () => {
     expect(tabs[0].label).toBe('JavaScript');
     // 글이 없는 카테고리(회고)는 탭이 없다(D17)
     expect(tabs.some((tab) => tab.key === 'retrospective')).toBe(false);
+  });
+
+  it('분류 데이터 순서를 따른다. 목록에 없는 key는 뒤에 key 이름순, 이름은 글 값이다(5단계 D1)', () => {
+    const tabs = buildCategoryTabs(
+      [post('a', 'zeta', []), post('b', 'os', []), post('c', 'ai', []), post('d', 'new-one', [])],
+      ['new-one', 'os', 'ai'],
+    );
+    expect(tabs.map((tab) => tab.key)).toEqual(['new-one', 'os', 'ai', 'zeta']);
+    expect(tabs.find((tab) => tab.key === 'os')?.label).toBe('운영체제');
+    expect(tabs.find((tab) => tab.key === 'zeta')?.label).toBe('zeta');
   });
 });
 

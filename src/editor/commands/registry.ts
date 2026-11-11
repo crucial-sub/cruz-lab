@@ -21,6 +21,7 @@ import {
   Heading2,
   Heading3,
   Heading4,
+  History,
   Image,
   Info,
   Italic,
@@ -93,6 +94,8 @@ export interface CommandActions {
   publish(): void;
   togglePanel(): void;
   openPalette(): void;
+  // 이전 발행본 대화상자(5단계 D3)
+  openRevisions(): void;
 }
 
 // 같은 키를 두 플랫폼에 쓴다(기본 키는 대개 그렇다)
@@ -600,6 +603,19 @@ export function createCommands(actions: CommandActions): EditorCommand[] {
         icon: Send,
       },
       () => actions.publish(),
+    ),
+    // 이전 발행본 (5단계 D3). 키는 없다. 팔레트와 상단 바 메뉴에서 연다
+    actionCommand(
+      {
+        id: 'revisions',
+        title: '이전 발행본',
+        group: 'doc',
+        keys: null,
+        inSlash: false,
+        inPalette: true,
+        icon: History,
+      },
+      () => actions.openRevisions(),
     ),
   ];
 }

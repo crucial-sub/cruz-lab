@@ -19,7 +19,7 @@ import {
   type ListPost,
   type ListSeries,
 } from '@/lib/blog-list';
-import type { CategoryKey } from '@/lib/taxonomy';
+import { getTaxonomy } from '@/lib/server/taxonomy-store';
 import CategoryTabs from './CategoryTabs.astro';
 import FeaturedPost from './FeaturedPost.astro';
 import PostRow from './PostRow.astro';
@@ -32,7 +32,7 @@ interface Props {
   allPosts: ListPost[]; // 탭·칩 글 수 기준(전체 발행 글)
   posts: ListPost[]; // 이 페이지의 글(최신 발행순)
   seriesList: ListSeries[];
-  currentCategory: CategoryKey | 'all' | null;
+  currentCategory: string | 'all' | null;
   currentTag?: string | null;
 }
 
@@ -46,7 +46,9 @@ const {
   currentTag = null,
 } = Astro.props;
 
-const tabs = buildCategoryTabs(allPosts);
+// 탭 순서는 데이터 분류의 카테고리 순서다(5단계 D1)
+const taxonomy = await getTaxonomy();
+const tabs = buildCategoryTabs(allPosts, taxonomy.categories.map((category) => category.key));
 const chips = buildTagChips(allPosts);
 const badges = buildSeriesBadges(seriesList);
 const { featured, rest } = splitFeatured(posts);

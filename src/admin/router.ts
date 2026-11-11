@@ -3,13 +3,26 @@
 // - 이 파일은 순수 함수만 둔다(주소 ↔ 화면). 브라우저 이벤트는 AdminApp이 다룬다. 테스트는 admin-router.test.ts.
 // - 화면을 만든 주소만 안다. 모르는 주소는 첫 화면(/admin)으로 바꾼다.
 //   5단계 PR-A의 화면: 첫 화면·목록(/admin), 에디터(/admin/edit/<id>), 출간 기록(/admin/log).
-//   이미지·분류·연재·독자·설정 화면은 PR-B~PR-D가 이 표에 더한다.
+//   PR-B의 화면: 이미지(/admin/assets), 분류(/admin/taxonomy), 연재·프로젝트(/admin/series).
+//   독자·설정 화면은 PR-C·PR-D가 이 표에 더한다.
 // - /admin/login은 이 앱이 아니다(세션 없이 여는 Astro 페이지).
 
 export type AdminRoute =
   | { name: 'home'; search: string }
   | { name: 'edit'; id: string }
+  | { name: 'assets' }
+  | { name: 'taxonomy' }
+  | { name: 'series' }
   | { name: 'log' };
+
+// 쿼리 없는 화면의 주소 (PR-B가 이미지·분류·연재를 더했다)
+const SIMPLE_ROUTES = {
+  '/admin/assets': 'assets',
+  '/admin/taxonomy': 'taxonomy',
+  '/admin/series': 'series',
+  '/admin/log': 'log',
+} as const satisfies Record<string, AdminRoute['name']>;
+type SimpleRouteName = (typeof SIMPLE_ROUTES)[keyof typeof SIMPLE_ROUTES];
 
 export const ADMIN_HOME_PATH = '/admin';
 
@@ -27,7 +40,9 @@ function trimTrailingSlash(pathname: string): string {
 export function parseAdminPath(pathname: string, search = ''): AdminRoute | null {
   const path = trimTrailingSlash(pathname);
   if (path === ADMIN_HOME_PATH) return { name: 'home', search: normalizeSearch(search) };
-  if (path === '/admin/log') return { name: 'log' };
+  if (Object.hasOwn(SIMPLE_ROUTES, path)) {
+    return { name: SIMPLE_ROUTES[path as keyof typeof SIMPLE_ROUTES] } as { name: SimpleRouteName };
+  }
 
   const edit = /^\/admin\/edit\/([^/]+)$/.exec(path);
   if (edit) {
@@ -49,6 +64,12 @@ export function adminPathOf(route: AdminRoute): string {
       return `${ADMIN_HOME_PATH}${normalizeSearch(route.search)}`;
     case 'edit':
       return `/admin/edit/${encodeURIComponent(route.id)}`;
+    case 'assets':
+      return '/admin/assets';
+    case 'taxonomy':
+      return '/admin/taxonomy';
+    case 'series':
+      return '/admin/series';
     case 'log':
       return '/admin/log';
   }
@@ -111,6 +132,12 @@ export function documentTitleOf(route: AdminRoute): string {
       return '글 | Cruz Lab 관리';
     case 'edit':
       return '글 편집 | Cruz Lab 관리';
+    case 'assets':
+      return '이미지 | Cruz Lab 관리';
+    case 'taxonomy':
+      return '분류 | Cruz Lab 관리';
+    case 'series':
+      return '연재·프로젝트 | Cruz Lab 관리';
     case 'log':
       return '출간 기록 | Cruz Lab 관리';
   }

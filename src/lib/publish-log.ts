@@ -12,14 +12,28 @@ export type AssetUsageOutcome = 'ok' | 'failed';
 export const RETRY_TARGETS = ['purge', 'backup'] as const;
 export type RetryTarget = (typeof RETRY_TARGETS)[number];
 
-// 동작 이름과 화면 글자. 5단계 다른 PR이 retag·recategorize·category·series·restore를 더한다(D1·D2·D3)
+// 동작 이름과 화면 글자. PR-B가 retag·recategorize·category(D1)·series(D2)·restore(D3)를 더했다
 export const PUBLISH_LOG_ACTION_LABELS: Readonly<Record<string, string>> = {
   publish: '발행',
   hide: '숨김',
   unhide: '다시 보임',
   delete: '삭제',
   retry: '다시 시도',
+  restore: '이전 판 가져오기',
+  category: '카테고리',
+  recategorize: '글 옮기기',
+  retag: '태그',
+  series: '연재',
 };
+
+// 글 하나가 아니라 여러 글을 함께 바꾼 줄(분류·연재)의 entryId. affected에 대상 글 ID가 있다.
+// 그 줄의 다시 시도(retry) 줄도 같은 entryId다
+export const GROUP_LOG_ENTRY_IDS: readonly string[] = ['taxonomy', 'series'];
+
+// 묶음 줄인지(동작과 상관없이 entryId로 본다. 다시 시도 줄도 묶음이다)
+export function isGroupLogEntry(entryId: string): boolean {
+  return GROUP_LOG_ENTRY_IDS.includes(entryId);
+}
 
 // 화면·API용 한 줄 (시각은 ISO 문자열)
 export interface PublishLogItem {
@@ -34,6 +48,13 @@ export interface PublishLogItem {
   backup: BackupOutcome | null;
   assetUsage: AssetUsageOutcome | null;
   retried: RetryTarget[]; // action === 'retry'일 때 다시 시도한 작업
+  // 분류·연재 줄(PR-B): 세부 동작(create·rename·rekey·merge·delete·move …), 바꾸기 전·뒤 값, 대상 글 ID
+  op: string | null;
+  from: string | null;
+  to: string | null;
+  affected: string[];
+  // 묶음 줄이 공개 캐시를 비운 글 ID(이름 바꾸기처럼 글은 안 바뀌어도 비운 글을 포함). 다시 비우기가 이 값을 쓴다
+  purged: string[];
 }
 
 // 알림 띠의 글 하나
@@ -115,7 +136,9 @@ export function computePublishAlerts(
           slug: item.slug,
           at: item.at,
         });
-      } else if (succeeded(item, target)) {
+      } else if (succeeded(item, target) && (!isGroupLogEntry(item.entryId) || item.action === 'retry')) {
+        // 묶음 줄(분류·연재)은 다른 동작의 성공이 앞 동작의 실패를 지우지 않는다. 다시 시도 줄만 지운다
+        // (다시 시도는 실패한 묶음 줄들의 대상 글을 모두 비운다, PR-B 리뷰 S3)
         open.delete(item.entryId);
       }
     }

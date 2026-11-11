@@ -13,14 +13,15 @@ import { getCoverTheme } from '@/lib/post-cover';
 
 interface Props {
   categoryLabel?: string | null; // 큰 글자로 쓸 카테고리 표시 이름
+  category?: string | null; // 카테고리 key(팔레트를 key로 고른다, 5단계 PR-B)
   tags: string[];
   slug: string;
   date: Date;
   variant?: 'card' | 'thumb';
 }
 
-const { categoryLabel, tags, slug, date, variant = 'card' } = Astro.props;
-const { label, palette, blobPositions, angle } = getCoverTheme(categoryLabel, tags, slug);
+const { categoryLabel, category = null, tags, slug, date, variant = 'card' } = Astro.props;
+const { label, palette, blobPositions, angle } = getCoverTheme(categoryLabel, tags, slug, category);
 
 // 색·블롭 위치·격자 기울기를 CSS 변수로 넘긴다 (그라디언트 식은 아래 <style>에 있다)
 const vars = [

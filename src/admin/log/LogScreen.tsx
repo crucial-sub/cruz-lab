@@ -3,10 +3,12 @@
 // - 줄: 때 · 동작 · 제목(에디터 링크) · 리비전, 그 아래 부수 결과(실패만 빨간색). 결과 칸이 없는 옛 줄은 한 줄이다.
 // - 제목은 지금 목록에서 찾는다. 글이 지워졌으면 기록된 title·slug를 쓰고 링크를 걸지 않는다.
 // - 옛 줄(4단계까지)은 부수 결과·제목 칸이 없다. 없으면 비워 둔다.
+// - PR-B: 분류·연재 줄(category·recategorize·retag·series)은 글 하나가 아니다. 기록된 설명과 대상 글 수를 보인다.
+//   이전 판 가져오기(restore) 줄은 글 줄과 같고, 판 번호는 가져온 판이다.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { classNames } from '@/editor/ui/class-names';
-import { PUBLISH_LOG_ACTION_LABELS, type PublishLogItem } from '@/lib/publish-log';
+import { isGroupLogEntry, PUBLISH_LOG_ACTION_LABELS, type PublishLogItem } from '@/lib/publish-log';
 import { appApi } from '../api';
 import { errorMessage, redirectIfUnauthorized, useAdmin } from '../app-context';
 import { editPath } from '../router';
@@ -104,6 +106,15 @@ export function LogScreen() {
   };
 
   const titleCell = (item: PublishLogItem) => {
+    // 분류·연재 줄(그 줄의 다시 시도 줄 포함): 기록된 설명 + 대상 글 수. 글 줄이 아니므로 "(지운 글)"을 붙이지 않는다
+    if (isGroupLogEntry(item.entryId)) {
+      return (
+        <span className="text-text-primary">
+          {item.title || item.slug}
+          {item.affected.length > 0 && <span className="ml-1 text-xs text-text-secondary">· 글 {item.affected.length}편</span>}
+        </span>
+      );
+    }
     const current = titles.get(item.entryId);
     if (current !== undefined) {
       return (

@@ -1,5 +1,6 @@
 // 관리자 앱 메뉴 (재건 5단계 D10)
-// - 화면을 만든 메뉴만 보인다. PR-A: 글, 출간 기록. 이미지·분류·연재·독자·설정은 그 화면을 만드는 PR이 더한다.
+// - 화면을 만든 메뉴만 보인다. PR-A: 글, 출간 기록. PR-B: 이미지, 분류, 연재. 독자·설정은 그 화면을 만드는 PR이 더한다.
+// - 순서는 Plan D10을 따른다(글·이미지·분류·연재·독자·출간 기록·설정).
 // - 아래: 사이트 보기(새 탭), 로그아웃.
 // - 넓은 화면(1024px 이상)은 왼쪽 막대, 좁은 화면은 시트 안에 같은 메뉴를 그린다.
 
@@ -8,6 +9,9 @@ import type { AdminRoute } from '../router';
 
 export const NAV_ITEMS: ReadonlyArray<{ name: AdminRoute['name']; href: string; label: string }> = [
   { name: 'home', href: '/admin', label: '글' },
+  { name: 'assets', href: '/admin/assets', label: '이미지' },
+  { name: 'taxonomy', href: '/admin/taxonomy', label: '분류' },
+  { name: 'series', href: '/admin/series', label: '연재' },
   { name: 'log', href: '/admin/log', label: '출간 기록' },
 ];
 
