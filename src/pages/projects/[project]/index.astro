@@ -1,25 +1,35 @@
 ---
-export const prerender = true;
+// 프로젝트 하나 /projects/<key> (재건 4단계 D1, SSR)
+// - 그 프로젝트의 첫 Part로 302. 주소는 3단계와 같다(README·외부 링크가 이 주소를 쓴다).
+// - 없는 프로젝트(또는 발행된 Part가 없는 프로젝트)는 안내 화면을 직접 그리고 404다(빈 404 응답 금지, 4단계 작업 문서 5절 31).
+import NotFound from '@/components/NotFound.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getPublishedProjectByKey } from '@/lib/content-posts';
+import { projectPostPath } from '@/lib/public-paths';
+import { setPublicPageCache } from '@/lib/server/cache-headers';
+import { markNotFound } from '@/lib/server/not-found';
 
-import { getProjectEntryPost, getProjectMetas, getProjectPostSlug, getProjectSlug } from '@/lib/project-posts';
-import { getCollection } from 'astro:content';
+export const prerender = false;
 
-export async function getStaticPaths() {
-  const projectEntries = getProjectMetas(await getCollection('projects'));
+const key = Astro.params.project ?? '';
+const project = await getPublishedProjectByKey(key);
 
-  return projectEntries.map((project) => ({
-    params: { project: getProjectSlug(project) },
-    props: { project },
-  }));
+if (project) {
+  const response = Astro.redirect(projectPostPath(project.key, project.posts[0].slug), 302);
+  setPublicPageCache(response.headers);
+  return response;
 }
 
-const { project } = Astro.props;
-const projectSlug = getProjectSlug(project);
-const entryPost = getProjectEntryPost(await getCollection('projects'), projectSlug);
-
-if (!entryPost) {
-  return Astro.redirect('/projects');
-}
-
-return Astro.redirect(`/projects/${projectSlug}/${getProjectPostSlug(entryPost)}`);
+markNotFound(Astro.response);
 ---
+
+<BaseLayout
+  title="프로젝트를 찾을 수 없습니다"
+  description="요청한 프로젝트를 찾을 수 없습니다."
+  noindex
+>
+  <NotFound
+    title="프로젝트를 찾을 수 없습니다"
+    message="주소가 바뀌었거나 아직 공개하지 않은 프로젝트일 수 있습니다."
+  />
+</BaseLayout>

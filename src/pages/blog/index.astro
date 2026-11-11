@@ -1,49 +1,30 @@
 ---
-import { getAllContentTags, getPublishedContentPosts } from '@/lib/content-posts';
-import Reveal from '@/components/Reveal.astro';
-import TextReveal from '@/components/islands/TextReveal';
-import BlogPostList from '@/components/blog/BlogPostList';
+// 글 목록 /blog (재건 4단계 D2·D11·D17)
+// - 발행 글 전체. 카테고리 탭 "전체"가 현재다.
+// - 서버가 모든 행을 그린다. JS 없이도 목록 전체가 읽힌다. 검색은 행을 숨길 뿐이다(D2).
+import BlogList from '@/components/blog/BlogList.astro';
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getPublishedContentPosts, getPublishedSeriesList } from '@/lib/content-posts';
 import { setPublicPageCache } from '@/lib/server/cache-headers';
 
-const title = 'Blog';
-const description = 'Cruz의 개발 블로그 - 프론트엔드, 시스템 프로그래밍, 학습 기록';
-const posts = (await getPublishedContentPosts()).map((post) => ({
-  id: post.id,
-  title: post.title,
-  description: post.description,
-  heroImage: post.heroImage,
-  heroVideo: post.heroVideo,
-  tags: post.tags,
-  slug: post.slug,
-  pubDate: post.pubDate,
-  updatedDate: post.updatedDate,
-  readingTime: post.readingTime,
-  isPublic: post.isPublic,
-}));
-const tags = await getAllContentTags();
+export const prerender = false;
+
+const [posts, seriesList] = await Promise.all([getPublishedContentPosts(), getPublishedSeriesList()]);
 
 // CDN이 60초 동안 이 응답을 저장하게 한다
 setPublicPageCache(Astro.response.headers);
+
+const title = 'Blog';
+const description = '개발하면서 배운 것과 겪은 것을 기록합니다.';
 ---
 
 <BaseLayout title={title} description={description}>
-  <div class="py-8">
-    <!-- 페이지 헤더 -->
-    <Reveal>
-      <div class="mb-12 text-center">
-        <h1 class="mb-4 text-4xl font-extrabold md:text-5xl">
-          <TextReveal client:visible text="Blog" type="chars" staggerChildren={0.08} />
-        </h1>
-        <p class="mx-auto max-w-2xl text-lg text-text-secondary">
-          개발하면서 배운 것들, 경험한 것들을 기록합니다.
-        </p>
-      </div>
-    </Reveal>
-
-    <!-- 포스트 목록 -->
-    <Reveal delay={0.2}>
-      <BlogPostList client:load initialPosts={posts} initialTags={tags} />
-    </Reveal>
-  </div>
+  <BlogList
+    title={title}
+    description={description}
+    allPosts={posts}
+    posts={posts}
+    seriesList={seriesList}
+    currentCategory="all"
+  />
 </BaseLayout>

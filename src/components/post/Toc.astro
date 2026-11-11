@@ -1,0 +1,57 @@
+---
+// 목차 (재건 4단계 D16)
+// - 공유 파이프라인이 모은 h2·h3(rehype-headings)를 문서 순서대로 그린다. h3는 들여 쓴다.
+// - 현재 위치 강조는 글 상세 보조 스크립트(post-scripts.ts)가 aria-current로 표시한다.
+import type { TocEntry } from '@/lib/content/markdown';
+
+interface Props {
+  entries: TocEntry[];
+}
+
+const { entries } = Astro.props;
+---
+
+<ol class="toc-list">
+  {
+    entries.map((entry) => (
+      <li class:list={['toc-item', entry.depth === 3 && 'toc-item-sub']}>
+        <a href={`#${entry.id}`} data-toc-link={entry.id}>
+          {entry.text}
+        </a>
+      </li>
+    ))
+  }
+</ol>
+
+<style>
+  .toc-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+  .toc-item {
+    margin: 0;
+  }
+  .toc-item a {
+    display: block;
+    padding: 0.25rem 0 0.25rem 0.75rem;
+    border-left: 2px solid transparent;
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition:
+      color 0.15s,
+      border-color 0.15s;
+  }
+  .toc-item-sub a {
+    padding-left: 1.5rem;
+  }
+  .toc-item a:hover {
+    color: var(--text-primary);
+  }
+  .toc-item a[aria-current='location'] {
+    border-left-color: var(--brand);
+    color: var(--brand);
+  }
+</style>

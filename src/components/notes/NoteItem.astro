@@ -1,0 +1,97 @@
+---
+// 노트 스트림의 노트 하나 (재건 4단계 D12)
+// - 날짜(영구 링크) · 제목(있으면) · 본문 전체. 노트는 짧아서 목록에서 본문을 그대로 그린다.
+// - 영구 링크는 /notes/<slug>다. 날짜와 끝의 "#" 아이콘 둘 다 그 주소로 간다.
+// - 본문 HTML은 공유 파이프라인 결과다(render-entry.ts). 모양은 prose.css다(페이지가 가져온다).
+import { formatSeoulDate } from '@/lib/date-format';
+import { notePath } from '@/lib/public-paths';
+import type { PublicEntry } from '@/lib/server/entries';
+
+interface Props {
+  note: PublicEntry;
+  html: string;
+}
+
+const { note, html } = Astro.props;
+const href = notePath(note.slug);
+const date = formatSeoulDate(note.publishedAt);
+const headingId = `note-${note.id}`;
+---
+
+<article class="note-item" aria-labelledby={headingId}>
+  <header class="note-head">
+    <a class="note-date" href={href}>
+      <time datetime={note.publishedAt.toISOString()}>{date}</time>
+    </a>
+    {
+      note.title ? (
+        <h2 id={headingId} class="note-title">
+          {note.title}
+        </h2>
+      ) : (
+        <h2 id={headingId} class="sr-only">
+          노트 · {date}
+        </h2>
+      )
+    }
+  </header>
+  <div class="note-body prose" set:html={html} />
+  <a class="note-permalink" href={href} aria-label={`영구 링크: ${note.title || `노트 · ${date}`}`}
+    >#</a
+  >
+</article>
+
+<style>
+  .note-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-block: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .note-head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding-right: 1.5rem; /* 오른쪽 위 영구 링크 "#" 자리 */
+  }
+  .note-date {
+    align-self: flex-start;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+    text-decoration: none;
+  }
+  .note-date:hover {
+    color: var(--brand);
+  }
+  .note-title {
+    margin: 0;
+    font-size: var(--text-xl);
+    font-weight: 700;
+    line-height: var(--leading-heading);
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+  .note-body {
+    min-width: 0;
+  }
+  .note-body > :global(:first-child) {
+    margin-top: 0;
+  }
+  .note-body > :global(:last-child) {
+    margin-bottom: 0;
+  }
+  .note-permalink {
+    position: absolute;
+    top: 1.5rem;
+    right: 0;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    text-decoration: none;
+  }
+  .note-permalink:hover {
+    color: var(--brand);
+  }
+</style>

@@ -1,76 +1,142 @@
 ---
-import GithubWhite from '@/assets/img/github-mark-white.svg';
-import GithubBlack from '@/assets/img/github-mark.svg';
-import ThemeToggle from '@/components/islands/ThemeToggle.tsx';
-import { Image } from 'astro:assets';
+// 사이트 헤더 (재건 4단계 D6·D10)
+// - 한 줄: 로고 "Cruz"(홈 링크) · Blog · Notes · Projects · About · 테마 버튼 · GitHub.
+// - 스크롤하면 사라진다(sticky가 아니다). 3단계까지의 화면 위 알약 메뉴(fixed)와 햄버거는 없다.
+// - Series는 메뉴에 두지 않는다(D6 답). /series 아래에서는 Blog를 현재 메뉴로 표시한다.
+// - 폭 380px 미만에서는 간격과 좌우 여백이 12px다(D6 실측, --gutter는 global.css).
+import ThemeToggle from './ThemeToggle.astro';
 
-const menu = [
-  { link: '/', label: 'Home' },
-  { link: '/blog/', label: 'Blog' },
-  { link: '/series/', label: 'Series' },
-  { link: '/projects/', label: 'Projects' },
+const MENU = [
+  { href: '/blog', label: 'Blog', match: ['/blog', '/series'] },
+  { href: '/notes', label: 'Notes', match: ['/notes'] },
+  { href: '/projects', label: 'Projects', match: ['/projects'] },
+  { href: '/about', label: 'About', match: ['/about'] },
 ];
 
-const { pathname } = Astro.url;
-const isActive = (href: string) => pathname === href || (href !== '/' && pathname.startsWith(href));
+const pathname = Astro.url.pathname.replace(/(.)\/$/, '$1');
+// 메뉴 주소 그 자체면 aria-current="page", 그 아래(글 상세·연재 등)면 "true"다(4단계 PR-B 리뷰 경미 12)
+const currentOf = (prefixes: string[]) => {
+  if (prefixes.includes(pathname)) return 'page';
+  return prefixes.some((prefix) => pathname.startsWith(`${prefix}/`)) ? 'true' : undefined;
+};
 ---
 
-<header transition:persist class="border-border bg-bg-app">
-  <div class="container">
-    <nav class="flex items-center justify-between gap-4 py-3">
-      <h2 class="m-0">
-        <!-- 중첩 <a>를 없앤다. 브라우저가 그리던 안쪽 링크만 남겨 모양을 유지한다 -->
-        <a href="/" class="font-bold">Cruz</a>
-      </h2>
-      <div class="flex items-center gap-1">
-        <!-- 좁은 화면에서는 가운데 메뉴와 겹치므로 sm 이상에서만 GitHub 아이콘 표시 -->
-        <a
-          class="hidden p-3 sm:block sm:dark:hidden"
-          href="https://github.com/crucial-sub"
-          target="_blank"><Image src={GithubBlack} width={24} height={24} alt="Github logo" /></a
-        >
-        <a class="hidden p-3 sm:dark:block" href="https://github.com/crucial-sub" target="_blank"
-          ><Image src={GithubWhite} width={24} height={24} alt="Github logo" /></a
-        >
-        <ThemeToggle client:load />
-      </div>
+<header class="site-header">
+  <div class="container site-header-inner">
+    <a class="site-logo" href="/">Cruz</a>
+    <nav class="site-nav" aria-label="주 메뉴">
+      <ul>
+        {
+          MENU.map((item) => (
+            <li>
+              <a href={item.href} aria-current={currentOf(item.match)}>
+                {item.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
     </nav>
+    <div class="site-tools">
+      <ThemeToggle />
+      <a
+        class="site-icon-link"
+        href="https://github.com/crucial-sub"
+        aria-label="GitHub"
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="currentColor">
+          <path
+            d="M12 .5C5.65.5.5 5.65.5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.25 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"
+          />
+        </svg>
+      </a>
+    </div>
   </div>
 </header>
-<div class="fixed left-1/2 top-3 z-[999] w-auto max-w-full -translate-x-1/2 px-3">
-  <div
-    class="relative flex rounded-full border border-border bg-[rgb(var(--bg-surface-rgb)/0.9)] px-2.5 leading-tight backdrop-blur-md [--tab-py:12px]"
-  >
-    {
-      menu.map((item) => (
-        <div class="px-1.5 text-sm sm:px-2.5">
-          <a
-            href={item.link}
-            aria-current={isActive(item.link) ? 'page' : undefined}
-            data-active={isActive(item.link) ? 'true' : 'false'}
-            class="relative flex items-center gap-2 py-[var(--tab-py)] text-text-secondary transition hover:text-text-primary data-[active=true]:text-brand data-[active=true]:shadow-[inset_0_-1px_0_0_currentColor]"
-          >
-            {item.label === 'Home' ? (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.7"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" />
-                <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              </svg>
-            ) : (
-              <span>{item.label}</span>
-            )}
-          </a>
-        </div>
-      ))
+
+<style>
+  .site-header {
+    border-bottom: 1px solid var(--border);
+  }
+  .site-header-inner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-height: 56px;
+  }
+  .site-logo {
+    flex: none;
+    color: var(--text-primary);
+    font-size: var(--text-lg);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    text-decoration: none;
+  }
+  .site-logo:hover {
+    color: var(--brand);
+  }
+  /* 폭 360px 미만(Plan 기준 밖)에서는 메뉴가 도구 버튼과 겹치지 않게 가로로 스크롤한다 */
+  .site-nav {
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .site-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .site-nav ul {
+    display: flex;
+    gap: 16px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .site-nav a {
+    display: block;
+    padding-block: 8px;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    line-height: 1.4;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: var(--transition-colors);
+  }
+  .site-nav a:hover {
+    color: var(--text-primary);
+  }
+  .site-nav a[aria-current] {
+    color: var(--text-primary);
+    font-weight: 700;
+  }
+  .site-tools {
+    display: flex;
+    flex: none;
+    align-items: center;
+    margin-left: auto;
+  }
+  .site-icon-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    transition: var(--transition-colors);
+  }
+  .site-icon-link:hover {
+    color: var(--text-primary);
+    background: var(--bg-card);
+  }
+
+  /* 폭 380px 미만: 간격을 줄인다(D6) */
+  @media (max-width: 379.98px) {
+    .site-header-inner,
+    .site-nav ul {
+      gap: 12px;
     }
-  </div>
-</div>
+  }
+</style>

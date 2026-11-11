@@ -1,0 +1,19 @@
+---
+// 관리자 로그인 페이지 (재건 2단계 D5, 5단계 D4)
+// - 미들웨어가 쿠키 없이 여는 유일한 관리자 페이지다.
+// - 5단계 D4: 공개 틀(사이트 헤더·푸터) 대신 관리자 틀(AdminPage: noindex, 테마 초기화)이다.
+//   사전 안내, "Google로 로그인", "블로그로 돌아가기". 관리자가 아닌 계정이면 거부 화면을 보인다(AdminLogin).
+//   푸터 "관리" 링크(누구에게나 보인다)로 들어온 방문자가 이 화면을 본다.
+// - next는 /admin 아래 경로만 받는다. 그 밖이면 /admin으로 돌아간다.
+export const prerender = false;
+
+import AdminLogin from '@/components/admin/AdminLogin';
+import { safeAdminNextPath } from '@/lib/admin-guard';
+import AdminPage from '@/layouts/AdminPage.astro';
+
+const nextPath = safeAdminNextPath(Astro.url.searchParams.get('next'));
+---
+
+<AdminPage title="관리자 로그인 | Cruz Lab">
+  <AdminLogin client:load nextPath={nextPath} />
+</AdminPage>

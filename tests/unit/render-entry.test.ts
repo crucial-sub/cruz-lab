@@ -1,0 +1,123 @@
+// 글 본문 렌더 캐시 테스트 (재건 4단계 D7, 리뷰 경미 7)
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const BUCKET = 'cruz-lab.firebasestorage.app';
+const getAssetsByIds = vi.fn();
+
+vi.mock('@/lib/server/entries', () => ({
+  getAssetsByIds: (ids: string[]) => getAssetsByIds(ids),
+}));
+vi.mock('@/lib/server/firebase-server', () => ({ getStorageBucketName: () => BUCKET }));
+
+const { assetIdsInMarkdown, clearRenderCache, renderEntry } = await import(
+  '@/lib/server/render-entry'
+);
+const { ServerTiming } = await import('@/lib/server/server-timing');
+
+const url = (path: string, bucket = BUCKET) =>
+  `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}?alt=media&token=t`;
+
+beforeEach(() => {
+  clearRenderCache();
+  getAssetsByIds.mockReset();
+  getAssetsByIds.mockResolvedValue(new Map());
+});
+
+describe('assetIdsInMarkdown', () => {
+  it('우리 버킷의 assets/{id}만, 나온 순서, 중복 없이', () => {
+    const markdown = [
+      `![a](${url('assets/b2/max.webp')})`,
+      `![b](${url('assets/a1/w480.webp')})`,
+      `![c](${url('assets/b2/w960.webp')})`,
+      `![d](${url('images/old.png')})`,
+      `![e](${url('assets/zz/max.webp', 'other-bucket')})`,
+      '![f](https://user-images.githubusercontent.com/1/a.png)',
+    ].join('\n\n');
+    expect(assetIdsInMarkdown(markdown, BUCKET)).toEqual(['b2', 'a1']);
+  });
+});
+
+describe('renderEntry', () => {
+  it('같은 글·같은 발행본이면 한 번만 그린다', async () => {
+    const entry = {
+      id: 'p1',
+      revision: 1,
+      markdown: `## 제목\n\n![a](${url('assets/a1/max.webp')})`,
+    };
+    const first = await renderEntry(entry);
+    const second = await renderEntry(entry);
+    expect(second).toBe(first);
+    expect(getAssetsByIds).toHaveBeenCalledTimes(1);
+    expect(getAssetsByIds).toHaveBeenCalledWith(['a1']);
+    expect(first.toc).toEqual([{ depth: 2, id: '제목', text: '제목' }]);
+  });
+
+  it('발행본 번호가 바뀌면 다시 그리고 글마다 최신 하나만 둔다', async () => {
+    const first = await renderEntry({ id: 'p1', revision: 1, markdown: '## 하나' });
+    const second = await renderEntry({ id: 'p1', revision: 2, markdown: '## 둘' });
+    expect(second).not.toBe(first);
+    expect(second.toc[0].text).toBe('둘');
+    const third = await renderEntry({ id: 'p1', revision: 2, markdown: '## 둘' });
+    expect(third).toBe(second);
+  });
+
+  it('자산 조회가 실패해도 글은 그린다 (srcset만 빠진다)', async () => {
+    getAssetsByIds.mockRejectedValue(new Error('일시 오류'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = await renderEntry({
+      id: 'p2',
+      revision: 1,
+      markdown: `![a](${url('assets/a1/max.webp')})`,
+    });
+    expect(result.html).toContain('<img');
+    expect(result.html).not.toContain('srcset');
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('하이라이트한 코드와 수식 여부를 돌려준다', async () => {
+    const result = await renderEntry({
+      id: 'p3',
+      revision: 1,
+      markdown: '```js\nconst a = 1;\n```\n\n$x$',
+    });
+    expect(result.html).toContain('class="shiki');
+    expect(result.hasMath).toBe(true);
+  });
+
+  it('id 접두사가 다르면 따로 그리고 따로 둔다 (/notes 스트림과 노트 상세)', async () => {
+    const entry = { id: 'n1', revision: 1, markdown: '## 제목' };
+    const plain = await renderEntry(entry);
+    const prefixed = await renderEntry(entry, { idPrefix: 'n-n1-' });
+    expect(plain.html).toContain('id="제목"');
+    expect(prefixed.html).toContain('id="n-n1-제목"');
+    expect(await renderEntry(entry)).toBe(plain);
+    expect(await renderEntry(entry, { idPrefix: 'n-n1-' })).toBe(prefixed);
+  });
+});
+
+// 5단계 T13: 실제로 그린 요청에만 단계별 시간을 남긴다(리뷰 S8)
+describe('renderEntry의 timing', () => {
+  it('처음 그리면 assets·hl·md, 메모리 결과를 쓰면 아무것도 남기지 않는다', async () => {
+    const entry = { id: 't1', revision: 1, markdown: '```c\nint a;\n```' };
+    const miss = new ServerTiming();
+    await renderEntry(entry, { timing: miss });
+    expect(miss.metrics.map((metric) => metric.name).sort()).toEqual(['assets', 'hl', 'md']);
+    const hit = new ServerTiming();
+    await renderEntry(entry, { timing: hit });
+    expect(hit.metrics).toEqual([]);
+  });
+
+  it('자산 조회가 실패해도 그리고 시간을 남긴다', async () => {
+    getAssetsByIds.mockRejectedValueOnce(new Error('firestore'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const timing = new ServerTiming();
+    const result = await renderEntry(
+      { id: 't2', revision: 1, markdown: `![a](${url('assets/a1/max.webp')})` },
+      { timing },
+    );
+    expect(result.html).toContain('<img');
+    expect(timing.metrics.map((metric) => metric.name)).toContain('assets');
+    warn.mockRestore();
+  });
+});

@@ -1,0 +1,65 @@
+---
+// 카테고리 목록 /blog/category/<key> (재건 4단계 D11·D17, 5단계 D1)
+// - 카테고리 목록은 데이터(settings/taxonomy)다. 표시 이름은 글 값(categoryLabel)이다.
+// - 모르는 key와 발행 글이 없는 카테고리는 404다. 안내 화면을 직접 그리고 CDN에 저장하지 않는다.
+// - 5단계 D1: key를 바꾸거나 합친 옛 key(categoryAliases)는 새 주소로 301한다.
+// - 카테고리와 같은 뜻의 태그 주소(/blog/tag/javascript 등)는 미들웨어가 이 주소로 301한다.
+import BlogList from '@/components/blog/BlogList.astro';
+import NotFound from '@/components/NotFound.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getPublishedContentPosts, getPublishedSeriesList } from '@/lib/content-posts';
+import { categoryPath } from '@/lib/public-paths';
+import { setPublicPageCache } from '@/lib/server/cache-headers';
+import { markNotFound } from '@/lib/server/not-found';
+import { getTaxonomy } from '@/lib/server/taxonomy-store';
+import { categoryLabelIn, hasCategoryIn } from '@/lib/taxonomy';
+
+export const prerender = false;
+
+const key = Astro.params.key ?? '';
+const [allPosts, seriesList, taxonomy] = await Promise.all([
+  getPublishedContentPosts(),
+  getPublishedSeriesList(),
+  getTaxonomy(),
+]);
+const posts = allPosts.filter((post) => post.category === key);
+
+// 옛 key면 새 주소로 301 (목록에 없고 글도 없을 때만. 같은 key의 글이 있으면 그 목록을 보인다)
+const aliasTarget = posts.length === 0 && !hasCategoryIn(taxonomy, key) ? taxonomy.categoryAliases[key] : undefined;
+if (aliasTarget) {
+  const response = Astro.redirect(categoryPath(aliasTarget), 301);
+  setPublicPageCache(response.headers);
+  return response;
+}
+
+const found = posts.length > 0;
+if (found) {
+  // CDN이 60초 동안 이 응답을 저장하게 한다
+  setPublicPageCache(Astro.response.headers);
+} else {
+  markNotFound(Astro.response);
+}
+
+const label = found ? posts[0].categoryLabel || categoryLabelIn(taxonomy, key) : '';
+const title = found ? label : '페이지를 찾을 수 없습니다';
+const description = found
+  ? `${label} 카테고리의 글 ${posts.length}편`
+  : '요청한 카테고리를 찾을 수 없습니다.';
+---
+
+<BaseLayout title={found ? `${title} · Blog` : title} description={description} noindex={!found}>
+  {
+    found ? (
+      <BlogList
+        title={title}
+        description={description}
+        allPosts={allPosts}
+        posts={posts}
+        seriesList={seriesList}
+        currentCategory={key}
+      />
+    ) : (
+      <NotFound message="없는 카테고리이거나 아직 글이 없는 카테고리입니다." />
+    )
+  }
+</BaseLayout>

@@ -1,5 +1,4 @@
 // astro.config.mjs
-import mdx from '@astrojs/mdx';
 import react from '@astrojs/react';
 import sitemap from '@astrojs/sitemap';
 import tailwind from '@astrojs/tailwind';
@@ -14,9 +13,15 @@ const SITE = 'https://www.cruzlab.dev';
 export default defineConfig({
   site: SITE,
   output: 'server', // SSR 모드 (Astro 5)
-  adapter: vercel(),
+  // 함수 최대 실행 시간 60초 (재건 2단계 Plan 6.4)
+  // - 이미지 변형(finalize)이 몇 초 걸린다. Fluid compute 설정과 상관없이 Hobby 한도 안의 같은 값을 쓴다.
+  // includeFiles: OG 이미지 글꼴 서브셋(재건 4단계 D13). /og/<id>.png 함수가 실행 중에 읽는다(src/lib/server/og-image.ts).
+  // - 코드에서 import하지 않는 파일이라 함수 번들 추적(nft)이 찾지 못한다. 그래서 함수 폴더에 같은 경로로 싣게 한다.
+  adapter: vercel({
+    maxDuration: 60,
+    includeFiles: ['./src/assets/fonts/og/Pretendard-Bold.subset.otf'],
+  }),
   integrations: [
-    mdx(),
     sitemap({
       // 관리자 페이지는 사이트맵에서 제외
       filter: (page) => !new URL(page).pathname.startsWith('/admin'),
@@ -24,7 +29,9 @@ export default defineConfig({
       customSitemaps: [`${SITE}/sitemap-posts.xml`],
     }),
     react(),
-    tailwind(),
+    // base.css 자동 주입을 끈다. global.css가 @tailwind 지시문을 갖고, 모든 페이지 틀(BaseLayout·AdminPage)이
+    // global.css를 가져온다. 켜 두면 preflight·utilities가 한 벌 더 나갔다(4단계 PR-B 리뷰 경미 10)
+    tailwind({ applyBaseStyles: false }),
   ],
   image: {
     service: sharpImageService(),
@@ -41,8 +48,8 @@ export default defineConfig({
     optimizeDeps: {
       // 개발 서버 시작 시 항상 의존성 재스캔
       force: true,
-      // 자주 사용하는 의존성 미리 번들링
-      include: ['react', 'react-dom', 'framer-motion'],
+      // 자주 사용하는 의존성 미리 번들링 (React는 관리자 화면만 쓴다. framer-motion은 4단계에서 지웠다)
+      include: ['react', 'react-dom'],
     },
     server: {
       // HMR 연결 안정성 향상

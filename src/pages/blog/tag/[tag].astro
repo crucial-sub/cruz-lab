@@ -1,107 +1,72 @@
 ---
-import BlogCard from '@/components/islands/BlogCard';
-import Reveal from '@/components/Reveal.astro';
+// 태그 목록 /blog/tag/<tag> (재건 4단계 D11·D17)
+// - 정규화되지 않은 태그 주소(/blog/tag/CSAPP 등)는 미들웨어가 301로 보낸다(2단계 Plan 7.4).
+// - 카테고리와 같은 뜻의 태그(javascript, 운영체제 …)는 이 페이지가 데이터 동의어(settings/taxonomy)를 보고
+//   /blog/category/<key>로 301한다(4단계 D11, 5단계 PR-B 리뷰 S2: 미들웨어는 정규화만 한다).
+// - 발행 글에 없는 태그는 404다(3단계까지는 빈 목록 200). 안내 화면을 직접 그리고 CDN에 저장하지 않는다.
+// - 5단계 D1: 이름을 바꾸거나 합친 옛 태그(tagAliases)는 글이 없을 때 새 태그 주소로 301한다.
+import BlogList from '@/components/blog/BlogList.astro';
+import NotFound from '@/components/NotFound.astro';
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { getAllContentTags, getPublishedContentPosts } from '@/lib/content-posts';
+import { getPublishedContentPosts, getPublishedSeriesList } from '@/lib/content-posts';
 import { setPublicPageCache } from '@/lib/server/cache-headers';
+import { categoryPath, tagPath } from '@/lib/public-paths';
+import { markNotFound } from '@/lib/server/not-found';
+import { getTaxonomy } from '@/lib/server/taxonomy-store';
 
 export const prerender = false;
 
-const tag = Astro.params.tag || '';
-const allPosts = await getPublishedContentPosts();
-const allTags = await getAllContentTags();
+const tag = Astro.params.tag ?? '';
+const [allPosts, seriesList, taxonomy] = await Promise.all([
+  getPublishedContentPosts(),
+  getPublishedSeriesList(),
+  getTaxonomy(),
+]);
+
+// 카테고리 동의어 태그면 그 카테고리 목록으로 301
+const synonymOf = taxonomy.categories.find((category) => category.synonymTags.includes(tag));
+if (synonymOf) {
+  const response = Astro.redirect(categoryPath(synonymOf.key), 301);
+  setPublicPageCache(response.headers);
+  return response;
+}
+
 const posts = allPosts.filter((post) => post.tags.includes(tag));
 
-// CDN이 60초 동안 이 응답을 저장하게 한다
-setPublicPageCache(Astro.response.headers);
+// 옛 태그면 새 태그 주소로 301
+const aliasTarget = posts.length === 0 ? taxonomy.tagAliases[tag] : undefined;
+if (aliasTarget) {
+  const response = Astro.redirect(tagPath(aliasTarget), 301);
+  setPublicPageCache(response.headers);
+  return response;
+}
 
-const title = `${tag} 태그 포스트`;
-const description = `${tag} 태그가 포함된 블로그 포스트 목록`;
+const found = posts.length > 0;
+if (found) {
+  // CDN이 60초 동안 이 응답을 저장하게 한다
+  setPublicPageCache(Astro.response.headers);
+} else {
+  markNotFound(Astro.response);
+}
+
+const title = found ? `#${tag}` : '페이지를 찾을 수 없습니다';
+const description = found ? `${tag} 태그가 붙은 글 ${posts.length}편` : '요청한 태그의 글을 찾을 수 없습니다.';
 ---
 
-<BaseLayout title={title} description={description}>
-  <div class="py-8">
-    <!-- 페이지 헤더 -->
-    <Reveal>
-      <div class="mb-8">
-        <a
-          href="/blog"
-          class="group mb-4 inline-flex items-center gap-2 text-text-secondary transition-colors hover:text-brand"
-        >
-          <svg
-            class="h-4 w-4 transition-transform group-hover:-translate-x-1"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"
-            ></path>
-          </svg>
-          전체 포스트 보기
-        </a>
-
-        <h1 class="mb-4 text-4xl font-extrabold md:text-5xl">
-          <span class="text-brand">#{tag}</span>
-        </h1>
-        <p class="text-lg text-text-secondary">
-          {posts.length}개의 포스트
-        </p>
-      </div>
-    </Reveal>
-
-    <!-- 태그 필터 -->
-    <Reveal delay={0.1}>
-      <div class="mb-8 flex flex-wrap gap-2">
-        <a
-          href="/blog"
-          class="rounded-full border border-border bg-bg-surface px-4 py-1.5 text-sm font-medium text-text-secondary transition-colors hover:border-brand hover:text-brand"
-        >
-          전체
-        </a>
-        {
-          allTags.map((t: string) => (
-            <a
-              href={`/blog/tag/${t}`}
-              class={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                t === tag
-                  ? 'bg-brand text-white'
-                  : 'border border-border bg-bg-surface text-text-secondary hover:border-brand hover:text-brand'
-              }`}
-            >
-              {t}
-            </a>
-          ))
-        }
-      </div>
-    </Reveal>
-
-    <!-- 포스트 그리드 -->
-    <Reveal delay={0.2}>
-      <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {
-          posts.map((post, index: number) => (
-            <BlogCard
-              client:visible
-              title={post.title}
-              description={post.description}
-              pubDate={post.pubDate}
-              tags={post.tags}
-              slug={post.slug || post.id}
-              readingTime={post.readingTime}
-              index={index}
-            />
-          ))
-        }
-      </div>
-    </Reveal>
-
-    <!-- 포스트가 없을 경우 -->
-    {
-      posts.length === 0 && (
-        <div class="py-16 text-center">
-          <p class="text-lg text-text-secondary">해당 태그의 포스트가 없습니다.</p>
-        </div>
-      )
-    }
-  </div>
+<BaseLayout title={found ? `${title} · Blog` : title} description={description} noindex={!found}>
+  {
+    found ? (
+      <BlogList
+        title={title}
+        description={description}
+        allPosts={allPosts}
+        posts={posts}
+        seriesList={seriesList}
+        currentCategory={null}
+        currentTag={tag}
+      />
+    ) : (
+      <NotFound message="이 태그가 붙은 글이 없습니다." />
+    )
+  }
 </BaseLayout>

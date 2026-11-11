@@ -1,73 +1,87 @@
 ---
-// Open Graph 메타태그 완성
-// og:image, twitter:card 지원
-const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+// 페이지 <head> (재건 4단계 D10·D13)
+// - 테마: 그려지기 전에 html.dark/.light를 정한다(저장값 → 시스템 설정). JS가 없으면 global.css가 시스템 설정을 따른다.
+// - JS가 없으면 JS로만 동작하는 요소(data-js-only: 테마 버튼, 목록 검색창)를 숨긴다(noscript 안의 스타일).
+// - 글꼴: Pretendard dynamic subset 중 첫 화면에 거의 늘 나오는 범위만 preload한다(PRELOAD_FONT_SUBSETS).
+//   JetBrains Mono는 preload하지 않는다(코드가 있는 글에서만 쓴다).
+// - OG 이미지: ogImage(절대 주소 또는 사이트 기준 경로). 글·노트·프로젝트 글은 /og/<글 ID>.png를 넘긴다.
+//   없으면 기본 카드 /og/default.png(빌드 때 그린 정적 파일)다(4단계 D13). 표지 이미지는 OG에 쓰지 않는다.
+// - 페이지별 head 요소(글 상세의 KaTeX CSS 등)는 BaseLayout의 head 슬롯이다(이 컴포넌트 바로 뒤).
 import Favicon from '@/assets/img/favicon.svg';
-import DefaultOGImage from '@/assets/img/profile.png';
+import { DEFAULT_OG_IMAGE_PATH, SITE_DESCRIPTION, SITE_TITLE } from '@/lib/public-paths';
 
 interface Props {
   title?: string;
   description?: string;
-  image?: string;
+  ogImage?: string;
   type?: 'website' | 'article';
   publishedTime?: string;
   tags?: string[];
+  // 검색 엔진에 싣지 않는 페이지(404 안내)
+  noindex?: boolean;
 }
 
 const {
-  title = 'Cruz Lab',
-  description = 'Frontend Developer Portfolio & Blog - React, TypeScript, Next.js',
-  image,
+  title = SITE_TITLE,
+  description = SITE_DESCRIPTION,
+  ogImage,
   type = 'website',
   publishedTime,
   tags = [],
+  noindex = false,
 } = Astro.props;
 
-// OG 이미지 URL 생성 (절대 경로 필요)
-const ogImageURL = image
-  ? new URL(image, Astro.site).toString()
-  : new URL(DefaultOGImage.src, Astro.site).toString();
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 
-// 사이트 이름
-const siteName = 'Cruz Lab';
+// OG 이미지 주소 (절대 주소가 필요하다)
+const ogImageURL = new URL(ogImage ?? DEFAULT_OG_IMAGE_PATH, Astro.site).toString();
 
-// 전체 타이틀 (페이지 타이틀 + 사이트 이름)
-const fullTitle = title === siteName ? title : `${title} | ${siteName}`;
+// 전체 제목 (페이지 제목 + 사이트 이름)
+const fullTitle = title === SITE_TITLE ? title : `${title} | ${SITE_TITLE}`;
+
+// 첫 화면 글꼴 범위 (fonts.css의 [n] 번호)
+// - 홈·/blog·글 상세·/about·/series의 본문 글자를 세어, 모든 페이지에서 가장 많이 쓰는 범위 3개를 골랐다
+//   (2026-11-09 측정: 91 > 90 > 89. 파일 38·21·22 KB. 작업 문서 4절).
+// - 91은 영문·숫자·문장 부호와 가장 흔한 한글이다. 90·89는 그다음으로 흔한 한글이다.
+const PRELOAD_FONT_SUBSETS = [91, 90, 89];
+
+// JS가 없을 때 JS로만 동작하는 요소를 숨기는 스타일 (문자열로 넣는다. 템플릿에 직접 쓰면 중괄호를 식으로 읽는다)
+const NOSCRIPT_STYLE = '<style>[data-js-only]{display:none !important}</style>';
 ---
 
 <head>
-  <script is:inline>
-    (() => {
-      try {
-        const saved = localStorage.getItem('theme'); // 'dark' | 'light' | null
-        const prefers = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        const isDark = saved ? saved === 'dark' : prefers; // 기본값: 다크
-        const root = document.documentElement;
-        root.classList.toggle('dark', isDark);
-        root.classList.toggle('light', !isDark);
-      } catch {}
-    })();
-  </script>
-
-  <!-- Font preloads -->
-  <link
-    rel="preload"
-    as="font"
-    href="/fonts/pretendard/PretendardVariable.woff2"
-    type="font/woff2"
-    crossorigin
-  />
-  <link
-    rel="preload"
-    as="font"
-    href="/fonts/jetbrains-mono/JetBrainsMono-Regular.woff2"
-    type="font/woff2"
-    crossorigin
-  />
-
-  <!-- Global Metadata -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+  <script is:inline>
+    (() => {
+      // 저장소를 읽지 못해도(사생활 보호 모드 등) 시스템 설정으로 클래스를 정한다
+      let saved = null; // 'dark' | 'light' | null
+      try {
+        saved = localStorage.getItem('theme');
+      } catch {}
+      const prefers = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const isDark = saved ? saved === 'dark' : prefers;
+      const root = document.documentElement;
+      root.classList.toggle('dark', isDark);
+      root.classList.toggle('light', !isDark);
+    })();
+  </script>
+  <noscript set:html={NOSCRIPT_STYLE} />
+
+  <!-- 첫 화면 글꼴 범위 -->
+  {
+    PRELOAD_FONT_SUBSETS.map((index) => (
+      <link
+        rel="preload"
+        as="font"
+        href={`/fonts/pretendard/subset/PretendardVariable.subset.${index}.woff2`}
+        type="font/woff2"
+        crossorigin
+      />
+    ))
+  }
+
   <link rel="icon" href={Favicon.src} />
   <meta name="generator" content={Astro.generator} />
 
@@ -79,12 +93,13 @@ const fullTitle = title === siteName ? title : `${title} | ${siteName}`;
   <meta name="title" content={fullTitle} />
   <meta name="description" content={description} />
   <meta name="author" content="Cruz" />
+  {noindex && <meta name="robots" content="noindex" />}
   {tags.length > 0 && <meta name="keywords" content={tags.join(', ')} />}
 
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content={type} />
   <meta property="og:url" content={Astro.url} />
-  <meta property="og:site_name" content={siteName} />
+  <meta property="og:site_name" content={SITE_TITLE} />
   <meta property="og:title" content={title} />
   <meta property="og:description" content={description} />
   <meta property="og:image" content={ogImageURL} />
@@ -93,12 +108,8 @@ const fullTitle = title === siteName ? title : `${title} | ${siteName}`;
   <meta property="og:locale" content="ko_KR" />
 
   <!-- Article specific (for blog posts) -->
-  {type === 'article' && publishedTime && (
-    <meta property="article:published_time" content={publishedTime} />
-  )}
-  {type === 'article' && tags.map((tag) => (
-    <meta property="article:tag" content={tag} />
-  ))}
+  {type === 'article' && publishedTime && <meta property="article:published_time" content={publishedTime} />}
+  {type === 'article' && tags.map((tag) => <meta property="article:tag" content={tag} />)}
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
@@ -115,6 +126,8 @@ const fullTitle = title === siteName ? title : `${title} | ${siteName}`;
   <!-- 홈 화면 아이콘 (iOS) -->
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
 
-  <!-- RSS Feed -->
-  <link rel="alternate" type="application/rss+xml" title="Cruz Lab RSS Feed" href="/rss.xml" />
+  <!-- RSS: 글, 노트 -->
+  <link rel="alternate" type="application/rss+xml" title={`${SITE_TITLE} 글`} href="/rss.xml" />
+  <link rel="alternate" type="application/rss+xml" title={`${SITE_TITLE} 노트`} href="/notes/rss.xml" />
+
 </head>

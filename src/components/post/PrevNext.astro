@@ -1,0 +1,94 @@
+---
+// 이전·다음 글 (재건 4단계 D16 7)
+// - 발행순으로 이웃한 같은 kind의 글. 이전 글은 바로 전에 발행한 글, 다음 글은 바로 뒤에 발행한 글이다.
+// - 노트 상세(4단계 D12)는 kind="note"로 부른다. 주소는 /notes/<slug>, 이름은 "노트"다.
+// - 프로젝트 글(4단계 D1)은 kind="project"로 부른다. 이웃은 같은 프로젝트의 Part 순서다(D17). 주소는 /projects/<key>/<slug>.
+import type { ContentPost } from '@/lib/content-posts';
+import { formatSeoulDate } from '@/lib/date-format';
+import { notePath, projectPostPath } from '@/lib/public-paths';
+import { blogPath } from '@/lib/slug-lookup';
+
+interface Props {
+  previous: ContentPost | null;
+  next: ContentPost | null;
+  kind?: 'post' | 'note' | 'project';
+  projectKey?: string; // kind="project"일 때 프로젝트 key
+}
+
+const { previous, next, kind = 'post', projectKey = '' } = Astro.props;
+const noun = kind === 'note' ? '노트' : kind === 'project' ? 'Part' : '글';
+const pathOf = (post: ContentPost) => {
+  if (kind === 'note') return notePath(post.slug);
+  if (kind === 'project') return projectPostPath(projectKey, post.slug);
+  return blogPath(post.slug);
+};
+// 제목 없는 노트는 날짜로 부른다. Part는 번호를 앞에 붙인다
+const titleOf = (post: ContentPost) => {
+  if (kind === 'project') return `Part ${post.series?.order ?? 1} · ${post.title}`;
+  return post.title || `노트 · ${formatSeoulDate(post.pubDate)}`;
+};
+---
+
+{
+  (previous || next) && (
+    <nav class="prev-next" aria-label={`이전·다음 ${noun}`}>
+      {previous ? (
+        <a class="prev-next-link" href={pathOf(previous)} rel="prev">
+          <span class="prev-next-label">← 이전 {noun}</span>
+          <span class="prev-next-title">{titleOf(previous)}</span>
+        </a>
+      ) : (
+        <span />
+      )}
+      {next ? (
+        <a class="prev-next-link prev-next-link-next" href={pathOf(next)} rel="next">
+          <span class="prev-next-label">다음 {noun} →</span>
+          <span class="prev-next-title">{titleOf(next)}</span>
+        </a>
+      ) : (
+        <span />
+      )}
+    </nav>
+  )
+}
+
+<style>
+  .prev-next {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  @media (min-width: 640px) {
+    .prev-next {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  .prev-next-link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+    padding: 0.875rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: border-color 0.15s;
+  }
+  .prev-next-link:hover {
+    border-color: var(--brand);
+  }
+  .prev-next-link-next {
+    text-align: right;
+  }
+  .prev-next-label {
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+  }
+  .prev-next-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+</style>

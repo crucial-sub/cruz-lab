@@ -1,0 +1,268 @@
+---
+// 글 목록 화면 (재건 4단계 D2·D6·D11·D17·D19)
+// - /blog, /blog/category/<key>, /blog/tag/<tag>가 같이 쓴다. 페이지는 제목·설명·거른 글만 다르게 넘긴다.
+// 위에서 아래 순서 (D19 매거진형):
+// 1. 머리: 왼쪽 제목 · 설명 1줄 · "연재 N개 보기 →"(D6 답의 연재 입구 1), 오른쪽 검색창(D2. 640px 미만은 설명 아래 전체 폭)
+// 2. 카테고리 탭(전체 + 발행 글이 있는 카테고리, 글 수)
+// 3. 결과 수 · "태그 N개" <details>(기본 닫힘. 태그 페이지에서는 현재 태그가 보이게 열림). 안에 태그 칩
+// 4. 대표 카드: 이 목록의 최신 글 1편(FeaturedPost)
+// 5. 나머지 글: 연도 묶음 안의 작은 커버 행(PostRow). 페이지 나누기는 없다(54편)
+// - 탭·칩의 글 수는 전체 발행 글 기준이다. 대표 카드·행은 이 페이지의 글(posts)만이다.
+// - 대표 카드와 행은 모두 <li data-post-row>라 검색 필터가 함께 거르고 스모크가 함께 센다(행 수 = 글 수).
+//   대표 카드의 ol에도 data-year-group을 줘 대표 카드가 숨으면 빈 상자(와 그 간격)도 숨는다.
+import {
+  buildCategoryTabs,
+  buildSeriesBadges,
+  buildTagChips,
+  groupByYear,
+  splitFeatured,
+  type ListPost,
+  type ListSeries,
+} from '@/lib/blog-list';
+import { getTaxonomy } from '@/lib/server/taxonomy-store';
+import CategoryTabs from './CategoryTabs.astro';
+import FeaturedPost from './FeaturedPost.astro';
+import PostRow from './PostRow.astro';
+import SearchFilter from './SearchFilter.astro';
+import TagChips from './TagChips.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  allPosts: ListPost[]; // 탭·칩 글 수 기준(전체 발행 글)
+  posts: ListPost[]; // 이 페이지의 글(최신 발행순)
+  seriesList: ListSeries[];
+  currentCategory: string | 'all' | null;
+  currentTag?: string | null;
+}
+
+const {
+  title,
+  description,
+  allPosts,
+  posts,
+  seriesList,
+  currentCategory,
+  currentTag = null,
+} = Astro.props;
+
+// 탭 순서는 데이터 분류의 카테고리 순서다(5단계 D1)
+const taxonomy = await getTaxonomy();
+const tabs = buildCategoryTabs(allPosts, taxonomy.categories.map((category) => category.key));
+const chips = buildTagChips(allPosts);
+const badges = buildSeriesBadges(seriesList);
+const { featured, rest } = splitFeatured(posts);
+const groups = groupByYear(rest);
+---
+
+<section class="blog-list" aria-labelledby="blog-list-title">
+  <header class="blog-list-head">
+    <div class="blog-list-title">
+      <h1 id="blog-list-title">{title}</h1>
+      <p class="blog-list-desc">{description}</p>
+      {
+        seriesList.length > 0 && (
+          <a class="blog-list-series" href="/series">
+            연재 {seriesList.length}개 보기 →
+          </a>
+        )
+      }
+    </div>
+    <div class="blog-list-search">
+      <SearchFilter total={posts.length} />
+    </div>
+  </header>
+
+  <CategoryTabs tabs={tabs} total={allPosts.length} current={currentCategory} />
+
+  <div class="blog-list-bar">
+    <p class="blog-list-count" data-result-count aria-live="polite">{posts.length}편</p>
+    {
+      chips.length > 0 && (
+        <details class="tag-panel" open={currentTag !== null}>
+          <summary>
+            태그 <span class="tag-panel-count">{chips.length}개</span>
+          </summary>
+          <div class="tag-panel-body">
+            <TagChips chips={chips} current={currentTag} />
+          </div>
+        </details>
+      )
+    }
+  </div>
+
+  <div class="blog-list-rows" data-post-list>
+    {
+      featured && (
+        <ol class="post-featured-list" data-year-group>
+          <FeaturedPost post={featured} badge={badges.get(featured.id)} />
+        </ol>
+      )
+    }
+    {
+      groups.map((group) => (
+        <section class="year-group" data-year-group aria-label={`${group.year}년`}>
+          <h2 class="year-head">{group.year}</h2>
+          <ol class="post-rows">
+            {group.posts.map((post) => (
+              <PostRow post={post} badge={badges.get(post.id)} />
+            ))}
+          </ol>
+        </section>
+      ))
+    }
+    <p class="blog-list-empty" data-result-empty hidden>검색 결과가 없습니다.</p>
+  </div>
+</section>
+
+<style>
+  .blog-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  /* 머리: 제목 블록 왼쪽, 검색창 오른쪽(아래 기준선 맞춤). 검색창 열은 14~22rem이라 640~720px에서도 제목 칸이 남는다(리뷰 경미 8) */
+  .blog-list-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(14rem, 22rem);
+    gap: 1rem 2rem;
+    align-items: end;
+  }
+  .blog-list-title {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  h1 {
+    margin: 0;
+    font-size: var(--text-3xl);
+    font-weight: 800;
+    line-height: var(--leading-heading);
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+  .blog-list-desc {
+    margin: 0;
+    color: var(--text-secondary);
+  }
+  .blog-list-series {
+    align-self: flex-start;
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+  .blog-list-search {
+    min-width: 0;
+  }
+  .blog-list-search > :global(.search-filter) {
+    max-width: none;
+  }
+  /* 결과 수 줄: 왼쪽 결과 수, 오른쪽 태그 버튼. 열면 칩이 그 아래에 전체 폭으로 펼쳐진다.
+     <details>는 display: contents라 summary와 내용 상자가 이 줄의 flex 항목이 된다.
+     내용 상자는 브라우저에 따라 ::details-content(새 브라우저) 또는 .tag-panel-body(옛 브라우저)다. 둘 다 전체 폭 */
+  .blog-list-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+  }
+  .blog-list-count {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+  }
+  .tag-panel {
+    display: contents;
+  }
+  .tag-panel::details-content {
+    flex: 1 1 100%;
+  }
+  /* 닫힌 상태의 내용 상자(높이 0)가 둘째 줄을 만들어 row-gap만큼 줄이 높아지는 것을 막는다(리뷰 중요 1) */
+  .tag-panel:not([open])::details-content {
+    display: none;
+  }
+  .tag-panel-body {
+    flex: 1 1 100%;
+  }
+  .tag-panel summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-left: auto;
+    padding: 0.3rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+    transition: var(--transition-colors);
+  }
+  .tag-panel summary::-webkit-details-marker {
+    display: none;
+  }
+  /* 화살표는 장식이다. 대체 글자 문법(content: '…' / '')을 아는 브라우저에서는 접근 이름에 들어가지 않는다(리뷰 경미 6) */
+  .tag-panel summary::after {
+    content: '▾';
+    content: '▾' / '';
+    font-size: var(--text-xs);
+  }
+  .tag-panel[open] summary::after {
+    content: '▴';
+    content: '▴' / '';
+  }
+  .tag-panel summary:hover,
+  .tag-panel[open] summary {
+    border-color: var(--brand);
+    color: var(--text-primary);
+  }
+  .tag-panel-count {
+    font-variant-numeric: tabular-nums;
+  }
+  .blog-list-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  .year-group[hidden],
+  .post-featured-list[hidden],
+  .blog-list-empty[hidden] {
+    display: none;
+  }
+  .post-featured-list,
+  .post-rows {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  /* 연도 머리 아래 선은 첫 행의 윗선이다(행마다 border-top). 검색으로 첫 행이 숨어도 선이 겹치지 않는다(리뷰 중요 3) */
+  .year-head {
+    margin: 0;
+    padding: 0 0.5rem 0.375rem;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .blog-list-empty {
+    margin: 0;
+    padding: 2rem 0;
+    color: var(--text-secondary);
+    text-align: center;
+  }
+
+  /* 640px 미만: 검색창은 설명 아래 전체 폭 */
+  @media (max-width: 639.98px) {
+    .blog-list-head {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .blog-list-search {
+      width: 100%;
+    }
+  }
+</style>

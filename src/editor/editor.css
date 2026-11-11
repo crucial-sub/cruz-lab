@@ -1,0 +1,448 @@
+/* 에디터 페이지 스타일 (재건 3단계 D8·D13, 4단계 D10)
+   - 글 본문 .prose 규칙은 src/styles/prose.css 한 파일이다. 편집 영역(.tiptap-body.prose)과 미리보기가 공개 글 상세와
+     같은 규칙을 쓴다(4단계에서 3단계 복사본을 합쳤다). 코드 색 토큰(--code-*)과 콜아웃·임베드 규칙도 거기에 있다.
+   - 미리보기의 코드 블록은 Shiki(src/styles/shiki.css)다. 편집 영역의 코드 블록은 lowlight라 아래 구문 강조 색(--hl-*)을 쓴다.
+   - 색은 global.css 토큰이다. html.light로 라이트 전환(M10). */
+@import '../styles/prose.css';
+@import '../styles/shiki.css';
+
+/* ── 편집 영역 구문 강조 색 토큰 (사용 피드백 2026-11-09) ──
+   - lowlight(highlight.js 클래스)용이다. GitHub 테마 색(highlight.js github-dark.css·github.css, BSD-3-Clause)을 변수로 옮겼다.
+     미리보기·공개 페이지의 Shiki 테마(github-dark-default·github-light-default)와 같은 계열이다.
+   - 다크가 기본이고 html.light가 덮어쓴다(global.css와 같은 규칙). */
+:root {
+  --hl-keyword: #ff7b72;
+  --hl-entity: #d2a8ff;
+  --hl-constant: #79c0ff;
+  --hl-string: #a5d6ff;
+  --hl-variable: #ffa657;
+  --hl-comment: #8b949e;
+  --hl-tag: #7ee787;
+  --hl-heading: #1f6feb;
+  --hl-bullet: #f2cc60;
+  --hl-addition-fg: #aff5b4;
+  --hl-addition-bg: #033a16;
+  --hl-deletion-fg: #ffdcd7;
+  --hl-deletion-bg: #67060c;
+}
+html.light {
+  --hl-keyword: #d73a49;
+  --hl-entity: #6f42c1;
+  --hl-constant: #005cc5;
+  --hl-string: #032f62;
+  --hl-variable: #e36209;
+  --hl-comment: #6a737d;
+  --hl-tag: #22863a;
+  --hl-heading: #005cc5;
+  --hl-bullet: #735c0f;
+  --hl-addition-fg: #22863a;
+  --hl-addition-bg: #f0fff4;
+  --hl-deletion-fg: #b31d28;
+  --hl-deletion-bg: #ffeef0;
+}
+
+/* 편집 영역 코드 블록 구문 강조(lowlight 장식의 hljs 클래스). 선택자 묶음은 highlight.js github 테마와 같다.
+   미리보기는 Shiki라 이 규칙이 닿지 않는다(4단계 D8) */
+.prose pre .hljs-doctag,
+.prose pre .hljs-keyword,
+.prose pre .hljs-meta .hljs-keyword,
+.prose pre .hljs-template-tag,
+.prose pre .hljs-template-variable,
+.prose pre .hljs-type,
+.prose pre .hljs-variable.language_ {
+  color: var(--hl-keyword);
+}
+.prose pre .hljs-title,
+.prose pre .hljs-title.class_,
+.prose pre .hljs-title.class_.inherited__,
+.prose pre .hljs-title.function_ {
+  color: var(--hl-entity);
+}
+.prose pre .hljs-attr,
+.prose pre .hljs-attribute,
+.prose pre .hljs-literal,
+.prose pre .hljs-meta,
+.prose pre .hljs-number,
+.prose pre .hljs-operator,
+.prose pre .hljs-variable,
+.prose pre .hljs-selector-attr,
+.prose pre .hljs-selector-class,
+.prose pre .hljs-selector-id {
+  color: var(--hl-constant);
+}
+.prose pre .hljs-regexp,
+.prose pre .hljs-string,
+.prose pre .hljs-meta .hljs-string {
+  color: var(--hl-string);
+}
+.prose pre .hljs-built_in,
+.prose pre .hljs-symbol {
+  color: var(--hl-variable);
+}
+.prose pre .hljs-comment,
+.prose pre .hljs-code,
+.prose pre .hljs-formula {
+  color: var(--hl-comment);
+}
+.prose pre .hljs-name,
+.prose pre .hljs-quote,
+.prose pre .hljs-selector-tag,
+.prose pre .hljs-selector-pseudo {
+  color: var(--hl-tag);
+}
+.prose pre .hljs-subst {
+  color: var(--code-block-fg);
+}
+.prose pre .hljs-section {
+  color: var(--hl-heading);
+  font-weight: 700;
+}
+.prose pre .hljs-bullet {
+  color: var(--hl-bullet);
+}
+.prose pre .hljs-emphasis {
+  color: var(--code-block-fg);
+  font-style: italic;
+}
+.prose pre .hljs-strong {
+  color: var(--code-block-fg);
+  font-weight: 700;
+}
+.prose pre .hljs-addition {
+  color: var(--hl-addition-fg);
+  background-color: var(--hl-addition-bg);
+}
+.prose pre .hljs-deletion {
+  color: var(--hl-deletion-fg);
+  background-color: var(--hl-deletion-bg);
+}
+/* ── 편집 영역 ── */
+.tiptap-body {
+  min-height: 60vh;
+  padding-bottom: 30vh;
+  caret-color: var(--brand);
+}
+.tiptap-body:focus {
+  outline: none;
+}
+/* 노드 선택(이미지 등) 중에는 루트의 캐럿 색도 투명하게 한다.
+   iOS WebKit은 선택 강조와 손잡이를 편집 루트의 caret-color로 칠한다. ProseMirror 공식 CSS는
+   .ProseMirror-hideselection(루트 자신)을 투명하게 하지만, Tiptap이 넣는 CSS는 하위 요소(*)만 투명하게 한다.
+   위의 .tiptap-body 브랜드 색이 남아 이미지를 누르면 연두색 선택 표시가 메뉴 글자까지 덮었다(main 병합 준비 작업 문서 6.3). */
+.tiptap-body.ProseMirror-hideselection {
+  caret-color: transparent;
+}
+/* 자리표시 문구(@tiptap/extensions Placeholder) */
+.tiptap-body p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+/* 블록 노드 선택 표시 */
+.tiptap-body .ProseMirror-selectednode {
+  outline: 2px solid var(--ring-focus);
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+/* 표 */
+.tiptap-body table {
+  table-layout: fixed;
+}
+.tiptap-body td,
+.tiptap-body th {
+  position: relative;
+  min-width: 3rem;
+  vertical-align: top;
+}
+.tiptap-body td > p,
+.tiptap-body th > p {
+  margin: 0;
+}
+.tiptap-body .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 185, 129, 0.15);
+  pointer-events: none;
+}
+/* 체크 목록 */
+.tiptap-body ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0.25rem;
+}
+.tiptap-body ul[data-type='taskList'] li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+.tiptap-body ul[data-type='taskList'] li > label {
+  flex: 0 0 auto;
+  margin-top: 0.45rem;
+}
+.tiptap-body ul[data-type='taskList'] li > div {
+  flex: 1 1 auto;
+}
+.tiptap-body ul[data-type='taskList'] li > div > p {
+  margin: 0.25rem 0;
+}
+/* 코드 블록 안의 하이라이트 토큰은 highlight.js 클래스다. 색은 위 "편집 영역 코드 블록 구문 강조" 규칙이다 */
+.tiptap-body pre {
+  white-space: pre;
+}
+/* 수식(KaTeX 노드 뷰) */
+.tiptap-body .tiptap-mathematics-render {
+  cursor: pointer;
+  border-radius: 0.25rem;
+  padding: 0 0.15rem;
+}
+.tiptap-body .tiptap-mathematics-render--editable:hover {
+  background: var(--bg-card);
+}
+.tiptap-body [data-type='block-math'] {
+  margin: 1.5rem 0;
+  text-align: center;
+}
+
+/* ── 이미지 노드 뷰 ── */
+.editor-image {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.editor-image img,
+.editor-image video {
+  display: block;
+  max-width: 100%;
+  margin: 0.5rem 0;
+}
+.editor-image.is-selected img,
+.editor-image.is-selected video {
+  outline: 2px solid var(--ring-focus);
+  outline-offset: 2px;
+}
+.editor-image.is-uploading img {
+  opacity: 0.6;
+}
+.editor-image-overlay {
+  position: absolute;
+  inset: 0.5rem 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: rgba(var(--bg-app-rgb), 0.55);
+  border-radius: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  text-align: center;
+  padding: 0.5rem;
+}
+.editor-image-progress {
+  width: 60%;
+  height: 0.4rem;
+  accent-color: var(--brand);
+}
+.editor-image-error {
+  color: #fca5a5;
+}
+.editor-image-menu {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-popover);
+  white-space: nowrap;
+  /* 이미지 단락의 정렬(D13)을 따르지 않는다 */
+  text-align: left;
+}
+/* 폭·정렬을 저장하지 않는 줄의 알림(D13). 글자색은 토큰을 써서 두 테마 모두 읽히게 하고, 표시는 왼쪽 띠로 한다 */
+.editor-image-note {
+  max-width: 18rem;
+  white-space: normal;
+  border-left: 3px solid #f59e0b;
+  padding-left: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+}
+
+/* ── 이미지 폭·정렬 (5단계 D13) ──
+   - 이미지만 있는 단락(image-layout.ts 데코레이션 .editor-image-solo) 안에서만 적용한다. 그 밖의 줄은 저장하지 않으므로 보이지도 않는다.
+   - 폭은 노드 뷰가 래퍼에 둔 --editor-image-width다(data-width가 있을 때). 본문 폭을 넘으면 max-width가 줄인다.
+   - 정렬은 단락의 text-align이다. 래퍼가 inline-block이라 글자처럼 움직인다. 공개 페이지는 <p align>이 같은 일을 한다. */
+.tiptap-body p.editor-image-solo[data-align='center'] {
+  text-align: center;
+}
+.tiptap-body p.editor-image-solo[data-align='right'] {
+  text-align: right;
+}
+.tiptap-body p.editor-image-solo .editor-image[data-width] {
+  width: var(--editor-image-width);
+}
+.tiptap-body p.editor-image-solo .editor-image[data-width] img {
+  width: 100%;
+  height: auto;
+}
+/* 오른쪽 정렬이면 메뉴를 이미지 오른쪽 끝에 맞춘다(본문 밖으로 넘치지 않게) */
+.tiptap-body p.editor-image-solo[data-align='right'] .editor-image-menu {
+  left: auto;
+  right: 0;
+}
+/* 폭 손잡이: 고른 이미지의 가장자리(오른쪽 정렬은 왼쪽). 터치 기기에서는 숨긴다(폭 입력을 쓴다) */
+.editor-image-resize {
+  position: absolute;
+  top: 50%;
+  right: -0.4rem;
+  z-index: 10;
+  width: 0.5rem;
+  height: 2.5rem;
+  max-height: calc(100% - 1rem);
+  transform: translateY(-50%);
+  border: 1px solid var(--bg-app);
+  border-radius: 999px;
+  background: var(--ring-focus);
+  cursor: ew-resize;
+  touch-action: none;
+}
+.editor-image-resize.is-left {
+  right: auto;
+  left: -0.4rem;
+}
+.editor-image.is-resizing {
+  user-select: none;
+}
+@media (pointer: coarse) {
+  .editor-image-resize {
+    display: none;
+  }
+}
+
+.editor-chip {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.1rem 0.6rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: var(--bg-app);
+}
+/* hover는 마우스 같은 기기에서만 그린다. iPhone은 누른 단추에 hover가 남아 "검은 테두리만 생긴" 것처럼 보였다
+   (main 병합 준비 작업 문서 6.5) */
+@media (hover: hover) {
+  .editor-chip:hover:not(:disabled) {
+    color: var(--text-primary);
+    border-color: var(--text-secondary);
+  }
+}
+.editor-chip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.editor-chip.is-active {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+.editor-chip-danger {
+  color: #fca5a5;
+}
+
+/* ── 코드 블록 노드 뷰: 언어 선택 (T5) ── */
+.editor-code-block {
+  position: relative;
+  margin: 1.5rem 0;
+}
+.tiptap-body .editor-code-block > pre {
+  margin: 0;
+  padding-top: 2.25rem;
+}
+.editor-code-language {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 1;
+  border: 1px solid var(--code-block-border);
+  border-radius: 0.375rem;
+  background: var(--code-chip-bg);
+  color: var(--code-chip-fg);
+  font-size: 0.75rem;
+  padding: 0.1rem 0.35rem;
+}
+
+/* ── 임베드 노드 뷰 (T5) ── */
+.editor-embed {
+  margin: 1.5rem 0;
+}
+.tiptap-body .editor-embed .embed {
+  margin: 0;
+}
+.editor-embed-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+.editor-embed.is-selected .embed {
+  outline: 2px solid var(--ring-focus);
+  outline-offset: 2px;
+}
+/* 선택하지 않은 동안 iframe 위에 둔다. 누르면 노드가 선택된다 */
+.editor-embed-shield {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+}
+.editor-embed-invalid {
+  font-size: 0.85rem;
+  color: #fca5a5;
+}
+
+/* ── 메타 패널 태그 칩 (MetaPanel.tsx) ──
+   3단계까지 global.css의 .tag·.tag-sm(@apply)이었다. 4단계 PR-B에서 global.css를 다시 쓰며 이 파일로 옮겼다
+   (리뷰 중요 1). 값은 같다: rounded-2xl 24px, px-2 py-0.5, text-sm / sm: px-1.5 py-2px, text-xs */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2xl);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  text-decoration: none;
+  transition-property: color, background-color, border-color;
+  transition-duration: 0.3s;
+}
+.tag:hover {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+}
+.tag-sm {
+  padding: 2px 0.375rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+/* ── 찾기·바꾸기 강조 (5단계 D7, prosemirror-search의 클래스) ──
+   - 찾은 곳은 옅은 노랑, 지금 고른 곳은 진한 주황 테두리. 두 테마 모두 글자가 읽히게 배경만 바꾼다. */
+.tiptap-body .ProseMirror-search-match {
+  background: rgba(250, 204, 21, 0.3);
+  border-radius: 2px;
+}
+.tiptap-body .ProseMirror-active-search-match {
+  background: rgba(249, 115, 22, 0.45);
+  border-radius: 2px;
+  outline: 1px solid rgba(249, 115, 22, 0.9);
+}

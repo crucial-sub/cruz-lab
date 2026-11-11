@@ -1,77 +1,93 @@
 # Publish Runbook
 
-현재 Cruz Lab의 포스트 원본은 Firestore `posts`다. 출간하면 GitHub API로 `data/post-archive`에 markdown 사본을 남긴다.
+글을 쓰고 출간하는 순서다. 출간은 관리자 앱(`/admin`)에서 한다.
 
-## 사전 점검
+- 글 원본: Firestore `entries`. 공개 페이지는 `status == 'published'` 글의 발행본만 읽는다.
+- 설계: [재건 2단계 Plan](./docs/blog-rebuilding/2026-11-07-stage2-data-model-and-server-plan.md)(데이터 · API), [3단계 Plan](./docs/blog-rebuilding/2026-11-08-stage3-editor-plan.md)(에디터), [5단계 Plan](./docs/blog-rebuilding/2026-11-10-stage5-admin-app-plan.md)(관리자 앱).
 
-브라우저를 열기 전에 아래 명령으로 운영 기준 preflight를 한 번 돌린다.
+## 로그인
+
+1. 공개 페이지 푸터의 "관리"를 누른다. 또는 `/admin`을 연다.
+2. 사전 안내 화면에서 "Google로 로그인"을 누른다.
+3. 관리자 계정이면 세션 쿠키(`cruz_admin`, 14일)를 받고 `/admin`이 열린다.
+
+관리자가 아닌 계정은 거부 화면을 본다. 서버는 그 계정의 인증 기록을 바로 지운다. 관리자는 `ADMIN_UID` 환경 변수로 정한다.
+
+## 글 쓰기
+
+1. `/admin` 첫 화면에서 "새 글"을 누른다. 노트는 "오늘 기록"을 누른다. 빈 초안이 생기고 에디터가 열린다.
+2. 본문을 쓴다. 입력이 2초 멈추면 초안이 서버에 자동저장된다. 일시 오류면 세 번 다시 보낸다. 연결이 끊기면 이 기기에 보관한다.
+3. 이미지는 끌어 놓거나 붙여 넣는다. 이미지 메뉴에서 폭(px)과 정렬을 고른다.
+4. 메타 패널에서 설명, slug, 카테고리, 태그(최대 3개), 연재 key · 순서, 표지를 정한다.
+5. 쓰던 글은 첫 화면 "이어 쓰기"에서 다시 연다.
+
+## 발행
+
+1. 에디터 오른쪽 위 "발행"을 누른다. 좁은 화면에서는 메타 시트 맨 위에 있다.
+2. 검사에 실패하면 이유가 해당 칸 아래에 뜬다. 고치고 다시 누른다.
+3. 성공하면 발행본 · 리비전 · 출간 기록이 한 트랜잭션으로 저장된다.
+4. 서버가 CDN 캐시를 비우고, 백업 저장소에 알림을 보낸다.
+5. 퍼지나 백업 알림이 실패하면 `/admin` 맨 위에 알림 띠가 뜬다. 띠의 "다시 비우기" · "다시 알리기"를 누른다. 발행 자체는 이미 성공이다.
+
+발행한 글을 고치면 초안만 바뀐다. 공개 페이지는 다시 발행할 때까지 이전 발행본을 보인다.
+
+## 숨기기, 삭제, 이전 발행본
+
+- 숨기기 · 다시 보이기 · 초안 버리기 · 삭제: 에디터 오른쪽 위 ⋯ 메뉴. 숨기기 · 다시 보이기 · 삭제는 목록 행의 ⋯ 메뉴에도 있다.
+- 이전 발행본: 에디터 ⋯ 메뉴 "이전 발행본". 판을 미리 보고 "초안으로 가져오기"를 누른다. 공개 페이지는 다시 발행할 때 바뀐다.
+- 발행 · 숨김 · 삭제 · 이전 발행본 가져오기 · 분류와 연재 변경은 `/admin/log`(출간 기록)에 남는다.
+
+## 관리 화면
+
+| 메뉴      | 주소              | 하는 일                                                                  |
+| --------- | ----------------- | ------------------------------------------------------------------------ |
+| 글        | `/admin`          | 목록 · 검색 · 상태 탭, 이어 쓰기, 빈 초안 한꺼번에 지우기                |
+| 이미지    | `/admin/assets`   | 이미지 라이브러리, 쓰는 글, 쓰지 않는 새 이미지 지우기                   |
+| 분류      | `/admin/taxonomy` | 카테고리 만들기 · 이름 · key · 합치기 · 지우기, 태그 바꾸기, 옛 주소 301 |
+| 연재      | `/admin/series`   | 연재 · 프로젝트 정보, 새 프로젝트                                        |
+| 독자      | `/admin/readers`  | 날짜별 방문, 들어온 곳, 많이 읽힌 글, 글별 다음 글 · 읽음 비율           |
+| 출간 기록 | `/admin/log`      | 발행 · 숨김 · 삭제 · 분류 변경 기록과 퍼지 · 백업 결과                   |
+| 설정      | `/admin/settings` | 에디터 단축키                                                            |
+
+key 바꾸기 · 합치기 · 글 옮기기 · 지우기 · 태그 바꾸기는 먼저 시험 실행으로 대상 글을 보인다. 확인한 뒤 실행한다.
+
+## 백업
+
+출간은 GitHub를 부르지 않는다. 백업은 비공개 저장소 `crucial-sub/cruz-lab-content`의 GitHub Action이 한다.
+
+- 매일 03:00 KST, 그리고 발행 · 삭제 직후 알림(`repository_dispatch`)으로 돈다.
+- 알림이 실패해도 발행은 성공이다. 다음 예약 실행이 백업한다.
+
+## 점검
+
+점검 스크립트는 개발 서버나 빌드 결과(localhost)에 요청한다. 운영 Firestore · Storage를 쓰므로 쓰기 점검은 실행 전에 확인한다. 쓰기 점검은 이름에 `stage5-test` 같은 표지를 붙인 시험 데이터만 만들고 끝에 지운다.
 
 ```bash
-npm run publish:preflight
+pnpm smoke:api --base http://localhost:4321
 ```
-
-이 명령은 아래를 확인한다.
-
-- `.env`에 `PUBLIC_FIREBASE_API_KEY`, `PUBLIC_ADMIN_EMAIL`, `GITHUB_TOKEN`이 있는지
-- `astro.config.mjs`의 공개 사이트 기준 URL
-- 가능하면 GitHub API로 대상 저장소의 `main` 브랜치와 `data/post-archive` 경로에 접근 가능하고 push 권한이 있는지
-- 가능하면 공개 사이트 `/blog` 응답이 오는지
-
-출간 뒤 특정 포스트를 다시 확인하고 싶으면 아래 명령도 쓸 수 있다.
 
 ```bash
-npm run publish:verify -- --slug <slug> --pub-date <ISO_DATE>
+node --env-file=.env scripts/smoke/stage5-admin.mjs --base http://localhost:4321
 ```
-
-또는 파일 경로를 이미 알고 있으면:
 
 ```bash
-npm run publish:verify -- --slug <slug> --file-path data/post-archive/YYYY-MM-DD-slug.md
+node --env-file=.env scripts/smoke/stage5-track.mjs --base http://localhost:4321
 ```
 
-## 실제 출간 순서
+```bash
+pnpm smoke:stage4 --base http://localhost:4321
+```
 
-브라우저에서 직접 따라가야 하는 최종 smoke test는 [PUBLISH-SMOKE-TEST.md](/Users/parkjungsub/projects/cruz-lab/PUBLISH-SMOKE-TEST.md) 에 따로 정리돼 있다.
+```bash
+pnpm smoke:roundtrip
+```
 
-1. `/admin/posts/new` 또는 `/admin/edit?slug=...`로 들어간다.
-2. 본문 화면에서 제목, slug, 설명, 공개 상태, 썸네일을 먼저 확인한다.
-3. `출간하기`를 눌러 Publish Modal을 연다.
-4. 모달 안에서 아래를 본다.
-   - 실시간 진단 상태
-   - 대상 저장소 / 브랜치 / 포스트 경로
-   - GitHub push 가능 여부
-   - 공개 사이트 `/blog` live probe 결과
-   - 공개 사이트 기준 URL
-   - 현재 접속 origin이 공개 사이트와 다른지
-5. 출간을 실행한다.
+| 명령              | 하는 일                                                                     | 쓰기                                        |
+| ----------------- | --------------------------------------------------------------------------- | ------------------------------------------- |
+| `smoke:api`       | 세션 · 초안 · 자산 · 발행 · 숨김 · 삭제 API                                 | 시험 글 · 이미지                            |
+| `stage5-admin`    | 관리자 앱 진입, 목록 · 출간 기록 · 이미지 · 분류 · 연재 · 리비전 · 설정 API | 시험 글 · 이미지 · 분류 · 프로젝트 · 사용자 |
+| `stage5-track`    | 독자 흐름 수집 검사와 요약                                                  | 시험 방문                                   |
+| `smoke:stage4`    | 공개 페이지 전체(끝에 `smoke:public`도 돈다)                                | 없음                                        |
+| `smoke:roundtrip` | 모든 글의 마크다운 왕복                                                     | 없음                                        |
 
-## 출간 후 확인 순서
-
-관리자 목록 상단 배너 기준으로 아래 순서로 본다.
-
-1. `GitHub 파일 보기`
-   - markdown 파일 경로와 내용이 맞는지 확인
-2. `최신 커밋 보기`
-   - `main` 브랜치에 반영됐는지 확인
-3. `공개 페이지 보기`
-   - 실제 렌더링과 메타데이터가 맞는지 확인
-4. 반영이 늦으면 잠시 뒤 새로고침
-   - 배포 지연인지, 실제 반영 실패인지 분리
-5. 필요하면 관리자 목록 배너의 `반영 다시 확인`
-   - GitHub 파일 존재 여부와 공개 페이지 응답을 관리자 세션 기준으로 다시 확인
-6. 브라우저 밖에서 다시 보고 싶으면 `npm run publish:verify`
-   - 같은 기준으로 GitHub 파일과 공개 페이지 응답을 CLI에서 재검증
-
-## 현재 한계
-
-- 브라우저 관리자 인증 자체는 Firebase 로그인 세션이 필요하다.
-- GitHub API와 공개 사이트 확인은 네트워크 상태에 영향을 받는다.
-- preflight가 통과해도, 실제 배포 지연 시간은 운영 환경에서 한 번 더 봐야 한다.
-
-## 2026-03-26 확인 결과
-
-- 로컬 `.env` 기준으로 `PUBLIC_FIREBASE_API_KEY`, `PUBLIC_ADMIN_EMAIL`, `GITHUB_TOKEN`이 모두 설정돼 있었다.
-- 네트워크 허용 preflight에서 `crucial-sub/cruz-lab / main / content/posts` GitHub 대상 저장소 probe가 통과했다.
-- 같은 preflight에서 현재 `GITHUB_TOKEN`으로 저장소 push 권한도 확인됐다.
-- 같은 기준으로 `https://cruzlab.dev/blog` 공개 사이트 응답도 `200 OK`로 확인됐다.
-- 아직 브라우저 관리자 세션을 통한 실제 `publish -> GitHub 커밋 -> 공개 페이지 반영` 1건 실출간 검증은 남아 있다.
+`smoke:api`에 `--read-only`를 붙이면 세션 · 인증 검사만 한다.

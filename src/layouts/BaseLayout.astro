@@ -1,42 +1,64 @@
 ---
-// BaseLayout: 전체 페이지 레이아웃
-// Open Graph 메타태그를 위한 추가 props 지원
-import { ViewTransitions } from 'astro:transitions';
+// 공개 페이지 틀 (재건 4단계 D9·D10)
+// - ClientRouter(ViewTransitions)를 지웠다. 페이지 이동은 보통 문서 이동이다.
+//   문서 간 전환 페이드는 global.css의 @view-transition이 맡는다(지원 브라우저만).
+// - 공개 페이지에는 React 아일랜드가 없다. 남은 클라이언트 스크립트는 테마 버튼, 목록 검색, 글 상세 보조,
+//   관리자 표시(5단계 D4), 독자 흐름 수집(5단계 D20)이다. 관리자 표시·수집 스크립트의 합은 2 KB 안이다(5단계 Plan 8.1).
+// - 페이지별 head 요소(예: 글 상세의 KaTeX CSS)는 head 슬롯이다(BaseHead 바로 뒤).
+//   BaseHead에 자식으로 넘기거나 이 파일에 스타일 블록을 두면 astro-eslint-parser가 이 파일을 읽지 못한다.
+//   그래서 슬롯은 PR-A의 자리 그대로 두고, 틀의 모양(.site, .site-main)은 global.css에 둔다.
 import '../styles/global.css';
 import BaseHead from './components/BaseHead.astro';
+import { ADMIN_HINT_KEY } from '@/admin/admin-hint';
 import Footer from './components/Footer.astro';
 import Header from './components/Header.astro';
 
 interface Props {
   title?: string;
   description?: string;
-  image?: string;
+  ogImage?: string;
   type?: 'website' | 'article';
   publishedTime?: string;
   tags?: string[];
+  noindex?: boolean;
 }
 
-const { title, description, image, type, publishedTime, tags } = Astro.props;
+const { title, description, ogImage, type, publishedTime, tags, noindex } = Astro.props;
 ---
 
 <!doctype html>
 <html lang="ko">
-  <BaseHead {title} {description} {image} {type} {publishedTime} {tags} />
-  <ViewTransitions />
-  <body class="bg-bg-app text-text-primary antialiased">
+  <BaseHead {title} {description} {ogImage} {type} {publishedTime} {tags} {noindex} />
+  <!-- 페이지별 head 요소(예: 글 상세의 KaTeX CSS, 4단계 D16). </head> 뒤라도 HTML 파서가 head에 넣는다 -->
+  <slot name="head" />
+  <body class="site">
     <!-- 건너뛰기 링크 (접근성) -->
     <a href="#main-content" class="skip-link">본문으로 건너뛰기</a>
 
     <Header />
 
-    <!-- 본문: 최소 높이로 푸터 밀어내기 -->
-    <!-- overflow-x-clip: 화면 밖으로 나가는 장식 요소가 가로 스크롤을 만들지 않도록 함 -->
-    <main id="main-content" tabindex="-1" class="min-h-[calc(100vh-160px)] overflow-x-clip py-8">
+    <main id="main-content" tabindex="-1" class="site-main">
       <div class="container">
         <slot />
       </div>
     </main>
 
     <Footer />
+    <!--
+      관리자 표시(5단계 D4): 관리자 앱을 연 브라우저에만 관리자 전용 요소([data-admin-only], 기본 hidden)를 드러낸다.
+      표시는 localStorage의 만료 시각(src/admin/admin-hint.ts)이다. 권한이 아니다. 본문 끝에 둬서 요소가 이미 있다.
+      표시가 있으면 <body data-admin>을 단다. 아래 독자 흐름 수집 스크립트(모듈, 이 스크립트 뒤에 돈다)가 보고 세지 않는다(D20).
+      두 스크립트의 합이 2 KB 안이어야 해서(5단계 Plan 8.1) 한 줄로 쓴다. 인라인 스크립트는 빌드가 줄이지 않는다.
+      localStorage[key] > Date.now(): 값이 없으면 undefined > 수 = false, 글자 값은 수로 바꿔 비교한다(admin-hint.ts hasAdminHint와 같은 판정).
+    -->
+    <script is:inline define:vars={{ hintKey: ADMIN_HINT_KEY }}>try{if(localStorage[hintKey]>Date.now()){document.body.dataset.admin='';document.querySelectorAll('[data-admin-only]').forEach(e=>e.hidden=!1)}}catch{}</script>
+    <!--
+      독자 흐름 수집(5단계 D20): 쿠키·IP·브라우저 정보 없이 탭 세션 안의 페이지 흐름만 보낸다(src/lib/tracker/client.ts).
+      관리자 표시가 있는 브라우저는 세지 않는다. 저장은 운영 호스트에서만 한다(POST /api/track).
+    -->
+    <script>
+      import '@/lib/tracker/client';
+    </script>
   </body>
 </html>
+

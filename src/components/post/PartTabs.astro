@@ -1,0 +1,135 @@
+---
+// 프로젝트 글의 Part 탭 (재건 4단계 D1·D16 3·D17)
+// - 글 상세의 연재 상자 자리(제목 바로 아래)에 둔다. 프로젝트의 모든 Part를 순서대로 보인다.
+// - 탭은 링크다(주소 이동). 현재 글은 링크가 아니고 aria-current="page"다.
+// - 좁은 화면에서는 줄바꿈한다. Part가 1편뿐이면 그리지 않는다(옛 화면과 같다).
+import type { PublishedProject } from '@/lib/content-posts';
+import { PROJECTS_INDEX_PATH, projectPostPath } from '@/lib/public-paths';
+
+interface Props {
+  project: PublishedProject;
+  currentId: string;
+}
+
+const { project, currentId } = Astro.props;
+const index = project.posts.findIndex((post) => post.id === currentId);
+const partLabel = (order: number | undefined) => `Part ${order ?? 1}`;
+---
+
+<section class="part-box" aria-labelledby="part-box-title">
+  <p class="part-head">
+    <span class="part-label">프로젝트</span>
+    <a id="part-box-title" class="part-project" href={PROJECTS_INDEX_PATH}>{project.title}</a>
+    {
+      index >= 0 && project.posts.length > 1 && (
+        <span class="part-count">
+          {index + 1}/{project.posts.length}
+        </span>
+      )
+    }
+  </p>
+  {
+    project.posts.length > 1 && (
+      <nav aria-label={`${project.title} Part 목록`}>
+        <ol class="part-tabs">
+          {project.posts.map((post) => (
+            <li>
+              {post.id === currentId ? (
+                <span class="part-tab" aria-current="page">
+                  <span class="part-tab-label">{partLabel(post.series?.order)}</span>
+                  <span class="part-tab-title">{post.title}</span>
+                </span>
+              ) : (
+                <a class="part-tab" href={projectPostPath(project.key, post.slug)}>
+                  <span class="part-tab-label">{partLabel(post.series?.order)}</span>
+                  <span class="part-tab-title">{post.title}</span>
+                </a>
+              )}
+            </li>
+          ))}
+        </ol>
+      </nav>
+    )
+  }
+</section>
+
+<style>
+  .part-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--bg-surface);
+    padding: 1rem 1.25rem;
+    font-size: 0.9375rem;
+  }
+  .part-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin: 0;
+  }
+  .part-label {
+    color: var(--brand);
+    font-size: 0.8125rem;
+    font-weight: 700;
+  }
+  .part-project {
+    color: var(--text-primary);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .part-project:hover {
+    color: var(--brand);
+  }
+  .part-count {
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+  .part-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .part-tabs li {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .part-tab {
+    display: inline-flex;
+    gap: 0.5rem;
+    align-items: baseline;
+    max-width: 100%;
+    padding: 0.375rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    text-decoration: none;
+    transition: var(--transition-colors);
+  }
+  a.part-tab:hover {
+    border-color: var(--brand);
+    color: var(--text-primary);
+  }
+  .part-tab[aria-current='page'] {
+    border-color: var(--brand);
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+  .part-tab-label {
+    flex: none;
+    color: var(--brand);
+    font-weight: 700;
+  }
+  .part-tab-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+</style>

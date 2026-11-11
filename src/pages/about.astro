@@ -1,0 +1,290 @@
+---
+// 소개 /about (재건 4단계 D17, U3·U6·U7, 계획 문서 10.2)
+// - 한 화면 안: 사진(작게) · 이름 · 한 줄 · 하는 일 3문장 · 프로젝트 4개 · 경력/교육 2줄(세부는 <details>) ·
+//   기술 한 줄 · 연락처 · 이력서 PDF.
+// - 미리 만든다(prerender). 글 데이터를 읽지 않아 글이 없어도 완전하다(10.2 조건 3).
+// - 프로젝트 목록은 이 파일에 직접 적었다. 4단계 PR-C(T6)가 프로젝트 데이터를 entries로 옮겨도
+//   이 페이지는 Firestore를 읽지 않는다. 주소(/projects/<key>)는 바뀌지 않는다.
+// - 3단계까지 홈에 있던 히어로 3문단, 경력 아코디언, 스킬 로고 그리드, 연락처 구역을 이 페이지로 줄여 옮겼다.
+// - 5단계 D20: 맨 아래에 익명 방문 수 안내 한 줄. 이 페이지의 글투(합니다체)로 쓴다. 이력서 PDF 누름은 독자 흐름이 센다.
+export const prerender = true;
+
+import resumeUrl from '@/assets/resume.pdf?url';
+import profile from '@/assets/img/profile.png';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { Image } from 'astro:assets';
+
+const tagline = '사용자와 가장 가까운 곳에서 최적의 사용자 경험을 설계하는 개발자';
+
+const PROJECTS = [
+  {
+    key: 'llm-yatcha',
+    title: 'LLM Yatcha',
+    summary: '멀티 프로바이더 연동과 합의 가시화를 더한 다중 LLM 합의 서비스',
+  },
+  {
+    key: 'stock-lab',
+    title: 'Stock Lab',
+    summary: 'WebSocket 기반 실시간 퀀트 투자 시뮬레이션 & AI 분석 플랫폼',
+  },
+  {
+    key: 'cruz-lab',
+    title: 'Cruz Lab',
+    summary: '이 사이트. 브라우저에서 쓰고 바로 발행하는 블로그 겸 포트폴리오',
+  },
+  {
+    key: 'jungle-tetris',
+    title: 'Jungle Tetris',
+    summary: 'Canvas API + Socket.IO 기반 실시간 멀티플레이어 테트리스',
+  },
+];
+
+const SKILLS = [
+  'JavaScript',
+  'TypeScript',
+  'React',
+  'Next.js',
+  'Tailwind CSS',
+  'React Query',
+  'Zustand',
+  'Python',
+  'Firebase',
+  'Git',
+  'Figma',
+];
+
+const CONTACTS = [
+  { href: 'https://github.com/crucial-sub', label: 'GitHub', external: true },
+  { href: 'https://www.linkedin.com/in/중섭-박-41a678380', label: 'LinkedIn', external: true },
+  { href: 'mailto:jssub940@gmail.com', label: '이메일' },
+];
+---
+
+<BaseLayout title="About" description={`Cruz — ${tagline}`}>
+  <article class="about" aria-labelledby="about-title">
+    <header class="about-head">
+      <Image
+        class="about-photo"
+        src={profile}
+        alt="Cruz 프로필 사진"
+        width={96}
+        height={96}
+        densities={[1, 2]}
+        loading="eager"
+      />
+      <div>
+        <h1 id="about-title">Cruz</h1>
+        <p class="about-tagline">{tagline}</p>
+      </div>
+    </header>
+
+    <p class="about-lead">
+      사용자 경험은 눈에 보이는 디자인에서 시작하지만, 데이터가 전달되는 방식과 흐름에서 완성된다고
+      믿습니다. 30초가 걸리는 시뮬레이션 연산과 LLM 응답 지연을 WebSocket과 SSE 스트리밍으로 풀며,
+      기술 최적화가 UX를 바꾸는 과정을 겪었습니다. 크래프톤 정글에서 OS와 네트워크 같은 CS 기초를
+      다지며, 문제의 본질을 찾을 때까지 파고드는 습관을 길렀습니다.
+    </p>
+
+    <section class="about-section" aria-labelledby="about-projects">
+      <h2 id="about-projects">프로젝트</h2>
+      <ul class="about-projects">
+        {
+          PROJECTS.map((project) => (
+            <li>
+              <a href={`/projects/${project.key}`}>{project.title}</a>
+              <span>{project.summary}</span>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="about-section" aria-labelledby="about-career">
+      <h2 id="about-career">경력 · 교육</h2>
+      <ul class="about-career">
+        <li>
+          <details>
+            <summary>
+              <span>크래프톤 정글 10기 — Immersive CS Bootcamp</span>
+              <span class="about-period">2025.07 ~ 2025.12</span>
+            </summary>
+            <ul class="about-details">
+              <li>
+                5개월 동안 주 100시간 이상 합숙하며 알고리즘·시스템 프로그래밍 과제를 했습니다.
+              </li>
+              <li>Pintos(교육용 운영체제)로 스레드 스케줄링과 가상 메모리를 직접 구현했습니다.</li>
+              <li>C로 웹 프록시 서버를 구현하며 HTTP 요청 처리와 캐싱을 익혔습니다.</li>
+              <li>
+                매주 팀이 바뀌는 환경에서 동기 40명과 협업하고, CS·알고리즘 스터디를 진행했습니다.
+              </li>
+            </ul>
+          </details>
+        </li>
+        <li class="about-career-line">
+          <span>단국대학교 화학공학과 졸업</span>
+          <span class="about-period">2014.03 ~ 2020.02</span>
+        </li>
+      </ul>
+    </section>
+
+    <section class="about-section" aria-labelledby="about-skills">
+      <h2 id="about-skills">기술</h2>
+      <p class="about-skills">{SKILLS.join(' · ')}</p>
+    </section>
+
+    <section class="about-section" aria-labelledby="about-contact">
+      <h2 id="about-contact">연락처</h2>
+      <ul class="about-contacts">
+        {
+          CONTACTS.map((contact) => (
+            <li>
+              <a
+                href={contact.href}
+                {...(contact.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+              >
+                {contact.label}
+              </a>
+            </li>
+          ))
+        }
+        <li>
+          <a href={resumeUrl} target="_blank" rel="noopener">이력서 PDF</a>
+        </li>
+      </ul>
+    </section>
+
+    <p class="about-privacy">이 사이트는 쿠키·개인정보 없이 익명 방문 수를 셉니다.</p>
+  </article>
+</BaseLayout>
+
+<style>
+  .about {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    max-width: 44rem;
+  }
+  .about-head {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+  }
+  .about-photo {
+    flex: none;
+    width: 96px;
+    height: 96px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    object-fit: cover;
+  }
+  h1 {
+    margin: 0;
+    font-size: var(--text-3xl);
+    font-weight: 800;
+    line-height: var(--leading-heading);
+  }
+  .about-tagline {
+    margin: 0.25rem 0 0;
+    color: var(--text-secondary);
+    word-break: keep-all;
+  }
+  .about-lead {
+    margin: 0;
+    word-break: keep-all;
+  }
+  .about-privacy {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    word-break: keep-all;
+  }
+  .about-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+  }
+  h2 {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .about-projects {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .about-projects li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 0.75rem;
+  }
+  .about-projects a {
+    font-weight: 700;
+  }
+  .about-projects span {
+    color: var(--text-secondary);
+    word-break: keep-all;
+  }
+  .about-career {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .about-career summary,
+  .about-career-line {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0 1rem;
+  }
+  .about-career summary {
+    cursor: pointer;
+    list-style: none;
+  }
+  .about-career summary::-webkit-details-marker {
+    display: none;
+  }
+  .about-career summary > span:first-child::before {
+    content: '▸ ';
+    color: var(--text-secondary);
+  }
+  .about-career details[open] summary > span:first-child::before {
+    content: '▾ ';
+  }
+  /* 세부가 없는 줄도 글자 시작을 맞춘다(표시 자리만 비운다) */
+  .about-career-line > span:first-child::before {
+    content: '▸ ';
+    visibility: hidden;
+  }
+  .about-period {
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+  }
+  .about-details {
+    margin-top: 0.5rem;
+    padding-left: 1.25rem;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    list-style: disc;
+  }
+  .about-details li + li {
+    margin-top: 0.25rem;
+  }
+  .about-skills {
+    margin: 0;
+  }
+  .about-contacts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+    font-weight: 600;
+  }
+</style>
