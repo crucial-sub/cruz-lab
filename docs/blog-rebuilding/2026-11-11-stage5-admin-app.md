@@ -4,7 +4,7 @@
 - Plan: [2026-11-10-stage5-admin-app-plan.md](./2026-11-10-stage5-admin-app-plan.md) (승인 2026-11-10, [PR #21](https://github.com/crucial-sub/cruz-lab/pull/21) 병합 `90c6201`)
 - 진행 기록: [계획 문서 11.11](./2026-11-06-blog-architecture-audit-2-problems-and-plan.md#1111-5단계-구현-진행-기록-2026-11-10-)
 - 브랜치: `stage5/a-app`(PR-A, `origin/rebuild` `90c6201`에서 생성), `stage5/b-manage`(PR-B, `d1ded00`), `stage5/c-editor`(PR-C, `eb72c39`), `stage5/d-readers`(PR-D, `7a370fb`), `stage5/e-perf`(PR-E, `c582243`). 대상은 `rebuild`다.
-- 상태: PR-A(T1~T4) 끝. 커밋 `4a8f6b3`, [PR #22](https://github.com/crucial-sub/cruz-lab/pull/22) `rebuild` 병합(`d1ded00`, 2026-11-11). 태그 `rebuild-pre-stage5`(= `90c6201`). **PR-B(T5~T8) 구현·검증·별도 리뷰·리뷰 수정 끝(2026-11-11), 브랜치 `stage5/b-manage`(기준 `d1ded00`), 커밋 `ee39038`, [PR #23](https://github.com/crucial-sub/cruz-lab/pull/23) `rebuild` 병합(`eb72c39`).** **PR-C(T9~T11) 구현·검증·별도 리뷰·리뷰 수정 끝(2026-11-11), 브랜치 `stage5/c-editor`(기준 `eb72c39`), 커밋 `7fbfe27`, [PR #24](https://github.com/crucial-sub/cruz-lab/pull/24) `rebuild` 병합(`7a370fb`).** **PR-D(T12) 구현·검증·별도 리뷰·리뷰 수정 끝(2026-11-11), 브랜치 `stage5/d-readers`(기준 `7a370fb`), 커밋 `48c8d66`, [PR #25](https://github.com/crucial-sub/cruz-lab/pull/25) `rebuild` 병합(`c582243`).** **PR-E(T13·T14) 구현·측정·검증·별도 리뷰·리뷰 수정 끝(2026-11-11), 브랜치 `stage5/e-perf`(기준 `c582243`). 커밋 정리·PR은 사용자 확인 뒤(7절).**
+- 상태: PR-A(T1~T4) 끝. 커밋 `4a8f6b3`, [PR #22](https://github.com/crucial-sub/cruz-lab/pull/22) `rebuild` 병합(`d1ded00`, 2026-11-11). 태그 `rebuild-pre-stage5`(= `90c6201`). **PR-B(T5~T8) 구현·검증·별도 리뷰·리뷰 수정 끝(2026-11-11), 브랜치 `stage5/b-manage`(기준 `d1ded00`), 커밋 `ee39038`, [PR #23](https://github.com/crucial-sub/cruz-lab/pull/23) `rebuild` 병합(`eb72c39`).** **PR-C(T9~T11) 구현·검증·별도 리뷰·리뷰 수정 끝(2026-11-11), 브랜치 `stage5/c-editor`(기준 `eb72c39`), 커밋 `7fbfe27`, [PR #24](https://github.com/crucial-sub/cruz-lab/pull/24) `rebuild` 병합(`7a370fb`).** **PR-D(T12) 구현·검증·별도 리뷰·리뷰 수정 끝(2026-11-11), 브랜치 `stage5/d-readers`(기준 `7a370fb`), 커밋 `48c8d66`, [PR #25](https://github.com/crucial-sub/cruz-lab/pull/25) `rebuild` 병합(`c582243`).** **PR-E(T13·T14) 구현·측정·검증·별도 리뷰·리뷰 수정 끝(2026-11-11), 브랜치 `stage5/e-perf`(기준 `c582243`), 측정용 커밋 3개를 사용자 확인 뒤 커밋 하나 `c61fa06`로 합쳤다. [PR #26](https://github.com/crucial-sub/cruz-lab/pull/26)(대상 `rebuild`) 병합 전.**
 
 ## 1. 현재 상황
 
@@ -15,7 +15,7 @@
 | PR-B (T5 이미지, T6 분류, T7 연재·프로젝트, T8 리비전) | 구현·검증 끝(2026-11-11, 2.7~2.11·4.8·4.9). 별도 리뷰 2건과 수정 끝(6.5~6.8). 커밋 `ee39038`, [PR #23](https://github.com/crucial-sub/cruz-lab/pull/23) `rebuild` 병합(`eb72c39`) |
 | PR-C (T9 이미지 세부 조절, T10 키맵 설정, T11 자동 재시도·블록 이동·찾기·바꾸기) | 구현·검증 끝(2026-11-11, 2.12~2.15·4.10~4.12). 별도 리뷰 2건과 수정 끝(6.9~6.12). 커밋 `7fbfe27`, [PR #24](https://github.com/crucial-sub/cruz-lab/pull/24) `rebuild` 병합(`7a370fb`) |
 | PR-D (T12 독자 흐름) | 구현·검증 끝(2026-11-11, 2.16·2.17·4.13~4.15). 별도 리뷰 2건과 수정 끝(6.13~6.16). 커밋 `48c8d66`, [PR #25](https://github.com/crucial-sub/cruz-lab/pull/25) `rebuild` 병합(`c582243`) |
-| PR-E (T13 측정·처방, T14 MCP 도구 삭제) | 구현·측정·검증 끝(2026-11-11, 2.18~2.20·4.16·4.17). 처방 2건은 사용자 결정(5절 140·145). 별도 리뷰 2건과 수정 끝(6.17~6.20). 커밋 정리·PR은 사용자 확인 뒤 |
+| PR-E (T13 측정·처방, T14 MCP 도구 삭제) | 구현·측정·검증 끝(2026-11-11, 2.18~2.20·4.16·4.17). 처방 2건은 사용자 결정(5절 140·145). 별도 리뷰 2건과 수정 끝(6.17~6.20). 커밋 `c61fa06`, [PR #26](https://github.com/crucial-sub/cruz-lab/pull/26) 병합 전 |
 | 문서 PR | 시작 전(Plan D19) |
 | 외부 변경 | 규칙·인덱스·환경 변수·Vercel 설정·버킷 CORS는 바꾸지 않았다. PR-E: E1(Codex 설정 3줄 삭제) 끝, E2는 할 일 없음(Fluid compute 이미 켜짐), 측정용 미리보기 배포 3개(3절). E3(백업 저장소 `settings`)은 사용자 확인 뒤 |
 | 운영 데이터 | 시험 데이터만 만들고 모두 지웠다(4.5·4.7·4.9·4.12·4.14·4.15). `readerEvents`·`readerDaily`는 시험 뒤 0이다(실제 독자 데이터는 main 병합 뒤 운영 주소에서 쌓인다). 끝 상태: `entries` 69(초안 7, 빈 초안 2), `publishLog` 2, `assets` 141, `seriesMeta` 7, Storage `assets/` 파일 37. 더해진 것: `settings/taxonomy`(기본 10개, 별칭 없음). `settings/editor`는 PR-C 시험 뒤 지워 없다. 사용자 초안과 공개 글은 읽기만 했다 |
@@ -1075,10 +1075,11 @@ S1 = B6, S8 ⊂ B10은 같은 결함이다. 중요 1건(B1)과 경미 대부분�
 15. PR-E(T13·T14) 구현(2.18~2.20, 브랜치 `stage5/e-perf`, 기준 `c582243`). 판단 137~149. 측정을 먼저 하고(4.16), 처방 2건은 사용자가 그림 설명을 보고 정했다(D16: 글 언어만 + 서버 Oniguruma, D17: resvg 네이티브 + `excludeNetwork`). E1 끝, E2 할 일 없음(Fluid compute 이미 켜짐).
 16. 측정(4.16·4.17): 미리보기 첫 OG 11,361 → 1,087~1,241 ms(세 번 모두 3초 안), 다음 OG 865 → 569~786 ms. 진짜 콜드 글 상세 TTFB 4,474 → 3,558·3,897 ms(렌더 1,541 → 922·1,092 ms). 측정용으로 작업 브랜치를 세 번 푸시했다(사용자 허락).
 17. 별도 리뷰(6.17~6.20): 치명 0, 중요 1, 경미 18(겹침 2쌍). 중요는 `excludeNetwork` 테스트가 핵심 동작을 보지 않음(B1). markdown 문법의 늦은 포함(S1 = B6)과 하이라이터 실패가 글 전체를 500으로 만듦(S2)도 고쳤다. 판단 150~160. 다시 검증(4.17).
+18. 사용자 승인(2026-11-11) 뒤 측정용 커밋 3개와 리뷰 수정·문서를 커밋 하나 `c61fa06`로 합치고 `stage5/e-perf`에 `--force-with-lease`로 푸시, [PR #26](https://github.com/crucial-sub/cruz-lab/pull/26)(대상 `rebuild`).
 
 **다음 것.**
 
-1. PR-E 커밋 정리(측정용 커밋 3개 + 리뷰 수정을 합칠지)·푸시·PR(대상 `rebuild`)은 사용자 확인 뒤에 한다. PR 링크를 여기와 감사 문서 11.11에 적는다.
+1. [PR #26](https://github.com/crucial-sub/cruz-lab/pull/26) 병합(사용자).
 2. 사용자 확인 뒤: E3(백업 저장소 `crucial-sub/cruz-lab-content`의 `scripts/export.mjs`에 `{ name: 'settings', subcollections: [] }` 한 줄, 그 저장소에 PR). 지금 `settings/taxonomy`는 백업되지 않는다.
 3. PR-B 병합 뒤 `rebuild` 미리보기: 분류 화면에서 시험 카테고리 만들기 → 지우기, 공개 동의어 태그 주소 301(태그 페이지), 이미지 라이브러리 141칸.
 4. 사용자 몫(미리보기): 로그아웃 뒤 글 상세 "고치기"가 사라지는지(Plan 8.4의 17). 관리자가 아닌 Google 계정의 로그인 거부(D18).
