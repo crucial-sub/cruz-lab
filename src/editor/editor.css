@@ -125,6 +125,13 @@ html.light {
 .tiptap-body:focus {
   outline: none;
 }
+/* 노드 선택(이미지 등) 중에는 루트의 캐럿 색도 투명하게 한다.
+   iOS WebKit은 선택 강조와 손잡이를 편집 루트의 caret-color로 칠한다. ProseMirror 공식 CSS는
+   .ProseMirror-hideselection(루트 자신)을 투명하게 하지만, Tiptap이 넣는 CSS는 하위 요소(*)만 투명하게 한다.
+   위의 .tiptap-body 브랜드 색이 남아 이미지를 누르면 연두색 선택 표시가 메뉴 글자까지 덮었다(main 병합 준비 작업 문서 6.3). */
+.tiptap-body.ProseMirror-hideselection {
+  caret-color: transparent;
+}
 /* 자리표시 문구(@tiptap/extensions Placeholder) */
 .tiptap-body p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);

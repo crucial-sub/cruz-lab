@@ -8,13 +8,16 @@ import { CODE_LANGUAGES } from '@/lib/content/code-languages';
 import { createSiteHighlighter } from '@/lib/content/highlighter';
 import { markdownToHtml } from '@/lib/content/markdown';
 import {
+  codeHighlighterFromCore,
   grammarForLanguage,
   grammarsInMarkdown,
   LAZY_EMBEDDING_GRAMMARS,
   SITE_GRAMMAR_NAMES,
+  SHIKI_TOKENIZE_TIME_LIMIT_MS,
   SITE_GRAMMARS,
   type SiteGrammar,
 } from '@/lib/content/shiki-languages';
+import type { HighlighterCore } from 'shiki/core';
 import { GRAMMAR_LOADERS } from '@/lib/server/code-highlighter';
 
 type ServerModule = typeof import('@/lib/server/code-highlighter');
@@ -107,6 +110,24 @@ describe('서버 하이라이터: 실패해도 글을 그린다(리뷰 S2)', () 
     expect(cBlock).not.toMatch(/--shiki-dark:#(?!E6EDF3)/i);
     expect(pyBlock).toMatch(/--shiki-dark:#(?!E6EDF3)/i);
     expect(warn).toHaveBeenCalled();
+  });
+});
+
+// main 병합 준비(작업 문서 6.1): Shiki는 한 줄 토큰화에 기본 500ms 한도를 둔다. 넘으면 그 줄의 나머지가 색 없는 토큰이 된다.
+// 기기 부하가 크거나 콜드 함수에서 첫 정규식 컴파일이 오래 걸리면 넘을 수 있다. 서버와 에디터 미리보기가 같은 한도를 쓴다.
+describe('Shiki 줄당 토큰화 시간 한도', () => {
+  it('codeToHast에 5초 한도를 넘긴다(기본 500ms가 아니다)', () => {
+    let options: Record<string, unknown> | undefined;
+    const core = {
+      getLoadedLanguages: () => ['javascript'],
+      codeToHast: (_code: string, given: Record<string, unknown>) => {
+        options = given;
+        return { type: 'root', children: [{ type: 'element', tagName: 'pre', properties: {}, children: [] }] };
+      },
+    } as unknown as HighlighterCore;
+    codeHighlighterFromCore(core).toPre('const a = 1;', 'js');
+    expect(SHIKI_TOKENIZE_TIME_LIMIT_MS).toBe(5000);
+    expect(options?.tokenizeTimeLimit).toBe(SHIKI_TOKENIZE_TIME_LIMIT_MS);
   });
 });
 

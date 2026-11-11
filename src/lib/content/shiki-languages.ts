@@ -159,6 +159,14 @@ export function grammarsInMarkdown(markdown: string): SiteGrammar[] {
   return [...found];
 }
 
+// 한 줄을 토큰화하는 시간 한도(ms). Shiki 기본값은 500ms다.
+// - 한도를 넘으면 그 줄의 나머지가 색 없는 토큰 하나가 된다. 첫 줄은 문법 정규식 컴파일 시간도 함께 센다.
+//   기기 부하가 크면 테스트에서 실제로 넘었다. 콜드 함수에서도 넘을 수 있다(main 병합 준비 작업 문서 6.1: 부하 때
+//   JS 엔진 첫 호출 300ms대, 한도를 넘긴 줄은 색 span 14개 → 1개). 서버가 그린 HTML은 CDN에 남으므로 색이 빠지면
+//   다음 퍼지까지 그대로다.
+// - 한도는 남긴다. 이상한 정규식이 함수나 에디터 탭을 오래 묶지 않게 한다.
+export const SHIKI_TOKENIZE_TIME_LIMIT_MS = 5000;
+
 // Shiki 코어 → 사이트 하이라이터
 // - 펜스 코드 값의 끝 줄바꿈 하나는 뗀다(mdast → hast가 붙인 것. 남기면 빈 줄이 하나 더 생긴다).
 // - 언어 판정은 부를 때마다 코어에 지금 등록된 언어로 한다(서버는 언어를 나중에 더 불러온다).
@@ -171,6 +179,7 @@ export function codeHighlighterFromCore(core: HighlighterCore): CodeHighlighter 
         lang: resolved,
         themes: SHIKI_THEMES,
         defaultColor: false,
+        tokenizeTimeLimit: SHIKI_TOKENIZE_TIME_LIMIT_MS,
       }) as Root;
       const pre = root.children.find(
         (child): child is Element => child.type === 'element' && child.tagName === 'pre',

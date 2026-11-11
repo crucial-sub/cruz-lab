@@ -1,45 +1,93 @@
-# Publish Runbook (재건 브랜치)
+# Publish Runbook
 
-이 문서는 `rebuild` 브랜치의 출간 흐름이다. 운영(main)은 아직 옛 흐름(Firestore `posts` + GitHub `data/post-archive`)을 쓴다.
+글을 쓰고 출간하는 순서다. 출간은 관리자 앱(`/admin`)에서 한다.
 
-- 설계: [재건 2단계 Plan](./docs/blog-rebuilding/2026-11-07-stage2-data-model-and-server-plan.md) D4~D8, 6절(API 명세)
 - 글 원본: Firestore `entries`. 공개 페이지는 `status == 'published'` 글의 발행본만 읽는다.
+- 설계: [재건 2단계 Plan](./docs/blog-rebuilding/2026-11-07-stage2-data-model-and-server-plan.md)(데이터 · API), [3단계 Plan](./docs/blog-rebuilding/2026-11-08-stage3-editor-plan.md)(에디터), [5단계 Plan](./docs/blog-rebuilding/2026-11-10-stage5-admin-app-plan.md)(관리자 앱).
 
-## 지금 상태 (2단계 끝)
+## 로그인
 
-1. 관리자 API만 있다. 새 에디터 화면은 3단계가 만든다(D10).
-2. `rebuild`의 옛 관리자 화면은 로그인까지만 동작한다. 저장·출간 버튼을 누르지 않는다.
-3. main 병합 전에 공개 글을 써야 하면 운영 관리자 화면(`https://www.cruzlab.dev/admin`)으로 쓴다. 병합 직전에 마이그레이션을 다시 실행해 `entries`로 옮긴다(Plan 15절).
+1. 공개 페이지 푸터의 "관리"를 누른다. 또는 `/admin`을 연다.
+2. 사전 안내 화면에서 "Google로 로그인"을 누른다.
+3. 관리자 계정이면 세션 쿠키(`cruz_admin`, 14일)를 받고 `/admin`이 열린다.
 
-## API로 출간하는 순서
+관리자가 아닌 계정은 거부 화면을 본다. 서버는 그 계정의 인증 기록을 바로 지운다. 관리자는 `ADMIN_UID` 환경 변수로 정한다.
 
-모든 요청은 세션 쿠키(`cruz_admin`)가 필요하다. 쓰기 요청은 같은 Origin에서만 받는다.
+## 글 쓰기
 
-1. `/admin/login`에서 Google로 로그인한다. 세션 쿠키(14일)를 받는다.
-2. `POST /api/admin/posts`로 빈 초안을 만든다.
-3. `PUT /api/admin/posts/{id}/draft`로 초안을 저장한다. `baseVersion`이 서버 버전과 다르면 409다.
-4. 이미지는 `POST /api/admin/assets/upload-url` → Storage에 PUT → `POST /api/admin/assets/{id}/finalize` 순서로 올린다. 본문에는 `asset.url`(가장 큰 webp 변형)을 넣는다.
-5. `POST /api/admin/posts/{id}/publish`로 발행한다. 검사에 실패하면 422와 항목별 이유가 온다.
-6. 응답의 `publicUrl`을 연다. `purge`는 CDN 캐시 퍼지 결과다. `backup`은 백업 저장소 알림 결과다.
+1. `/admin` 첫 화면에서 "새 글"을 누른다. 노트는 "오늘 기록"을 누른다. 빈 초안이 생기고 에디터가 열린다.
+2. 본문을 쓴다. 입력이 2초 멈추면 초안이 서버에 자동저장된다. 일시 오류면 세 번 다시 보낸다. 연결이 끊기면 이 기기에 보관한다.
+3. 이미지는 끌어 놓거나 붙여 넣는다. 이미지 메뉴에서 폭(px)과 정렬을 고른다.
+4. 메타 패널에서 설명, slug, 카테고리, 태그(최대 3개), 연재 key · 순서, 표지를 정한다.
+5. 쓰던 글은 첫 화면 "이어 쓰기"에서 다시 연다.
 
-숨김은 `POST /api/admin/posts/{id}/visibility`, 삭제는 `DELETE /api/admin/posts/{id}`(요청 `{ confirm: "<id>" }`)다.
+## 발행
+
+1. 에디터 오른쪽 위 "발행"을 누른다. 좁은 화면에서는 메타 시트 맨 위에 있다.
+2. 검사에 실패하면 이유가 해당 칸 아래에 뜬다. 고치고 다시 누른다.
+3. 성공하면 발행본 · 리비전 · 출간 기록이 한 트랜잭션으로 저장된다.
+4. 서버가 CDN 캐시를 비우고, 백업 저장소에 알림을 보낸다.
+5. 퍼지나 백업 알림이 실패하면 `/admin` 맨 위에 알림 띠가 뜬다. 띠의 "다시 비우기" · "다시 알리기"를 누른다. 발행 자체는 이미 성공이다.
+
+발행한 글을 고치면 초안만 바뀐다. 공개 페이지는 다시 발행할 때까지 이전 발행본을 보인다.
+
+## 숨기기, 삭제, 이전 발행본
+
+- 숨기기 · 다시 보이기 · 초안 버리기 · 삭제: 에디터 오른쪽 위 ⋯ 메뉴. 숨기기 · 다시 보이기 · 삭제는 목록 행의 ⋯ 메뉴에도 있다.
+- 이전 발행본: 에디터 ⋯ 메뉴 "이전 발행본". 판을 미리 보고 "초안으로 가져오기"를 누른다. 공개 페이지는 다시 발행할 때 바뀐다.
+- 발행 · 숨김 · 삭제 · 이전 발행본 가져오기 · 분류와 연재 변경은 `/admin/log`(출간 기록)에 남는다.
+
+## 관리 화면
+
+| 메뉴      | 주소              | 하는 일                                                                  |
+| --------- | ----------------- | ------------------------------------------------------------------------ |
+| 글        | `/admin`          | 목록 · 검색 · 상태 탭, 이어 쓰기, 빈 초안 한꺼번에 지우기                |
+| 이미지    | `/admin/assets`   | 이미지 라이브러리, 쓰는 글, 쓰지 않는 새 이미지 지우기                   |
+| 분류      | `/admin/taxonomy` | 카테고리 만들기 · 이름 · key · 합치기 · 지우기, 태그 바꾸기, 옛 주소 301 |
+| 연재      | `/admin/series`   | 연재 · 프로젝트 정보, 새 프로젝트                                        |
+| 독자      | `/admin/readers`  | 날짜별 방문, 들어온 곳, 많이 읽힌 글, 글별 다음 글 · 읽음 비율           |
+| 출간 기록 | `/admin/log`      | 발행 · 숨김 · 삭제 · 분류 변경 기록과 퍼지 · 백업 결과                   |
+| 설정      | `/admin/settings` | 에디터 단축키                                                            |
+
+key 바꾸기 · 합치기 · 글 옮기기 · 지우기 · 태그 바꾸기는 먼저 시험 실행으로 대상 글을 보인다. 확인한 뒤 실행한다.
 
 ## 백업
 
 출간은 GitHub를 부르지 않는다. 백업은 비공개 저장소 `crucial-sub/cruz-lab-content`의 GitHub Action이 한다.
 
-- 매일 03:00 KST, 그리고 발행·삭제 직후 알림(`repository_dispatch`)으로 돈다.
+- 매일 03:00 KST, 그리고 발행 · 삭제 직후 알림(`repository_dispatch`)으로 돈다.
 - 알림이 실패해도 발행은 성공이다. 다음 예약 실행이 백업한다.
 
 ## 점검
+
+점검 스크립트는 개발 서버나 빌드 결과(localhost)에 요청한다. 운영 Firestore · Storage를 쓰므로 쓰기 점검은 실행 전에 확인한다. 쓰기 점검은 이름에 `stage5-test` 같은 표지를 붙인 시험 데이터만 만들고 끝에 지운다.
 
 ```bash
 pnpm smoke:api --base http://localhost:4321
 ```
 
 ```bash
-pnpm smoke:public --base http://localhost:4321
+node --env-file=.env scripts/smoke/stage5-admin.mjs --base http://localhost:4321
 ```
 
-- `smoke:api`는 시험 글과 시험 이미지를 만들고 끝에 모두 지운다. 운영 Firestore·Storage에 쓰므로 실행 전에 확인한다. `--read-only`를 붙이면 세션·인증 검사만 한다.
-- `smoke:public`은 공개 페이지를 읽기만 한다.
+```bash
+node --env-file=.env scripts/smoke/stage5-track.mjs --base http://localhost:4321
+```
+
+```bash
+pnpm smoke:stage4 --base http://localhost:4321
+```
+
+```bash
+pnpm smoke:roundtrip
+```
+
+| 명령              | 하는 일                                                                     | 쓰기                                        |
+| ----------------- | --------------------------------------------------------------------------- | ------------------------------------------- |
+| `smoke:api`       | 세션 · 초안 · 자산 · 발행 · 숨김 · 삭제 API                                 | 시험 글 · 이미지                            |
+| `stage5-admin`    | 관리자 앱 진입, 목록 · 출간 기록 · 이미지 · 분류 · 연재 · 리비전 · 설정 API | 시험 글 · 이미지 · 분류 · 프로젝트 · 사용자 |
+| `stage5-track`    | 독자 흐름 수집 검사와 요약                                                  | 시험 방문                                   |
+| `smoke:stage4`    | 공개 페이지 전체(끝에 `smoke:public`도 돈다)                                | 없음                                        |
+| `smoke:roundtrip` | 모든 글의 마크다운 왕복                                                     | 없음                                        |
+
+`smoke:api`에 `--read-only`를 붙이면 세션 · 인증 검사만 한다.
