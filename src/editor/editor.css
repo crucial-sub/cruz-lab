@@ -336,9 +336,13 @@ html.light {
   color: var(--text-secondary);
   background: var(--bg-app);
 }
-.editor-chip:hover:not(:disabled) {
-  color: var(--text-primary);
-  border-color: var(--text-secondary);
+/* hover는 마우스 같은 기기에서만 그린다. iPhone은 누른 단추에 hover가 남아 "검은 테두리만 생긴" 것처럼 보였다
+   (main 병합 준비 작업 문서 6.5) */
+@media (hover: hover) {
+  .editor-chip:hover:not(:disabled) {
+    color: var(--text-primary);
+    border-color: var(--text-secondary);
+  }
 }
 .editor-chip:disabled {
   opacity: 0.4;

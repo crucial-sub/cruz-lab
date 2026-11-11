@@ -37,6 +37,7 @@ import {
   soloImageStateAt,
   type SoloImageState,
 } from './image-layout';
+import { commitFocusedInputIn, selectNodeWithoutFocus } from './touch-select';
 
 const BUCKET = (import.meta.env.PUBLIC_FIREBASE_STORAGE_BUCKET as string | undefined) ?? '';
 const SIZES: ImageSize[] = ['small', 'medium', 'large'];
@@ -277,6 +278,43 @@ export function ImageNodeView({
   // 끄는 동안의 화면 폭. 놓으면 null로 돌아가고 노드 속성이 폭을 정한다
   const [dragWidth, setDragWidth] = useState<number | null>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const menuRef = useRef<HTMLSpanElement>(null);
+  // 네이티브 리스너가 읽는 최신 값
+  const latestRef = useRef({ editor, getPos });
+  latestRef.current = { editor, getPos };
+
+  // 터치로 이미지를 누르면 ProseMirror에 넘기지 않고 포커스 없이 노드 선택만 둔다(main 병합 준비 작업 문서 6.5)
+  // - ProseMirror가 받으면 에디터에 포커스를 두고 이미지·메뉴를 감싼 DOM 선택 범위를 만든다. iOS는 그 범위를 칠하고
+  //   범위 안의 첫 탭을 페이지에 보내지 않았다. 마우스(데스크톱)는 지금처럼 ProseMirror가 받는다.
+  // - 리스너는 요소에 직접 단다. React 이벤트는 루트에서 받으므로 ProseMirror보다 늦다(ResizeHandle과 같은 이유).
+  // - mousedown 기본 동작을 막으면 브라우저가 편집 루트에 포커스를 주지 않는다.
+  useEffect(() => {
+    const media: HTMLElement | null = imageRef.current ?? videoRef.current;
+    if (!media) return;
+    let touch = false;
+    const onPointerDown = (event: PointerEvent) => {
+      touch = event.pointerType === 'touch' || event.pointerType === 'pen';
+    };
+    const onMouseDown = (event: MouseEvent) => {
+      const { editor: current, getPos: positionOf } = latestRef.current;
+      if (!touch || !current.isEditable) return;
+      const pos = positionOf();
+      if (typeof pos !== 'number') return;
+      event.preventDefault();
+      event.stopPropagation();
+      selectNodeWithoutFocus(current.view, pos, {
+        activeElement: document.activeElement,
+        selection: window.getSelection(),
+      });
+    };
+    media.addEventListener('pointerdown', onPointerDown);
+    media.addEventListener('mousedown', onMouseDown);
+    return () => {
+      media.removeEventListener('pointerdown', onPointerDown);
+      media.removeEventListener('mousedown', onMouseDown);
+    };
+  }, [isVideo]);
 
   // 선택했을 때만 자산 문서를 읽는다
   useEffect(() => {
@@ -298,6 +336,23 @@ export function ImageNodeView({
   // 복사해 붙여넣은 자리표시: 올릴 파일 정보가 없다
   const strayBlob = !uploadId && src.startsWith('blob:');
   const showMenu = selected && !uploadId && !strayBlob && editor.isEditable;
+
+  // 메뉴 안을 누를 때 포커스를 옮기지 않는다(입력 칸은 제외). ProseMirror에도 넘기지 않는다(6.5)
+  // - iOS는 메뉴 단추를 누르면 편집 루트에 포커스를 줬다. 그러면 노드 선택의 DOM 범위가 다시 생겼다.
+  // - 입력 칸의 값은 단추 처리 전에 commitPendingInput이 반영한다.
+  // - showMenu가 바뀌면 메뉴 요소가 생기거나 사라지므로 다시 단다.
+  useEffect(() => {
+    const menu = menuRef.current;
+    if (!menu) return;
+    const onMouseDown = (event: MouseEvent) => {
+      const target = event.target as { tagName?: string } | null;
+      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA') return;
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    menu.addEventListener('mousedown', onMouseDown);
+    return () => menu.removeEventListener('mousedown', onMouseDown);
+  }, [showMenu]);
 
   // 이미지만 있는 단락인지. 메뉴는 선택될 때 그리므로 그때 위치로 판정한다
   let soloState: SoloImageState = 'shared';
@@ -348,6 +403,16 @@ export function ImageNodeView({
     );
   };
   const pointerInMenu = () => menuPointerRef.current;
+
+  // 메뉴 단추를 처리하기 전에 입력 중인 칸을 반영한다(6.5). 단추가 포커스를 옮기지 않아 blur가 먼저 오지 않는다
+  // - 반영하는 동안만 "메뉴 안" 표시를 켠다. 그래야 반영이 이미지 선택을 지키고, 나중의 바깥 blur는 바깥으로 본다.
+  const commitPendingInput = () => {
+    const previous = menuPointerRef.current;
+    commitFocusedInputIn(menuRef.current, document.activeElement, () => {
+      menuPointerRef.current = true;
+    });
+    menuPointerRef.current = previous;
+  };
 
   // 속성을 바꾸고 이미지 선택을 지킨다(메뉴가 닫히지 않게)
   // - updateAttributes는 잎 노드를 바꿔 끼워 선택이 글자 선택으로 풀린다. 같은 트랜잭션에서 노드 선택을 다시 둔다(되돌리기 한 번)
@@ -402,6 +467,7 @@ export function ImageNodeView({
     >
       {isVideo ? (
         <video
+          ref={videoRef}
           src={src}
           muted
           playsInline
@@ -485,6 +551,7 @@ export function ImageNodeView({
 
       {showMenu && (
         <span
+          ref={menuRef}
           className="editor-image-menu"
           contentEditable={false}
           // 누르는 동안 표시를 둔다. 입력 칸의 blur가 이것을 읽는다(리뷰 B4)
@@ -522,7 +589,10 @@ export function ImageNodeView({
                           ? '이 크기의 변형이 없습니다'
                           : undefined
                   }
-                  onClick={() => url && updateAttributes({ src: url })}
+                  onClick={() => {
+                    commitPendingInput();
+                    if (url) updateAttributes({ src: url });
+                  }}
                 >
                   {IMAGE_SIZE_LABELS[size]}
                 </button>
@@ -556,9 +626,10 @@ export function ImageNodeView({
                 aria-pressed={align === option.value}
                 disabled={!layoutEnabled}
                 title={layoutDisabledReason}
-                onClick={() =>
-                  align !== option.value && updateKeepingSelection({ align: option.value })
-                }
+                onClick={() => {
+                  commitPendingInput();
+                  if (align !== option.value) updateKeepingSelection({ align: option.value });
+                }}
               >
                 {option.label}
               </button>
