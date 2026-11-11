@@ -10,6 +10,7 @@ import type { DocumentData } from 'firebase-admin/firestore';
 import { getDownloadURL } from 'firebase-admin/storage';
 import sharp from 'sharp';
 import { assetIdFromStoragePath, extractStoragePaths, storagePathFromUrl } from '@/lib/asset-refs';
+import { firebaseDownloadUrl } from '@/lib/asset-url';
 import {
   ALLOWED_CONTENT_TYPES,
   UPLOAD_URL_TTL_MS,
@@ -45,6 +46,7 @@ import {
 } from './entries';
 import { getServerBucket, getServerDb, getStorageBucketName } from './firebase-server';
 import { renderTransformedVariants } from './image-transform';
+import type { ServerTiming } from './server-timing';
 
 // main 병합 전에는 legacy 자산을 정리 대상에서 뺀다(D6, Claude 판단).
 // 운영이 옛 이미지를 계속 쓰기 때문이다. 병합 뒤 정리 작업(Plan 15절)에서 true로 바꾼다.
@@ -144,19 +146,22 @@ export async function requestUploadUrl(input: UploadUrlInput) {
 
 // ───────────── finalize ─────────────
 
-// Storage에 파일을 올리고 Firebase 다운로드 주소를 받는다
-// - 다운로드 토큰을 메타데이터에 넣어야 getDownloadURL()이 주소를 만든다.
+// Storage에 파일을 올리고 Firebase 다운로드 주소를 준다
+// - 다운로드 토큰을 메타데이터에 넣어야 다운로드 주소가 열린다.
+// - 주소는 그 토큰으로 직접 만든다(getDownloadURL과 같은 모양). getDownloadURL은 메타데이터를 한 번 더 받아
+//   토큰을 읽으므로 파일마다 요청이 하나 늘었다(이미지 회전·좌우반전 작업, 속도 줄이기).
 async function saveWithDownloadUrl(path: string, data: Buffer, contentType: string): Promise<string> {
   const file = getServerBucket().file(path);
+  const token = randomUUID();
   await file.save(data, {
     resumable: false,
     contentType,
     metadata: {
       cacheControl: IMMUTABLE_CACHE_CONTROL,
-      metadata: { firebaseStorageDownloadTokens: randomUUID() },
+      metadata: { firebaseStorageDownloadTokens: token },
     },
   });
-  return getDownloadURL(file);
+  return firebaseDownloadUrl(file.bucket.name, file.name, token);
 }
 
 // Storage 파일 전체의 SHA-256 (영상처럼 큰 파일은 스트림으로 읽는다)
@@ -325,8 +330,11 @@ function assertTransformable(id: string, asset: AssetDoc): NonNullable<AssetDoc[
 // - 없으면 원본의 최대 변형을 돌려 새 자산을 만든다. 아직 어느 글도 쓰지 않으므로 고아로 표시한다
 //   (글에 넣고 저장하면 지워진다, finalize와 같다).
 // - 원본 문서가 없으면(정리됨) 지금 자산을 원본으로 삼는다.
-export async function transformAsset(id: string, op: TransformOp) {
-  const snapshot = await assetsRef().doc(id).get();
+// - timing을 주면 단계별 시간을 남긴다(Server-Timing): read(Firestore 읽기), dl(원본 받기), img(sharp),
+//   up(변형 올리기), write(문서 쓰기).
+export async function transformAsset(id: string, op: TransformOp, timing?: ServerTiming) {
+  const measure = <T>(name: string, run: () => Promise<T>) => (timing ? timing.measure(name, run) : run());
+  const snapshot = await measure('read', () => assetsRef().doc(id).get());
   if (!snapshot.exists) throw new ApiError(404, 'NOT_FOUND', '자산이 없습니다.');
   const asset = parseStoredAsset(id, snapshot.data());
   assertTransformable(id, asset);
@@ -335,19 +343,22 @@ export async function transformAsset(id: string, op: TransformOp) {
     { id, derivedFrom: asset.derivedFrom, transform: asset.transform },
     op,
   );
+  // 원본 문서와 같은 원본의 파생 자산을 함께 읽는다(요청 하나만큼 줄인다)
+  const derivedOf = (rootKey: string) => assetsRef().where('derivedFrom', '==', rootKey).get();
+  const [rootSnapshot, siblingsOfRoot] = await measure('read', () =>
+    Promise.all([rootId !== id ? assetsRef().doc(rootId).get() : Promise.resolve(null), derivedOf(rootId)]),
+  );
   let root = asset;
-  if (rootId !== id) {
-    const rootSnapshot = await assetsRef().doc(rootId).get();
-    if (rootSnapshot.exists) {
-      root = parseStoredAsset(rootId, rootSnapshot.data());
-    } else {
-      ({ rootId, transform } = resolveTransformRequest({ id }, op));
-    }
+  let siblings = siblingsOfRoot;
+  if (rootSnapshot?.exists) {
+    root = parseStoredAsset(rootId, rootSnapshot.data());
+  } else if (rootSnapshot) {
+    ({ rootId, transform } = resolveTransformRequest({ id }, op));
+    siblings = await measure('read', () => derivedOf(rootId));
   }
   const rootVariants = assertTransformable(rootId, root);
   if (isIdentityTransform(transform)) return { asset: serializeAsset(rootId, root) };
 
-  const siblings = await assetsRef().where('derivedFrom', '==', rootId).get();
   for (const docSnap of siblings.docs) {
     const parsed = assetDocSchema.safeParse(docSnap.data());
     if (!parsed.success || parsed.data.status !== 'ready' || !parsed.data.transform) continue;
@@ -356,16 +367,26 @@ export async function transformAsset(id: string, op: TransformOp) {
     }
   }
 
-  const [source] = await getServerBucket().file(rootVariants.max.path).download();
-  const rendered = await renderTransformedVariants(source, transform);
+  const [source] = await measure('dl', () => getServerBucket().file(rootVariants.max.path).download());
+  const rendered = await measure('img', () => renderTransformedVariants(source, transform));
   const ref = assetsRef().doc();
   let next: AssetDoc;
   try {
+    // 변형 파일을 동시에 올린다. 하나가 실패해도 모두 끝난 뒤에 실패로 본다(아래 정리가 늦게 끝난 파일을 놓치지 않게)
+    const uploads = await measure('up', () =>
+      Promise.allSettled(
+        rendered.map(async (file): Promise<AssetVariant> => {
+          const path = variantPathFor(ref.id, file.width);
+          const url = await saveWithDownloadUrl(path, file.data, 'image/webp');
+          return { path, url, width: file.width, height: file.height, bytes: file.data.length };
+        }),
+      ),
+    );
+    const failed = uploads.find((result): result is PromiseRejectedResult => result.status === 'rejected');
+    if (failed) throw failed.reason;
     const files = new Map<number, AssetVariant>();
-    for (const file of rendered) {
-      const path = variantPathFor(ref.id, file.width);
-      const url = await saveWithDownloadUrl(path, file.data, 'image/webp');
-      files.set(file.width, { path, url, width: file.width, height: file.height, bytes: file.data.length });
+    for (const result of uploads) {
+      if (result.status === 'fulfilled') files.set(result.value.width, result.value);
     }
     const largest = rendered[rendered.length - 1];
     const { max, variants } = variantsFromFiles(planVariants(largest.width), files);
@@ -388,7 +409,8 @@ export async function transformAsset(id: string, op: TransformOp) {
       transform,
     };
     assetDocSchema.parse(next);
-    await ref.set(next);
+    const doc = next;
+    await measure('write', () => ref.set(doc));
   } catch (error) {
     // 문서 없이 남은 파일은 정리가 찾지 못한다. 만든 파일을 지운다
     await getServerBucket()

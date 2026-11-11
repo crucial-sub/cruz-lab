@@ -34,7 +34,11 @@ import {
   soloImageStateAt,
   type SoloImageState,
 } from './image-layout';
-import { imageTransformTargetOf, replaceImageSrcKeepingSelection } from './image-transform';
+import {
+  imageTransformTargetOf,
+  replaceImageSrcKeepingSelection,
+  transformPreviewCss,
+} from './image-transform';
 import { commitFocusedInputIn, selectNodeWithoutFocus } from './touch-select';
 
 // 정렬 버튼. 왼쪽은 기본값(null)이다
@@ -283,6 +287,8 @@ export function ImageNodeView({
   const [dragWidth, setDragWidth] = useState<number | null>(null);
   // 돌리는 중인 단추와 실패 알림
   const [transforming, setTransforming] = useState<TransformOp | null>(null);
+  // 기다리는 동안 그림에 두는 CSS transform(미리 돌려 보이기). 저장하지 않는다
+  const [transformPreview, setTransformPreview] = useState<string | null>(null);
   const [transformError, setTransformError] = useState<string | null>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -446,12 +452,16 @@ export function ImageNodeView({
 
   // 돌리기: 서버가 돌린 자산을 받아 src를 바꾼다(되돌리기 한 번, 메뉴는 열린 채)
   // - 입력 중인 칸을 먼저 반영한다(단추가 포커스를 옮기지 않는다, 6.5).
+  // - 누르면 바로 그림을 CSS로 돌려 보인다(transformPreviewCss). 서버가 파일을 만드는 몇 초를 기다리지 않게 한다.
+  //   src를 바꿀 때 같은 렌더에서 지운다. 실패해도 지운다.
   // - 기다리는 동안 src가 바뀌었으면(되돌리기 등) 바꾸지 않는다. 위치는 끝난 때 다시 읽는다.
   const runTransform = async (op: TransformOp) => {
     if (!transformAssetId || transforming) return;
     commitPendingInput();
     const fromSrc = src;
+    const image = imageRef.current;
     setTransforming(op);
+    setTransformPreview(transformPreviewCss(op, image?.naturalWidth ?? 0, image?.naturalHeight ?? 0));
     setTransformError(null);
     try {
       const { asset } = await adminApi.transformAsset(transformAssetId, op);
@@ -466,6 +476,7 @@ export function ImageNodeView({
       setTransformError(error instanceof Error ? error.message : '이미지를 돌리지 못했습니다.');
     } finally {
       setTransforming(null);
+      setTransformPreview(null);
     }
   };
 
@@ -513,7 +524,8 @@ export function ImageNodeView({
           src={src}
           alt={alt}
           title={title || undefined}
-          className="rounded-lg"
+          className={classNames('rounded-lg', transformPreview && 'editor-image-transform-preview')}
+          style={transformPreview ? { transform: transformPreview } : undefined}
           draggable={false}
         />
       )}

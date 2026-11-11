@@ -8,6 +8,7 @@ import { createEditorExtensions } from '@/editor/extensions';
 import {
   imageTransformTargetOf,
   replaceImageSrcKeepingSelection,
+  transformPreviewCss,
 } from '@/editor/ui/image-transform';
 
 const BUCKET = 'cruz-lab.firebasestorage.app';
@@ -123,5 +124,30 @@ describe('replaceImageSrcKeepingSelection', () => {
     const tr = state.tr;
     replaceImageSrcKeepingSelection(tr, pos, oldSrc, newSrc);
     expect(tr.steps).toHaveLength(1);
+  });
+});
+
+// 서버가 파일을 만드는 동안 그림을 먼저 돌려 보인다(이미지 회전·좌우반전 작업, 속도 줄이기)
+// - 90°는 자리가 그대로이므로 돌린 그림이 자리 안에 들어오게 줄인다(가로 1000·세로 600이면 0.6배).
+describe('transformPreviewCss', () => {
+  it('오른쪽 90°: 시계 방향으로 돌리고 자리에 맞게 줄인다', () => {
+    expect(transformPreviewCss('rotate-right', 1000, 600)).toBe('rotate(90deg) scale(0.6)');
+  });
+
+  it('왼쪽 90°: 반시계 방향', () => {
+    expect(transformPreviewCss('rotate-left', 1000, 600)).toBe('rotate(-90deg) scale(0.6)');
+  });
+
+  it('세로 그림도 자리 안에 들어온다', () => {
+    expect(transformPreviewCss('rotate-right', 600, 1000)).toBe('rotate(90deg) scale(0.6)');
+  });
+
+  it('정사각형과 크기를 모르는 그림은 줄이지 않는다', () => {
+    expect(transformPreviewCss('rotate-right', 500, 500)).toBe('rotate(90deg) scale(1)');
+    expect(transformPreviewCss('rotate-left', 0, 0)).toBe('rotate(-90deg) scale(1)');
+  });
+
+  it('좌우반전은 크기와 상관없이 좌우만 뒤집는다', () => {
+    expect(transformPreviewCss('flip-horizontal', 1000, 600)).toBe('scaleX(-1)');
   });
 });

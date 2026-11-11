@@ -75,3 +75,11 @@ export function assetIdFromUrl(url: string, bucket: string): string | null {
   const path = storagePathFromUrl(url, bucket);
   return path ? assetIdFromAssetPath(path) : null;
 }
+
+// 서버가 다운로드 토큰을 정해 올린 파일의 Firebase 다운로드 주소 (이미지 회전·좌우반전 작업)
+// - firebase-admin getDownloadURL과 같은 모양이다. getDownloadURL은 파일마다 메타데이터를 한 번 더 받아
+//   토큰을 읽는다. 토큰을 우리가 정했으면 그 요청 없이 주소를 만든다.
+// - 에뮬레이터(STORAGE_EMULATOR_HOST)는 쓰지 않으므로 운영 주소만 만든다.
+export function firebaseDownloadUrl(bucket: string, path: string, token: string): string {
+  return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}?alt=media&token=${encodeURIComponent(token)}`;
+}

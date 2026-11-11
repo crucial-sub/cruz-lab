@@ -6,6 +6,7 @@
 // - 기다리는 동안 사용자가 src를 바꿨으면(되돌리기 등) 바꾸지 않는다.
 
 import type { Transaction } from '@tiptap/pm/state';
+import type { TransformOp } from '@/lib/asset-transform';
 import { assetIdFromUrl, storagePathFromUrl } from '@/lib/asset-url';
 import { setImageAttrsKeepingSelection } from './image-layout';
 
@@ -36,4 +37,17 @@ export function replaceImageSrcKeepingSelection(
   const node = pos >= 0 && pos < tr.doc.content.size ? tr.doc.nodeAt(pos) : null;
   if (!node || node.type.name !== 'image' || node.attrs.src !== expectedSrc) return false;
   return setImageAttrsKeepingSelection(tr, pos, { src: nextSrc });
+}
+
+// 서버가 파일을 만드는 동안 그림을 먼저 돌려 보이는 CSS transform (이미지 회전·좌우반전 작업, 속도 줄이기)
+// - 저장하지 않는다. 노드 뷰가 기다리는 동안만 <img>에 둔다. 응답을 받으면 src를 바꾸고 지운다.
+// - 90°는 자리가 그대로이므로 돌린 그림이 자리 안에 들어오게 줄인다: min(가로/세로, 세로/가로).
+//   크기를 모르면(0) 줄이지 않는다.
+export function transformPreviewCss(op: TransformOp, width: number, height: number): string {
+  if (op === 'flip-horizontal') return 'scaleX(-1)';
+  const scale =
+    width > 0 && height > 0
+      ? Math.round(Math.min(width / height, height / width) * 1000) / 1000
+      : 1;
+  return `rotate(${op === 'rotate-right' ? 90 : -90}deg) scale(${scale})`;
 }

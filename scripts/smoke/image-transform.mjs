@@ -6,7 +6,7 @@
 //   끝에(실패해도 finally에서) 모두 지운다. 기존 글·자산은 읽기만 한다.
 // - 세션: Admin SDK createCustomToken(ADMIN_UID) → Identity Toolkit signInWithCustomToken → POST /api/admin/session
 // - 확인하는 것:
-//   1. 사분면 이미지 A를 올린다(1000×600). 오른쪽 90° → 새 자산 B(600×1000, derivedFrom A, 왼위가 파랑)
+//   1. 사분면 이미지 A를 올린다(2400×1800, 변형 파일 4개로 실제 사진과 같은 양). 오른쪽 90° → 새 자산 B(1800×2400, derivedFrom A, 왼위가 파랑)
 //   2. B를 왼쪽 90° → A를 준다(새 파일 없음). A를 다시 오른쪽 90° → 같은 B를 준다
 //   3. B를 좌우반전 → C(원본 A 기준 "뒤집고 270°", 왼위가 빨강). A의 파생 자산은 B·C 둘뿐이다
 //   4. 거절: 없는 자산 404, 모르는 단추 400, 옛 이미지 422(문서를 바꾸지 않는다), 세션 없음 401, 다른 Origin 403
@@ -167,7 +167,7 @@ async function colorAtUrl(url, fx, fy) {
 
 // 시험 이미지 A를 올린다(업로드 주소 → PUT → finalize)
 async function uploadQuadrant() {
-  const png = await quadrantPng(1000, 600);
+  const png = await quadrantPng(2400, 1800);
   const sha256 = createHash('sha256').update(png).digest('hex');
   const urlResponse = await api('POST', '/api/admin/assets/upload-url', {
     body: {
@@ -200,7 +200,14 @@ async function transform(id, op, options = {}) {
     ...options,
   });
   if (response.json?.asset?.id) created.assetIds.add(response.json.asset.id);
-  return { ...response, ms: Date.now() - started };
+  // 서버의 단계별 시간(Server-Timing: read·dl·img·up·write·total)
+  const timing = (response.headers.get('server-timing') ?? '')
+    .split(',')
+    .map((part) => part.trim().match(/^([\w-]+).*?dur=([\d.]+)/))
+    .filter(Boolean)
+    .map((match) => `${match[1]} ${Math.round(Number(match[2]))}`)
+    .join(' · ');
+  return { ...response, ms: Date.now() - started, timing };
 }
 
 // ───────────── 단계 ─────────────
@@ -208,11 +215,11 @@ async function transform(id, op, options = {}) {
 // 1~3. 돌리기·되돌아오기·다시 쓰기·뒤집기
 async function checkTransforms(db) {
   const a = await uploadQuadrant();
-  check(a.width === 1000 && a.height === 600, `A 크기 1000×600 (${a.width}×${a.height})`);
+  check(a.width === 2400 && a.height === 1800, `A 크기 2400×1800 (${a.width}×${a.height})`);
 
   const toB = await transform(a.id, 'rotate-right');
   const b = toB.json?.asset;
-  console.log(`A → 오른쪽 90° (새 자산): ${toB.ms}ms`);
+  console.log(`A → 오른쪽 90° (새 자산): ${toB.ms}ms (서버 ${toB.timing})`);
   check(
     toB.status === 200 && b && b.id !== a.id,
     `오른쪽 90°: 200, 새 자산 (${toB.status} ${toB.text.slice(0, 160)})`,
@@ -222,12 +229,14 @@ async function checkTransforms(db) {
     'B: derivedFrom A, 90°',
   );
   check(
-    b?.width === 600 && b?.height === 1000 && b?.variants?.max?.width === 600,
-    `B: 600×1000 (${b?.width}×${b?.height})`,
+    b?.width === 1800 && b?.height === 2400 && b?.variants?.max?.width === 1800,
+    `B: 1800×2400 (${b?.width}×${b?.height})`,
   );
   check(
-    b?.variants?.w480?.width === 480 && b?.variants?.w480?.height === 800,
-    'B: w480 변형 480×800',
+    b?.variants?.w480?.width === 480 &&
+      b?.variants?.w480?.height === 640 &&
+      b?.variants?.w1600?.width === 1600,
+    'B: w480 변형 480×640, w1600 있음',
   );
   check(
     b?.status === 'ready' &&
@@ -242,14 +251,14 @@ async function checkTransforms(db) {
   }
 
   const back = await transform(b.id, 'rotate-left');
-  console.log(`B → 왼쪽 90° (원본으로): ${back.ms}ms`);
+  console.log(`B → 왼쪽 90° (원본으로): ${back.ms}ms (서버 ${back.timing})`);
   check(
     back.status === 200 && back.json?.asset?.id === a.id && back.json?.asset?.url === a.url,
     `B를 왼쪽 90°: A를 준다 (${back.json?.asset?.id})`,
   );
 
   const again = await transform(a.id, 'rotate-right');
-  console.log(`A → 오른쪽 90° (다시 쓰기): ${again.ms}ms`);
+  console.log(`A → 오른쪽 90° (다시 쓰기): ${again.ms}ms (서버 ${again.timing})`);
   check(
     again.status === 200 && again.json?.asset?.id === b.id,
     `A를 다시 오른쪽 90°: 같은 B (${again.json?.asset?.id})`,
@@ -257,7 +266,7 @@ async function checkTransforms(db) {
 
   const toC = await transform(b.id, 'flip-horizontal');
   const c = toC.json?.asset;
-  console.log(`B → 좌우반전 (새 자산): ${toC.ms}ms`);
+  console.log(`B → 좌우반전 (새 자산): ${toC.ms}ms (서버 ${toC.timing})`);
   check(
     toC.status === 200 && c && c.id !== a.id && c.id !== b.id,
     `B를 좌우반전: 새 자산 C (${toC.status})`,
@@ -266,7 +275,7 @@ async function checkTransforms(db) {
     c?.derivedFrom === a.id && c?.transform?.rotate === 270 && c?.transform?.flip === true,
     `C: 원본 A 기준 "뒤집고 270°" (${JSON.stringify(c?.transform)})`,
   );
-  check(c?.width === 600 && c?.height === 1000, 'C: 600×1000');
+  check(c?.width === 1800 && c?.height === 2400, 'C: 1800×2400');
   if (c) check((await colorAtUrl(c.url, 0.1, 0.1)) === 'red', 'C 왼위: 빨강');
 
   const derived = await withRetry('파생 자산 세기', () =>
@@ -386,16 +395,16 @@ async function checkRenderAndPurge(db, bucketName, { a, b, c }) {
   check(Boolean(bTag), `공개 렌더: B 주소 그대로 (${images.length}개 img)`);
   check(Boolean(cTag), '공개 렌더: C 주소 그대로');
   check(
-    attr(bTag ?? '', 'width') === '300' && attr(bTag ?? '', 'height') === '500',
-    `B: 폭 300, 돌린 비율의 높이 500 (${attr(bTag ?? '', 'width')}×${attr(bTag ?? '', 'height')})`,
+    attr(bTag ?? '', 'width') === '300' && attr(bTag ?? '', 'height') === '400',
+    `B: 폭 300, 돌린 비율의 높이 400 (${attr(bTag ?? '', 'width')}×${attr(bTag ?? '', 'height')})`,
   );
   check(
     (attr(bTag ?? '', 'srcset') ?? '').includes(`${b.variants.w480.url} 480w`),
     'B: srcset에 B의 w480',
   );
   check(
-    attr(cTag ?? '', 'width') === '600' && attr(cTag ?? '', 'height') === '1000',
-    `C: 600×1000 (${attr(cTag ?? '', 'width')}×${attr(cTag ?? '', 'height')})`,
+    attr(cTag ?? '', 'width') === '1800' && attr(cTag ?? '', 'height') === '2400',
+    `C: 1800×2400 (${attr(cTag ?? '', 'width')}×${attr(cTag ?? '', 'height')})`,
   );
   check(!unescapeAttr(html).includes(a.url), '공개 렌더: 원본 A 주소 없음');
 
