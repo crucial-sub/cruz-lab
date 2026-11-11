@@ -5,6 +5,7 @@
 // - 글 상세와 같은 PostArticle(kind="note")이다. 제목이 없으면 <title>은 "노트 · 2026-11-09"다.
 // - OG 이미지는 /og/<노트 ID>.png("노트" 라벨 + 첫 줄, 4단계 D13).
 // - CDN: 노트를 찾았을 때만 s-maxage=60, 태그 posts,post-<id>. 없으면 안내 화면을 직접 그리고(404) 저장하지 않는다.
+// - Server-Timing(5단계 T13, D16): db(노트 찾기), render(본문 렌더 전체)와 그 안의 assets·hl·md, adj(옆 노트).
 import katexCssUrl from 'katex/dist/katex.min.css?url';
 import NotFound from '@/components/NotFound.astro';
 import PostArticle from '@/components/post/PostArticle.astro';
@@ -16,21 +17,27 @@ import { ogImagePath } from '@/lib/public-paths';
 import { POSTS_CACHE_TAG, postCacheTag, setPublicPageCache } from '@/lib/server/cache-headers';
 import { markNotFound } from '@/lib/server/not-found';
 import { renderEntry } from '@/lib/server/render-entry';
+import { SERVER_TIMING_HEADER, ServerTiming } from '@/lib/server/server-timing';
 
 export const prerender = false;
 
+const timing = new ServerTiming();
 const slug = Astro.params.slug ?? '';
-const lookup = await resolveNotePageBySlug(slug);
+const lookup = await timing.measure('db', () => resolveNotePageBySlug(slug), 'firestore entry');
 
 if (lookup?.type === 'redirect') {
   const response = Astro.redirect(lookup.location, 301);
   setPublicPageCache(response.headers, [POSTS_CACHE_TAG, postCacheTag(lookup.id)]);
+  response.headers.set(SERVER_TIMING_HEADER, timing.header());
   return response;
 }
 
 const note = lookup?.type === 'post' ? lookup.entry : null;
 const [rendered, adjacent] = note
-  ? await Promise.all([renderEntry(note), getAdjacentPosts(note.id, 'note')])
+  ? await Promise.all([
+      timing.measure('render', () => renderEntry(note, { timing }), 'render total'),
+      timing.measure('adj', () => getAdjacentPosts(note.id, 'note'), 'firestore adjacent'),
+    ])
   : [null, null];
 
 if (note) {
@@ -44,6 +51,7 @@ const title = note ? note.title || `노트 · ${date}` : '노트를 찾을 수 �
 const description = note
   ? note.description || firstLineExcerpt(note.markdown) || `${date}의 노트`
   : '요청한 노트를 찾을 수 없습니다.';
+Astro.response.headers.set(SERVER_TIMING_HEADER, timing.header());
 ---
 
 <BaseLayout

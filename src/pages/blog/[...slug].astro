@@ -4,6 +4,7 @@
 // - 본문: renderEntry(글 ID·발행본 번호로 메모리 캐시) → 공유 파이프라인(Shiki, 제목 id·목차, srcset).
 // - KaTeX CSS는 본문에 수식이 있을 때만 넣는다(D16). 코드 하이라이트는 외부 CSS 없이 shiki.css다(cdnjs 링크 없음).
 // - CDN: 글을 찾았을 때만 s-maxage=60, 태그 posts,post-<id>. 404는 저장하지 않는다.
+// - Server-Timing(5단계 T13, D16): db(글 찾기), render(본문 렌더 전체)와 그 안의 assets·hl·md, adj·series(옆 글·연재).
 import katexCssUrl from 'katex/dist/katex.min.css?url';
 import PostArticle from '@/components/post/PostArticle.astro';
 import BaseLayout from '@/layouts/BaseLayout.astro';
@@ -15,26 +16,32 @@ import {
 import { ogImagePath } from '@/lib/public-paths';
 import { POSTS_CACHE_TAG, postCacheTag, setPublicPageCache } from '@/lib/server/cache-headers';
 import { renderEntry } from '@/lib/server/render-entry';
+import { SERVER_TIMING_HEADER, ServerTiming } from '@/lib/server/server-timing';
 
 export const prerender = false;
 
+const timing = new ServerTiming();
 const slug = Astro.params.slug || '';
-const lookup = await resolvePostPageBySlug(slug);
+const lookup = await timing.measure('db', () => resolvePostPageBySlug(slug), 'firestore entry');
 
 // 예전 slug(slugHistory) 또는 다른 kind의 slug면 그 주소로 301
 if (lookup?.type === 'redirect') {
   const response = Astro.redirect(lookup.location, 301);
   setPublicPageCache(response.headers, [POSTS_CACHE_TAG, postCacheTag(lookup.id)]);
+  response.headers.set(SERVER_TIMING_HEADER, timing.header());
   return response;
 }
 
 const entry = lookup?.type === 'post' ? lookup.entry : null;
+const seriesKey = entry?.series?.key;
 
 const [rendered, adjacent, series] = entry
   ? await Promise.all([
-      renderEntry(entry),
-      getAdjacentPosts(entry.id),
-      entry.series ? getPublishedSeriesByKey(entry.series.key) : Promise.resolve(null),
+      timing.measure('render', () => renderEntry(entry, { timing }), 'render total'),
+      timing.measure('adj', () => getAdjacentPosts(entry.id), 'firestore adjacent'),
+      seriesKey
+        ? timing.measure('series', () => getPublishedSeriesByKey(seriesKey), 'firestore series')
+        : Promise.resolve(null),
     ])
   : [null, null, null];
 
@@ -51,6 +58,7 @@ const title = entry?.title || '포스트를 찾을 수 없습니다';
 const description = entry?.description || '요청한 블로그 포스트를 찾을 수 없습니다.';
 // OG 이미지는 코드로 그린 카드 /og/<글 ID>.png다(D13). 표지 이미지는 쓰지 않는다
 const ogImage = entry ? ogImagePath(entry.id) : undefined;
+Astro.response.headers.set(SERVER_TIMING_HEADER, timing.header());
 ---
 
 <BaseLayout

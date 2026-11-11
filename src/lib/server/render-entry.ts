@@ -5,12 +5,15 @@
 // - 캐시는 글 ID마다 최신 번호 하나만 가진다. 그래서 메모리는 발행 글 수에 묶인다.
 // - CDN이 응답을 60초 저장하므로(cache-headers.ts) 같은 인스턴스가 같은 글을 다시 그리는 일은 드물다.
 // - /notes 스트림은 id 접두사(idPrefix)를 붙여 그린다. 접두사가 다르면 다른 칸이다(노트 상세와 스트림이 한 칸씩).
+// - timing을 주면 실제로 그린 요청에 단계별 시간(assets·hl·md)을 남긴다(5단계 T13, Server-Timing).
+//   메모리 결과를 쓴 요청에는 남기지 않는다.
 
 import { extractStoragePaths, assetIdFromAssetPath } from '@/lib/asset-url';
-import { getSiteHighlighter } from '@/lib/content/highlighter';
 import { renderMarkdown, type MarkdownRenderResult } from '@/lib/content/markdown';
+import { getServerHighlighter } from './code-highlighter';
 import { getAssetsByIds } from './entries';
 import { getStorageBucketName } from './firebase-server';
+import type { ServerTiming } from './server-timing';
 
 // 렌더 결과 유지 시간
 export const RENDER_CACHE_TTL_MS = 10 * 60_000;
@@ -52,18 +55,31 @@ async function loadAssets(ids: string[]) {
 export interface RenderEntryOptions {
   // 문서 안 id 접두사 (한 페이지에 본문 여러 개를 그릴 때)
   idPrefix?: string;
+  // 단계별 시간을 남길 곳 (글 상세의 Server-Timing)
+  timing?: ServerTiming;
 }
 
-// 실제 렌더: 자산 조회 → 공유 파이프라인(Shiki + srcset)
+// 실제 렌더: (자산 조회 ∥ 하이라이터 준비) → 공유 파이프라인(Shiki + srcset)
+// - assets: 자산 문서 읽기(Firestore), hl: 하이라이터 준비(인스턴스의 첫 엔진 준비 + 이 글 언어의 문법 불러오기),
+//   md: 마크다운 변환(코드 하이라이트 포함). assets와 hl은 함께 기다린다(네트워크와 CPU라 겹친다).
 async function renderNow(entry: RenderableEntry, options: RenderEntryOptions): Promise<MarkdownRenderResult> {
+  const { timing } = options;
   const bucket = getStorageBucketName();
   const ids = assetIdsInMarkdown(entry.markdown, bucket);
-  const byId = await loadAssets(ids);
-  return renderMarkdown(entry.markdown, {
-    highlighter: getSiteHighlighter(),
-    assets: { byId, bucket },
-    idPrefix: options.idPrefix,
-  });
+  const readAssets = () => loadAssets(ids);
+  const prepare = () => getServerHighlighter(entry.markdown);
+  const [byId, highlighter] = await Promise.all([
+    timing ? timing.measure('assets', readAssets, 'firestore assets') : readAssets(),
+    timing ? timing.measure('hl', prepare, 'highlighter setup') : prepare(),
+  ]);
+  const run = () =>
+    renderMarkdown(entry.markdown, {
+      // 하이라이터를 만들지 못했으면 코드는 민무늬다(code-highlighter.ts)
+      highlighter: highlighter ?? undefined,
+      assets: { byId, bucket },
+      idPrefix: options.idPrefix,
+    });
+  return timing ? timing.measureSync('md', run, 'markdown to html') : run();
 }
 
 // 글 본문 → { html, toc, hasMath }. 같은 글·같은 발행본(·같은 접두사)이면 메모리 결과를 쓴다

@@ -1,5 +1,5 @@
 // OG 이미지 템플릿 테스트 (재건 4단계 D13)
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   OG_HEIGHT,
   OG_SITE_HOST,
@@ -19,6 +19,7 @@ import {
 } from '@/lib/og-template';
 import { getCoverTheme } from '@/lib/post-cover';
 import { renderOgPng } from '@/lib/server/og-image';
+import { ServerTiming } from '@/lib/server/server-timing';
 
 // 트리에서 글자 마디를 모두 찾는다 (스타일과 글자)
 function textNodes(node: OgNode): { style: Record<string, string | number>; text: string }[] {
@@ -175,4 +176,56 @@ describe('renderOgPng', () => {
     const view = new DataView(png.buffer, png.byteOffset);
     expect([view.getUint32(16), view.getUint32(20)]).toEqual([OG_WIDTH, OG_HEIGHT]);
   }, 20_000);
+
+  it('timing에 단계 5개를 남긴다', async () => {
+    await renderOgPng(CARD);
+    const timing = new ServerTiming();
+    const png = await renderOgPng(CARD, timing);
+    expect([...png.slice(1, 4)]).toEqual([0x50, 0x4e, 0x47]);
+    expect(timing.metrics.map((metric) => metric.name).sort()).toEqual([
+      'font',
+      'imp-resvg',
+      'imp-satori',
+      'resvg',
+      'satori',
+    ]);
+  }, 20_000);
+});
+
+// 5단계 D17: resvg 네이티브 판을 불러오는 동안만 진단 보고서의 네트워크 칸을 끈다(리뷰 B1)
+// - 맥에서는 resvg가 isMusl()을 부르지 않는다. 그래서 불러오는 순간의 값을 모의 모듈로 잡는다.
+describe('resvg 불러오기와 excludeNetwork', () => {
+  const report = process.report as unknown as { excludeNetwork: boolean };
+
+  afterEach(() => {
+    vi.doUnmock('@resvg/resvg-js');
+    report.excludeNetwork = false;
+  });
+
+  it('불러오는 순간 켜져 있고, 끝나면 원래 값(false·true)으로 돌린다', async () => {
+    expect('excludeNetwork' in report).toBe(true);
+    for (const original of [false, true]) {
+      let seen: boolean | undefined;
+      vi.resetModules();
+      vi.doMock('@resvg/resvg-js', async (importOriginal) => {
+        seen = report.excludeNetwork;
+        return importOriginal();
+      });
+      report.excludeNetwork = original;
+      const { renderOgPng: render } = await import('@/lib/server/og-image');
+      await render(CARD);
+      expect(seen, `원래 값 ${original}`).toBe(true);
+      expect(report.excludeNetwork).toBe(original);
+    }
+  }, 30_000);
+
+  it('불러오기가 실패해도 원래 값으로 돌리고 오류를 낸다', async () => {
+    vi.resetModules();
+    vi.doMock('@resvg/resvg-js', () => {
+      throw new Error('네이티브 판 실패');
+    });
+    const { renderOgPng: render } = await import('@/lib/server/og-image');
+    await expect(render(CARD)).rejects.toThrow();
+    expect(report.excludeNetwork).toBe(false);
+  });
 });
