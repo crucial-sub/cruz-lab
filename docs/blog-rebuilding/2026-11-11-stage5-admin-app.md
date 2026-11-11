@@ -4,7 +4,7 @@
 - Plan: [2026-11-10-stage5-admin-app-plan.md](./2026-11-10-stage5-admin-app-plan.md) (승인 2026-11-10, [PR #21](https://github.com/crucial-sub/cruz-lab/pull/21) 병합 `90c6201`)
 - 진행 기록: [계획 문서 11.11](./2026-11-06-blog-architecture-audit-2-problems-and-plan.md#1111-5단계-구현-진행-기록-2026-11-10-)
 - 브랜치: `stage5/a-app`(PR-A, `origin/rebuild` `90c6201`에서 생성), `stage5/b-manage`(PR-B, `d1ded00`), `stage5/c-editor`(PR-C, `eb72c39`). 대상은 `rebuild`다.
-- 상태: PR-A(T1~T4) 끝. 커밋 `4a8f6b3`, [PR #22](https://github.com/crucial-sub/cruz-lab/pull/22) `rebuild` 병합(`d1ded00`, 2026-11-11). 태그 `rebuild-pre-stage5`(= `90c6201`). **PR-B(T5~T8) 구현·검증·별도 리뷰·리뷰 수정 끝(2026-11-11), 브랜치 `stage5/b-manage`(기준 `d1ded00`), 커밋 `ee39038`, [PR #23](https://github.com/crucial-sub/cruz-lab/pull/23) `rebuild` 병합(`eb72c39`).** **PR-C(T9~T11) 구현·검증·별도 리뷰·리뷰 수정 끝(2026-11-11), 브랜치 `stage5/c-editor`(기준 `eb72c39`), 커밋 전.** PR-D·PR-E는 새 세션에서 한다(7절).
+- 상태: PR-A(T1~T4) 끝. 커밋 `4a8f6b3`, [PR #22](https://github.com/crucial-sub/cruz-lab/pull/22) `rebuild` 병합(`d1ded00`, 2026-11-11). 태그 `rebuild-pre-stage5`(= `90c6201`). **PR-B(T5~T8) 구현·검증·별도 리뷰·리뷰 수정 끝(2026-11-11), 브랜치 `stage5/b-manage`(기준 `d1ded00`), 커밋 `ee39038`, [PR #23](https://github.com/crucial-sub/cruz-lab/pull/23) `rebuild` 병합(`eb72c39`).** **PR-C(T9~T11) 구현·검증·별도 리뷰·리뷰 수정 끝(2026-11-11), 브랜치 `stage5/c-editor`(기준 `eb72c39`), 커밋 `7fbfe27`, [PR #24](https://github.com/crucial-sub/cruz-lab/pull/24)(대상 `rebuild`) 병합 전.** PR-D·PR-E는 새 세션에서 한다(7절).
 
 ## 1. 현재 상황
 
@@ -13,7 +13,7 @@
 | PR-A (T1 앱 틀, T2 첫 화면·목록, T3 알림·출간 기록, T4 입구) | 구현·검증 끝(2026-11-11). 별도 리뷰 2건(서버·화면)과 수정 끝(6절). 49파일, +4,288·−267줄(문서 제외). 커밋 `4a8f6b3`, [PR #22](https://github.com/crucial-sub/cruz-lab/pull/22) `rebuild` 병합(`d1ded00`) |
 | PR-A 병합 뒤 미리보기 확인(Plan 8.6의 1) | 끝(4.7). 로그아웃 뒤 "고치기"는 사용자 몫 |
 | PR-B (T5 이미지, T6 분류, T7 연재·프로젝트, T8 리비전) | 구현·검증 끝(2026-11-11, 2.7~2.11·4.8·4.9). 별도 리뷰 2건과 수정 끝(6.5~6.8). 커밋 `ee39038`, [PR #23](https://github.com/crucial-sub/cruz-lab/pull/23) `rebuild` 병합(`eb72c39`) |
-| PR-C (T9 이미지 세부 조절, T10 키맵 설정, T11 자동 재시도·블록 이동·찾기·바꾸기) | 구현·검증 끝(2026-11-11, 2.12~2.15·4.10~4.12). 별도 리뷰 2건과 수정 끝(6.9~6.12). 브랜치 `stage5/c-editor`, 커밋 전 |
+| PR-C (T9 이미지 세부 조절, T10 키맵 설정, T11 자동 재시도·블록 이동·찾기·바꾸기) | 구현·검증 끝(2026-11-11, 2.12~2.15·4.10~4.12). 별도 리뷰 2건과 수정 끝(6.9~6.12). 커밋 `7fbfe27`, [PR #24](https://github.com/crucial-sub/cruz-lab/pull/24) 병합 전 |
 | PR-D·PR-E, 문서 PR | 시작 전(Plan D19) |
 | 외부 변경 | 없음(규칙·인덱스·환경 변수·Vercel·버킷 CORS). E3(백업 저장소 `settings`)은 사용자 확인 뒤 |
 | 운영 데이터 | 시험 데이터만 만들고 모두 지웠다(4.5·4.7·4.9·4.12). 끝 상태: `entries` 69(초안 7, 빈 초안 2), `publishLog` 2, `assets` 141, `seriesMeta` 7, Storage `assets/` 파일 37. 더해진 것: `settings/taxonomy`(기본 10개, 별칭 없음). `settings/editor`는 PR-C 시험 뒤 지워 없다. 사용자 초안과 공개 글은 읽기만 했다 |
@@ -689,9 +689,11 @@ S1은 B1과 같은 결함이다. 중요 5건(B1·B2·B3·B4·S2)과 경미 19건
 8. 검증(4.10·4.11): lint, `tsc` 0, 테스트 827, 빌드, `stage5-admin.mjs` 252/252(개발 서버·빌드 결과), `stage2-api.mjs` 106/106, 왕복 69/69, 공개 점검 883/0 + 324/0, 브라우저 시나리오 13~16과 390px. 확인 중 찾은 2건(찾은 결과 스크롤, 막대 Esc)을 고쳤다.
 9. 별도 리뷰(6.9~6.12): 치명 0, 중요 6, 경미 20(S1 = B1). 경미 1건(B13)만 두고 모두 고쳤다. 판단 91~100. 다시 검증(4.12): 테스트 843, 스모크 252/252(빌드 결과·개발 서버), API 106/106, 왕복 69/69, 공개 점검 883/0 + 324/0. 시험 데이터 0.
 
+10. 사용자 승인(2026-11-11) 뒤 커밋 `7fbfe27`, 브랜치 `stage5/c-editor` 푸시, [PR #24](https://github.com/crucial-sub/cruz-lab/pull/24)(대상 `rebuild`).
+
 **다음 것.**
 
-1. 사용자 확인 뒤: PR-C 커밋, 브랜치 `stage5/c-editor` 푸시, PR(대상 `rebuild`). PR 링크를 이 절과 감사 문서 11.11에 적는다.
+1. [PR #24](https://github.com/crucial-sub/cruz-lab/pull/24) 병합(사용자).
 2. 사용자 확인 뒤: E3(백업 저장소 `crucial-sub/cruz-lab-content`의 `scripts/export.mjs`에 `{ name: 'settings', subcollections: [] }` 한 줄, 그 저장소에 PR). 지금 `settings/taxonomy`는 백업되지 않는다.
 3. PR-B 병합 뒤 `rebuild` 미리보기: 분류 화면에서 시험 카테고리 만들기 → 지우기, 공개 동의어 태그 주소 301(태그 페이지), 이미지 라이브러리 141칸.
 4. 사용자 몫(미리보기): 로그아웃 뒤 글 상세 "고치기"가 사라지는지(Plan 8.4의 17). 관리자가 아닌 Google 계정의 로그인 거부(D18).
