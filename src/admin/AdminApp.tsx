@@ -30,6 +30,7 @@ import { HomeScreen } from './home/HomeScreen';
 import { AdminLayout } from './layout/AdminLayout';
 import { LogScreen } from './log/LogScreen';
 import { SeriesScreen } from './series/SeriesScreen';
+import { SettingsScreen } from './settings/SettingsScreen';
 import { TaxonomyScreen } from './taxonomy/TaxonomyScreen';
 import {
   ADMIN_HOME_PATH,
@@ -341,6 +342,9 @@ export default function AdminApp({ sessionExpiresAt }: { sessionExpiresAt: strin
       addItem: addCreated,
       showToast,
       logout,
+      registerLeaveGuard: (guard) => {
+        guardRef.current = guard;
+      },
     }),
     [route, navigate, replaceSearch, list, loadList, patchItem, removeItem, addCreated, showToast, logout],
   );
@@ -415,6 +419,7 @@ export default function AdminApp({ sessionExpiresAt }: { sessionExpiresAt: strin
       taxonomy: <TaxonomyScreen />,
       series: <SeriesScreen />,
       log: <LogScreen />,
+      settings: <SettingsScreen />,
     };
     screen = (
       <AdminLayout current={route.name} onCreate={createAndEdit}>

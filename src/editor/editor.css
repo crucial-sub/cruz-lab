@@ -257,7 +257,70 @@ html.light {
   background: var(--bg-surface);
   box-shadow: var(--shadow-popover);
   white-space: nowrap;
+  /* 이미지 단락의 정렬(D13)을 따르지 않는다 */
+  text-align: left;
 }
+/* 폭·정렬을 저장하지 않는 줄의 알림(D13). 글자색은 토큰을 써서 두 테마 모두 읽히게 하고, 표시는 왼쪽 띠로 한다 */
+.editor-image-note {
+  max-width: 18rem;
+  white-space: normal;
+  border-left: 3px solid #f59e0b;
+  padding-left: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+}
+
+/* ── 이미지 폭·정렬 (5단계 D13) ──
+   - 이미지만 있는 단락(image-layout.ts 데코레이션 .editor-image-solo) 안에서만 적용한다. 그 밖의 줄은 저장하지 않으므로 보이지도 않는다.
+   - 폭은 노드 뷰가 래퍼에 둔 --editor-image-width다(data-width가 있을 때). 본문 폭을 넘으면 max-width가 줄인다.
+   - 정렬은 단락의 text-align이다. 래퍼가 inline-block이라 글자처럼 움직인다. 공개 페이지는 <p align>이 같은 일을 한다. */
+.tiptap-body p.editor-image-solo[data-align='center'] {
+  text-align: center;
+}
+.tiptap-body p.editor-image-solo[data-align='right'] {
+  text-align: right;
+}
+.tiptap-body p.editor-image-solo .editor-image[data-width] {
+  width: var(--editor-image-width);
+}
+.tiptap-body p.editor-image-solo .editor-image[data-width] img {
+  width: 100%;
+  height: auto;
+}
+/* 오른쪽 정렬이면 메뉴를 이미지 오른쪽 끝에 맞춘다(본문 밖으로 넘치지 않게) */
+.tiptap-body p.editor-image-solo[data-align='right'] .editor-image-menu {
+  left: auto;
+  right: 0;
+}
+/* 폭 손잡이: 고른 이미지의 가장자리(오른쪽 정렬은 왼쪽). 터치 기기에서는 숨긴다(폭 입력을 쓴다) */
+.editor-image-resize {
+  position: absolute;
+  top: 50%;
+  right: -0.4rem;
+  z-index: 10;
+  width: 0.5rem;
+  height: 2.5rem;
+  max-height: calc(100% - 1rem);
+  transform: translateY(-50%);
+  border: 1px solid var(--bg-app);
+  border-radius: 999px;
+  background: var(--ring-focus);
+  cursor: ew-resize;
+  touch-action: none;
+}
+.editor-image-resize.is-left {
+  right: auto;
+  left: -0.4rem;
+}
+.editor-image.is-resizing {
+  user-select: none;
+}
+@media (pointer: coarse) {
+  .editor-image-resize {
+    display: none;
+  }
+}
+
 .editor-chip {
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -359,4 +422,16 @@ html.light {
   padding: 2px 0.375rem;
   font-size: 0.75rem;
   line-height: 1rem;
+}
+
+/* ── 찾기·바꾸기 강조 (5단계 D7, prosemirror-search의 클래스) ──
+   - 찾은 곳은 옅은 노랑, 지금 고른 곳은 진한 주황 테두리. 두 테마 모두 글자가 읽히게 배경만 바꾼다. */
+.tiptap-body .ProseMirror-search-match {
+  background: rgba(250, 204, 21, 0.3);
+  border-radius: 2px;
+}
+.tiptap-body .ProseMirror-active-search-match {
+  background: rgba(249, 115, 22, 0.45);
+  border-radius: 2px;
+  outline: 1px solid rgba(249, 115, 22, 0.9);
 }

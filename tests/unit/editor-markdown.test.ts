@@ -29,8 +29,8 @@ function first(doc: JSONContent): JSONContent {
 }
 
 describe('fixture 왕복 (렌더 결과 동일, 안정성, 스키마)', () => {
-  it('fixture가 12개 있다 (4단계 D14 표기 옵션 2개 포함)', () => {
-    expect(fixtures.length).toBe(12);
+  it('fixture가 13개 있다 (4단계 D14 표기 옵션 2개, 5단계 D13 이미지 폭·정렬 1개 포함)', () => {
+    expect(fixtures.length).toBe(13);
   });
 
   for (const fixture of fixtures) {
@@ -530,6 +530,48 @@ describe('표기 옵션 1: 블록 앞뒤 공백 (D14)', () => {
     const markdown = docToMarkdown(doc);
     expect(markdown).toBe('`  a  `\n');
     expect(first(markdownToDoc(markdown).doc).content?.[0]?.text).toBe(' a ');
+  });
+});
+
+// ───────────── 5단계 D13: 이미지 폭·정렬 ─────────────
+
+describe('이미지 폭·정렬 fixture (5단계 D13)', () => {
+  it('fixture image-layout.md는 왕복해도 글자 하나 바뀌지 않는다', () => {
+    const source = readFixture('image-layout.md');
+    const { doc, warnings } = markdownToDoc(source);
+    expect(warnings).toEqual([]);
+    expect(docToMarkdown(doc)).toBe(source);
+  });
+
+  it('원시 HTML 이미지는 단락 안 이미지 노드이고 폭·정렬 속성을 갖는다', () => {
+    const { doc } = markdownToDoc(readFixture('image-layout.md'));
+    const images: JSONContent[] = [];
+    const collect = (node: JSONContent) => {
+      if (node.type === 'image') images.push(node);
+      node.content?.forEach(collect);
+    };
+    collect(doc);
+    expect(images.map((image) => [image.attrs?.width ?? null, image.attrs?.align ?? null])).toEqual(
+      [
+        [null, null],
+        [600, null],
+        [480, 'center'],
+        [null, 'right'],
+        [320, null],
+        [200, 'center'],
+        [240, null],
+      ],
+    );
+    // 폭·정렬이 없는 이미지의 attrs는 지금 모양 그대로다
+    expect(images[0]?.attrs).toEqual({
+      src: 'https://example.com/plain.png',
+      alt: '보통 이미지',
+      title: null,
+    });
+    // 문자 참조(&amp;)는 풀어서 주소로 둔다
+    expect(images[3]?.attrs?.src).toBe(
+      'https://firebasestorage.googleapis.com/v0/b/b/o/assets%2Fa%2Fmax.webp?alt=media&token=1-2',
+    );
   });
 });
 

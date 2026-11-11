@@ -26,6 +26,7 @@ function spyActions(): CommandActions {
     togglePanel: vi.fn(),
     openPalette: vi.fn(),
     openRevisions: vi.fn(),
+    openFind: vi.fn(() => true),
   };
 }
 
@@ -55,9 +56,9 @@ describe('레지스트리 형태', () => {
   });
 
   it('Mod+Alt 조합을 쓰지 않는다(계획 문서 2.2 #2)', () => {
-    const keys = commands.flatMap((command) =>
-      command.keys ? [command.keys.mac, command.keys.other] : [],
-    );
+    const keys = commands
+      .flatMap((command) => (command.keys ? [command.keys.mac, command.keys.other] : []))
+      .filter((key): key is string => key !== null);
     expect(keys.filter(usesModAlt)).toEqual([]);
   });
 
@@ -99,6 +100,10 @@ describe('레지스트리 형태', () => {
       // 사용 피드백 2026-11-09(부록 B 밖, 작업 문서 2.11)
       'select-word': 'Mod-d',
       'collapse-selection': 'Escape',
+      // 5단계 D6·D7
+      'block-move-up': 'Mod-Shift-ArrowUp',
+      'block-move-down': 'Mod-Shift-ArrowDown',
+      find: 'Mod-f',
     };
     for (const [id, key] of Object.entries(expected)) {
       expect(byId(commands, id).keys, id).toEqual({ mac: key, other: key });
@@ -114,6 +119,7 @@ describe('레지스트리 형태', () => {
     expect(pageScoped.sort()).toEqual(
       [
         'command-palette',
+        'find',
         'mode-cycle',
         'mode-edit',
         'mode-preview',

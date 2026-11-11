@@ -228,3 +228,56 @@ describe('describeSaveStatus', () => {
     expect(describeSaveStatus(base, { device: 'd', now })).toBe('');
   });
 });
+
+describe('자동 재시도 상태 (5단계 D15 1)', () => {
+  const retrying = (offline: boolean) =>
+    ({
+      type: 'save-retrying',
+      attempt: 2,
+      max: 3,
+      delayMs: 5000,
+      offline,
+      message: '서버 오류',
+    }) as const;
+
+  it('save-retrying은 retrying 상태와 몇 번째인지를 둔다. 입력이 와도 retrying이다', () => {
+    let state = autosaveReducer(initialAutosaveState(1), { type: 'changed' });
+    state = autosaveReducer(state, { type: 'save-started' });
+    state = autosaveReducer(state, retrying(false));
+    expect(state.status).toBe('retrying');
+    expect(state.retry).toEqual({ attempt: 2, max: 3, delayMs: 5000, offline: false });
+    expect(autosaveReducer(state, { type: 'changed' })).toBe(state);
+    expect(describeSaveStatus(state, { device: 'macbook', now: new Date() })).toBe(
+      '저장 실패 · 잠시 뒤 다시 보냄 (2/3)',
+    );
+  });
+
+  it('오프라인 재시도 문구, 다시 시도 단추(retry)와 저장 시작은 재시도 정보를 지운다', () => {
+    let state = autosaveReducer(initialAutosaveState(1), retrying(true));
+    expect(describeSaveStatus(state, { device: 'macbook', now: new Date() })).toBe(
+      '오프라인 · 기기에 보관됨 · 잠시 뒤 다시 보냄 (2/3)',
+    );
+    const retried = autosaveReducer(state, { type: 'retry' });
+    expect(retried).toMatchObject({ status: 'dirty', retry: null, error: null });
+    state = autosaveReducer(state, { type: 'save-started' });
+    expect(state).toMatchObject({ status: 'saving', retry: null });
+  });
+});
+
+describe('리뷰 S4: retrying에서 save-unchanged', () => {
+  it('깨끗한 상태로 가고 재시도 정보·오류를 지운다', () => {
+    const state = autosaveReducer(initialAutosaveState(1), {
+      type: 'save-retrying',
+      attempt: 1,
+      max: 3,
+      delayMs: 2000,
+      offline: false,
+      message: '서버 오류',
+    });
+    expect(autosaveReducer(state, { type: 'save-unchanged' })).toMatchObject({
+      status: 'idle',
+      retry: null,
+      error: null,
+    });
+  });
+});

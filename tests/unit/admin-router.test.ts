@@ -44,7 +44,6 @@ describe('parseAdminPath', () => {
     expect(parseAdminPath('/admin/posts')).toBeNull();
     expect(parseAdminPath('/admin/posts/new')).toBeNull();
     expect(parseAdminPath('/admin/readers')).toBeNull();
-    expect(parseAdminPath('/admin/settings')).toBeNull();
     expect(parseAdminPath('/admin/login')).toBeNull();
     expect(parseAdminPath('/blog/abc')).toBeNull();
   });
@@ -83,6 +82,16 @@ describe('adminPathOf', () => {
   it('화면마다 탭 제목이 있다', () => {
     expect(documentTitleOf({ name: 'home', search: '' })).toContain('Cruz Lab 관리');
     expect(documentTitleOf({ name: 'log' })).toContain('출간 기록');
+  });
+});
+
+describe('PR-C 화면 주소(5단계 D14)', () => {
+  it('설정 주소를 안다. 끝의 /도 받고 아래 주소는 모른다', () => {
+    expect(parseAdminPath('/admin/settings')).toEqual({ name: 'settings' });
+    expect(parseAdminPath('/admin/settings/')).toEqual({ name: 'settings' });
+    expect(parseAdminPath('/admin/settings/editor')).toBeNull();
+    expect(adminPathOf({ name: 'settings' })).toBe('/admin/settings');
+    expect(documentTitleOf({ name: 'settings' })).toContain('설정');
   });
 });
 

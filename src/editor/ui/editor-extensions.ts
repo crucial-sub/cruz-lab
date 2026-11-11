@@ -1,7 +1,7 @@
 // 화면용 확장 묶음 (재건 3단계 T3·T4·T5)
 // - 스키마(createEditorExtensions)에 DOM·React가 필요한 것과 편집 동작을 더한다.
 //   노드 뷰(이미지, 코드 블록 언어 선택, 임베드 iframe), 수식 클릭 편집, 파일 드롭·붙여넣기 업로드,
-//   더한 입력 규칙·임베드 붙여넣기, 레지스트리 단축키, 슬래시 메뉴, 자리표시 문구.
+//   더한 입력 규칙·임베드 붙여넣기, 레지스트리 단축키, 슬래시 메뉴, 자리표시 문구, 찾기·바꾸기 검색 상태(5단계 D7).
 // - 스키마 자체는 바꾸지 않는다. 노드 뷰를 붙인 확장은 같은 자리에서 바꿔 끼운다(노드 순서가 스키마와 같다).
 // - Tiptap 확장이 스스로 거는 명령 키는 뺀다(stripCommandKeys). 키는 레지스트리에서만 나온다(D9).
 
@@ -24,12 +24,18 @@ import { EditorInputRules } from '@/editor/extensions/input-rules';
 import { ImageUpload, type ImageUploadOptions } from '@/editor/upload/paste-drop';
 import { CodeBlockView } from './CodeBlockView';
 import { EmbedNodeView } from './EmbedNodeView';
+import { EditorSearch } from './find';
+import { createImageLayoutPlugin } from './image-layout';
 import { ImageNodeView } from './ImageNodeView';
 
-// 이미지 노드에 React 노드 뷰를 붙인다(업로드 진행률·재시도, 대체 텍스트·캡션·크기 메뉴)
+// 이미지 노드에 React 노드 뷰를 붙인다(업로드 진행률·재시도, 대체 텍스트·캡션·크기·폭·정렬 메뉴)
+// - 폭·정렬 표시 플러그인(5단계 D13): 이미지만 있는 단락에 데코레이션을 붙인다. 스키마는 바꾸지 않는다
 const EditorImageWithView = EditorImageNode.extend({
   addNodeView() {
     return ReactNodeViewRenderer(ImageNodeView, { contentDOMElementTag: 'span' });
+  },
+  addProseMirrorPlugins() {
+    return [...(this.parent?.() ?? []), createImageLayoutPlugin()];
   },
 }).configure(IMAGE_OPTIONS);
 
@@ -96,6 +102,7 @@ export function createUiExtensions(options: UiExtensionOptions): Extensions {
       onRun: options.onSlashRun,
       platform: options.platform,
     }),
+    EditorSearch,
     Placeholder.configure({
       placeholder: '본문을 쓰세요. / 로 명령, 이미지는 끌어다 놓거나 붙여넣으세요.',
       showOnlyWhenEditable: true,

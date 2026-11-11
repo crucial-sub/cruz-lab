@@ -1,8 +1,11 @@
-// 저장 컨트롤러 (재건 3단계 D1 b·D6, 리뷰 6.2 지적 1·2·5·6·7·8·13·17·19)
+// 저장 컨트롤러 (재건 3단계 D1 b·D6, 리뷰 6.2 지적 1·2·5·6·7·8·13·17·19, 5단계 D15 1)
 // - 자동저장의 제어 흐름을 React 밖의 클래스로 둔다. 리듀서(autosave.ts)는 화면 표시용이고, 이 클래스가 실제 판단을 한다.
 // - 상태: dirty(보낼 변경이 있을 수 있다), halt(멈춘 이유: error·offline·conflict), blockers(업로드 중 이미지 수),
 //   running(진행 중인 저장), force(다음 저장은 비교 없이 보낸다), baseline(서버가 가진 내용).
 // - 전송·보관함·타이머·스냅샷은 주입한다. 단위 테스트는 가짜를 넣는다.
+// - 자동 재시도(5단계 D15 1): 네트워크 오류·5xx(503 포함)이면 2초·5초·15초 뒤 세 번 다시 보낸다.
+//   네트워크 오류는 보낼 때마다 먼저 기기에 보관한다. 세 번 모두 실패하면 지금처럼 멈춘다(5xx는 error, 네트워크는 offline).
+//   409·413·422(와 그 밖의 4xx)는 다시 보내지 않는다. 성공하거나 사용자가 다시 시도하면 횟수를 0으로 되돌린다.
 //
 // 변경 판정 기준(baseline):
 // - markdown: 편집 모드 기준. 열기 직후(또는 편집 모드 저장 뒤) 문서의 docToMarkdown 결과다. null이면 모른다(소스 모드 저장 뒤).
@@ -26,6 +29,14 @@ import type { OfflineDraft } from './offline-store';
 export const SAVE_DEBOUNCE_MS = 2000;
 // 한글 조합 중이면 다시 볼 때까지의 시간
 const COMPOSING_RETRY_MS = 500;
+// 자동 재시도 간격(5단계 D15 1). 길이가 최대 횟수다
+export const SAVE_RETRY_DELAYS_MS: readonly number[] = [2000, 5000, 15000];
+
+// 다시 보낼 오류인지: 서버에 닿지 못함(네트워크) 또는 5xx
+function isRetryableError(error: unknown): boolean {
+  if (error instanceof ApiClientError) return error.status >= 500;
+  return true;
+}
 
 export type SaveMode = 'edit' | 'source';
 export type Halt = 'error' | 'offline' | 'conflict' | null;
@@ -135,6 +146,8 @@ export class SaveController {
   private force = false;
   private invalidShown = false;
   private leaving = false;
+  // 이어진 자동 재시도 횟수(5단계 D15 1)
+  private retryCount = 0;
 
   constructor(deps: SaveControllerDeps, version: number, baseline: SaveBaseline) {
     this.deps = deps;
@@ -153,6 +166,11 @@ export class SaveController {
 
   get halt(): Halt {
     return this.haltReason;
+  }
+
+  // 자동 재시도를 기다리는 중인지(5단계 D15 1). 온라인 복귀 때 바로 보낼지 정한다
+  get retrying(): boolean {
+    return this.retryCount > 0 && this.haltReason === null && this.timer !== null;
   }
 
   // 떠나면 잃는 것이 있는지(beforeunload)
@@ -175,6 +193,7 @@ export class SaveController {
     this.dirty = false;
     this.haltReason = null;
     this.force = false;
+    this.retryCount = 0;
     this.deps.dispatch({ type: 'reset', version });
     if (options.clearOffline) void this.deps.deleteOffline().catch(() => {});
   }
@@ -219,6 +238,7 @@ export class SaveController {
   resume(event: 'retry' | 'came-online') {
     this.haltReason = null;
     this.dirty = true;
+    this.retryCount = 0;
     this.deps.dispatch({ type: event });
     this.schedule(0);
   }
@@ -226,6 +246,7 @@ export class SaveController {
   // 충돌 상태로 들어간다(발행·초안 버리기의 409, 보관함 복원 때 버전이 다름)
   enterConflict(conflict: ConflictInfo) {
     this.cancelTimer();
+    this.retryCount = 0;
     this.haltReason = 'conflict';
     this.dirty = true;
     this.deps.dispatch({ type: 'save-conflicted', conflict });
@@ -237,6 +258,7 @@ export class SaveController {
     this.haltReason = null;
     this.dirty = true;
     this.force = true;
+    this.retryCount = 0;
     this.deps.dispatch({ type: 'conflict-resolved', version, keepLocal: true });
     this.schedule(0);
   }
@@ -249,6 +271,7 @@ export class SaveController {
     this.dirty = false;
     this.haltReason = null;
     this.force = false;
+    this.retryCount = 0;
     this.deps.dispatch({ type: 'conflict-resolved', version, keepLocal: false });
     void this.deps.deleteOffline().catch(() => {});
   }
@@ -315,6 +338,8 @@ export class SaveController {
       return 'failed';
     }
     if (!payload) {
+      // 기다리는 동안 내용을 원래대로 되돌렸으면 재시도도 끝이다(리뷰 S4)
+      this.retryCount = 0;
       this.deps.dispatch({ type: 'save-unchanged' });
       void this.deps.deleteOffline().catch(() => {});
       return 'unchanged';
@@ -371,6 +396,7 @@ export class SaveController {
     payload.apply();
     this.currentVersion = result.version;
     this.force = false;
+    this.retryCount = 0;
     this.deps.dispatch({
       type: 'save-succeeded',
       version: result.version,
@@ -385,6 +411,7 @@ export class SaveController {
     this.dirty = true;
     if (error instanceof ApiClientError) {
       if (error.status === 409) {
+        this.retryCount = 0;
         this.haltReason = 'conflict';
         this.deps.dispatch({ type: 'save-conflicted', conflict: conflictOf(error) });
         return 'conflict';
@@ -398,15 +425,41 @@ export class SaveController {
         this.deps.onUnauthorized();
         return 'failed';
       }
-      this.haltReason = 'error';
-      this.deps.dispatch({ type: 'save-failed', message: messageOf(error) });
-      return 'failed';
     }
-    // 서버에 닿지 못했다: 기기에 둔다
-    await this.stash(draft);
-    this.haltReason = 'offline';
-    this.deps.dispatch({ type: 'stored-offline' });
-    return 'offline';
+    const offline = !(error instanceof ApiClientError);
+    // 서버에 닿지 못했다: 다시 보내기 전에 먼저 기기에 둔다
+    if (offline) await this.stash(draft);
+    if (isRetryableError(error) && this.scheduleRetry(offline, messageOf(error))) {
+      return offline ? 'offline' : 'failed';
+    }
+    // 다시 보내지 않는 오류이거나 세 번 모두 실패했다: 멈추고 사용자를 기다린다
+    this.retryCount = 0;
+    if (offline) {
+      this.haltReason = 'offline';
+      this.deps.dispatch({ type: 'stored-offline' });
+      return 'offline';
+    }
+    this.haltReason = 'error';
+    this.deps.dispatch({ type: 'save-failed', message: messageOf(error) });
+    return 'failed';
+  }
+
+  // 자동 재시도를 예약한다. 횟수가 남지 않았으면 false
+  // - 멈추지 않는다(halt null). 그사이 입력이 오면 markChanged의 2초 저장이 이 타이머를 대신한다.
+  private scheduleRetry(offline: boolean, message: string): boolean {
+    if (this.leaving || this.retryCount >= SAVE_RETRY_DELAYS_MS.length) return false;
+    const delayMs = SAVE_RETRY_DELAYS_MS[this.retryCount];
+    this.retryCount += 1;
+    this.deps.dispatch({
+      type: 'save-retrying',
+      attempt: this.retryCount,
+      max: SAVE_RETRY_DELAYS_MS.length,
+      delayMs,
+      offline,
+      message,
+    });
+    this.schedule(delayMs);
+    return true;
   }
 
   // 지금 내용으로 저장 본문을 만든다. 기준과 같으면 null(D1 b). force면 비교하지 않는다

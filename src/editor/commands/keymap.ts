@@ -1,15 +1,16 @@
 // 키맵 순수 함수 (재건 3단계 D9)
 // - 키 표기는 Tiptap(prosemirror-keymap) 형식이다: 'Mod-Shift-2', 'Mod-b', 'Mod-Shift-Enter'.
 //   Mod는 맥에서 ⌘(Meta), 그 밖에서 Ctrl이다.
-// - 사용자 키맵 저장과 설정 화면은 5단계다. 3단계에서 덮어쓰기(overrides)는 늘 빈 객체다.
-//   덮어쓰기·충돌 검사·표기 함수는 지금 만들고 테스트한다.
+// - 사용자 키맵(덮어쓰기)은 settings/editor 문서에 있다(5단계 D14). 검사는 keymap-settings.ts가 한다.
+//   덮어쓰기·충돌 검사·표기 함수는 에디터·설정 화면·서버가 함께 쓴다(순수 함수).
 
 export type Platform = 'mac' | 'other';
 
-// 명령의 키. 플랫폼마다 따로 둔다. 기본값은 대개 같다
+// 명령의 키. 플랫폼마다 따로 둔다. 기본값은 대개 같다.
+// null은 그 플랫폼에서 키가 없다는 뜻이다(5단계 D14: 설정 화면은 이 기기의 플랫폼 키만 고친다)
 export interface KeyBinding {
-  mac: string;
-  other: string;
+  mac: string | null;
+  other: string | null;
 }
 
 // 키를 가진 것(명령)의 최소 모양
@@ -123,7 +124,13 @@ export function formatKey(key: string, platform: Platform): string {
 
 // 명령의 그 플랫폼 키. 없으면 null
 export function keyFor(command: Keyed, platform: Platform): string | null {
-  return command.keys ? command.keys[platform] : null;
+  return command.keys?.[platform] ?? null;
+}
+
+// 덮어쓰기 값 하나를 키로 바꾼다. 두 플랫폼 모두 키가 없으면 null
+function bindingOf(value: KeyBinding | null | undefined): KeyBinding | null {
+  if (!value || (!value.mac && !value.other)) return null;
+  return { mac: value.mac ?? null, other: value.other ?? null };
 }
 
 // 사용자 덮어쓰기를 적용한 새 목록을 돌려준다. 값이 null이면 키를 없앤다. 없는 id는 무시한다
@@ -133,7 +140,7 @@ export function applyKeymapOverrides<T extends Keyed>(
 ): T[] {
   return commands.map((command) =>
     Object.prototype.hasOwnProperty.call(overrides, command.id)
-      ? { ...command, keys: overrides[command.id] ? { ...overrides[command.id]! } : null }
+      ? { ...command, keys: bindingOf(overrides[command.id]) }
       : command,
   );
 }

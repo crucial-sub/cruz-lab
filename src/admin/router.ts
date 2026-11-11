@@ -4,7 +4,7 @@
 // - 화면을 만든 주소만 안다. 모르는 주소는 첫 화면(/admin)으로 바꾼다.
 //   5단계 PR-A의 화면: 첫 화면·목록(/admin), 에디터(/admin/edit/<id>), 출간 기록(/admin/log).
 //   PR-B의 화면: 이미지(/admin/assets), 분류(/admin/taxonomy), 연재·프로젝트(/admin/series).
-//   독자·설정 화면은 PR-C·PR-D가 이 표에 더한다.
+//   PR-C의 화면: 설정(/admin/settings). 독자 화면은 PR-D가 이 표에 더한다.
 // - /admin/login은 이 앱이 아니다(세션 없이 여는 Astro 페이지).
 
 export type AdminRoute =
@@ -13,14 +13,16 @@ export type AdminRoute =
   | { name: 'assets' }
   | { name: 'taxonomy' }
   | { name: 'series' }
-  | { name: 'log' };
+  | { name: 'log' }
+  | { name: 'settings' };
 
-// 쿼리 없는 화면의 주소 (PR-B가 이미지·분류·연재를 더했다)
+// 쿼리 없는 화면의 주소 (PR-B가 이미지·분류·연재를, PR-C가 설정을 더했다)
 const SIMPLE_ROUTES = {
   '/admin/assets': 'assets',
   '/admin/taxonomy': 'taxonomy',
   '/admin/series': 'series',
   '/admin/log': 'log',
+  '/admin/settings': 'settings',
 } as const satisfies Record<string, AdminRoute['name']>;
 type SimpleRouteName = (typeof SIMPLE_ROUTES)[keyof typeof SIMPLE_ROUTES];
 
@@ -72,6 +74,8 @@ export function adminPathOf(route: AdminRoute): string {
       return '/admin/series';
     case 'log':
       return '/admin/log';
+    case 'settings':
+      return '/admin/settings';
   }
 }
 
@@ -140,5 +144,7 @@ export function documentTitleOf(route: AdminRoute): string {
       return '연재·프로젝트 | Cruz Lab 관리';
     case 'log':
       return '출간 기록 | Cruz Lab 관리';
+    case 'settings':
+      return '설정 | Cruz Lab 관리';
   }
 }

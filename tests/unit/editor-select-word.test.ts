@@ -40,6 +40,7 @@ function spyActions(): CommandActions {
     togglePanel: vi.fn(),
     openPalette: vi.fn(),
     openRevisions: vi.fn(),
+    openFind: vi.fn(() => true),
   };
 }
 

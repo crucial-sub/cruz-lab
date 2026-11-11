@@ -11,6 +11,7 @@ import { BulletList, OrderedList, TaskItem, TaskList } from '@tiptap/extension-l
 import { Mathematics } from '@tiptap/extension-mathematics';
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { StarterKit } from '@tiptap/starter-kit';
+import { normalizeImageAlign, normalizeImageWidth } from '../markdown/image-html.ts';
 import { Callout } from './callout.ts';
 import { Embed } from './embed.ts';
 import { lowlight } from './lowlight.ts';
@@ -49,10 +50,31 @@ export const EditorTableHeader = TableHeader.extend({ content: 'paragraph' });
 // 이미지: 단락 안 인라인 노드(D10). 업로드 상태 속성 3개는 DOM·마크다운에 쓰지 않는다(D11 3·7).
 // - uploadId가 있는 동안은 src가 blob: 주소다. EditorApp은 이 노드가 있으면 자동저장을 멈춘다.
 // - 노드 뷰(React)는 ui/editor-extensions.ts가 extend로 더한다. 여기는 DOM 없이 돈다.
+// - 폭·정렬(5단계 D13): width는 정수 px(16~4096), align은 center·right(왼쪽은 null)다.
+//   HTML에는 data-width·data-align으로 쓰고 읽는다. 에디터 안 복사·붙여넣기가 HTML을 거치므로 둘 다 있어야 잃지 않는다.
+//   바깥 HTML의 width는 읽지 않는다. 공개 글(rehype-assets가 모든 새 자산 이미지에 width를 붙인다)이나 웹 페이지를
+//   복사해 붙이면 사용자가 정하지 않은 폭이 원시 HTML로 저장되기 때문이다(리뷰 S2).
 export const EditorImageNode = Image.extend({
   addAttributes() {
     return {
       ...this.parent?.(),
+      // Tiptap 기본 width(바깥 HTML의 width를 읽는다)를 덮는다. 에디터 표지 data-width만 숫자로 읽는다
+      width: {
+        default: null,
+        parseHTML: (element) => normalizeImageWidth(element.getAttribute('data-width')),
+        renderHTML: (attributes) => {
+          const width = normalizeImageWidth(attributes.width);
+          return width === null ? {} : { 'data-width': String(width) };
+        },
+      },
+      align: {
+        default: null,
+        parseHTML: (element) => normalizeImageAlign(element.getAttribute('data-align')),
+        renderHTML: (attributes) => {
+          const align = normalizeImageAlign(attributes.align);
+          return align === null ? {} : { 'data-align': align };
+        },
+      },
       uploadId: { default: null, rendered: false },
       uploadProgress: { default: null, rendered: false },
       uploadError: { default: null, rendered: false },

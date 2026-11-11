@@ -5,8 +5,11 @@
 // - 보기 모드 3종(D8): 편집(Tiptap) · 소스(textarea) · 미리보기(공유 파이프라인).
 // - 발행·숨김·초안 버리기·삭제·로그아웃(D13).
 // - 명령(D9): 레지스트리 하나(commands/registry.ts)에서 단축키·슬래시·팔레트(Mod+K)·툴바·모바일 툴바가 나온다.
-//   에디터 범위 키는 Tiptap 키맵이, 페이지 범위 키(저장·발행·모드·패널·팔레트)는 창 keydown이 받는다.
-//   사용자 키맵 덮어쓰기는 5단계다. 지금은 빈 객체다.
+//   에디터 범위 키는 Tiptap 키맵이, 페이지 범위 키(저장·발행·모드·패널·팔레트·찾기)는 창 keydown이 받는다.
+//   5단계 D14: 열 때 settings/editor를 한 번 읽어 applyKeymapOverrides로 적용한다. 읽지 못하거나 값이 틀리면
+//   기본 키로 열고 띠로 알린다. 키 판정기는 명령 목록을 매번 읽으므로 에디터를 다시 만들지 않는다.
+// - 5단계 D7: 편집 모드의 Mod+F는 찾기·바꾸기 막대(FindBar)를 연다. 소스·미리보기 모드는 브라우저 찾기다.
+// - 5단계 D15 1: 저장 자동 재시도 중이면 상단 바에 몇 번째인지와 "다시 시도"(바로 보내기)를 보인다.
 // - 개요·글자 수·읽기 시간(D13): 입력을 300ms 디바운스한 요약만 패널에 넘긴다.
 // - 리렌더: Tiptap 상태는 에디터 안에만 있다. 이 컴포넌트는 저장 상태·메타·모드·요약이 바뀔 때만 다시 그린다.
 // - 5단계 D9: 관리자 앱(src/admin/AdminApp.tsx)의 한 화면이다. 앱이 이 모듈을 늦게 받는다(React.lazy).
@@ -28,7 +31,9 @@ import {
 } from 'react';
 import { CommandPalette } from '@/editor/commands/CommandPalette';
 import { readRecent, recordRecent, writeRecent } from '@/editor/commands/filter';
+import { isKnownCommandId } from '@/editor/commands/command-keys';
 import { applyKeymapOverrides, detectPlatform } from '@/editor/commands/keymap';
+import { validateKeymapOverrides, type KeymapOverrides } from '@/editor/commands/keymap-settings';
 import {
   createCommands,
   isCommandAvailable,
@@ -85,12 +90,14 @@ import {
   WarningsBanner,
   type ToastState,
 } from './Dialogs';
+import { settingsApi } from '@/admin/settings/settings-api';
 import { createUiExtensions } from './editor-extensions';
 import { MetaPanel } from './MetaPanel';
 import { MobileBar } from './MobileBar';
 import { PreviewMode } from './PreviewMode';
 import { RevisionsDialog, revisionsApi } from './RevisionsDialog';
 import { CategoryConflict, createCategory, loadClassOptions, type ClassOptions } from './class-options';
+import { FindBar } from './FindBar';
 import { SourceMode } from './SourceMode';
 import { Toolbar } from './Toolbar';
 import { TopBar, type ViewMode } from './TopBar';
@@ -107,8 +114,16 @@ const MODE_CYCLE: Record<ViewMode, ViewMode> = {
 const SUMMARY_DELAY_MS = 300;
 // 이미지 고르기 창이 받는 형식(D11 2, asset-rules.ts와 같다)
 const IMAGE_ACCEPT = 'image/png,image/jpeg,image/webp,image/gif,video/webm,video/mp4';
-// 사용자 키맵 덮어쓰기. 저장과 설정 화면은 5단계다(D9)
-const KEYMAP_OVERRIDES = {};
+// 키 설정을 쓰지 못했을 때 띠 문구(5단계 D14)
+const KEYMAP_NOTICES = {
+  failed: '키 설정을 읽지 못해 기본 키로 열었습니다. 다음에 열 때 다시 읽습니다.',
+  invalid: '저장된 키 설정에 문제가 있어 기본 키로 열었습니다. 관리자 앱의 설정 화면에서 고치세요.',
+} as const;
+
+// 저장된 키 설정에서 지금 명령 표에 없는 id를 뺀다(옛 명령). 그 줄은 아무 키에도 영향이 없다
+function knownOverrides(keymap: KeymapOverrides): KeymapOverrides {
+  return Object.fromEntries(Object.entries(keymap).filter(([id]) => isKnownCommandId(id)));
+}
 
 type ServerDraft = EntryResponse['draft'];
 
@@ -293,6 +308,10 @@ export default function EditorApp({ entryId, host }: { entryId: string; host?: E
   const [paletteOpen, setPaletteOpen] = useState(false);
   // 패널 요약(개요·글자 수·읽기 시간). 열기 전에는 null
   const [summary, setSummary] = useState<DocSummary | null>(null);
+  // 키 설정을 쓰지 못했을 때의 띠(5단계 D14)
+  const [keymapNotice, setKeymapNotice] = useState<string | null>(null);
+  // 찾기·바꾸기 막대(5단계 D7). focus 값이 바뀌면 막대가 찾기 칸에 포커스를 둔다
+  const [find, setFind] = useState<{ open: boolean; focus: number }>({ open: false, focus: 0 });
   const platform = useMemo(() => detectPlatform(navigator.platform), []);
 
   // 화면 상태의 거울. 컨트롤러의 snapshot과 이벤트 핸들러가 최신 값을 읽는다
@@ -328,26 +347,27 @@ export default function EditorApp({ entryId, host }: { entryId: string; host?: E
 
   // 화면 동작. 레지스트리는 한 번만 만들고, 동작은 이 ref로 최신 함수를 부른다
   const actionsRef = useRef<CommandActions | null>(null);
-  const commands = useMemo(
+  const defaultCommands = useMemo(
     () =>
-      applyKeymapOverrides(
-        createCommands({
-          pickImage: () => actionsRef.current?.pickImage(),
-          editLink: () => actionsRef.current?.editLink(),
-          editMath: (target) => actionsRef.current?.editMath(target),
-          setMode: (mode) => actionsRef.current?.setMode(mode),
-          cycleMode: () => actionsRef.current?.cycleMode(),
-          saveNow: () => actionsRef.current?.saveNow(),
-          publish: () => actionsRef.current?.publish(),
-          togglePanel: () => actionsRef.current?.togglePanel(),
-          openPalette: () => actionsRef.current?.openPalette(),
-          openRevisions: () => actionsRef.current?.openRevisions(),
-        }),
-        KEYMAP_OVERRIDES,
-      ),
+      createCommands({
+        pickImage: () => actionsRef.current?.pickImage(),
+        editLink: () => actionsRef.current?.editLink(),
+        editMath: (target) => actionsRef.current?.editMath(target),
+        setMode: (mode) => actionsRef.current?.setMode(mode),
+        cycleMode: () => actionsRef.current?.cycleMode(),
+        saveNow: () => actionsRef.current?.saveNow(),
+        publish: () => actionsRef.current?.publish(),
+        togglePanel: () => actionsRef.current?.togglePanel(),
+        openPalette: () => actionsRef.current?.openPalette(),
+        openRevisions: () => actionsRef.current?.openRevisions(),
+        openFind: () => actionsRef.current?.openFind() ?? false,
+      }),
     [],
   );
+  // 키 설정을 적용한 명령 목록(5단계 D14). 설정을 받기 전과 받지 못하면 기본 키다
+  const [commands, setCommands] = useState<readonly EditorCommand[]>(defaultCommands);
   const commandsRef = useRef<readonly EditorCommand[]>(commands);
+  commandsRef.current = commands;
   // 최근 사용 명령(슬래시·팔레트 정렬)
   const recentRef = useRef<string[]>(readRecent(localStorage));
 
@@ -609,6 +629,36 @@ export default function EditorApp({ entryId, host }: { entryId: string; host?: E
     };
   }, [editor, entryId, applyEntry, controller, syncViewTexts, goTo]);
 
+  // 키 설정(5단계 D14): 열 때 한 번 읽는다. 받지 못하거나 값이 틀리면 기본 키로 두고 띠로 알린다
+  useEffect(() => {
+    let cancelled = false;
+    settingsApi
+      .readEditor()
+      .then((settings) => {
+        if (cancelled) return;
+        if (settings.problem) {
+          setKeymapNotice(KEYMAP_NOTICES.invalid);
+          return;
+        }
+        const keymap = knownOverrides(settings.keymap);
+        if (validateKeymapOverrides(keymap).length > 0) {
+          setKeymapNotice(KEYMAP_NOTICES.invalid);
+          return;
+        }
+        if (Object.keys(keymap).length > 0) setCommands(applyKeymapOverrides(defaultCommands, keymap));
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        // 세션 만료는 글 열기가 로그인 화면으로 보낸다. 띠를 띄우지 않는다
+        if (error instanceof ApiClientError && error.status === 401) return;
+        console.error('[editor] 키 설정을 받지 못했습니다', error);
+        setKeymapNotice(KEYMAP_NOTICES.failed);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [defaultCommands]);
+
   // 분류 선택지(5단계 D1·D2): 글과 따로 받는다. 받지 못하면 메타 패널은 코드 기본 카테고리로 연다
   useEffect(() => {
     let cancelled = false;
@@ -673,10 +723,10 @@ export default function EditorApp({ entryId, host }: { entryId: string; host?: E
     return () => host.registerLeaveGuard(null);
   }, [host, controller, entryId]);
 
-  // 온라인 복귀: 보관한 초안을 보낸다
+  // 온라인 복귀: 보관한 초안을 보낸다. 자동 재시도를 기다리는 중이어도 바로 보낸다(5단계 D15 1)
   useEffect(() => {
     const onOnline = () => {
-      if (controller.halt === 'offline') controller.resume('came-online');
+      if (controller.halt === 'offline' || controller.retrying) controller.resume('came-online');
     };
     window.addEventListener('online', onOnline);
     return () => window.removeEventListener('online', onOnline);
@@ -771,6 +821,8 @@ export default function EditorApp({ entryId, host }: { entryId: string; host?: E
       modeRef.current = next;
       setMode(next);
       localStorage.setItem(MODE_STORAGE_KEY, next);
+      // 찾기 막대는 편집 모드에서만 연다(5단계 D7)
+      if (next !== 'edit') setFind((current) => (current.open ? { ...current, open: false } : current));
     },
     [controller, editor, scheduleSummary, showToast],
   );
@@ -1192,6 +1244,14 @@ export default function EditorApp({ entryId, host }: { entryId: string; host?: E
       if (entryInfoRef.current?.published) setDialog({ kind: 'revisions' });
       else showToast('info', '발행한 판이 없습니다.');
     },
+    // 편집 모드가 아니면 false: 키는 브라우저 찾기에 맡긴다(5단계 D7).
+    // 팔레트·대화상자·충돌 창이 열려 있어도 열지 않는다(덮개 뒤에서 포커스를 가져가지 않게, 리뷰 B7)
+    openFind: () => {
+      if (modeRef.current !== 'edit' || !editorRef.current) return false;
+      if (paletteOpen || dialog !== null || save.status === 'conflict') return false;
+      setFind((current) => ({ open: true, focus: current.focus + 1 }));
+      return true;
+    },
   };
 
   // 페이지 범위 키(저장·발행·모드·패널·팔레트). 소스·미리보기 모드와 제목 칸에서도 돈다
@@ -1209,6 +1269,8 @@ export default function EditorApp({ entryId, host }: { entryId: string; host?: E
     return commands.filter(
       (command) =>
         command.inPalette &&
+        // 찾기는 편집 모드에서만 연다(리뷰 B11)
+        !(command.id === 'find' && mode !== 'edit') &&
         (command.scope === 'page' ||
           (mode === 'edit' && editor !== null && isCommandAvailable(command, editor))),
     );
@@ -1231,7 +1293,7 @@ export default function EditorApp({ entryId, host }: { entryId: string; host?: E
   const statusTone =
     save.status === 'error'
       ? 'error'
-      : save.status === 'offline' || save.status === 'conflict'
+      : save.status === 'offline' || save.status === 'conflict' || save.status === 'retrying'
         ? 'warn'
         : 'muted';
   const publicUrl =
@@ -1251,7 +1313,7 @@ export default function EditorApp({ entryId, host }: { entryId: string; host?: E
         statusText={phase === 'loading' ? '불러오는 중…' : statusText}
         statusTone={statusTone}
         onRetrySave={
-          save.status === 'error' || save.status === 'offline'
+          save.status === 'error' || save.status === 'offline' || save.status === 'retrying'
             ? () => controller.resume('retry')
             : null
         }
@@ -1280,6 +1342,13 @@ export default function EditorApp({ entryId, host }: { entryId: string; host?: E
           onRun={(command) => runCommand(command, editor)}
         />
       )}
+      {editor && mode === 'edit' && find.open && (
+        <FindBar
+          editor={editor}
+          focusToken={find.focus}
+          onClose={() => setFind((current) => ({ ...current, open: false }))}
+        />
+      )}
 
       <div className="flex min-h-0 flex-1">
         <main className="min-w-0 flex-1 overflow-y-auto">
@@ -1299,6 +1368,17 @@ export default function EditorApp({ entryId, host }: { entryId: string; host?: E
               </p>
             )}
 
+            {keymapNotice && (
+              <div
+                className="mb-4 flex items-start justify-between gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200"
+                role="status"
+              >
+                <span>{keymapNotice}</span>
+                <button type="button" onClick={() => setKeymapNotice(null)} aria-label="키 설정 알림 닫기">
+                  ×
+                </button>
+              </div>
+            )}
             <WarningsBanner warnings={warnings} onClose={() => setWarnings([])} />
             {shownIssues.markdown && (
               <p className="mb-3 text-xs text-red-400" role="alert">

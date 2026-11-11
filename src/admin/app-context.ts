@@ -28,6 +28,8 @@ export interface AdminContextValue {
   removeItem(id: string): void;
   showToast(tone: ToastState['tone'], message: string): void;
   logout(): Promise<void>;
+  // 앱 안에서 떠나기 전에 부를 가드를 등록한다(true면 떠난다). null이면 지운다(5단계 PR-C: 설정 화면의 저장하지 않은 변경)
+  registerLeaveGuard(guard: (() => Promise<boolean>) | null): void;
 }
 
 export const AdminContext = createContext<AdminContextValue | null>(null);

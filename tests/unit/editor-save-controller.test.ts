@@ -7,6 +7,7 @@ import { ApiClientError, NetworkError } from '@/editor/state/api';
 import type { DraftMeta } from '@/editor/state/change';
 import type { OfflineDraft } from '@/editor/state/offline-store';
 import {
+  SAVE_RETRY_DELAYS_MS,
   SaveController,
   type SaveBaseline,
   type SaveSnapshot,
@@ -353,7 +354,7 @@ describe('SaveController: 오류·충돌·오프라인 (D6, 지적 6·7·13·19)
     expect(env.saves).toEqual([]);
   });
 
-  it('네트워크 실패는 보관함에 두고 멈춘다. 그 뒤 입력도 2초 뒤 보관한다. 온라인이 되면 마지막 내용을 보낸다', async () => {
+  it('네트워크 실패는 보관함에 두고 세 번 다시 보낸 뒤 멈춘다. 그 뒤 입력도 2초 뒤 보관한다. 온라인이 되면 마지막 내용을 보낸다', async () => {
     const env = setup();
     env.setSaveImpl(async () => {
       throw new NetworkError(new TypeError('fetch failed'));
@@ -364,10 +365,13 @@ describe('SaveController: 오류·충돌·오프라인 (D6, 지적 6·7·13·19)
     expect(env.controller.halt).toBe('offline');
     expect(env.offlinePuts.at(-1)?.draft.markdown).toBe(editSnap('오프라인 1').markdown);
 
+    // 처음 1번 + 자동 재시도 3번(5단계 D15 1)
+    expect(env.saves).toHaveLength(4);
+
     env.setSnapshot(editSnap('오프라인 2'));
     env.controller.markChanged();
     await env.fireTimers();
-    expect(env.saves).toHaveLength(1);
+    expect(env.saves).toHaveLength(4);
     expect(env.offlinePuts.at(-1)?.draft.markdown).toBe(editSnap('오프라인 2').markdown);
     expect(env.offlinePuts.at(-1)?.baseVersion).toBe(3);
 
@@ -392,7 +396,7 @@ describe('SaveController: 오류·충돌·오프라인 (D6, 지적 6·7·13·19)
     expect(env.controller.hasPending()).toBe(false);
   });
 
-  it('400·413·5xx는 error로 멈추고 새 입력으로 저장하지 않는다. 재시도하면 보낸다', async () => {
+  it('400·413은 error로 멈추고 새 입력으로 저장하지 않는다. 재시도하면 보낸다', async () => {
     const env = setup();
     env.setSaveImpl(async () => {
       throw new ApiClientError(413, 'DRAFT_TOO_LARGE', '초안 값이 올바르지 않습니다.');
@@ -467,5 +471,183 @@ describe('SaveController: 오류·충돌·오프라인 (D6, 지적 6·7·13·19)
     expect(env.controller.version).toBe(10);
     expect(env.offlineDeletes).toBe(1);
     expect(env.events.at(-1)).toEqual({ type: 'reset', version: 10 });
+  });
+});
+
+describe('SaveController: 자동 재시도 (5단계 D15 1)', () => {
+  // 실패 뒤 걸린 타이머의 간격 목록(처음 2초 저장 타이머는 뺀다)
+  const retryDelays = (env: ReturnType<typeof setup>) =>
+    env.timers.slice(1).map((timer) => timer.ms);
+
+  it('5xx는 2초·5초·15초 뒤 세 번 다시 보내고, 모두 실패하면 error로 멈춘다', async () => {
+    const env = setup();
+    env.setSaveImpl(async () => {
+      throw new ApiClientError(503, 'UNAVAILABLE', '잠시 뒤 다시 시도하세요.');
+    });
+    env.setSnapshot(editSnap('고침'));
+    env.controller.markChanged();
+    await env.fireTimers();
+    expect(env.saves).toHaveLength(1 + SAVE_RETRY_DELAYS_MS.length);
+    expect(retryDelays(env)).toEqual([2000, 5000, 15000]);
+    expect(env.controller.halt).toBe('error');
+    const retrying = env.events.filter((event) => event.type === 'save-retrying');
+    expect(retrying.map((event) => (event.type === 'save-retrying' ? event.attempt : 0))).toEqual([
+      1, 2, 3,
+    ]);
+    expect(retrying.every((event) => event.type === 'save-retrying' && !event.offline)).toBe(true);
+    expect(env.events.at(-1)).toMatchObject({ type: 'save-failed' });
+    // 멈춘 뒤 새 입력으로는 보내지 않는다
+    env.controller.markChanged();
+    await env.fireTimers();
+    expect(env.saves).toHaveLength(4);
+  });
+
+  it('다시 보내기가 성공하면 saved이고 횟수가 0으로 돌아간다(다음 실패는 다시 2초부터)', async () => {
+    const env = setup();
+    let failures = 1;
+    env.setSaveImpl(async (body) => {
+      if (failures > 0) {
+        failures -= 1;
+        throw new ApiClientError(500, 'INTERNAL_ERROR', '서버 오류가 났습니다.');
+      }
+      return { version: body.baseVersion + 1, updatedAt: 'T' };
+    });
+    env.setSnapshot(editSnap('첫 고침'));
+    env.controller.markChanged();
+    await env.fireTimers();
+    expect(env.saves).toHaveLength(2);
+    expect(env.controller.halt).toBeNull();
+    expect(env.controller.retrying).toBe(false);
+    expect(env.events.at(-1)).toMatchObject({ type: 'save-succeeded' });
+
+    failures = 1;
+    const before = env.timers.length;
+    env.setSnapshot(editSnap('둘째 고침'));
+    env.controller.markChanged();
+    await env.fireTimers();
+    // 2초 저장 → 실패 → 2초 뒤 다시(5초가 아니다) → 성공
+    expect(env.timers.slice(before).map((timer) => timer.ms)).toEqual([2000, 2000]);
+    expect(env.saves).toHaveLength(4);
+  });
+
+  it('409·413·422와 그 밖의 4xx는 다시 보내지 않는다', async () => {
+    for (const error of [
+      conflictError(),
+      new ApiClientError(413, 'DRAFT_TOO_LARGE', '너무 큽니다.'),
+      new ApiClientError(422, 'NOT_PUBLISHABLE', '발행 조건.'),
+      new ApiClientError(400, 'INVALID_REQUEST', '요청 값이 올바르지 않습니다.'),
+      new ApiClientError(429, 'TOO_MANY', '너무 많습니다.'),
+    ]) {
+      const env = setup();
+      env.setSaveImpl(async () => {
+        throw error;
+      });
+      env.setSnapshot(editSnap('고침'));
+      env.controller.markChanged();
+      await env.fireTimers();
+      expect(env.saves, String(error.status)).toHaveLength(1);
+      expect(
+        env.events.some((event) => event.type === 'save-retrying'),
+        String(error.status),
+      ).toBe(false);
+      expect(env.controller.halt, String(error.status)).toBe(
+        error.status === 409 ? 'conflict' : 'error',
+      );
+    }
+  });
+
+  it('네트워크 오류는 보낼 때마다 먼저 기기에 보관하고 offline 재시도 상태를 알린다', async () => {
+    const env = setup();
+    env.setSaveImpl(async () => {
+      throw new NetworkError(new TypeError('fetch failed'));
+    });
+    env.setSnapshot(editSnap('고침'));
+    env.controller.markChanged();
+    await env.fireTimers();
+    expect(env.offlinePuts).toHaveLength(4);
+    const retrying = env.events.filter((event) => event.type === 'save-retrying');
+    expect(retrying).toHaveLength(3);
+    expect(retrying.every((event) => event.type === 'save-retrying' && event.offline)).toBe(true);
+    expect(env.controller.halt).toBe('offline');
+    expect(env.events.at(-1)).toMatchObject({ type: 'stored-offline' });
+  });
+
+  it('기다리는 동안 새 입력이 오면 2초 저장이 재시도를 대신한다. 횟수는 이어진다', async () => {
+    const env = setup();
+    env.setSaveImpl(async () => {
+      throw new ApiClientError(502, 'BAD_GATEWAY', '게이트웨이 오류.');
+    });
+    env.setSnapshot(editSnap('고침'));
+    env.controller.markChanged();
+    // 처음 저장만 돌린다
+    env.timers[0].cancelled = true;
+    env.timers[0].fn();
+    await env.controller.idle();
+    expect(env.controller.retrying).toBe(true);
+    expect(env.timers.at(-1)?.ms).toBe(2000);
+    env.setSnapshot(editSnap('고침 더'));
+    env.controller.markChanged();
+    // 재시도 타이머는 지워지고 2초 저장 타이머가 걸린다
+    expect(env.timers.filter((timer) => !timer.cancelled)).toHaveLength(1);
+    await env.fireTimers();
+    // 처음 1 + 입력 뒤 저장 1 + 남은 재시도 2 = 4번. 마지막에 보낸 것은 새 내용이다
+    expect(env.saves).toHaveLength(4);
+    expect(env.saves.at(-1)?.draft.markdown).toBe(editSnap('고침 더').markdown);
+    expect(env.controller.halt).toBe('error');
+  });
+
+  it('멈춘 뒤 "다시 시도"는 횟수를 0으로 되돌린다(다시 세 번 자동으로 보낸다)', async () => {
+    const env = setup();
+    env.setSaveImpl(async () => {
+      throw new ApiClientError(500, 'INTERNAL_ERROR', '서버 오류가 났습니다.');
+    });
+    env.setSnapshot(editSnap('고침'));
+    env.controller.markChanged();
+    await env.fireTimers();
+    expect(env.saves).toHaveLength(4);
+    env.controller.resume('retry');
+    await env.fireTimers();
+    expect(env.saves).toHaveLength(8);
+  });
+
+  it('flush는 기다리지 않고 바로 보낸다', async () => {
+    const env = setup();
+    let failures = 1;
+    env.setSaveImpl(async (body) => {
+      if (failures > 0) {
+        failures -= 1;
+        throw new ApiClientError(503, 'UNAVAILABLE', '잠시 뒤.');
+      }
+      return { version: body.baseVersion + 1, updatedAt: 'T' };
+    });
+    env.setSnapshot(editSnap('고침'));
+    env.controller.markChanged();
+    env.timers[0].cancelled = true;
+    env.timers[0].fn();
+    await env.controller.idle();
+    expect(env.controller.retrying).toBe(true);
+    expect(await env.controller.flush()).toBe('saved');
+    expect(env.saves).toHaveLength(2);
+  });
+});
+
+describe('리뷰 S4: 재시도를 기다리는 동안 내용을 원래대로 되돌림', () => {
+  it('다음 시도는 unchanged이고 재시도 상태·횟수가 풀린다', async () => {
+    const env = setup();
+    env.setSaveImpl(async () => {
+      throw new ApiClientError(503, 'UNAVAILABLE', '잠시 뒤.');
+    });
+    env.setSnapshot(editSnap('고침'));
+    env.controller.markChanged();
+    env.timers[0].cancelled = true;
+    env.timers[0].fn();
+    await env.controller.idle();
+    expect(env.controller.retrying).toBe(true);
+    // 원래 내용으로 되돌린다
+    env.setSnapshot(editSnap('본문'));
+    await env.fireTimers();
+    expect(env.events.at(-1)).toMatchObject({ type: 'save-unchanged' });
+    expect(env.controller.retrying).toBe(false);
+    expect(env.controller.hasPending()).toBe(false);
   });
 });
