@@ -6,11 +6,19 @@
 // - 블록(단락·제목·표 셀) 처음과 끝의 공백, 하드 브레이크 앞뒤의 공백은 지운다(4단계 D14). 브라우저가 그리지 않는 공백이다.
 //   남기면 mdast-util-to-markdown이 `&#x20;`로 쓴다. NBSP는 그려지므로 남긴다.
 // - 모르는 노드·마크는 오류다. 스키마가 만든 문서에는 모르는 것이 없다.
+// - 폭·정렬이 있는 이미지가 홀로 있는 단락은 원시 HTML 블록으로 쓴다(5단계 D13, image-html.ts). 폭·정렬이 없으면 지금처럼 ![]()다.
 
 import type { JSONContent } from '@tiptap/core';
 import type * as Md from 'mdast';
 import type { EmbedNode } from '../../lib/content/markdown.ts';
 import type { CalloutType } from '../../lib/content/remark-callout.ts';
+import {
+  canHoldImageLayout,
+  imageHtml,
+  imageLayoutOf,
+  isBlankInline,
+  soloImageIndex,
+} from './image-html.ts';
 
 type PmMark = { type: string; attrs?: Record<string, unknown> };
 
@@ -26,13 +34,15 @@ type BreakStyle = 'backslash' | 'html';
 // 문서 JSON → mdast 루트
 export function docToMdast(doc: JSONContent): Md.Root {
   if (doc.type !== 'doc') throw new Error(`문서 루트가 아닙니다: ${doc.type}`);
-  return { type: 'root', children: convertBlocks(doc.content ?? []) };
+  return { type: 'root', children: convertBlocks(doc.content ?? [], 'doc') };
 }
 
-function convertBlocks(nodes: ReadonlyArray<JSONContent>): Md.RootContent[] {
+// 블록 목록을 바꾼다. parentType은 감싼 노드 이름이다(이미지 폭·정렬을 쓸 수 있는 자리인지 정한다)
+function convertBlocks(nodes: ReadonlyArray<JSONContent>, parentType: string): Md.RootContent[] {
   const result: Md.RootContent[] = [];
   for (const node of nodes) {
-    const converted = convertBlock(node);
+    // 순번은 이미 쓴 블록 수다(빈 단락은 쓰지 않으므로 세지 않는다, 리뷰 S3)
+    const converted = convertBlock(node, canHoldImageLayout(parentType, result.length));
     if (converted) result.push(converted);
   }
   return result;
@@ -50,9 +60,45 @@ function codeText(node: JSONContent): string {
   return (node.content ?? []).map((child) => child.text ?? '').join('');
 }
 
-function convertBlock(node: JSONContent): Md.RootContent | null {
+// ───────────── 이미지 폭·정렬 (5단계 D13) ─────────────
+
+// 빈 단락(쓰이지 않는 블록)인지
+function isBlankParagraph(node: JSONContent): boolean {
+  return node.type === 'paragraph' && isBlankInline(inlineShapes(node.content ?? []));
+}
+
+// 문서 JSON 인라인 → 판정용 모양
+function inlineShapes(nodes: ReadonlyArray<JSONContent>) {
+  return nodes.map((node) => ({
+    type: node.type ?? '',
+    text: node.text,
+    marked: (node.marks?.length ?? 0) > 0,
+  }));
+}
+
+// 이미지만 있는 단락이고 그 이미지에 폭·정렬이 있으면 원시 HTML 한 줄, 아니면 null
+function layoutImageHtml(paragraph: JSONContent): string | null {
+  const content = paragraph.content ?? [];
+  const index = soloImageIndex(inlineShapes(content));
+  if (index < 0) return null;
+  const attrs = content[index].attrs;
+  const layout = imageLayoutOf(attrs);
+  const src = typeof attrs?.src === 'string' ? attrs.src : '';
+  if (!layout || !src) return null;
+  return imageHtml({
+    src,
+    alt: typeof attrs?.alt === 'string' ? attrs.alt : null,
+    title: typeof attrs?.title === 'string' && attrs.title ? attrs.title : null,
+    ...layout,
+  });
+}
+
+// layoutAllowed: 이 자리의 단락을 HTML 블록으로 쓸 수 있는지(canHoldImageLayout)
+function convertBlock(node: JSONContent, layoutAllowed: boolean): Md.RootContent | null {
   switch (node.type) {
     case 'paragraph': {
+      const html = layoutAllowed ? layoutImageHtml(node) : null;
+      if (html) return { type: 'html', value: html };
       const children = convertParagraphInlines(node.content ?? []);
       // 빈 단락(공백만 있는 단락 포함)은 마크다운에 없다
       return children.length > 0 ? { type: 'paragraph', children } : null;
@@ -69,7 +115,7 @@ function convertBlock(node: JSONContent): Md.RootContent | null {
     case 'blockquote':
       return {
         type: 'blockquote',
-        children: convertBlocks(node.content ?? []) as Md.BlockContent[],
+        children: convertBlocks(node.content ?? [], 'blockquote') as Md.BlockContent[],
       };
     case 'callout':
       return convertCallout(node);
@@ -116,9 +162,10 @@ function clampDepth(level: number): Md.Heading['depth'] {
 }
 
 // 콜아웃 → `> [!type]` 첫 줄을 더한 인용. 표시 줄은 이스케이프되지 않게 html 노드로 쓴다
+// - 첫 블록이 단락이 아니면(이미지 폭·정렬 HTML 포함) 표시 줄을 단락 하나로 앞에 더한다
 function convertCallout(node: JSONContent): Md.Blockquote {
   const type = String(node.attrs?.type ?? 'note') as CalloutType;
-  const children = convertBlocks(node.content ?? []) as Md.BlockContent[];
+  const children = convertBlocks(node.content ?? [], 'callout') as Md.BlockContent[];
   const first = children[0];
   if (first && first.type === 'paragraph') {
     children[0] = {
@@ -133,10 +180,21 @@ function convertCallout(node: JSONContent): Md.Blockquote {
 
 // 항목 안에 단락이 연이어 둘 있으면 마크다운은 빈 줄로만 나눌 수 있다. 그러면 remark가 느슨한 목록으로 읽는다.
 // 다시 열었을 때 JSON이 같도록 처음부터 느슨하게 쓴다
+// - 이미지 폭·정렬 HTML 블록도 같다(5단계 D13). HTML 블록은 빈 줄까지 이어져 같은 항목의 다음 블록을 삼킨다.
+//   앞 블록이 단락으로 끝나면 HTML 블록(<img>)이 그 단락의 줄로 읽힌다. 그래서 항목에 다른 블록이 있으면 빈 줄로 나눈다
 function itemForcesSpread(item: JSONContent): boolean {
   const blocks = item.content ?? [];
+  const parentType = item.type ?? 'listItem';
   return blocks.some(
-    (block, index) => block.type === 'paragraph' && blocks[index - 1]?.type === 'paragraph',
+    (block, index) =>
+      (block.type === 'paragraph' && blocks[index - 1]?.type === 'paragraph') ||
+      (blocks.length > 1 &&
+        block.type === 'paragraph' &&
+        canHoldImageLayout(
+          parentType,
+          blocks.slice(0, index).filter((before) => !isBlankParagraph(before)).length,
+        ) &&
+        layoutImageHtml(block) !== null),
   );
 }
 
@@ -152,7 +210,7 @@ function convertList(node: JSONContent, kind: { ordered: boolean; task: boolean 
       type: 'listItem',
       spread,
       checked: kind.task ? item.attrs?.checked === true : null,
-      children: convertBlocks(item.content ?? []) as Md.BlockContent[],
+      children: convertBlocks(item.content ?? [], item.type ?? 'listItem') as Md.BlockContent[],
     })),
   };
 }

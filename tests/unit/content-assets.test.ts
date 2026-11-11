@@ -1,7 +1,12 @@
-// 본문 이미지 srcset·크기와 이미지 규칙 테스트 (재건 4단계 D15, D3)
+// 본문 이미지 srcset·크기와 이미지 규칙 테스트 (재건 4단계 D15, D3, 5단계 D13 sizes)
 import { describe, expect, it } from 'vitest';
 import { markdownToHtml, type RenderAsset } from '@/lib/content/markdown';
-import { CONTENT_IMAGE_SIZES, srcsetOf } from '@/lib/content/rehype-assets';
+import {
+  CONTENT_IMAGE_SIZES,
+  CONTENT_IMAGE_WIDTH,
+  sizesFor,
+  srcsetOf,
+} from '@/lib/content/rehype-assets';
 
 const BUCKET = 'cruz-lab.firebasestorage.app';
 
@@ -94,6 +99,59 @@ describe('새 자산 srcset (D15)', () => {
     expect(html).toContain('width="600"');
     expect(html).not.toContain('height="1350"');
     expect(html).toContain('srcset=');
+  });
+
+  // 5단계 D13: 작성자 폭이 본문 폭보다 좁으면 sizes를 그 폭으로 맞춘다
+  it('폭이 있는 최대 변형은 sizes가 그 폭이다 (5단계 D13)', () => {
+    for (const markdown of [
+      `<img src="${assetUrl('a1', 'max.webp')}" alt="x" width="480">`,
+      `<p align="center"><img src="${assetUrl('a1', 'max.webp')}" alt="x" width="480"></p>`,
+      // 에디터 변환기(from-doc)는 주소의 &를 &amp;로 쓴다
+      `<img src="${assetUrl('a1', 'max.webp').replaceAll('&', '&amp;')}" alt="x" width="480">`,
+    ]) {
+      const html = render(markdown);
+      expect(html, markdown).toContain('sizes="(max-width: 480px) 100vw, 480px"');
+      expect(html, markdown).toContain('srcset=');
+      expect(html, markdown).toContain('width="480"');
+    }
+    expect(sizesFor(600)).toBe('(max-width: 600px) 100vw, 600px');
+    expect(sizesFor('600')).toBe('(max-width: 600px) 100vw, 600px');
+  });
+
+  it('리뷰 S8: 작성자가 폭만 정하면 그 변형의 비율로 height를 붙인다(화면 밀림 방지)', () => {
+    const max = render(`<img src="${assetUrl('a1', 'max.webp')}" alt="x" width="480">`);
+    expect(max).toContain('width="480"');
+    expect(max).toContain('height="270"');
+    const small = render(`<img src="${assetUrl('a1', 'w480.webp')}" alt="x" width="240">`);
+    expect(small).toContain('width="240"');
+    expect(small).toContain('height="135"');
+    // 작성자가 height도 정했으면 그대로 둔다(원시 HTML의 height는 에디터가 받지 않지만 렌더러는 지킨다)
+    const both = render(
+      `<img src="${assetUrl('a1', 'max.webp')}" alt="x" width="480" height="100">`,
+    );
+    expect(both).toContain('height="100"');
+  });
+
+  it('폭이 본문 폭(720) 이상이거나 숫자가 아니면 기본 sizes다', () => {
+    for (const width of ['720', '1200']) {
+      const html = render(`<img src="${assetUrl('a1', 'max.webp')}" alt="x" width="${width}">`);
+      expect(html, width).toContain(`sizes="${CONTENT_IMAGE_SIZES}"`);
+    }
+    expect(CONTENT_IMAGE_WIDTH).toBe(720);
+    for (const width of [undefined, 0, -10, 12.5, '50%', 'abc']) {
+      expect(sizesFor(width), String(width)).toBe(CONTENT_IMAGE_SIZES);
+    }
+    // 마크다운 이미지(작성자 폭 없음)는 지금과 같다
+    expect(render(`![그림](${assetUrl('a1', 'max.webp')})`)).toContain(
+      `sizes="${CONTENT_IMAGE_SIZES}"`,
+    );
+  });
+
+  it('작은 변형 주소는 폭이 있어도 srcset·sizes가 없다', () => {
+    const html = render(`<img src="${assetUrl('a1', 'w480.webp')}" alt="x" width="300">`);
+    expect(html).not.toContain('srcset');
+    expect(html).not.toContain('sizes=');
+    expect(html).toContain('width="300"');
   });
 
   it('영상 주소는 건드리지 않는다', () => {

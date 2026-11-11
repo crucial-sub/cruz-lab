@@ -1,5 +1,6 @@
 // 레지스트리 → 단축키 (재건 3단계 D9)
-// - RegistryShortcuts: 에디터 범위 명령의 키를 Tiptap addKeyboardShortcuts()로 만든다.
+// - RegistryShortcuts: 에디터 범위 명령의 키를 받는 ProseMirror 플러그인이다. 키를 누를 때 getCommands()를 읽는다.
+//   그래서 에디터를 연 뒤 받은 사용자 키맵(5단계 D14)이 다시 만들지 않아도 적용된다. 명령 목록이 바뀔 때만 판정기를 다시 만든다.
 // - createPageKeyHandler: 페이지 범위 명령(저장, 발행, 팔레트, 모드, 패널)의 키를 창 keydown에서 받는다.
 //   판정은 prosemirror-keymap의 keydownHandler 하나를 쓴다. 에디터 키맵과 같은 규칙이다.
 // - stripCommandKeys: Tiptap 확장이 스스로 거는 명령 키(Mod-Alt-1, Mod-Shift-s 등)를 뺀다.
@@ -12,6 +13,8 @@ import {
   type KeyboardShortcutCommand,
 } from '@tiptap/core';
 import { keydownHandler } from '@tiptap/pm/keymap';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
+import type { EditorView } from '@tiptap/pm/view';
 import { shortcutEntries, type Platform } from './keymap';
 import type { EditorCommand } from './registry';
 
@@ -65,7 +68,24 @@ export interface RegistryShortcutsOptions {
   platform: Platform;
 }
 
-// 에디터 범위 명령의 키. 구조 키보다 먼저 받도록 우선순위를 높인다
+// 에디터 범위 명령의 키 판정기. prosemirror-keymap과 같은 규칙(keydownHandler)이다
+function editorKeyHandler(
+  commands: readonly EditorCommand[],
+  platform: Platform,
+  editor: Editor,
+): (view: EditorView, event: KeyboardEvent) => boolean {
+  const editorCommands = commands.filter((command) => command.scope === 'editor');
+  const bindings: Record<string, () => boolean> = {};
+  for (const { key, id } of shortcutEntries(editorCommands, platform)) {
+    const command = editorCommands.find((item) => item.id === id);
+    if (command) bindings[key] = () => command.run(editor);
+  }
+  return keydownHandler(bindings);
+}
+
+const registryShortcutsKey = new PluginKey('registryShortcuts');
+
+// 에디터 범위 명령의 키. 구조 키(Enter·Tab 등 다른 확장의 키맵)보다 먼저 받도록 우선순위를 높인다
 export const RegistryShortcuts = Extension.create<RegistryShortcutsOptions>({
   name: 'registryShortcuts',
   priority: 200,
@@ -74,14 +94,28 @@ export const RegistryShortcuts = Extension.create<RegistryShortcutsOptions>({
     return { getCommands: () => [], platform: 'other' };
   },
 
-  addKeyboardShortcuts() {
-    const commands = this.options.getCommands().filter((command) => command.scope === 'editor');
-    const shortcuts: Record<string, KeyboardShortcutCommand> = {};
-    for (const { key, id } of shortcutEntries(commands, this.options.platform)) {
-      const command = commands.find((item) => item.id === id);
-      if (command) shortcuts[key] = ({ editor }) => command.run(editor as Editor);
-    }
-    return shortcuts;
+  addProseMirrorPlugins() {
+    const { getCommands, platform } = this.options;
+    const editor = this.editor;
+    // 마지막으로 만든 판정기와 그때의 명령 목록. 목록이 바뀌면(키맵 설정 적용) 다시 만든다
+    let cached: {
+      commands: readonly EditorCommand[];
+      handle: ReturnType<typeof editorKeyHandler>;
+    } | null = null;
+    return [
+      new Plugin({
+        key: registryShortcutsKey,
+        props: {
+          handleKeyDown(view, event) {
+            const commands = getCommands();
+            if (!cached || cached.commands !== commands) {
+              cached = { commands, handle: editorKeyHandler(commands, platform, editor) };
+            }
+            return cached.handle(view, event);
+          },
+        },
+      }),
+    ];
   },
 });
 

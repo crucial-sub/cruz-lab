@@ -3,6 +3,7 @@
 // - 텍스트의 ZWSP는 지우고 줄 안 줄바꿈은 공백으로 둔다(공개 페이지가 그렇게 그린다).
 //   ZWSP 바로 옆의 줄바꿈은 브라우저가 지우므로(CSS Text segment break 변환) 공백으로 바꾸지 않고 없앤다.
 // - 원시 HTML은 <br>만 받는다. 그 밖은 텍스트로 두고 경고한다.
+//   예외: 블록 위치의 이미지 폭·정렬 HTML 두 모양(<img …>, <p align><img …></p>)은 이미지 노드로 읽는다(5단계 D13, image-html.ts).
 // - Node 스크립트가 가져오므로 상대 경로 import에 .ts를 붙이고 '@/' 별칭을 쓰지 않는다.
 
 import type { JSONContent } from '@tiptap/core';
@@ -15,6 +16,7 @@ import {
 } from '../../lib/content/markdown.ts';
 import { detectCallout } from '../../lib/content/remark-callout.ts';
 import { embedOfParagraph } from '../../lib/content/remark-embed.ts';
+import { parseImageHtml, type ImageHtml } from './image-html.ts';
 
 export interface ConversionWarning {
   code: 'unsupported-html' | 'unsupported-node';
@@ -111,10 +113,14 @@ function convertBlock(node: Md.RootContent, warnings: ConversionWarning[]): JSON
       if (node.value) block.content = [{ type: 'text', text: node.value }];
       return [block];
     }
-    case 'html':
+    case 'html': {
       // 블록 위치의 <br>은 세로 여백만 만든다. 버린다(D1 정규화 2)
       if (isBreakOnlyHtml(node.value)) return [];
+      // 이미지 HTML 두 모양은 이미지 하나만 있는 단락이다(5단계 D13). 폭·정렬은 있을 때만 속성에 담는다
+      const image = parseImageHtml(node.value);
+      if (image) return [paragraphOf([imageNodeOfHtml(image)])];
       return unsupportedBlock(node, 'unsupported-html', warnings);
+    }
     case 'table':
       return [convertTable(node, warnings)];
     case 'math':
@@ -122,6 +128,14 @@ function convertBlock(node: Md.RootContent, warnings: ConversionWarning[]): JSON
     default:
       return unsupportedBlock(node, 'unsupported-node', warnings);
   }
+}
+
+// 이미지 HTML → 이미지 노드. 속성은 지금 모양({ src, alt, title })에 폭·정렬을 값이 있을 때만 더한다
+function imageNodeOfHtml(image: ImageHtml): JSONContent {
+  const attrs: Record<string, unknown> = { src: image.src, alt: image.alt, title: image.title };
+  if (image.width !== null) attrs.width = image.width;
+  if (image.align !== null) attrs.align = image.align;
+  return { type: 'image', attrs };
 }
 
 // 블록 컨테이너(인용, 콜아웃, 목록 항목)는 자식이 하나 이상이어야 한다

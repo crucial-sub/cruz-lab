@@ -1,4 +1,4 @@
-// 재건 5단계 관리자 앱 스모크 테스트 (Plan 8.1, PR-A 몫: T1~T4, PR-B 몫: T5~T8)
+// 재건 5단계 관리자 앱 스모크 테스트 (Plan 8.1, PR-A 몫: T1~T4, PR-B 몫: T5~T8, PR-C 몫: T9·T10)
 //
 // 실행: node --env-file=.env scripts/smoke/stage5-admin.mjs [--base http://localhost:4329]
 //
@@ -19,7 +19,10 @@
 //   10. 연재·프로젝트(T7): 목록, 시험 프로젝트 만들기·고치기·첫 Part 발행(/projects)·지우기, kind project 새 글
 //   11. 리비전(T8): 판 목록·한 판·가져오기(충돌 409)·초안 버리기로 원래대로
 //   분류·연재 시험은 시험 글·시험 카테고리·시험 태그·시험 프로젝트만 쓴다. 끝에 settings/taxonomy에서 시험 값을 뺀다.
-// - 설정(키맵)·독자 검사는 PR-C·PR-D가 더한다(Plan 8.1).
+//   12. 설정(T10, D14): settings/editor 읽기·쓰기, 낡은 version 409, 막는 키·충돌·모르는 명령 422, 기본값과 같은 줄 빼기.
+//       끝에 처음 상태로 되돌린다(처음에 문서가 없었으면 지운다).
+//   13. 이미지 세부 조절(T9, D13): <p align><img width>·<img width>를 쓴 시험 글을 발행하면 공개 페이지가 그대로 그린다.
+// - 독자 검사는 PR-D가 더한다(Plan 8.1).
 
 import { createHash } from 'node:crypto';
 import process from 'node:process';
@@ -45,6 +48,8 @@ function check(condition, message) {
 
 // 이 실행이 만든 것 (정리 대상)
 const created = { entryIds: new Set(), logIds: new Set(), userIds: new Set(), assetIds: new Set(), seriesKeys: new Set() };
+// settings/editor의 처음 상태(PR-C). undefined면 아직 읽지 않았다. null이면 문서가 없었다
+let editorSettingsBefore;
 
 // ───────────── HTTP 도구 ─────────────
 
@@ -715,6 +720,101 @@ async function checkRevisions(db) {
   check(purge.status === 200 && purge.json?.deleted?.includes(image.assetId), `글 삭제 뒤 시험 이미지 지우기 (${purge.text.slice(0, 120)})`);
 }
 
+// ───────────── PR-C (T9·T10) ─────────────
+
+// 12. 설정: 에디터 키맵 (T10, D14)
+async function checkEditorSettings(db) {
+  const ref = db.collection('settings').doc('editor');
+  const before = await withRetry('설정 문서 읽기', () => ref.get());
+  editorSettingsBefore = before.exists ? before.data() : null;
+  // 강제로 끝나 정리가 돌지 않아도 손으로 되돌릴 수 있게 처음 keymap을 남긴다(리뷰 S10)
+  console.log(`settings/editor 처음 상태(되돌리기용): ${before.exists ? JSON.stringify(before.get('keymap') ?? {}) : '없음'}`);
+
+  const read = await api('GET', '/api/admin/settings/editor');
+  check(
+    read.status === 200 && typeof read.json?.keymap === 'object' && Number.isInteger(read.json?.version),
+    `설정 읽기: 200, keymap·version (${read.status} ${read.text.slice(0, 160)})`,
+  );
+  check(read.json?.stored === before.exists, '설정 읽기: stored가 문서가 있는지와 같다');
+  const version = read.json?.version ?? 0;
+  check((await api('GET', '/api/admin/settings/editor', { cookie: false })).status === 401, '세션 없는 설정 읽기: 401');
+
+  const put = (keymap, baseVersion = version, options = {}) =>
+    api('PUT', '/api/admin/settings/editor', { body: { keymap, baseVersion }, ...options });
+  const firstIssue = (response) => response.json?.error?.details?.[0] ?? {};
+
+  const stale = await put({}, version + 5);
+  check(stale.status === 409 && stale.json?.error?.code === 'SETTINGS_CONFLICT', `낡은 version: 409 (${stale.status} ${stale.text.slice(0, 120)})`);
+  check(stale.json?.error?.details?.version === version, '409 details에 지금 version');
+
+  const modAlt = await put({ bold: { mac: 'Mod-Alt-b', other: 'Mod-Alt-b' } });
+  check(
+    modAlt.status === 422 && modAlt.json?.error?.code === 'INVALID_KEYMAP' && firstIssue(modAlt).code === 'mod-alt' && firstIssue(modAlt).field === 'keymap.bold',
+    `Mod+Alt: 422 mod-alt (${modAlt.status} ${modAlt.text.slice(0, 160)})`,
+  );
+  const conflict = await put({ bold: { mac: 'Mod-i', other: 'Mod-i' } });
+  check(
+    conflict.status === 422 && firstIssue(conflict).code === 'conflict' && firstIssue(conflict).ids?.includes('italic'),
+    `기본 키와 충돌: 422 conflict, 상대는 italic (${conflict.status} ${conflict.text.slice(0, 160)})`,
+  );
+  const reserved = await put({ table: { mac: 'Mod-w', other: 'Mod-w' } });
+  check(reserved.status === 422 && firstIssue(reserved).code === 'reserved', `브라우저 키: 422 reserved (${reserved.status})`);
+  const unknown = await put({ [`${TEST_MARK}-cmd`]: { mac: 'Mod-Shift-y', other: null } });
+  check(unknown.status === 422 && firstIssue(unknown).code === 'unknown-command', `모르는 명령: 422 unknown-command (${unknown.status})`);
+  const bare = await put({ bold: { mac: 'b', other: 'b' } });
+  check(bare.status === 422 && firstIssue(bare).code === 'no-modifier', `수식 키 없는 키: 422 no-modifier (${bare.status})`);
+  const shape = await put({ bold: 'Mod-Shift-b' });
+  check(shape.status === 400, `모양이 틀린 값: 400 (${shape.status})`);
+  const crossOrigin = await put({}, version, { origin: 'https://evil.example' });
+  check(crossOrigin.status === 403, `다른 출처의 쓰기: 403 (${crossOrigin.status})`);
+
+  // 굵게를 Mod+Shift+B로(8.4 시나리오 14). 기본값과 같은 기울임 줄은 서버가 뺀다
+  const saved = await put({
+    bold: { mac: 'Mod-Shift-b', other: 'Mod-Shift-b' },
+    italic: { mac: 'Mod-i', other: 'Mod-i' },
+  });
+  check(
+    saved.status === 200 && saved.json?.version === version + 1,
+    `키 바꾸기 저장: 200, version + 1 (${saved.status} ${saved.text.slice(0, 160)})`,
+  );
+  check(
+    JSON.stringify(saved.json?.keymap) === JSON.stringify({ bold: { mac: 'Mod-Shift-b', other: 'Mod-Shift-b' } }),
+    `기본값과 같은 줄은 빠진다 (${JSON.stringify(saved.json?.keymap)})`,
+  );
+  const again = await api('GET', '/api/admin/settings/editor');
+  check(again.json?.version === version + 1 && again.json?.keymap?.bold?.mac === 'Mod-Shift-b' && again.json?.stored === true, '다시 읽기: 바꾼 값과 version');
+  const stored = await withRetry('설정 문서 다시 읽기', () => ref.get());
+  check(stored.get('version') === version + 1 && stored.get('keymap')?.bold?.other === 'Mod-Shift-b', '문서: keymap·version');
+
+  // 기본값으로(빈 keymap)
+  const reset = await put({}, version + 1);
+  check(reset.status === 200 && JSON.stringify(reset.json?.keymap) === '{}' && reset.json?.version === version + 2, `기본값으로: 200, 빈 keymap (${reset.status})`);
+}
+
+// 13. 이미지 세부 조절의 공개 렌더 (T9, D13): 원시 HTML 두 모양이 공개 페이지에 그대로 나온다
+async function checkImageAttrs() {
+  const slug = `${TEST_MARK}-img-${RUN_ID}`;
+  const markdown = [
+    '이미지 세부 조절 시험이다.',
+    '<p align="center"><img src="https://example.com/stage5-test-center.png" alt="가운데" width="480"></p>',
+    '<img src="https://example.com/stage5-test-width.png" alt="폭만" width="320">',
+  ].join('\n\n');
+  const { id, version } = await createTestEntry(
+    'post',
+    draftContent({ title: `${TEST_MARK} 이미지 ${RUN_ID}`, slug, markdown }),
+  );
+  const draft = await entryOf(id);
+  check(draft.draft.markdown === markdown, '초안: 원시 이미지 HTML을 그대로 저장한다');
+  const published = await publishTest(id, version);
+  const path = published?.publicUrl ? new URL(published.publicUrl).pathname : `/blog/${slug}`;
+  const html = (await page(path, { cookie: false })).text;
+  check(/<p align="center"><img[^>]*src="https:\/\/example\.com\/stage5-test-center\.png"[^>]*width="480"/.test(html), '공개 페이지: <p align="center"><img … width="480">');
+  check(/<img[^>]*src="https:\/\/example\.com\/stage5-test-width\.png"[^>]*width="320"/.test(html), '공개 페이지: <img … width="320">');
+  check(!html.includes('&lt;img'), '공개 페이지: 이미지 HTML이 글자로 나오지 않는다');
+  const response = await api('DELETE', `/api/admin/posts/${id}`, { body: { confirm: id } });
+  check(response.status === 200, `이미지 시험 글 삭제: 200 (${response.status})`);
+}
+
 async function rejectNonAdmin() {
   const uid = `${TEST_MARK}-${RUN_ID}`;
   created.userIds.add(uid);
@@ -843,6 +943,25 @@ async function cleanup(db, bucket) {
     leftovers.push('settings/taxonomy 시험 값');
     await ref.set({ ...next, version: data.version + 1, updatedAt: Timestamp.now() });
   });
+  // PR-C: 설정 문서를 처음 상태로(처음에 없었으면 지운다. 있었으면 처음 keymap으로)
+  if (editorSettingsBefore !== undefined) {
+    await cleanupStep('설정 문서 되돌리기', async () => {
+      const ref = db.collection('settings').doc('editor');
+      const snapshot = await ref.get();
+      if (editorSettingsBefore === null) {
+        if (snapshot.exists) await ref.delete();
+        return;
+      }
+      const original = JSON.stringify(editorSettingsBefore.keymap ?? {});
+      if (snapshot.exists && JSON.stringify(snapshot.get('keymap') ?? {}) === original) return;
+      leftovers.push('settings/editor 시험 값');
+      await ref.set({
+        keymap: editorSettingsBefore.keymap ?? {},
+        version: (snapshot.exists ? snapshot.get('version') : editorSettingsBefore.version) + 1,
+        updatedAt: Timestamp.now(),
+      });
+    });
+  }
   await cleanupStep('없는 글 기록 정리', async () => {
     const noneLogs = await db.collection('publishLog').where('entryId', '==', `${TEST_MARK}-none-${RUN_ID}`).get();
     for (const log of noneLogs.docs) await log.ref.delete();
@@ -890,6 +1009,8 @@ async function main() {
     await checkTaxonomy(db);
     await checkSeries(db);
     await checkRevisions(db);
+    await checkEditorSettings(db);
+    await checkImageAttrs();
     await rejectNonAdmin();
     await signOut();
   } catch (error) {
@@ -909,6 +1030,12 @@ async function main() {
     const keys = taxonomyDoc.get('categories').map((category) => category.key);
     check(!JSON.stringify(taxonomyDoc.data()).includes(TEST_MARK), '분류 문서에 시험 값이 남았다');
     check(CATEGORIES.every((category) => keys.includes(category.key)), `분류 문서에 기존 카테고리가 빠졌다 (${keys.join(',')})`);
+  }
+  // 설정 문서는 처음 상태다(처음에 없었으면 없다)
+  if (editorSettingsBefore !== undefined) {
+    const settingsDoc = await withRetry('설정 문서 확인', () => db.collection('settings').doc('editor').get());
+    if (editorSettingsBefore === null) check(!settingsDoc.exists, 'settings/editor가 남았다(처음에는 없었다)');
+    else check(JSON.stringify(settingsDoc.get('keymap') ?? {}) === JSON.stringify(editorSettingsBefore.keymap ?? {}), 'settings/editor keymap이 처음과 다르다');
   }
   if (leftovers.length > 0) console.log(`정리 단계가 지운 남은 데이터: ${leftovers.join(', ')}`);
 

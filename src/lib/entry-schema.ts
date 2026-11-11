@@ -251,3 +251,21 @@ export const taxonomyDocSchema = z.object({
   updatedAt: timestampSchema,
 });
 export type TaxonomyDoc = z.infer<typeof taxonomyDocSchema>;
+
+// settings/editor (재건 5단계 D14)
+// - keymap: 기본값과 다른 명령만 담는다. 값이 null이면 두 플랫폼 모두 키가 없다. 플랫폼 값이 null이면 그 플랫폼만 없다.
+// - 여기서는 모양만 본다. 명령 id·키 형식·막는 키·충돌은 저장 API가 keymap-settings.ts로 검사한다.
+// - 키 문자열 길이 40은 keymap-settings.ts의 MAX_KEY_LENGTH와 같다(Node 스크립트가 이 파일을 가져오므로 에디터 모듈을 가져오지 않는다).
+const keyStringSchema = z.string().min(1).max(40);
+export const keyBindingSchema = z.object({
+  mac: keyStringSchema.nullable(),
+  other: keyStringSchema.nullable(),
+});
+export const editorKeymapSchema = z.record(z.string().min(1).max(64), keyBindingSchema.nullable());
+
+export const editorSettingsDocSchema = z.object({
+  keymap: editorKeymapSchema,
+  version: z.number().int().positive(),
+  updatedAt: timestampSchema,
+});
+export type EditorSettingsDoc = z.infer<typeof editorSettingsDocSchema>;

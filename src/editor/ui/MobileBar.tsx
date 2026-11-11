@@ -1,6 +1,6 @@
 // 모바일 툴바 (재건 3단계 D12)
 // - 768px보다 좁은 화면에서 에디터에 포커스가 있을 때 키보드 바로 위에 붙는다.
-// - 버튼: 굵게, 제목(2·3 순환), 목록, 인용, 이미지, 되돌리기, 메타 열기. 모두 레지스트리 명령이다.
+// - 버튼: 굵게, 제목(2·3 순환), 목록, 인용, 이미지, 블록 위·아래로(5단계 D6), 되돌리기, 메타 열기. 모두 레지스트리 명령이다.
 // - 위치는 window.visualViewport의 height·offsetTop으로 맞춘다. visualViewport가 없으면 화면 아래에 붙는다.
 // - 버튼을 눌러도 에디터 포커스(와 화면 키보드)를 잃지 않게 pointerdown·mousedown 기본 동작을 막는다.
 
@@ -10,13 +10,15 @@ import { useEffect, useState } from 'react';
 import { commandById, type EditorCommand } from '@/editor/commands/registry';
 import { classNames } from './class-names';
 
-// D12의 버튼 순서
+// D12의 버튼 순서. 블록 이동 두 개는 5단계 D6이 더했다(390px에 9개, 한 칸 약 38px)
 export const MOBILE_COMMAND_IDS = [
   'bold',
   'heading-cycle',
   'bullet-list',
   'blockquote',
   'image',
+  'block-move-up',
+  'block-move-down',
   'undo',
   'toggle-panel',
 ] as const;

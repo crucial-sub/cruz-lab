@@ -4,7 +4,12 @@
 // - 페이지 범위 명령(저장, 발행, 팔레트 등)은 에디터 밖에서도 같은 판정으로 돈다.
 import { getSchema } from '@tiptap/core';
 import { describe, expect, it, vi } from 'vitest';
-import { createCommands, type CommandActions } from '@/editor/commands/registry';
+import { applyKeymapOverrides } from '@/editor/commands/keymap';
+import {
+  createCommands,
+  type CommandActions,
+  type EditorCommand,
+} from '@/editor/commands/registry';
 import {
   createPageKeyHandler,
   createPageKeyListener,
@@ -37,6 +42,7 @@ function spyActions(): CommandActions {
     togglePanel: vi.fn(),
     openPalette: vi.fn(),
     openRevisions: vi.fn(),
+    openFind: vi.fn(() => true),
   };
 }
 
@@ -149,6 +155,32 @@ describe('RegistryShortcuts', () => {
     const editor = registryEditor(actions);
     expect(pressKey(editor, { key: 's', keyCode: 83, mod: true })).toBe(false);
     expect(actions.saveNow).not.toHaveBeenCalled();
+  });
+});
+
+describe('5단계 D14: 열린 에디터에 키 설정을 적용한다', () => {
+  it('getCommands가 돌려주는 목록이 바뀌면 다시 만들지 않아도 새 키가 돈다', () => {
+    const defaults = createCommands(spyActions());
+    let current: readonly EditorCommand[] = defaults;
+    const editor = makeHeadlessEditor(
+      [
+        ...createEditorExtensions().map(stripCommandKeys),
+        RegistryShortcuts.configure({ getCommands: () => current, platform: PLATFORM }),
+      ],
+      { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: '본문' }] }] },
+    );
+    editor.commands.setTextSelection({ from: 1, to: 3 });
+    current = applyKeymapOverrides(defaults, {
+      bold: { mac: 'Mod-Shift-b', other: 'Mod-Shift-b' },
+    });
+    // 옛 키는 더 이상 굵게가 아니다
+    expect(pressKey(editor, { key: 'b', keyCode: 66, mod: true })).toBe(false);
+    expect(docJson(editor).content?.[0]?.content?.[0]?.marks).toBeUndefined();
+    expect(pressKey(editor, { key: 'B', keyCode: 66, mod: true, shift: true })).toBe(true);
+    expect(docJson(editor).content?.[0]?.content?.[0]?.marks).toEqual([{ type: 'bold' }]);
+    // 키를 지운 명령은 받지 않는다
+    current = applyKeymapOverrides(defaults, { italic: null });
+    expect(pressKey(editor, { key: 'i', keyCode: 73, mod: true })).toBe(false);
   });
 });
 
