@@ -1,14 +1,13 @@
 // 글 목록 표 (재건 5단계 D10, M6·M11)
 // - 768px 이상: 표. 제목(아래 작게 slug) · 종류 · 상태(+ 변경 있음) · 분류 · 30일 독자 · 고친 때 · 발행일 · ⋯
 // - 768px 미만: 두 줄 행. 제목 / 종류 · 상태 · 독자 · 고친 때. 행 끝 ⋯
-// - 제목은 에디터 링크다(앱 안 이동). ⋯ 메뉴: 공개 페이지 보기, 숨기기/다시 보이기, 삭제.
-//   "독자 보기"는 독자 화면을 만드는 PR-D가 더한다(D20).
-// - 독자 열은 자리만 있다. 값은 독자 흐름(PR-D) 뒤에 채운다.
+// - 제목은 에디터 링크다(앱 안 이동). ⋯ 메뉴: 공개 페이지 보기, 독자 보기(발행한 적 있는 글, PR-D), 숨기기/다시 보이기, 삭제.
+// - 독자 열: 최근 30일 방문 수(D20, 목록 API readers30). 요약을 읽지 못했으면 "—".
 
 import { classNames } from '@/editor/ui/class-names';
 import type { EntryKind, EntryStatus } from '@/lib/entry-schema';
 import type { AdminListItem } from '@/lib/server/admin-entries';
-import { editPath } from '../router';
+import { editPath, entryReadersPath } from '../router';
 import { formatFullDate, formatShortDate, RowMenu, type MenuItem } from '../ui';
 import { classificationOf } from './list-filter';
 
@@ -56,6 +55,7 @@ function menuItems(item: AdminListItem, actions: RowActions): MenuItem[] {
   const items: MenuItem[] = [];
   if (item.publicPath && item.status === 'published')
     items.push({ label: '공개 페이지 보기 ↗', href: item.publicPath, external: true });
+  if (item.status !== 'draft') items.push({ label: '독자 보기', href: entryReadersPath(item.id) });
   if (item.status === 'published' || item.status === 'hidden') {
     items.push({
       label: item.status === 'hidden' ? '다시 보이기' : '숨기기',

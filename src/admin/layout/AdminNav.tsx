@@ -1,5 +1,6 @@
 // 관리자 앱 메뉴 (재건 5단계 D10)
-// - 화면을 만든 메뉴만 보인다. PR-A: 글, 출간 기록. PR-B: 이미지, 분류, 연재. PR-C: 설정. 독자는 PR-D가 더한다.
+// - 화면을 만든 메뉴만 보인다. PR-A: 글, 출간 기록. PR-B: 이미지, 분류, 연재. PR-C: 설정. PR-D: 독자.
+//   이로써 Plan D10의 메뉴 7개가 모두 있다. 글 하나의 독자 화면(entryReaders)은 "독자"를 지금 화면으로 보인다.
 // - 순서는 Plan D10을 따른다(글·이미지·분류·연재·독자·출간 기록·설정).
 // - 아래: 사이트 보기(새 탭), 로그아웃.
 // - 넓은 화면(1024px 이상)은 왼쪽 막대, 좁은 화면은 시트 안에 같은 메뉴를 그린다.
@@ -12,9 +13,15 @@ export const NAV_ITEMS: ReadonlyArray<{ name: AdminRoute['name']; href: string; 
   { name: 'assets', href: '/admin/assets', label: '이미지' },
   { name: 'taxonomy', href: '/admin/taxonomy', label: '분류' },
   { name: 'series', href: '/admin/series', label: '연재' },
+  { name: 'readers', href: '/admin/readers', label: '독자' },
   { name: 'log', href: '/admin/log', label: '출간 기록' },
   { name: 'settings', href: '/admin/settings', label: '설정' },
 ];
+
+// 메뉴 항목이 지금 화면인지. 글 하나의 독자 화면은 "독자" 메뉴 아래다
+function isCurrent(item: AdminRoute['name'], current: AdminRoute['name']): boolean {
+  return item === current || (item === 'readers' && current === 'entryReaders');
+}
 
 export function AdminNav({
   current,
@@ -32,11 +39,11 @@ export function AdminNav({
           <li key={item.name}>
             <a
               href={item.href}
-              aria-current={item.name === current ? 'page' : undefined}
+              aria-current={isCurrent(item.name, current) ? 'page' : undefined}
               onClick={onNavigate}
               className={classNames(
                 'block rounded-md px-3 py-2',
-                item.name === current
+                isCurrent(item.name, current)
                   ? 'bg-bg-card font-semibold text-text-primary'
                   : 'text-text-secondary hover:bg-bg-card hover:text-text-primary',
               )}

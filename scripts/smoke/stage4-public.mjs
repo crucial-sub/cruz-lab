@@ -11,6 +11,9 @@
 // - --project-baseline: 프로젝트 글 이전 전의 옛 정적 페이지 HTML 폴더(<key>--<slug>.html). 주면 옛 본문과 새 본문의
 //   글자(태그 제거)를 견준다(Plan 11절 "이전 뒤 옛 정적 페이지와 새 페이지의 본문 텍스트 비교"). 이전 때 한 번 쓴다.
 // - 4단계 PR-A(글 상세)·PR-B(목록·노트·404) 점검 스크립트를 합쳐 옮겼다. 프로젝트(6)·OG(7)를 더했다.
+// - 5단계 PR-D(D20, Plan 8.1): 모든 공개 페이지의 관리자 표시 + 독자 흐름 수집 스크립트(인라인 모듈 1개, 합 2 KB 안),
+//   글 상세의 data-entry-id·#post-body, 404 화면의 data-not-found, /about 익명 통계 안내 한 줄(10).
+//   개발 서버는 스크립트를 인라인하지 않으므로 크기 대신 수집 모듈이 실렸는지만 본다(크기는 빌드 결과로 잰다).
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -113,8 +116,36 @@ function countImages(markdown) {
   walk(parseMarkdown(markdown));
   return count;
 }
+// 10. 독자 흐름 공개 스크립트(5단계 D20). 관리자 표시(인라인, cruz-admin-hint)와 수집(인라인 모듈, /api/track)이 한 개씩
+const TRACKER_BUDGET_BYTES = 2048;
+// 태그의 속성만 본다(수집 스크립트 안의 선택자 글자 "[data-not-found]"·"[data-entry-id]"는 빼고)
+const hasNotFoundMark = (html) => /<section\b[^<>]*\sdata-not-found[\s>]/.test(html);
+let trackerBytes = 0;
+function checkTrackerScripts(label, html) {
+  const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)].map((match) => ({ attrs: match[1], code: match[2] }));
+  const hint = scripts.filter((script) => script.code.includes('cruz-admin-hint'));
+  check(hint.length === 1, `${label} 관리자 표시 스크립트 ${hint.length}개`);
+  if (html.includes('/@vite/client')) {
+    // 개발 서버: 수집 모듈은 BaseLayout의 스크립트 주소로 실린다
+    check(/<script type="module" src="[^"]*BaseLayout\.astro\?astro&type=script/.test(html), `${label} 수집 모듈(개발 서버)이 없다`);
+    return;
+  }
+  const tracker = scripts.filter((script) => script.code.includes('/api/track'));
+  check(tracker.length === 1 && /type="module"/.test(tracker[0]?.attrs ?? ''), `${label} 수집 스크립트(인라인 모듈) ${tracker.length}개`);
+  if (hint.length !== 1 || tracker.length !== 1) return;
+  // 모듈 1개: 다른 청크를 가져오지 않는다
+  check(!/\bimport\b/.test(tracker[0].code), `${label} 수집 스크립트가 다른 모듈을 가져온다`);
+  const bytes = Buffer.byteLength(hint[0].code) + Buffer.byteLength(tracker[0].code);
+  trackerBytes = Math.max(trackerBytes, bytes);
+  check(bytes <= TRACKER_BUDGET_BYTES, `${label} 관리자 표시 + 수집 스크립트 ${bytes}바이트 > ${TRACKER_BUDGET_BYTES}`);
+}
+
 // 글 상세 공통: 목차 = h2·h3, 코드 틀 = 펜스, KaTeX 링크는 수식 글만, 아일랜드 0, cdnjs 0
-function checkArticle(label, html, markdown) {
+// - 5단계 D20: 수집 스크립트, <article data-entry-id="글 ID">, 본문 #post-body
+function checkArticle(label, html, markdown, entryId) {
+  checkTrackerScripts(label, html);
+  check(html.includes(`data-entry-id="${entryId}"`), `${label} data-entry-id`);
+  check(html.includes('id="post-body"'), `${label} #post-body`);
   const side = html.match(/<aside class="post-toc-side[\s\S]*?<\/aside>/)?.[0] ?? '';
   const tocCount = (side.match(/data-toc-link=/g) ?? []).length;
   const headingCount = (html.match(/<h[23] id="/g) ?? []).length;
@@ -138,7 +169,7 @@ for (const entry of posts) {
   const urlPath = encodeURI(`/blog/${entry.published.slug}`);
   const { res, body } = await get(urlPath);
   check(res.status === 200, `${urlPath} 상태 ${res.status}`);
-  checkArticle(urlPath, body, entry.published.markdown);
+  checkArticle(urlPath, body, entry.published.markdown, entry.id);
   check(hasTag(res, `post-${entry.id}`), `${urlPath} 캐시 태그`);
   check(ogImageOf(body).endsWith(`/og/${entry.id}.png`), `${urlPath} og:image ${ogImageOf(body)}`);
 }
@@ -242,6 +273,8 @@ for (const note of notes) {
   const page = await get(urlPath);
   check(page.res.status === 200, `${urlPath} ${page.res.status}`);
   check(hasTag(page.res, `post-${note.id}`), `${urlPath} 캐시 태그`);
+  checkTrackerScripts(urlPath, page.body);
+  check(page.body.includes(`data-entry-id="${note.id}"`), `${urlPath} data-entry-id`);
   check(
     ogImageOf(page.body).endsWith(`/og/${note.id}.png`),
     `${urlPath} og:image ${ogImageOf(page.body)}`,
@@ -314,7 +347,7 @@ for (const project of projects) {
     const urlPath = encodeURI(`/projects/${project.key}/${slug}`);
     const { res, body } = await get(urlPath);
     check(res.status === 200, `${urlPath} ${res.status}`);
-    checkArticle(urlPath, body, entry.published.markdown);
+    checkArticle(urlPath, body, entry.published.markdown, entry.id);
     const h1 = body.match(/<h1 id="post-title"[^>]*>([\s\S]*?)<\/h1>/)?.[1] ?? '';
     check(normalizeText(h1) === entry.published.title, `${urlPath} 제목 ${normalizeText(h1)}`);
     check(hasTag(res, `post-${entry.id}`), `${urlPath} 캐시 태그`);
@@ -515,7 +548,25 @@ for (const urlPath of [
     `${urlPath} 캐시 헤더 ${cacheControl}`,
   );
   check(page.body.includes('<meta name="robots" content="noindex">'), `${urlPath} noindex 없음`);
+  // 5단계 D20: SSR 404도 수집 스크립트가 404 이벤트를 보낸다
+  checkTrackerScripts(urlPath, page.body);
+  check(hasNotFoundMark(page.body), `${urlPath} data-not-found`);
 }
+
+// 10. 독자 흐름(5단계 D20): 목록·소개·404 화면의 스크립트, 404 표시, /about 안내 한 줄. 글이 아닌 페이지에는 data-entry-id가 없다
+for (const [label, page] of [
+  ['/', home],
+  ['/blog', blog],
+  ['/notes', notesPage],
+  ['/about', about],
+  ['/no-such-page', missingPage],
+]) {
+  checkTrackerScripts(label, page.body);
+  check(!page.body.includes('data-entry-id='), `${label} 글이 아닌 페이지에 data-entry-id`);
+}
+check(hasNotFoundMark(missingPage.body), '/no-such-page data-not-found');
+check(about.body.includes('이 사이트는 쿠키·개인정보 없이 익명 방문 수를 셉니다.'), '/about 익명 통계 안내 한 줄');
+check(!hasNotFoundMark(blog.body), '/blog에 data-not-found');
 
 const summary = {
   base,
@@ -526,6 +577,7 @@ const summary = {
   checks,
   fail: failures.length,
   blogBytes,
+  trackerBytes,
   ...stats,
 };
 console.log(JSON.stringify(summary));

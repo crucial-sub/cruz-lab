@@ -29,6 +29,8 @@ import { AssetsScreen } from './assets/AssetsScreen';
 import { HomeScreen } from './home/HomeScreen';
 import { AdminLayout } from './layout/AdminLayout';
 import { LogScreen } from './log/LogScreen';
+import { EntryReaders } from './readers/EntryReaders';
+import { ReadersScreen } from './readers/ReadersScreen';
 import { SeriesScreen } from './series/SeriesScreen';
 import { SettingsScreen } from './settings/SettingsScreen';
 import { TaxonomyScreen } from './taxonomy/TaxonomyScreen';
@@ -418,6 +420,9 @@ export default function AdminApp({ sessionExpiresAt }: { sessionExpiresAt: strin
       assets: <AssetsScreen />,
       taxonomy: <TaxonomyScreen />,
       series: <SeriesScreen />,
+      readers: <ReadersScreen />,
+      // 글마다 새로 그린다(key). 기간 고르기는 글을 바꾸면 처음(30일)으로 돌아간다
+      entryReaders: route.name === 'entryReaders' ? <EntryReaders key={route.id} id={route.id} /> : null,
       log: <LogScreen />,
       settings: <SettingsScreen />,
     };
