@@ -142,8 +142,6 @@ export const adminApi = {
     request<{ deleted: true }>('DELETE', `/api/admin/posts/${encodeURIComponent(id)}`, {
       confirm: id,
     }),
-  getAsset: (id: string) =>
-    request<{ asset: UploadedAsset }>('GET', `/api/admin/assets/${encodeURIComponent(id)}`),
   logout: () => request<null>('DELETE', '/api/admin/session'),
 };
 

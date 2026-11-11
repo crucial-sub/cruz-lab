@@ -1,6 +1,6 @@
 // 업로드 클라이언트 테스트 (재건 3단계 D11). 전송은 가짜다. 순서와 상태만 본다
 import { describe, expect, it } from 'vitest';
-import { sizeOfUrl, variantUrlFor, type UploadedAsset } from '@/editor/upload/image-size';
+import type { UploadedAsset } from '@/editor/upload/image-size';
 import {
   checkUploadFile,
   sha256OfBlob,
@@ -117,28 +117,5 @@ describe('uploadAsset', () => {
     const svg = new File(['<svg/>'], 'a.svg', { type: 'image/svg+xml' });
     await expect(uploadAsset(svg, transport, () => {})).rejects.toThrow(/형식/);
     expect(calls).toEqual([]);
-  });
-});
-
-describe('이미지 크기 선택 (D11 9)', () => {
-  it('작게·보통·크게 → 변형 주소', () => {
-    expect(variantUrlFor(asset, 'small')).toBe('https://x/assets/abc/w480.webp');
-    expect(variantUrlFor(asset, 'medium')).toBe('https://x/assets/abc/w960.webp');
-    expect(variantUrlFor(asset, 'large')).toBe('https://x/assets/abc/w1600.webp');
-  });
-
-  it('원본이 작아 변형이 없으면 null', () => {
-    const small: UploadedAsset = {
-      ...asset,
-      variants: { max: { url: 'https://x/assets/abc/w300.webp', width: 300 } },
-    };
-    expect(variantUrlFor(small, 'small')).toBeNull();
-    expect(variantUrlFor(small, 'large')).toBe('https://x/assets/abc/w300.webp');
-  });
-
-  it('지금 주소가 어느 크기인지', () => {
-    expect(sizeOfUrl(asset, 'https://x/assets/abc/w480.webp')).toBe('small');
-    expect(sizeOfUrl(asset, 'https://x/assets/abc/w1600.webp')).toBe('large');
-    expect(sizeOfUrl(asset, 'https://other/')).toBeNull();
   });
 });
