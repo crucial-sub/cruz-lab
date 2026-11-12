@@ -1,5 +1,5 @@
 // 관리자 앱 공통 화면 조각 (재건 5단계 D10)
-// - 단추 클래스, 확인 대화상자, 알림, 행 메뉴(⋯).
+// - 단추 클래스, 확인 대화상자, 알림 대화상자, 고르는 칸, 알림, 행 메뉴(⋯).
 // - 에디터의 Dialogs.tsx는 KaTeX를 가져오므로 쓰지 않는다(앱 첫 화면이 에디터 청크·KaTeX를 받지 않게, D9).
 
 import { useEffect, useId, useRef, useState } from 'react';
@@ -19,6 +19,8 @@ export function ConfirmDialog({
   confirmLabel,
   danger = false,
   busy = false,
+  busyLabel = '처리 중…',
+  confirmDisabled = false,
   onConfirm,
   onCancel,
 }: {
@@ -27,6 +29,10 @@ export function ConfirmDialog({
   confirmLabel: string;
   danger?: boolean;
   busy?: boolean;
+  // 처리하는 동안 확인 단추 글자(여러 편 삭제의 "지우는 중… 7/20")
+  busyLabel?: string;
+  // 확인 단추를 끈다(여러 편 삭제에서 발행 글 확인 칸을 체크하기 전)
+  confirmDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -52,7 +58,8 @@ export function ConfirmDialog({
       aria-modal="true"
       aria-labelledby={titleId}
     >
-      <div className="w-full max-w-md rounded-lg border border-border bg-bg-surface p-5 shadow-popover">
+      {/* 내용이 길면(가로로 든 휴대폰, 여러 편 삭제의 제목 목록) 창 안에서 스크롤한다 */}
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg border border-border bg-bg-surface p-5 shadow-popover">
         <h2 id={titleId} className="text-lg font-semibold text-text-primary">
           {title}
         </h2>
@@ -71,13 +78,97 @@ export function ConfirmDialog({
             type="button"
             className={danger ? dangerButton : primaryButton}
             onClick={onConfirm}
-            disabled={busy}
+            disabled={busy || confirmDisabled}
           >
-            {busy ? '처리 중…' : confirmLabel}
+            {busy ? busyLabel : confirmLabel}
           </button>
         </div>
       </div>
     </div>
+  );
+}
+
+// 알림 대화상자: 결과만 보이고 "닫기" 단추 하나(여러 편 삭제의 일부 실패 결과). Esc로도 닫는다
+export function NoticeDialog({
+  title,
+  children,
+  onClose,
+}: {
+  title: string;
+  children: React.ReactNode;
+  onClose: () => void;
+}) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const titleId = useId();
+  const latest = useRef(onClose);
+  latest.current = onClose;
+  useEffect(() => {
+    closeRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') latest.current();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+    >
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg border border-border bg-bg-surface p-5 shadow-popover">
+        <h2 id={titleId} className="text-lg font-semibold text-text-primary">
+          {title}
+        </h2>
+        <div className="mt-3 space-y-2 text-sm text-text-secondary">{children}</div>
+        <div className="mt-5 flex justify-end">
+          <button ref={closeRef} type="button" className={secondaryButton} onClick={onClose}>
+            닫기
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 고르는 칸. indeterminate면 "일부만 고름"(−) 모양이다(목록 머리 칸)
+// - 누르면 onChange만 부른다. 다음 값은 부르는 쪽이 정한다(머리 칸은 일부 → 전부)
+export function Checkbox({
+  checked,
+  indeterminate = false,
+  disabled = false,
+  label,
+  className,
+  onChange,
+}: {
+  checked: boolean;
+  indeterminate?: boolean;
+  disabled?: boolean;
+  // 화면 읽기 도구용 이름. 칸 옆에 글자가 있으면(label로 감싸면) 생략한다
+  label?: string;
+  className?: string;
+  onChange: () => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  // indeterminate는 HTML 속성이 없다. DOM 값으로 둔다
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      disabled={disabled}
+      aria-label={label}
+      onChange={onChange}
+      className={classNames(
+        'shrink-0 cursor-pointer accent-emerald-600 disabled:cursor-not-allowed',
+        className ?? 'size-4',
+      )}
+    />
   );
 }
 
