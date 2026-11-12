@@ -60,6 +60,9 @@ export default [
       // Next/Astro에선 불필요
       'react/react-in-jsx-scope': 'off',
 
+      // 관리자 앱의 Checkbox(src/admin/ui.tsx)는 input 하나를 그린다. label 안의 칸으로 센다
+      'jsx-a11y/label-has-associated-control': ['error', { controlComponents: ['Checkbox'] }],
+
       // Tailwind 클래스 검사(오타/존재 여부 등)
       'tailwindcss/no-custom-classname': 'off', // 필요시 on
       'tailwindcss/classnames-order': 'off', // 정렬은 Prettier 플러그인이 담당
