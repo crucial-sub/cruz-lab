@@ -23,7 +23,7 @@
 <body>
 
 <header>
-  <p class="eyebrow">Plan · cruz-lab · 재건 main 병합 준비 · 승인 2026-11-12</p>
+  <p class="eyebrow">Plan · cruz-lab · 재건 main 병합 준비 · 병합 2026-11-12</p>
   <h1>재건 브랜치를 운영에 넣는다</h1>
   <p class="lead"><code>rebuild</code>의 2~5단계를 main에 넣기 전에 <b>설명 문서 · 검증 · 운영 설정</b>을 맞춘다. 병합은 <b>사용자가 정한다</b>. 병합 뒤에는 운영 값을 재고, 옛 데이터 정리는 별도 작업으로 넘긴다. 감사 문서 11.3의 1~12를 병합 전 · 병합 · 병합 뒤로 나눴다.</p>
   <ve-files>
@@ -36,6 +36,10 @@
   <ve-revision v="2">
     <li>사용자가 결정 5건을 모두 기본값으로 정했다(2026-11-12): 시험 데이터 만듦 · E3 지금 · 직전 --apply로 B1 덤프 · merge commit · 병합 뒤 측정은 이 세션.</li>
     <li>작업 문서 이름을 2026-11-12-main-merge-prep.md로 정했다(작업이 자정을 넘겼다).</li>
+  </ve-revision>
+  <ve-revision v="4">
+    <li>main 병합 끝(2026-11-12 03:38 KST, PR #31, merge commit c1d0f78). 각 주장에 결과를 표시했다. 병합 뒤 확인도 끝났다(콜드 TTFB 약 3초, 렌더 몫 8~13%라 미리 계산 안 함).</li>
+    <li>크기 버튼(작게 · 보통 · 크게)은 사용자 결정으로 지웠다(PR #30).</li>
   </ve-revision>
   <ve-revision v="3">
     <li>실기기 확인에서 이미지 메뉴 2건이 안 됐다. 원인을 찾아 고쳤다: "폭 입력 → 가운데"가 그린 때의 속성에 덮어써 폭을 지웠다, 노드 선택 중 편집 루트의 caret 색이 초록이라 iOS가 선택을 초록으로 칠했다(작업 문서 6.2 · 6.3).</li>
@@ -74,7 +78,7 @@
 
 <ve-plan>
 
-  <ve-claim check="grep -n -i mcp README.md 결과 0줄. README 환경 변수 절과 .env.example이 코드가 읽는 변수와 같다. PUBLISHING이 /admin 앱 출간 순서를 말한다. pnpm lint 통과.">
+  <ve-claim status="built" ref="fec2b0f" check="grep -n -i mcp README.md 결과 0줄. README 환경 변수 절과 .env.example이 코드가 읽는 변수와 같다. PUBLISHING이 /admin 앱 출간 순서를 말한다. pnpm lint 통과.">
     <p>설명 문서 세 개가 재건 끝 상태를 말한다.</p>
     <ve-calls title="고칠 곳 (11.3의 3·5, 원료는 각 단계 Plan · 작업 문서)">
 <script type="text/plain">
@@ -89,7 +93,7 @@
 </script>
     </ve-calls>
 
-    <ve-claim check="src 아래 import.meta.env · process.env 이름 목록과 .env.example 이름 목록이 같다(PUBLIC_ADMIN_EMAIL 제외 이유를 주석에 적음).">
+    <ve-claim status="built" ref="fec2b0f" check="src 아래 import.meta.env · process.env 이름 목록과 .env.example 이름 목록이 같다(PUBLIC_ADMIN_EMAIL 제외 이유를 주석에 적음).">
       <p>.env.example에서 읽지 않는 변수를 빼고 빠진 변수를 더한다.</p>
       <ve-code title=".env.example 변수 이름 · 지금 → 바뀐 뒤 (값 없음)" lang="diff">
 <script type="text/plain">
@@ -105,7 +109,7 @@
     </ve-claim>
   </ve-claim>
 
-  <ve-claim check="lint 통과 · tsc 0 · 테스트 918 · 빌드 통과 · stage5-admin 252/252 · stage5-track 178/178 · smoke:api 106/106 · 왕복 69/69 · 공개 점검 1,380/0 + 324/0. 끝에 시험 데이터 0.">
+  <ve-claim status="changed" note="기기 부하로 테스트가 흔들렸다. 낮은 부하에서 927 → 크기 버튼 삭제 뒤 924/924" ref="3a457de" check="lint 통과 · tsc 0 · 테스트 918 · 빌드 통과 · stage5-admin 252/252 · stage5-track 178/178 · smoke:api 106/106 · 왕복 69/69 · 공개 점검 1,380/0 + 324/0. 끝에 시험 데이터 0.">
     <p>병합 전 검증 값이 5단계 끝 값과 같다.</p>
     <ve-calls title="검증 순서 (로컬 · 문서 변경 뒤)">
 <script type="text/plain">
@@ -122,7 +126,7 @@
       <ve-opt value="readonly" removes="2.1" note="쓰기 스모크와 PR-B·C 미리보기 확인을 건너뛴다">읽기만 하는 검사만 한다</ve-opt>
     </ve-ask>
 
-    <ve-claim check="미리보기: 시험 카테고리 만들기 → 지우기, 동의어 태그 주소 301, 이미지 라이브러리 141칸, 폭·정렬 시험 글의 공개 sizes · height, 키 설정 저장 → 에디터 적용, 공개 페이지 방문 뒤 readerEvents · readerDaily 0 그대로, 독자 화면 빈 상태. 끝에 시험 데이터 0.">
+    <ve-claim status="built" note="작업 문서 5.4" check="미리보기: 시험 카테고리 만들기 → 지우기, 동의어 태그 주소 301, 이미지 라이브러리 141칸, 폭·정렬 시험 글의 공개 sizes · height, 키 설정 저장 → 에디터 적용, 공개 페이지 방문 뒤 readerEvents · readerDaily 0 그대로, 독자 화면 빈 상태. 끝에 시험 데이터 0.">
       <p>rebuild 미리보기에서 5단계 PR-B~D 몫을 확인한다.</p>
       <ve-calls title="미리보기 확인 (11.3의 10, 5단계 작업 문서 7절 다음 것 4)">
 <script type="text/plain">
@@ -134,7 +138,7 @@
       </ve-calls>
     </ve-claim>
 
-    <ve-claim check="사용자가 각 줄에 됨 · 안 됨을 답한다. 안 됨이면 원인을 찾고 병합 전에 고칠지 묻는다.">
+    <ve-claim status="changed" note="이미지 메뉴 2건이 안 돼 6.2 · 6.3 · 6.5를 고쳤고, 크기 버튼은 사용자 결정으로 지웠다" ref="PR #28 · #29 · #30" check="사용자가 각 줄에 됨 · 안 됨을 답한다. 안 됨이면 원인을 찾고 병합 전에 고칠지 묻는다.">
       <p>사용자가 실기기에서 로그인 · 복사 · 모바일 화면을 확인한다.</p>
       <ve-mock w="440" label="사용자 확인 목록 (5단계 Plan 8.4의 17 · 8.5 D18)">
         <div class="ui">
@@ -151,7 +155,7 @@
     </ve-claim>
   </ve-claim>
 
-  <ve-claim check="Vercel Production에 ADMIN_UID · BACKUP_DISPATCH_TOKEN이 있다(사용자 확인). 백업 저장소 export.mjs에 settings가 있고 다음 백업 실행이 성공한다. 병합 직전 두 시험 실행이 충돌 0 · 삭제 후보 0이다.">
+  <ve-claim status="built" note="E3 병합 · 백업 수동 실행, B1 덤프(쓴 문서 0)" check="Vercel Production에 ADMIN_UID · BACKUP_DISPATCH_TOKEN이 있다(사용자 확인). 백업 저장소 export.mjs에 settings가 있고 다음 백업 실행이 성공한다. 병합 직전 두 시험 실행이 충돌 0 · 삭제 후보 0이다.">
     <p>운영이 새 코드를 받을 준비를 병합 바로 전에 마친다.</p>
     <ve-calls title="운영 준비 (2단계 Plan 15절 병합 직전 1~4, 11.3의 2·6·10)">
 <script type="text/plain">
@@ -173,7 +177,7 @@
       <ve-opt value="skip" note="병합 직전 덤프가 없다. 매일 백업만 있다">시험 실행만 하고 쓰지 않는다</ve-opt>
     </ve-ask>
 
-    <ve-claim evidence="inferred" check="병합 뒤 www.cruzlab.dev/admin에서 관리자 Google 로그인이 된다. 안 되면 사용자가 승인 도메인에 www.cruzlab.dev를 더한다(되돌리기 쉬운 더하기).">
+    <ve-claim status="built" note="운영 로그인 됨(작업 문서 5.16)" evidence="inferred" check="병합 뒤 www.cruzlab.dev/admin에서 관리자 Google 로그인이 된다. 안 되면 사용자가 승인 도메인에 www.cruzlab.dev를 더한다(되돌리기 쉬운 더하기).">
       <p>www.cruzlab.dev 로그인은 승인 도메인 cruzlab.dev로 통한다.</p>
       <ve-code src="node_modules/.pnpm/@firebase+auth@1.11.1_@firebase+app@0.14.6/node_modules/@firebase/auth/dist/esm/index-1970027f.js" lines="10186-10191" hl="10189-10190">
         <ve-pin line="10189">오늘 읽은 승인 도메인은 localhost, cruz-lab.firebaseapp.com, cruz-lab.web.app, cruz-lab.vercel.app, cruzlab.dev, 미리보기 주소다. SDK는 <code>cruzlab.dev</code>를 하위 도메인까지 허용한다. 운영의 <code>cruzlab.dev</code>는 <code>www</code>로 307을 보낸다(오늘 확인).</ve-pin>
@@ -181,7 +185,7 @@
     </ve-claim>
   </ve-claim>
 
-  <ve-claim check="main이 rebuild를 포함한다. 운영 배포가 성공하고 x-vercel-id에 icn1 함수가 보인다. 공개 점검을 운영 주소로 돌려 0 실패.">
+  <ve-claim status="built" ref="c1d0f78" check="main이 rebuild를 포함한다. 운영 배포가 성공하고 x-vercel-id에 icn1 함수가 보인다. 공개 점검을 운영 주소로 돌려 0 실패.">
     <p>사용자가 rebuild를 main에 병합하고 운영이 새 코드로 바뀐다.</p>
     <ve-calls title="병합 (사용자 확인 지점 2개)">
 <script type="text/plain">
@@ -198,7 +202,7 @@
     </ve-ask>
   </ve-claim>
 
-  <ve-claim check="작업 문서에 재발행 첫 요청 x-vercel-cache 값, 콜드 3회 TTFB · render(기준 1.5초), readerDaily/{오늘} 생김과 관리자 방문 빠짐, 공개 스크립트 바이트가 있다. 정리 목록이 다음 작업 단위 브리프에 있다.">
+  <ve-claim status="built" note="재발행 · 로그인 · 독자 흐름 · 콜드 TTFB 3회 끝(5.15~5.17)" check="작업 문서에 재발행 첫 요청 x-vercel-cache 값, 콜드 3회 TTFB · render(기준 1.5초), readerDaily/{오늘} 생김과 관리자 방문 빠짐, 공개 스크립트 바이트가 있다. 정리 목록이 다음 작업 단위 브리프에 있다.">
     <p>병합 뒤 운영 값을 재고, 정리는 별도 작업으로 넘긴다.</p>
     <ve-calls title="병합 뒤 확인 (11.3의 4·7·8, 5단계 작업 문서 8절 9·11·12)">
 <script type="text/plain">
@@ -215,7 +219,7 @@
       <ve-opt value="next" note="측정 브리프를 문서에 남기고 새 세션">다음 작업 단위로 넘긴다</ve-opt>
     </ve-ask>
 
-    <ve-claim check="다음 작업 단위 브리프에 아래 항목이 모두 있고, 각 항목에 사용자 확인 표시가 있다.">
+    <ve-claim status="built" note="작업 문서 7절 3~5로 넘김" check="다음 작업 단위 브리프에 아래 항목이 모두 있고, 각 항목에 사용자 확인 표시가 있다.">
       <p>병합 뒤 정리는 사용자 확인 뒤 별도 작업 단위에서 한다.</p>
       <ve-calls title="병합 뒤 정리 (2단계 Plan 15절 병합 직후 5, 11.3의 12)">
 <script type="text/plain">
