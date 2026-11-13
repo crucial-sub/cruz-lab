@@ -5,6 +5,7 @@
 - 먼저 읽은 문서: [5단계 작업 문서](./2026-11-11-stage5-admin-app.md) 2.2(첫 화면·목록), [5단계 Plan](./2026-11-10-stage5-admin-app-plan.md) D10(목록·행 메뉴·빈 초안 칩), [감사 문서](./2026-11-06-blog-architecture-audit-2-problems-and-plan.md) 11.3(데이터 규칙)
 - 진행 기록: 감사 문서 11절 표, 11.14
 - 브랜치: `feat/admin-bulk-delete`(main `c1d0f78`에서 생성). 커밋 `f1ce9a0`(2026-11-13).
+- PR: [#33](https://github.com/crucial-sub/cruz-lab/pull/33)(`feat/admin-bulk-delete` → `main`, 2026-11-13). 병합은 사용자 확인 뒤. 5.8
 - iPhone 확인용: 이 커밋을 `origin/rebuild`(`eb1c635`) 위에 얹은 `d9084de`를 원격 `rebuild`로 빨리 감기 푸시했다(2026-11-13, 사용자 확인 뒤). 5.6
 
 ## 1. 현재 상황
@@ -19,7 +20,8 @@
 | 화면 확인 | 개발 서버 4341, Browser pane. 데스크톱 1024px, 휴대폰 375px(5.4) |
 | 시험 데이터 | 만들고 모두 지웠다. 끝 수는 처음과 같다(5.5) |
 | 리뷰 | 치명 0 · 중요 0 · 경미 6. 4건을 고쳤다(6절) |
-| 남은 것 | 커밋, iPhone 실기기 확인, main 대상 PR(8절). 모두 사용자 확인 뒤 |
+| PR | [#33](https://github.com/crucial-sub/cruz-lab/pull/33) 열림(2026-11-13). 열기 전 검증을 다시 돌렸다(5.8) |
+| 남은 것 | PR #33 병합(8절). 사용자 확인 뒤 |
 
 ## 2. 사용자 결정 (2026-11-12)
 
@@ -188,6 +190,21 @@
 
 사용자가 지운 초안은 사용자 데이터다. 운영 데이터 수(5.5)는 그 뒤로 바뀌었다.
 
+### 5.8 PR 열기 전 다시 검증 (2026-11-13, PR 세션)
+
+브랜치 `feat/admin-bulk-delete`(`13303f1`), Node v24.22.0. `origin/main`은 그대로 `c1d0f78`이다.
+
+| 명령 | 결과 |
+|---|---|
+| `pnpm test` | 56개 파일 955/955 |
+| `pnpm lint` | 통과 |
+| `pnpm astro sync` 뒤 `pnpm exec tsc --noEmit` | 0 |
+| `pnpm build` | 통과. 경고 2개는 전부터 있던 것이다(500 kB 넘는 청크, Vercel 어댑터의 로컬 Node 24) |
+
+그 뒤 브랜치를 원격에 올리고 PR [#33](https://github.com/crucial-sub/cruz-lab/pull/33)을 열었다. 앱의 PR 막대가 이 PR을 묶었다. 자동 병합은 꺼져 있다. GitHub 체크는 Vercel 2개뿐이다(이 저장소에 GitHub Actions CI는 없다). PR을 연 직후: "Vercel Preview Comments" 통과, "Vercel"(미리보기 배포)은 진행 중. 병합할 수 있음(`MERGEABLE`)이다. 병합 전에 Vercel 배포 결과를 다시 본다.
+
+이 세션은 운영 데이터를 읽지도 고치지도 않았다. 스모크와 화면 확인은 다시 돌리지 않았다. 코드가 5.3 · 5.4 때와 같기 때문이다(그 뒤 커밋은 문서뿐이다).
+
 ## 6. 리뷰
 
 새 하위 에이전트가 변경 파일을 읽기만 하고 리뷰했다(결정 4건은 고정으로 주었다). 치명 0 · 중요 0 · 경미 6.
@@ -228,7 +245,11 @@
 
 1. 커밋: 끝(`f1ce9a0`, 2026-11-13).
 2. iPhone 실기기 확인: 끝(2026-11-13, 5.7). 원격 `rebuild` 미리보기(`https://cruz-lab-git-rebuild-crucialsubs-projects.vercel.app`, `d9084de`)에서 했다. 새 브랜치의 미리보기 주소는 Auth 승인 도메인에 없어 Google 로그인이 안 되기 때문이다.
-3. main 대상 PR: 사용자 결정(2026-11-13)으로 새 세션에서 연다. 원본은 `feat/admin-bulk-delete`, 대상은 `main`이다. 병합은 사용자 확인 뒤에 한다. 이미지 회전 PR [#32](https://github.com/crucial-sub/cruz-lab/pull/32)(아직 열림)도 감사 문서 11절 표 끝에 줄을 더한다. 나중에 병합하는 쪽에서 표 줄 충돌을 푼다(두 줄 모두 남긴다). 절 번호는 #32가 11.13, 이 작업이 11.14다.
+3. main 대상 PR: 끝. PR [#33](https://github.com/crucial-sub/cruz-lab/pull/33)(2026-11-13, 새 세션에서 열었다. 5.8).
+4. PR #33 병합: 사용자 확인 뒤에 한다. 이미지 회전 PR [#32](https://github.com/crucial-sub/cruz-lab/pull/32)(아직 열림)와 감사 문서 2곳이 겹친다: 11절 표 끝 줄, 11.13 · 11.14 절. 코드 파일은 겹치지 않는다. 나중에 병합하는 쪽에서 충돌을 푼다.
+   1. `origin/main`을 그 브랜치에 병합한다.
+   2. 두 쪽을 모두 남긴다. 표는 이미지 회전 줄 다음에 여러 편 삭제 줄을 둔다. 절은 11.13 다음에 11.14를 둔다.
+   3. 검증(5.8의 명령)을 다시 돌린다.
 
 ## 9. 열린 질문
 
