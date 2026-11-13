@@ -3,6 +3,7 @@
 // - 오류 응답 { error: { code, message, details } }는 ApiClientError로 던진다. 네트워크 실패는 NetworkError다.
 // - 401이면 로그인 페이지로 보낸다(세션 만료). 호출하는 쪽이 redirectToLogin()을 부른다.
 
+import type { TransformOp } from '@/lib/asset-transform';
 import type { DraftInput } from '@/lib/entry-rules';
 import type { EntryKind, EntryPublished, EntryStatus } from '@/lib/entry-schema';
 import type { UploadedAsset } from '@/editor/upload/image-size';
@@ -143,6 +144,13 @@ export const adminApi = {
       confirm: id,
     }),
   logout: () => request<null>('DELETE', '/api/admin/session'),
+  // 이미지를 돌린 자산을 받는다(이미지 회전·좌우반전 작업). 에디터는 asset.url로 src를 바꾼다
+  transformAsset: (assetId: string, op: TransformOp) =>
+    request<{ asset: UploadedAsset }>(
+      'POST',
+      `/api/admin/assets/${encodeURIComponent(assetId)}/transform`,
+      { op },
+    ),
 };
 
 // 422 details([{ field, message }])를 항목별 문구로 바꾼다

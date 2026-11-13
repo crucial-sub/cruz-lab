@@ -247,6 +247,16 @@ html.light {
   height: 0.4rem;
   accent-color: var(--brand);
 }
+/* 돌리기를 기다리는 동안 그림을 CSS로 미리 돌려 보인다(ImageNodeView, transformPreviewCss).
+   transform 값은 노드 뷰가 inline으로 둔다. 미리 보기를 지울 때는 이 클래스도 빠지므로 되돌아가는 움직임이 없다 */
+.editor-image img.editor-image-transform-preview {
+  transition: transform 150ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .editor-image img.editor-image-transform-preview {
+    transition: none;
+  }
+}
 .editor-image-error {
   color: #fca5a5;
 }

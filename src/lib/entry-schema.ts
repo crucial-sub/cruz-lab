@@ -11,6 +11,7 @@ import {
   normalizeTag,
   SERIES_KEY_PATTERN,
 } from './taxonomy.ts';
+import { imageTransformSchema } from './asset-transform.ts';
 
 // Firestore Timestamp 또는 Date
 // - 읽은 문서는 Timestamp(toDate가 있음), 쓰기 전 값은 Date다.
@@ -231,6 +232,9 @@ export const assetDocSchema = z.object({
   usedBy: z.array(z.string()),
   orphanedAt: timestampSchema.nullable(),
   uploadedAt: timestampSchema,
+  // 파생 자산(이미지 회전·좌우반전): 원본 자산 ID와 원본에 적용한 변환. 원본·업로드 자산에는 없다(더하기만)
+  derivedFrom: z.string().min(1).optional(),
+  transform: imageTransformSchema.optional(),
 });
 export type AssetDoc = z.infer<typeof assetDocSchema>;
 

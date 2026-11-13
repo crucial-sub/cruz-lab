@@ -9,9 +9,14 @@
 // - 폭·정렬(5단계 D13): 이미지만 있는 단락(isSoloImageAt)에서만 켠다. legacy·외부 이미지에도 된다. 영상은 끈다.
 //   화면 표시는 단락 데코레이션(image-layout.ts)과 editor.css가 맡는다. 노드 뷰는 래퍼에 폭 CSS 변수만 둔다.
 //   데스크톱은 가장자리 손잡이를 끌어 폭을 바꾼다(10px 단위, 최대 본문 폭). 끄는 동안 화면 폭만 바꾸고 놓을 때 한 번 저장한다.
+// - 돌리기(이미지 회전·좌우반전 작업, 사용자 결정 2026-11-12): 왼쪽 90° · 오른쪽 90° · 좌우반전.
+//   서버가 돌린 새 자산을 만들고(원본은 그대로) src만 바꾼다. 새로 올린 이미지만 된다(image-transform.ts).
+//   기다리는 동안 단추를 끈다. 실패하면 메뉴에 글자로 알린다.
 
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { adminApi } from '@/editor/state/api';
+import type { TransformOp } from '@/lib/asset-transform';
 import {
   IMAGE_WIDTH_MAX,
   IMAGE_WIDTH_MIN,
@@ -29,6 +34,11 @@ import {
   soloImageStateAt,
   type SoloImageState,
 } from './image-layout';
+import {
+  imageTransformTargetOf,
+  replaceImageSrcKeepingSelection,
+  transformPreviewCss,
+} from './image-transform';
 import { commitFocusedInputIn, selectNodeWithoutFocus } from './touch-select';
 
 // 정렬 버튼. 왼쪽은 기본값(null)이다
@@ -37,6 +47,29 @@ const ALIGNS: Array<{ value: ImageAlign | null; label: string }> = [
   { value: 'center', label: '가운데' },
   { value: 'right', label: '오른쪽' },
 ];
+
+// 돌리기 버튼 (사용자 결정 2026-11-12). 기호는 화면 낭독기가 읽지 않는다
+const TRANSFORMS: Array<{ op: TransformOp; icon: string; label: string; title: string }> = [
+  { op: 'rotate-left', icon: '↺', label: '왼쪽 90°', title: '왼쪽으로 90° 돌리기' },
+  { op: 'rotate-right', icon: '↻', label: '오른쪽 90°', title: '오른쪽으로 90° 돌리기' },
+  { op: 'flip-horizontal', icon: '⇆', label: '좌우반전', title: '좌우로 뒤집기' },
+];
+
+// 이 블로그의 Storage 버킷. 이 버킷의 새 자산만 돌린다
+const STORAGE_BUCKET = String(import.meta.env.PUBLIC_FIREBASE_STORAGE_BUCKET ?? '');
+
+// 새 주소의 그림을 미리 받는다. src를 바꿀 때 빈 칸이 깜빡이지 않게 한다
+// - 실패하거나 5초가 지나도 끝낸다(그래도 src는 바꾼다).
+function preloadImage(url: string): Promise<void> {
+  return new Promise((resolve) => {
+    const image = new Image();
+    const done = () => resolve();
+    image.onload = done;
+    image.onerror = done;
+    window.setTimeout(done, 5000);
+    image.src = url;
+  });
+}
 
 
 // 입력을 반영한 방법
@@ -252,6 +285,11 @@ export function ImageNodeView({
 
   // 끄는 동안의 화면 폭. 놓으면 null로 돌아가고 노드 속성이 폭을 정한다
   const [dragWidth, setDragWidth] = useState<number | null>(null);
+  // 돌리는 중인 단추와 실패 알림
+  const [transforming, setTransforming] = useState<TransformOp | null>(null);
+  // 기다리는 동안 그림에 두는 CSS transform(미리 돌려 보이기). 저장하지 않는다
+  const [transformPreview, setTransformPreview] = useState<string | null>(null);
+  const [transformError, setTransformError] = useState<string | null>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const menuRef = useRef<HTMLSpanElement>(null);
@@ -331,6 +369,22 @@ export function ImageNodeView({
       : soloState === 'shared'
         ? '이미지만 있는 줄에서 정할 수 있습니다'
         : undefined;
+  // 돌리기: 새로 올린 이미지만. 영상·옛 이미지·외부 이미지는 끄고 이유를 보인다
+  const transformTarget = isVideo ? null : imageTransformTargetOf(src, STORAGE_BUCKET);
+  const transformAssetId = transformTarget?.kind === 'asset' ? transformTarget.assetId : null;
+  const transformDisabledReason = isVideo
+    ? '영상은 돌릴 수 없습니다'
+    : transformTarget?.kind === 'legacy'
+      ? '옛 이미지는 돌릴 수 없습니다'
+      : transformTarget?.kind === 'external'
+        ? '이 블로그에 올린 이미지만 돌릴 수 있습니다'
+        : undefined;
+
+  // 메뉴가 닫히거나 이미지가 바뀌면 실패 알림을 지운다
+  useEffect(() => {
+    setTransformError(null);
+  }, [src, showMenu]);
+
   const hasLayout = width !== null || align !== null;
   // 속성은 남아 있지만 저장하지 않는 경우의 알림
   const layoutNote = !hasLayout
@@ -396,6 +450,36 @@ export function ImageNodeView({
     commitAttributes({ width: next }, via);
   };
 
+  // 돌리기: 서버가 돌린 자산을 받아 src를 바꾼다(되돌리기 한 번, 메뉴는 열린 채)
+  // - 입력 중인 칸을 먼저 반영한다(단추가 포커스를 옮기지 않는다, 6.5).
+  // - 누르면 바로 그림을 CSS로 돌려 보인다(transformPreviewCss). 서버가 파일을 만드는 몇 초를 기다리지 않게 한다.
+  //   src를 바꿀 때 같은 렌더에서 지운다. 실패해도 지운다.
+  // - 기다리는 동안 src가 바뀌었으면(되돌리기 등) 바꾸지 않는다. 위치는 끝난 때 다시 읽는다.
+  const runTransform = async (op: TransformOp) => {
+    if (!transformAssetId || transforming) return;
+    commitPendingInput();
+    const fromSrc = src;
+    const image = imageRef.current;
+    setTransforming(op);
+    setTransformPreview(transformPreviewCss(op, image?.naturalWidth ?? 0, image?.naturalHeight ?? 0));
+    setTransformError(null);
+    try {
+      const { asset } = await adminApi.transformAsset(transformAssetId, op);
+      await preloadImage(asset.url);
+      const { editor: current, getPos: positionOf } = latestRef.current;
+      const pos = positionOf();
+      if (typeof pos !== 'number' || current.isDestroyed) return;
+      current.commands.command(({ tr }) =>
+        replaceImageSrcKeepingSelection(tr, pos, fromSrc, asset.url),
+      );
+    } catch (error) {
+      setTransformError(error instanceof Error ? error.message : '이미지를 돌리지 못했습니다.');
+    } finally {
+      setTransforming(null);
+      setTransformPreview(null);
+    }
+  };
+
   // 끌기 시작: 지금 그려진 폭과 본문 폭(편집 영역의 내용 폭)을 잰다
   const measureDrag = (): DragStart | null => {
     const image = imageRef.current;
@@ -440,7 +524,8 @@ export function ImageNodeView({
           src={src}
           alt={alt}
           title={title || undefined}
-          className="rounded-lg"
+          className={classNames('rounded-lg', transformPreview && 'editor-image-transform-preview')}
+          style={transformPreview ? { transform: transformPreview } : undefined}
           draggable={false}
         />
       )}
@@ -563,6 +648,38 @@ export function ImageNodeView({
               </button>
             ))}
           </span>
+          <span
+            className="flex items-center gap-1 text-xs text-text-secondary"
+            role="group"
+            aria-label="돌리기"
+          >
+            <span className="w-10 shrink-0">돌리기</span>
+            {TRANSFORMS.map((item) => (
+              <button
+                key={item.op}
+                type="button"
+                className="editor-chip"
+                disabled={!transformAssetId || transforming !== null}
+                aria-busy={transforming === item.op}
+                title={transformDisabledReason ?? item.title}
+                onClick={() => void runTransform(item.op)}
+              >
+                <span aria-hidden="true">{item.icon}</span>{' '}
+                {transforming === item.op ? '돌리는 중…' : item.label}
+              </button>
+            ))}
+          </span>
+          {transformError && (
+            <span className="editor-image-note" role="alert">
+              {transformError}
+            </span>
+          )}
+          {/* 돌리기를 끈 이유도 글자로 보인다(터치 기기는 title을 읽기 어렵다) */}
+          {!transformAssetId && transformDisabledReason && (
+            <span className="editor-image-note" role="note">
+              {transformDisabledReason}
+            </span>
+          )}
           {layoutNote && (
             <span className="editor-image-note" role="note">
               {layoutNote}
