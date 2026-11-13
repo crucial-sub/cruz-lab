@@ -3,12 +3,15 @@
 // - 768px 미만: 두 줄 행. 제목 / 종류 · 상태 · 독자 · 고친 때. 행 끝 ⋯
 // - 제목은 에디터 링크다(앱 안 이동). ⋯ 메뉴: 공개 페이지 보기, 독자 보기(발행한 적 있는 글, PR-D), 숨기기/다시 보이기, 삭제.
 // - 독자 열: 최근 30일 방문 수(D20, 목록 API readers30). 요약을 읽지 못했으면 "—".
+// - 여러 편 고르기(2026-11-12 여러 편 삭제 작업): 표는 맨 왼쪽에 고르는 칸이 늘 있다. 머리 칸은 보이는 글을 모두 고르거나 푼다.
+//   두 줄 행은 선택 모드(selection.mobileMode)일 때만 칸이 생긴다. 그동안 행을 누르면 고르고, 에디터 링크와 ⋯는 숨긴다.
 
 import { classNames } from '@/editor/ui/class-names';
 import type { EntryKind, EntryStatus } from '@/lib/entry-schema';
 import type { AdminListItem } from '@/lib/server/admin-entries';
 import { editPath, entryReadersPath } from '../router';
-import { formatFullDate, formatShortDate, RowMenu, type MenuItem } from '../ui';
+import { Checkbox, formatFullDate, formatShortDate, RowMenu, type MenuItem } from '../ui';
+import type { HeaderCheck } from './bulk-select';
 import { classificationOf } from './list-filter';
 
 export const KIND_LABELS: Record<EntryKind, string> = {
@@ -25,6 +28,19 @@ export const STATUS_LABELS: Record<EntryStatus, string> = {
 export interface RowActions {
   onToggleVisibility: (item: AdminListItem) => void;
   onDelete: (item: AdminListItem) => void;
+}
+
+// 여러 편 고르기 상태와 동작
+export interface RowSelection {
+  selected: ReadonlySet<string>;
+  // 머리 칸 모양(보이는 글 기준)
+  header: HeaderCheck;
+  // 두 줄 행(768px 미만)의 선택 모드
+  mobileMode: boolean;
+  // 지우는 동안 칸을 끈다
+  disabled: boolean;
+  onToggle: (id: string) => void;
+  onToggleAll: () => void;
 }
 
 function readersText(value: number | null): string {
@@ -68,15 +84,38 @@ function menuItems(item: AdminListItem, actions: RowActions): MenuItem[] {
 
 const titleText = (item: AdminListItem) => item.title || '(제목 없음)';
 
+// 두 줄 행의 둘째 줄: 종류 · 상태 · 독자 · 고친 때
+function MobileMeta({ item, now }: { item: AdminListItem; now: Date }) {
+  return (
+    <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-text-secondary">
+      <span>{KIND_LABELS[item.kind]}</span>
+      <span aria-hidden="true">·</span>
+      <span>
+        {STATUS_LABELS[item.status]}
+        {item.hasUnpublishedChanges && <span className="ml-1 text-amber-400">변경 있음</span>}
+      </span>
+      <span aria-hidden="true">·</span>
+      <span>독자 {readersText(item.readers30)}</span>
+      <span aria-hidden="true">·</span>
+      <span>{formatShortDate(item.updatedAt, now)}</span>
+    </span>
+  );
+}
+
+// 고른 행의 바탕
+const selectedRow = 'bg-emerald-500/10';
+
 export function EntryTable({
   items,
   categoryLabel,
   actions,
+  selection,
   now,
 }: {
   items: AdminListItem[];
   categoryLabel: (key: string) => string;
   actions: RowActions;
+  selection: RowSelection;
   now: Date;
 }) {
   if (items.length === 0) {
@@ -89,6 +128,17 @@ export function EntryTable({
       <table className="hidden w-full table-fixed border-collapse text-sm md:table">
         <thead>
           <tr className="border-b border-border text-left text-xs text-text-secondary">
+            <th scope="col" className="w-10 p-0 font-medium">
+              <label className="flex h-9 cursor-pointer items-center justify-center">
+                <Checkbox
+                  checked={selection.header === 'all'}
+                  indeterminate={selection.header === 'some'}
+                  disabled={selection.disabled}
+                  onChange={selection.onToggleAll}
+                />
+                <span className="sr-only">보이는 글 모두 고르기</span>
+              </label>
+            </th>
             <th scope="col" className="py-2 pr-3 font-medium">
               제목
             </th>
@@ -117,7 +167,23 @@ export function EntryTable({
         </thead>
         <tbody>
           {items.map((item) => (
-            <tr key={item.id} className="border-b border-border align-middle hover:bg-bg-surface">
+            <tr
+              key={item.id}
+              className={classNames(
+                'border-b border-border align-middle',
+                selection.selected.has(item.id) ? selectedRow : 'hover:bg-bg-surface',
+              )}
+            >
+              <td className="p-0">
+                <label className="flex min-h-10 cursor-pointer items-center justify-center">
+                  <Checkbox
+                    checked={selection.selected.has(item.id)}
+                    disabled={selection.disabled}
+                    onChange={() => selection.onToggle(item.id)}
+                  />
+                  <span className="sr-only">{titleText(item)} 고르기</span>
+                </label>
+              </td>
               <td className="py-2 pr-3">
                 <a
                   href={editPath(item.id)}
@@ -163,37 +229,50 @@ export function EntryTable({
         </tbody>
       </table>
 
-      {/* 768px 미만: 두 줄 행 */}
+      {/* 768px 미만: 두 줄 행. 선택 모드면 행 전체가 고르는 칸이다 */}
       <ul className="divide-y divide-border md:hidden">
-        {items.map((item) => (
-          <li key={item.id} className="flex items-center gap-2 py-2.5">
-            <a href={editPath(item.id)} className="min-w-0 flex-1 text-text-primary">
-              <span
-                className={classNames(
-                  'block truncate font-medium',
-                  !item.title && 'text-text-secondary',
-                )}
-              >
-                {titleText(item)}
-              </span>
-              <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-text-secondary">
-                <span>{KIND_LABELS[item.kind]}</span>
-                <span aria-hidden="true">·</span>
-                <span>
-                  {STATUS_LABELS[item.status]}
-                  {item.hasUnpublishedChanges && (
-                    <span className="ml-1 text-amber-400">변경 있음</span>
+        {items.map((item) =>
+          selection.mobileMode ? (
+            <li
+              key={item.id}
+              className={classNames(selection.selected.has(item.id) && selectedRow)}
+            >
+              {/* 칸 | 제목 / 둘째 줄. 제목 글자를 label 바로 아래에 둔다(칸의 이름이 된다) */}
+              <label className="grid cursor-pointer grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 py-2.5 pl-1">
+                <Checkbox
+                  checked={selection.selected.has(item.id)}
+                  disabled={selection.disabled}
+                  className="row-span-2 size-5"
+                  onChange={() => selection.onToggle(item.id)}
+                />
+                <span
+                  className={classNames(
+                    'block truncate font-medium text-text-primary',
+                    !item.title && 'text-text-secondary',
                   )}
+                >
+                  {titleText(item)}
                 </span>
-                <span aria-hidden="true">·</span>
-                <span>독자 {readersText(item.readers30)}</span>
-                <span aria-hidden="true">·</span>
-                <span>{formatShortDate(item.updatedAt, now)}</span>
-              </span>
-            </a>
-            <RowMenu label={`${titleText(item)} 메뉴`} items={menuItems(item, actions)} />
-          </li>
-        ))}
+                <MobileMeta item={item} now={now} />
+              </label>
+            </li>
+          ) : (
+            <li key={item.id} className="flex items-center gap-2 py-2.5">
+              <a href={editPath(item.id)} className="min-w-0 flex-1 text-text-primary">
+                <span
+                  className={classNames(
+                    'block truncate font-medium',
+                    !item.title && 'text-text-secondary',
+                  )}
+                >
+                  {titleText(item)}
+                </span>
+                <MobileMeta item={item} now={now} />
+              </a>
+              <RowMenu label={`${titleText(item)} 메뉴`} items={menuItems(item, actions)} />
+            </li>
+          ),
+        )}
       </ul>
     </>
   );
