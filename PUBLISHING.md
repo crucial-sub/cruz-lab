@@ -3,7 +3,7 @@
 글을 쓰고 출간하는 순서다. 출간은 관리자 앱(`/admin`)에서 한다.
 
 - 글 원본: Firestore `entries`. 공개 페이지는 `status == 'published'` 글의 발행본만 읽는다.
-- 설계: [재건 2단계 Plan](./docs/blog-rebuilding/2026-11-07-stage2-data-model-and-server-plan.md)(데이터 · API), [3단계 Plan](./docs/blog-rebuilding/2026-11-08-stage3-editor-plan.md)(에디터), [5단계 Plan](./docs/blog-rebuilding/2026-11-10-stage5-admin-app-plan.md)(관리자 앱).
+- 설계: 재건 2단계 Plan(데이터 · API), 3단계 Plan(에디터), 5단계 Plan(관리자 앱). 이 문서들은 비공개 개발 문서 저장소에 있다.
 
 ## 로그인
 
