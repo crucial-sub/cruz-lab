@@ -17,7 +17,7 @@ import { findPublicRedirect } from '@/lib/redirects';
 import { errorResponse } from '@/lib/server/api-response';
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionCookie, type AdminSession } from '@/lib/server/admin-session';
 import { isLibraryEnabled, resolveLibraryRoute } from '@/library/host';
-import { libraryOffResponse, rawNotFoundResponse } from '@/library/server/raw';
+import { createRawDeps, handleRawRequest, libraryOffResponse, rawMisconfiguredResponse, type RawDeps } from '@/library/server/raw';
 import { verifyBearerToken } from '@/library/ticket';
 
 // 관리자 페이지 응답은 어디에도 저장하지 않는다
@@ -46,8 +46,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
     enabled: isLibraryEnabled(import.meta.env.LIBRARY_ENABLED),
     docHost: import.meta.env.LIBRARY_DOC_HOST,
   });
-  // 문서 출처: 지금은 모든 경로가 J5의 같은 404다. 입장권·문서 쿠키·파일 응답은 서가 1단계 T5가 더한다
-  if (libraryRoute === 'raw') return rawNotFoundResponse();
+  if (libraryRoute === 'raw') {
+    let deps: RawDeps;
+    try {
+      deps = createRawDeps(context.url);
+    } catch (error) {
+      console.error('[middleware] 문서 출처 설정 오류', error);
+      return rawMisconfiguredResponse();
+    }
+    return handleRawRequest(context.request, deps);
+  }
   if (libraryRoute === 'not-found') return libraryOffResponse();
   if (libraryRoute === 'token') {
     if (!verifyBearerToken(context.request.headers.get('authorization'), import.meta.env.LIBRARY_TOKEN_SHA256)) {

@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { isTimestampLike, toDateValue, type TimestampLike } from '@/lib/entry-schema';
 import { ApiError, zodIssues } from '@/lib/server/api-response';
 import { getServerDb, getServerStorage } from '@/lib/server/firebase-server';
+import { invalidateMemo } from '@/lib/server/memo-cache';
 import type { DocFormat } from '../rules';
 
 export const LIBRARY_COLLECTION = 'library_docs';
@@ -109,6 +110,15 @@ export function revisionPrefix(docId: string, rev: number): string {
 
 export function objectPath(docId: string, rev: number, path: string): string {
   return `${revisionPrefix(docId, rev)}${path}`;
+}
+
+// 문서 출처가 읽는 판 정보의 메모리 캐시 키 (raw.ts). 마무리·내리기 뒤 바로 비운다
+export function rawStateKey(docId: string): string {
+  return `library:raw:${docId}`;
+}
+
+export function invalidateRawState(docId: string): void {
+  invalidateMemo(rawStateKey(docId));
 }
 
 // ---------- 응답 꼴 ----------
@@ -212,6 +222,7 @@ export async function removeLibraryDoc(docId: string): Promise<boolean> {
   if (!snapshot.exists) return false;
   const revisions = await ref.collection(REVISIONS_SUBCOLLECTION).listDocuments();
   await ref.delete();
+  invalidateRawState(docId);
   const db = getServerDb();
   for (let i = 0; i < revisions.length; i += 400) {
     const batch = db.batch();

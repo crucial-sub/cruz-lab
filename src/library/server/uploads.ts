@@ -20,6 +20,7 @@ import { docIdForKey } from '../ticket';
 import {
   deleteRevisionFiles,
   getLibraryBucket,
+  invalidateRawState,
   libraryDocRef,
   libraryDocSchema,
   objectPath,
@@ -220,6 +221,8 @@ export async function finalizeUpload(input: { docId: string; rev: number }, site
     }
     return decision;
   });
+
+  if (plan.activate) invalidateRawState(docId);
 
   // 앞 판(또는 늦게 끝난 옛 판)의 파일과 기록을 지운다 (J9: 새 판이 준비된 뒤)
   if (plan.retire !== null) {
