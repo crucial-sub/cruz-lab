@@ -9,6 +9,8 @@ import {
   docKeyFromSourcePath,
   docKeyFromWebPath,
   extractTitle,
+  identifyUpload,
+  planRevisionSwitch,
   normalizeDocPath,
   projectFromSourcePath,
   titleFromHtml,
@@ -239,5 +241,62 @@ describe('자동 분류 (J13)', () => {
 
   it('extractTitle: 제목은 200자로 자른다', () => {
     expect(extractTitle({ format: 'md', text: `# ${'가'.repeat(300)}`, fileName: 'a.md' })).toHaveLength(200);
+  });
+});
+
+describe('identifyUpload: 입구가 준 원본 정보 → 키·프로젝트·날짜', () => {
+  it('맥 입구는 ~ 경로를 받는다', () => {
+    expect(
+      identifyUpload({ kind: 'mac', sourcePath: '~/projects/beer-pour/docs/2026-10-21-log.html', fileName: '2026-10-21-log.html' }),
+    ).toEqual({
+      key: 'mac:~/projects/beer-pour/docs/2026-10-21-log',
+      sourcePath: '~/projects/beer-pour/docs/2026-10-21-log.html',
+      project: 'beer-pour',
+      docDate: '2026-10-21',
+    });
+  });
+
+  it('맥 입구: ~ 로 시작하지 않거나 .. 가 든 경로는 null', () => {
+    expect(identifyUpload({ kind: 'mac', sourcePath: '/Users/a/x.md', fileName: 'x.md' })).toBeNull();
+    expect(identifyUpload({ kind: 'mac', sourcePath: '~/a/../b.md', fileName: 'b.md' })).toBeNull();
+    expect(identifyUpload({ kind: 'mac', sourcePath: '~', fileName: 'x.md' })).toBeNull();
+  });
+
+  it('서가 화면은 프로젝트와 올린 상대 경로를 받는다', () => {
+    expect(identifyUpload({ kind: 'web', project: 'desktop', relativePath: 'beer-pour-mood', fileName: 'index.html' })).toEqual({
+      key: 'web:desktop/beer-pour-mood',
+      sourcePath: null,
+      project: 'desktop',
+      docDate: null,
+    });
+    expect(identifyUpload({ kind: 'web', project: 'cruz-lab', relativePath: '2026-11-16-x.md', fileName: '2026-11-16-x.md' })?.docDate).toBe(
+      '2026-11-16',
+    );
+  });
+
+  it('서가 화면: 나쁜 프로젝트 이름이나 경로는 null', () => {
+    expect(identifyUpload({ kind: 'web', project: '', relativePath: 'a.md', fileName: 'a.md' })).toBeNull();
+    expect(identifyUpload({ kind: 'web', project: 'a/b', relativePath: 'a.md', fileName: 'a.md' })).toBeNull();
+    expect(identifyUpload({ kind: 'web', project: 'desktop', relativePath: '../a.md', fileName: 'a.md' })).toBeNull();
+  });
+});
+
+describe('planRevisionSwitch: 새 판을 쓸지, 어느 판을 지울지 (J9)', () => {
+  it('지금 판이 없거나 더 오래되면 새 판을 쓰고 앞 판을 지운다', () => {
+    expect(planRevisionSwitch(null, 1)).toEqual({ activate: true, retire: null });
+    expect(planRevisionSwitch(3, 5)).toEqual({ activate: true, retire: 3 });
+  });
+
+  it('늦게 끝난 옛 판은 쓰지 않고 그 판을 지운다', () => {
+    expect(planRevisionSwitch(5, 4)).toEqual({ activate: false, retire: 4 });
+    expect(planRevisionSwitch(5, 5)).toEqual({ activate: false, retire: null });
+  });
+});
+
+describe('identifyUpload: 숨은 폴더 아래 원본', () => {
+  it('워크트리(.claude) 아래 문서도 받는다', () => {
+    expect(
+      identifyUpload({ kind: 'mac', sourcePath: '~/projects/cruz-lab/.claude/worktrees/w/docs/a.md', fileName: 'a.md' })?.project,
+    ).toBe('cruz-lab');
   });
 });

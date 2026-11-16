@@ -317,3 +317,59 @@ export function extractTitle(input: { format: DocFormat; text: string; fileName:
   const fallback = name.replace(/\.[^.]+$/, '') || name;
   return Array.from((found ?? fallback).normalize('NFC')).slice(0, MAX_TITLE_LENGTH).join('');
 }
+
+// ---------- 입구가 준 원본 정보 ----------
+
+// 맥 입구(명령·Raycast): 원본 경로를 ~/… 로 준다(서버는 맥의 홈 경로를 모른다)
+// 서가 화면: 프로젝트와 올린 상대 경로를 준다(브라우저는 원본의 전체 경로를 모른다)
+export type UploadSource =
+  | { kind: 'mac'; sourcePath: string; fileName: string }
+  | { kind: 'web'; project: string; relativePath: string; fileName: string };
+
+export interface UploadIdentity {
+  key: string;
+  sourcePath: string | null;
+  project: string;
+  docDate: string | null;
+}
+
+// 프로젝트 이름: 영문·숫자·한글·-·_·. 1~64자 (경로 구분자 없음)
+const PROJECT_NAME = /^[\p{L}\p{N}_.-]{1,64}$/u;
+
+// 맥 원본 경로 검사: ~/ 로 시작하고, 빈 칸·./.. 조각과 제어 문자가 없다
+// - 숨은 폴더(~/projects/x/.claude/worktrees/…)는 받는다. 키로만 쓰고 파일 경로로 쓰지 않는다
+function isSafeMacPath(sourcePath: string): boolean {
+  if (!sourcePath.startsWith('~/') || sourcePath.length > 1024 || CONTROL_CHARS.test(sourcePath)) return false;
+  return sourcePath
+    .slice(2)
+    .split('/')
+    .every((segment) => segment !== '' && segment !== '.' && segment !== '..');
+}
+
+// 원본 정보를 검사하고 같은 문서 키·프로젝트·날짜를 정한다. 틀리면 null
+export function identifyUpload(source: UploadSource): UploadIdentity | null {
+  const docDate = docDateFromName(source.fileName);
+  if (source.kind === 'mac') {
+    const sourcePath = source.sourcePath.normalize('NFC').replace(/\/+$/, '');
+    if (!isSafeMacPath(sourcePath)) return null;
+    return {
+      key: docKeyFromSourcePath(sourcePath, ''),
+      sourcePath,
+      project: projectFromSourcePath(sourcePath, ''),
+      docDate,
+    };
+  }
+  const project = source.project.normalize('NFC');
+  const relativePath = source.relativePath.normalize('NFC').replace(/\/+$/, '');
+  if (!PROJECT_NAME.test(project) || project === '.' || project === '..') return null;
+  if (!normalizeDocPath(relativePath)) return null;
+  return { key: docKeyFromWebPath(project, relativePath), sourcePath: null, project, docDate };
+}
+
+// 새 판을 마무리할 때: 그 판을 쓸지, 어느 판의 파일을 지울지 (J9)
+// - 지금 판이 없거나 새 판이 더 새것이면 새 판을 쓰고 앞 판을 지운다.
+// - 늦게 끝난 옛 판이면 쓰지 않고 그 판을 지운다. 같은 판이면 아무것도 하지 않는다.
+export function planRevisionSwitch(current: number | null, incoming: number): { activate: boolean; retire: number | null } {
+  if (current === null || incoming > current) return { activate: true, retire: current };
+  return { activate: false, retire: incoming === current ? null : incoming };
+}

@@ -68,3 +68,8 @@ export function getStorageBucketName(): string {
 export function getServerBucket() {
   return getStorage(getServerApp()).bucket(getStorageBucketName());
 }
+
+// Storage 서비스 (기본 버킷이 아닌 버킷을 열 때. 문서 서가의 비공개 버킷, 서가 1단계 L4)
+export function getServerStorage() {
+  return getStorage(getServerApp());
+}

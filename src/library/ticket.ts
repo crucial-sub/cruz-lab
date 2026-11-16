@@ -1,11 +1,11 @@
-// 입장권·문서 쿠키 값의 서명과 검증 (서가 1단계 T3, Plan J4·J5)
+// 입장권·문서 쿠키 값의 서명과 검증, 서가 토큰 확인, 문서 id 만들기 (서가 1단계 T3·T4, Plan J4·J5·J16)
 // - 입장권: 서가 화면이 만든다. 1분. 문서 출처의 /_open?t= 로 한 번 건넌다.
 // - 문서 쿠키: 문서 출처가 입장권을 확인하고 준다. 12시간. Path=/{문서 id}/ 라서 그 문서에만 실린다.
 // - 값의 꼴: {문서 id}.{만료 초}.{서명}. 서명 = HMAC-SHA256(비밀값, "{용도}|v1|{문서 id}|{만료 초}")
 //   용도(ticket / cookie)를 서명에 넣어 입장권을 쿠키로, 쿠키를 입장권으로 쓰지 못하게 한다.
 // - 서버(Node)에서만 쓴다(node:crypto). 저장소·네트워크 I/O는 없다.
 
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 
 export const TICKET_TTL_SEC = 60;
 export const DOC_COOKIE_TTL_SEC = 12 * 60 * 60;
@@ -92,4 +92,28 @@ export function readCookieValues(header: string | null | undefined, name: string
     if (part.slice(0, eq).trim() === name) values.push(part.slice(eq + 1).trim());
   }
   return values;
+}
+
+// 글자의 SHA-256 (소문자 16진수)
+export function sha256Hex(text: string): string {
+  return createHash('sha256').update(text).digest('hex');
+}
+
+// 서가 토큰 확인 (J16)
+// - Authorization: Bearer <토큰>. 서버는 토큰의 SHA-256만 안다(LIBRARY_TOKEN_SHA256).
+// - 설정이 없거나 꼴이 틀리면 늘 거짓이다.
+export function verifyBearerToken(authorization: string | null | undefined, expectedSha256: string | null | undefined): boolean {
+  if (!authorization || !expectedSha256 || !/^[0-9a-fA-F]{64}$/.test(expectedSha256)) return false;
+  const match = authorization.match(/^Bearer\s+(\S+)$/i);
+  if (!match) return false;
+  const got = Buffer.from(sha256Hex(match[1]), 'hex');
+  const want = Buffer.from(expectedSha256.toLowerCase(), 'hex');
+  return got.length === want.length && timingSafeEqual(got, want);
+}
+
+// 같은 문서 키 → 문서 id: 키의 SHA-256 앞 20자 (J8)
+// - 같은 키는 늘 같은 id다. 다시 올려도 문서 출처 경로가 같다(J4).
+// - 키에 든 맥 경로(사용자 이름 등)가 주소에 드러나지 않는다.
+export function docIdForKey(key: string): string {
+  return sha256Hex(key.normalize('NFC')).slice(0, 20);
 }

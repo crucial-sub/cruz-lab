@@ -7,6 +7,9 @@ import {
   assertSecret,
   createDocCookie,
   createTicket,
+  docIdForKey,
+  sha256Hex,
+  verifyBearerToken,
   docCookieHeader,
   isDocId,
   readCookieValues,
@@ -104,5 +107,34 @@ describe('readCookieValues', () => {
     expect(readCookieValues(`a=1; ${DOC_COOKIE_NAME}=x; b=2; ${DOC_COOKIE_NAME}=y`, DOC_COOKIE_NAME)).toEqual(['x', 'y']);
     expect(readCookieValues(null, DOC_COOKIE_NAME)).toEqual([]);
     expect(readCookieValues('cruz_doc_other=1', DOC_COOKIE_NAME)).toEqual([]);
+  });
+});
+
+describe('verifyBearerToken: 서가 토큰 (J16)', () => {
+  const token = 'lib_' + 'x'.repeat(40);
+  const sha = sha256Hex(token);
+
+  it('Bearer 토큰의 SHA-256이 설정값과 같으면 참', () => {
+    expect(verifyBearerToken(`Bearer ${token}`, sha)).toBe(true);
+    expect(verifyBearerToken(`bearer ${token}`, sha.toUpperCase())).toBe(true);
+  });
+
+  it('없거나 틀리거나 설정이 비면 거짓', () => {
+    expect(verifyBearerToken(null, sha)).toBe(false);
+    expect(verifyBearerToken(token, sha)).toBe(false);
+    expect(verifyBearerToken(`Bearer ${token}x`, sha)).toBe(false);
+    expect(verifyBearerToken(`Bearer ${token}`, undefined)).toBe(false);
+    expect(verifyBearerToken(`Bearer ${token}`, 'short')).toBe(false);
+    expect(verifyBearerToken('Bearer ', sha256Hex(''))).toBe(false);
+  });
+});
+
+describe('docIdForKey: 같은 문서 키 → 문서 id', () => {
+  it('키가 같으면 id가 같고, 20자 소문자 16진수다', () => {
+    const a = docIdForKey('mac:~/Desktop/docs/x');
+    expect(a).toBe(docIdForKey('mac:~/Desktop/docs/x'));
+    expect(a).toMatch(/^[0-9a-f]{20}$/);
+    expect(isDocId(a)).toBe(true);
+    expect(docIdForKey('mac:~/Desktop/docs/y')).not.toBe(a);
   });
 });

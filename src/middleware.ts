@@ -5,12 +5,20 @@
 //   페이지는 /admin/login?next=…로 302, API는 401 JSON.
 // - 관리자 API의 쓰기 요청은 Origin이 요청 주소의 origin과 같아야 한다. 다르면 403.
 // - prerender 페이지는 미들웨어를 거치지 않는다. 관리자 페이지는 모두 SSR이다.
+// - 문서 서가(서가 1단계 Plan 5.1): 맨 앞에서 분기 셋을 본다.
+//   1) 요청 호스트가 문서 출처(LIBRARY_DOC_HOST)면 문서 출처 처리기로만 보낸다. 관리자 쿠키를 읽지 않는다.
+//   2) /api/library/token/**은 서가 토큰(Authorization: Bearer)만 확인한다. 쿠키를 보지 않는다.
+//   3) LIBRARY_ENABLED가 거짓이면 서가 경로와 문서 출처는 모두 404다.
+//   그 밖의 서가 경로(/admin/library/**, /api/admin/library/**)는 아래 관리자 검사를 그대로 거친다.
 
 import { defineMiddleware } from 'astro:middleware';
 import { buildLoginRedirect, isSameOrigin, isWriteMethod, resolveAdminRequestKind } from '@/lib/admin-guard';
 import { findPublicRedirect } from '@/lib/redirects';
 import { errorResponse } from '@/lib/server/api-response';
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionCookie, type AdminSession } from '@/lib/server/admin-session';
+import { isLibraryEnabled, resolveLibraryRoute } from '@/library/host';
+import { libraryOffResponse, rawNotFoundResponse } from '@/library/server/raw';
+import { verifyBearerToken } from '@/library/ticket';
 
 // 관리자 페이지 응답은 어디에도 저장하지 않는다
 const ADMIN_PAGE_CACHE_CONTROL = 'private, no-store';
@@ -29,6 +37,26 @@ function withNoStore(response: Response): Response {
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname, search } = context.url;
+
+  // 문서 서가 분기 셋 (블로그 요청은 'pass'로 아래를 그대로 탄다)
+  const libraryRoute = resolveLibraryRoute({
+    host: context.url.host,
+    pathname,
+    routePattern: context.routePattern,
+    enabled: isLibraryEnabled(import.meta.env.LIBRARY_ENABLED),
+    docHost: import.meta.env.LIBRARY_DOC_HOST,
+  });
+  // 문서 출처: 지금은 모든 경로가 J5의 같은 404다. 입장권·문서 쿠키·파일 응답은 서가 1단계 T5가 더한다
+  if (libraryRoute === 'raw') return rawNotFoundResponse();
+  if (libraryRoute === 'not-found') return libraryOffResponse();
+  if (libraryRoute === 'token') {
+    if (!verifyBearerToken(context.request.headers.get('authorization'), import.meta.env.LIBRARY_TOKEN_SHA256)) {
+      return errorResponse(401, 'UNAUTHENTICATED', '서가 토큰이 필요합니다.');
+    }
+    context.locals.libraryToken = true;
+    return next();
+  }
+
   const kind = resolveAdminRequestKind({
     pathname,
     routePattern: context.routePattern,

@@ -44,3 +44,36 @@ export function isLibraryTokenPath(pathname: string): boolean {
 export function isLibraryEnabled(value: string | boolean | undefined | null): boolean {
   return value === true || value === 'true' || value === '1';
 }
+
+// 미들웨어 분기 셋 (Plan 5.1)
+// - raw: 문서 출처 호스트. 경로와 상관없이 문서 출처 처리기로만 보낸다(블로그 페이지를 열지 않는다)
+// - not-found: 서가가 꺼져 있거나(LIBRARY_ENABLED) 없는 서가 경로
+// - token: 서가 토큰 경로(/api/library/token/**). 쿠키를 보지 않고 Bearer 토큰만 확인한다
+// - pass: 서가와 상관없거나, 기존 관리자 검사(/admin/**, /api/admin/**)로 넘길 서가 경로
+// 경로 우회 방지: 실행할 라우트(routePattern)와 디코딩한 경로를 함께 본다.
+// 디코딩할 수 없는 경로는 pass로 넘긴다(기존 미들웨어가 400으로 거부한다).
+export type LibraryRoute = 'raw' | 'not-found' | 'token' | 'pass';
+
+export function resolveLibraryRoute(input: {
+  host: string | null | undefined;
+  pathname: string;
+  routePattern: string | undefined;
+  enabled: boolean;
+  docHost: string | null | undefined;
+}): LibraryRoute {
+  if (isDocHost(input.host, input.docHost)) return input.enabled ? 'raw' : 'not-found';
+
+  let decoded: string;
+  try {
+    decoded = decodeURI(input.pathname);
+  } catch {
+    return 'pass';
+  }
+  const candidates = [decoded, input.routePattern].filter((path): path is string => Boolean(path));
+  if (!candidates.some(isLibraryPath)) return 'pass';
+  if (!input.enabled) return 'not-found';
+  if (candidates.some(isLibraryTokenPath)) return 'token';
+  // /api/library/** 에는 토큰 경로만 있다
+  if (candidates.some((path) => path === '/api/library' || path.startsWith('/api/library/'))) return 'not-found';
+  return 'pass';
+}
