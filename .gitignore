@@ -29,8 +29,9 @@ pnpm-debug.log*
 # etc
 .playwright-mcp/
 .claude/
-# 개발 문서는 비공개 저장소(cruz-lab-docs)에 둔다. 이 저장소는 추적하지 않는다.
-docs/
+# 개발 문서는 비공개 저장소(cruz-lab-docs)에 둔다. 이 저장소는 맨 위 docs/를 추적하지 않는다.
+# 맨 앞 /가 있어야 src/pages/api/**/docs/ 같은 코드 폴더가 무시되지 않는다.
+/docs/
 .serena/
 
 # 서비스 계정 키
