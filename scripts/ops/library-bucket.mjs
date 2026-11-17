@@ -15,13 +15,15 @@ import { initAdmin, parseArgs } from '../migrate/lib/admin.mjs';
 
 // 서가 버킷 CORS: 서명 PUT, 블로그 출처와 개발 서버만
 // - 4341·4342: 서가 작업 워크트리의 개발 서버 포트(4341을 다른 서버가 쓰면 4342에 뜬다)
-// - 미리보기: feat/library-stage1 브랜치의 Vercel 미리보기 주소
+// - 미리보기: feat/library-stage1 브랜치의 Vercel 미리보기 주소와 그 브랜치에 붙인 preview.cruzlab.dev
+//   (문서 출처 raw-preview.cruzlab.dev와 운영처럼 같은 사이트로 시험한다. 사용자 결정 2026-11-18)
 export const LIBRARY_CORS = [
   {
     origin: [
       'http://localhost:4341',
       'http://localhost:4342',
       'https://cruz-lab-git-feat-library-stage1-crucialsubs-projects.vercel.app',
+      'https://preview.cruzlab.dev',
       'https://www.cruzlab.dev',
     ],
     method: ['PUT'],
