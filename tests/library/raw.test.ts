@@ -199,4 +199,14 @@ describe('/d/{문서 id}/{파일}: 문서 쿠키로 연다 (J4·J5)', () => {
     const res = await handleRawRequest(req('/x'), deps());
     expect(await res.text()).toContain('href="https://www.cruzlab.dev/admin/library"');
   });
+
+  // 배포 환경의 Astro는 미들웨어가 돌려준 404를 사이트 404 화면(/404.html)으로 바꿔 그린다.
+  // X-Astro-Reroute: no가 있어야 J5 화면이 그대로 나간다(2026-11-18 미리보기에서 발견).
+  it('J5 404에는 Astro가 404 화면으로 바꾸지 않게 하는 표시가 있다', async () => {
+    for (const path of ['/x', '/d/_open', `/d/${DOC}/index.html`]) {
+      const res = await handleRawRequest(req(path), deps());
+      expect(res.status).toBe(404);
+      expect(res.headers.get('X-Astro-Reroute')).toBe('no');
+    }
+  });
 });

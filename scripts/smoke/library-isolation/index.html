@@ -32,10 +32,13 @@
 </table>
 <pre id="isolation-results"></pre>
 <script>
-  // 블로그 출처: 문서 출처 호스트에서 'raw.'를 바꾼다
-  // - raw.cruzlab.dev → www.cruzlab.dev, raw.localhost:4321 → localhost:4321
+  // 블로그 출처: 문서 출처 호스트 이름에서 블로그 호스트를 구한다
+  // - 운영: raw.cruzlab.dev → www.cruzlab.dev
+  // - 미리보기: raw-preview.cruzlab.dev → preview.cruzlab.dev ('raw-'를 뗀다)
+  // - 개발: raw.localhost:4321 → localhost:4321
   function siteOrigin() {
     const host = location.host;
+    if (host.startsWith('raw-')) return `${location.protocol}//${host.slice(4)}`;
     if (!host.startsWith('raw.')) return location.origin;
     const rest = host.slice(4);
     const name = rest.replace(/:\d+$/, '');

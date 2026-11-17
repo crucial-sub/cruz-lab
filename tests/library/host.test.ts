@@ -1,6 +1,7 @@
 // 문서 출처 호스트·서가 경로 판정 테스트 (서가 1단계 T3, Plan 5.1 미들웨어 분기)
 import { describe, expect, it } from 'vitest';
 import {
+  blogOriginForDocHost,
   docOriginFor,
   isDocHost,
   isLibraryEnabled,
@@ -133,6 +134,35 @@ describe('docOriginFor: 서가 문서 주소가 보낼 문서 출처 (J7)', () =
     expect(docOriginFor('raw.cruzlab.dev/evil', 'https:', false)).toBeNull();
     expect(docOriginFor('https://raw.cruzlab.dev', 'https:', false)).toBeNull();
     expect(docOriginFor('evil.com@raw.cruzlab.dev', 'https:', false)).toBeNull();
+  });
+});
+
+describe('blogOriginForDocHost: 문서 출처 404 화면의 "서가에서 다시 열기"가 갈 블로그 출처 (J5)', () => {
+  const SITE = 'https://www.cruzlab.dev';
+
+  it('운영 문서 출처(raw.)는 사이트 주소다', () => {
+    expect(blogOriginForDocHost('raw.cruzlab.dev', { dev: false, protocol: 'https:', site: SITE })).toBe(SITE);
+    expect(blogOriginForDocHost('raw.cruzlab.dev', { dev: false, protocol: 'https:', site: `${SITE}/` })).toBe(SITE);
+  });
+
+  it('미리보기 문서 출처(raw-)는 raw-를 뗀 https 주소다', () => {
+    expect(blogOriginForDocHost('raw-preview.cruzlab.dev', { dev: false, protocol: 'https:', site: SITE })).toBe(
+      'https://preview.cruzlab.dev',
+    );
+    expect(blogOriginForDocHost('Raw-Preview.CruzLab.dev', { dev: false, protocol: 'http:', site: SITE })).toBe(
+      'https://preview.cruzlab.dev',
+    );
+  });
+
+  it('개발은 raw.를 떼고 요청 프로토콜과 포트를 지킨다', () => {
+    expect(blogOriginForDocHost('raw.localhost:4341', { dev: true, protocol: 'http:', site: SITE })).toBe(
+      'http://localhost:4341',
+    );
+  });
+
+  it('raw- 뒤가 호스트 꼴이 아니면 사이트 주소다', () => {
+    expect(blogOriginForDocHost('raw-.cruzlab.dev', { dev: false, protocol: 'https:', site: SITE })).toBe(SITE);
+    expect(blogOriginForDocHost('raw-evil.com@x', { dev: false, protocol: 'https:', site: SITE })).toBe(SITE);
   });
 });
 

@@ -10,7 +10,7 @@
 
 import { Readable } from 'node:stream';
 import { memoize } from '@/lib/server/memo-cache';
-import { RAW_PATH_PREFIX, rawDocPath } from '../host';
+import { RAW_PATH_PREFIX, blogOriginForDocHost, rawDocPath } from '../host';
 import { normalizeDocPath } from '../rules';
 import {
   DOC_COOKIE_NAME,
@@ -72,7 +72,14 @@ export function rawNotFoundResponse(siteOrigin: string): Response {
 <body><h1>문서를 열 수 없습니다</h1><p>주소가 틀렸거나 열람 시간이 끝났습니다.</p><a href="${home}">서가에서 다시 열기</a></body></html>`;
   return new Response(body, {
     status: 404,
-    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, no-store', ...SECURITY_HEADERS },
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'private, no-store',
+      ...SECURITY_HEADERS,
+      // 배포 환경의 Astro는 미들웨어가 돌려준 404를 사이트 404 화면(/404.html)으로 바꿔 그린다.
+      // 이 표시가 있으면 그대로 보낸다(Astro가 엔드포인트 응답에 붙이는 것과 같은 표시. Astro가 보내기 전에 지운다).
+      'X-Astro-Reroute': 'no',
+    },
   });
 }
 
@@ -206,12 +213,16 @@ async function loadRawDocState(docId: string): Promise<RawDocState | null> {
   return state.html || state.md ? state : null;
 }
 
-// 문서 출처 요청의 블로그 출처
+// 문서 출처 요청의 블로그 출처 (규칙은 host.ts의 blogOriginForDocHost)
 // - 운영: astro.config의 site(https://www.cruzlab.dev)
-// - 개발: 문서 출처 호스트에서 'raw.'를 뗀 주소(raw.localhost:4321 → localhost:4321)
+// - 미리보기: raw-preview.cruzlab.dev → https://preview.cruzlab.dev
+// - 개발: raw.localhost:4321 → http://localhost:4321
 export function siteOriginForRaw(requestUrl: URL): string {
-  if (import.meta.env.DEV) return `${requestUrl.protocol}//${requestUrl.host.replace(/^raw\./, '')}`;
-  return String(import.meta.env.SITE ?? '').replace(/\/$/, '');
+  return blogOriginForDocHost(requestUrl.host, {
+    dev: Boolean(import.meta.env.DEV),
+    protocol: requestUrl.protocol,
+    site: String(import.meta.env.SITE ?? ''),
+  });
 }
 
 // 운영 의존성을 만든다. 비밀값이 없으면 던진다
