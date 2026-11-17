@@ -1,4 +1,5 @@
 // 문서 출처 처리기 테스트 (서가 1단계 T5, Plan J4·J5·J9·J11·J12)
+// - 문서 출처 주소는 /d/ 아래다(사용자 결정 2026-11-17: Vercel이 라우트 없는 경로를 함수로 보내지 않는다)
 // - 저장소 접근은 가짜 의존성으로 바꾼다. 처리기의 판정(입장권, 쿠키, 경로, 머리)만 본다.
 import { describe, expect, it } from 'vitest';
 import { handleRawRequest, type RawDeps, type RawDocState } from '@/library/server/raw';
@@ -52,14 +53,14 @@ const req = (path: string, init: RequestInit & { cookie?: string } = {}) => {
 };
 const cookieFor = (id = DOC, now = NOW) => `${DOC_COOKIE_NAME}=${createDocCookie(id, now, SECRET)}`;
 
-describe('/_open: 입장권 → 문서 쿠키 → 302 (J4)', () => {
+describe('/d/_open: 입장권 → 문서 쿠키 → 302 (J4)', () => {
   it('맞는 입장권이면 문서 경로에만 묶인 쿠키를 주고 index.html로 보낸다', async () => {
-    const res = await handleRawRequest(req(`/_open?t=${createTicket(DOC, NOW, SECRET)}`), deps());
+    const res = await handleRawRequest(req(`/d/_open?t=${createTicket(DOC, NOW, SECRET)}`), deps());
     expect(res.status).toBe(302);
-    expect(res.headers.get('location')).toBe(`/${DOC}/index.html`);
+    expect(res.headers.get('location')).toBe(`/d/${DOC}/index.html`);
     const setCookie = res.headers.get('set-cookie') ?? '';
     expect(setCookie).toContain(`${DOC_COOKIE_NAME}=`);
-    expect(setCookie).toContain(`Path=/${DOC}/`);
+    expect(setCookie).toContain(`Path=/d/${DOC}/`);
     expect(setCookie).toContain('HttpOnly');
     expect(setCookie).toContain('Secure');
     expect(setCookie).toContain('SameSite=Lax');
@@ -70,15 +71,15 @@ describe('/_open: 입장권 → 문서 쿠키 → 302 (J4)', () => {
 
   it('md만 있는 문서도 쿠키를 준다. pixel=1이면 302 대신 1px 그림 (J12)', async () => {
     const mdOnly = deps({ loadDoc: async () => ({ md: STATE.md }) });
-    const res = await handleRawRequest(req(`/_open?t=${createTicket(DOC, NOW, SECRET)}&pixel=1`), mdOnly);
+    const res = await handleRawRequest(req(`/d/_open?t=${createTicket(DOC, NOW, SECRET)}&pixel=1`), mdOnly);
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('image/gif');
-    expect(res.headers.get('set-cookie')).toContain(`Path=/${DOC}/`);
+    expect(res.headers.get('set-cookie')).toContain(`Path=/d/${DOC}/`);
   });
 
   it('http 요청(로컬 개발)이면 Secure를 뺀다 (http에서는 Secure 쿠키가 저장되지 않는다)', async () => {
     const res = await handleRawRequest(
-      new Request(`http://raw.localhost:4321/_open?t=${createTicket(DOC, NOW, SECRET)}`),
+      new Request(`http://raw.localhost:4321/d/_open?t=${createTicket(DOC, NOW, SECRET)}`),
       deps(),
     );
     expect(res.headers.get('set-cookie')).not.toContain('Secure');
@@ -89,7 +90,7 @@ describe('/_open: 입장권 → 문서 쿠키 → 302 (J4)', () => {
     const forged = createTicket(DOC, NOW, 'x'.repeat(48));
     const gone = createTicket(OTHER, NOW, SECRET);
     const bodies = new Set<string>();
-    for (const path of ['/_open', `/_open?t=${expired}`, `/_open?t=${forged}`, `/_open?t=${gone}`]) {
+    for (const path of ['/d/_open', `/d/_open?t=${expired}`, `/d/_open?t=${forged}`, `/d/_open?t=${gone}`]) {
       const res = await handleRawRequest(req(path), deps());
       expect(res.status, path).toBe(404);
       expect(res.headers.get('set-cookie')).toBeNull();
@@ -99,10 +100,10 @@ describe('/_open: 입장권 → 문서 쿠키 → 302 (J4)', () => {
   });
 });
 
-describe('/{문서 id}/{파일}: 문서 쿠키로 연다 (J4·J5)', () => {
+describe('/d/{문서 id}/{파일}: 문서 쿠키로 연다 (J4·J5)', () => {
   it('쿠키가 맞으면 파일을 J11 머리와 함께 준다', async () => {
     const d = deps();
-    const res = await handleRawRequest(req(`/${DOC}/index.html`, { cookie: cookieFor() }), d);
+    const res = await handleRawRequest(req(`/d/${DOC}/index.html`, { cookie: cookieFor() }), d);
     expect(res.status).toBe(200);
     expect(await res.text()).toBe('body:index.html');
     expect(d.opened).toEqual([`${DOC}/7/index.html`]);
@@ -115,25 +116,25 @@ describe('/{문서 id}/{파일}: 문서 쿠키로 연다 (J4·J5)', () => {
     expect(res.headers.get('x-content-type-options')).toBe('nosniff');
   });
 
-  it('/{id}/ 는 index.html, 인코딩된 한글·공백 경로를 푼다', async () => {
+  it('/d/{id}/ 는 index.html, 인코딩된 한글·공백 경로를 푼다', async () => {
     const d = deps();
-    expect((await handleRawRequest(req(`/${DOC}/`, { cookie: cookieFor() }), d)).status).toBe(200);
+    expect((await handleRawRequest(req(`/d/${DOC}/`, { cookie: cookieFor() }), d)).status).toBe(200);
     const nfdPath = encodeURI('shots/그림 1.png'.normalize('NFD'));
-    const res = await handleRawRequest(req(`/${DOC}/${nfdPath}`, { cookie: cookieFor() }), d);
+    const res = await handleRawRequest(req(`/d/${DOC}/${nfdPath}`, { cookie: cookieFor() }), d);
     expect(res.status).toBe(200);
     expect(d.opened).toEqual([`${DOC}/7/index.html`, `${DOC}/7/shots/그림 1.png`]);
   });
 
   it('html에 없는 파일은 md 판에서 찾는다 (md 뷰어의 상대 이미지, J12)', async () => {
     const d = deps();
-    const res = await handleRawRequest(req(`/${DOC}/img/a.png`, { cookie: cookieFor() }), d);
+    const res = await handleRawRequest(req(`/d/${DOC}/img/a.png`, { cookie: cookieFor() }), d);
     expect(res.status).toBe(200);
     expect(d.opened).toEqual([`${DOC}/8/img/a.png`]);
   });
 
   it('If-None-Match가 같으면 304', async () => {
     const res = await handleRawRequest(
-      req(`/${DOC}/index.html`, { cookie: cookieFor(), headers: { 'if-none-match': `"r7-${'a'.repeat(16)}"` } }),
+      req(`/d/${DOC}/index.html`, { cookie: cookieFor(), headers: { 'if-none-match': `"r7-${'a'.repeat(16)}"` } }),
       deps(),
     );
     expect(res.status).toBe(304);
@@ -142,14 +143,14 @@ describe('/{문서 id}/{파일}: 문서 쿠키로 연다 (J4·J5)', () => {
 
   it('HEAD는 머리만 준다', async () => {
     const d = deps();
-    const res = await handleRawRequest(req(`/${DOC}/index.html`, { method: 'HEAD', cookie: cookieFor() }), d);
+    const res = await handleRawRequest(req(`/d/${DOC}/index.html`, { method: 'HEAD', cookie: cookieFor() }), d);
     expect(res.status).toBe(200);
     expect(res.headers.get('content-length')).toBe('12');
     expect(d.opened).toEqual([]);
   });
 
   it('영상은 저장소 서명 주소로 302 (J11)', async () => {
-    const res = await handleRawRequest(req(`/${DOC}/clip.mp4`, { cookie: cookieFor() }), deps());
+    const res = await handleRawRequest(req(`/d/${DOC}/clip.mp4`, { cookie: cookieFor() }), deps());
     expect(res.status).toBe(302);
     expect(res.headers.get('location')).toBe(`https://storage.example/${DOC}/7/clip.mp4?sig=1`);
     expect(res.headers.get('cache-control')).toContain('no-store');
@@ -158,15 +159,19 @@ describe('/{문서 id}/{파일}: 문서 쿠키로 연다 (J4·J5)', () => {
   it('쿠키 없음·만료·위조·다른 문서의 쿠키·없는 파일·나쁜 경로는 모두 같은 404', async () => {
     const bodies = new Set<string>();
     const cases: [string, string | undefined][] = [
-      [`/${DOC}/index.html`, undefined],
-      [`/${DOC}/index.html`, cookieFor(DOC, NOW - 13 * 3600 * 1000)],
-      [`/${DOC}/index.html`, `${DOC_COOKIE_NAME}=${createDocCookie(DOC, NOW, 'z'.repeat(48))}`],
-      [`/${DOC}/index.html`, cookieFor(OTHER)],
-      [`/${DOC}/nope.png`, cookieFor()],
-      [`/${DOC}/..%2F${OTHER}%2Findex.html`, cookieFor()],
-      [`/${DOC}/%E0%A4%A`, cookieFor()],
-      [`/${DOC}/.secret`, cookieFor()],
-      [`/${OTHER}/index.html`, cookieFor(OTHER)],
+      [`/d/${DOC}/index.html`, undefined],
+      [`/d/${DOC}/index.html`, cookieFor(DOC, NOW - 13 * 3600 * 1000)],
+      [`/d/${DOC}/index.html`, `${DOC_COOKIE_NAME}=${createDocCookie(DOC, NOW, 'z'.repeat(48))}`],
+      [`/d/${DOC}/index.html`, cookieFor(OTHER)],
+      [`/d/${DOC}/nope.png`, cookieFor()],
+      [`/d/${DOC}/..%2F${OTHER}%2Findex.html`, cookieFor()],
+      [`/d/${DOC}/%E0%A4%A`, cookieFor()],
+      [`/d/${DOC}/.secret`, cookieFor()],
+      [`/d/${OTHER}/index.html`, cookieFor(OTHER)],
+      [`/${DOC}/index.html`, cookieFor()],
+      ['/d', cookieFor()],
+      ['/d/', cookieFor()],
+      ['/_open', undefined],
       ['/', cookieFor()],
       ['/admin', cookieFor()],
       ['/robots.txt', undefined],
@@ -182,11 +187,11 @@ describe('/{문서 id}/{파일}: 문서 쿠키로 연다 (J4·J5)', () => {
 
   it('여러 문서 쿠키가 함께 오면 이 문서의 것을 찾는다', async () => {
     const both = `${cookieFor(OTHER)}; ${cookieFor()}`;
-    expect((await handleRawRequest(req(`/${DOC}/index.html`, { cookie: both }), deps())).status).toBe(200);
+    expect((await handleRawRequest(req(`/d/${DOC}/index.html`, { cookie: both }), deps())).status).toBe(200);
   });
 
   it('GET·HEAD가 아니면 404', async () => {
-    const res = await handleRawRequest(req(`/${DOC}/index.html`, { method: 'POST', cookie: cookieFor() }), deps());
+    const res = await handleRawRequest(req(`/d/${DOC}/index.html`, { method: 'POST', cookie: cookieFor() }), deps());
     expect(res.status).toBe(404);
   });
 

@@ -1,6 +1,17 @@
 // 문서 출처 호스트·서가 경로 판정 (서가 1단계 T3, Plan 5.1 미들웨어 분기 셋)
 // - 미들웨어가 맨 앞에서 부른다. I/O가 없는 순수 함수다.
 
+// 문서 출처의 경로 접두사 (사용자 결정 2026-11-17)
+// - 문서 주소: {문서 출처}/d/{문서 id}/{파일 경로}, 입장권: {문서 출처}/d/_open?t=…
+// - Vercel은 라우트가 없는 경로를 서버 함수로 보내지 않고 정적 404를 준다. 그래서 라우트(src/pages/d/[...path].ts)가
+//   잡을 수 있는 접두사 아래에 둔다. 주소가 늘 같다는 J4의 성질은 그대로다.
+export const RAW_PATH_PREFIX = '/d';
+
+// 문서 출처 안의 문서 경로 (/d/{문서 id}/{파일 경로})
+export function rawDocPath(docId: string, path = 'index.html'): string {
+  return `${RAW_PATH_PREFIX}/${docId}/${path}`;
+}
+
 // 호스트 값을 비교용으로 맞춘다: 소문자, 끝의 점 제거
 function normalizeHost(host: string): string {
   return host.trim().toLowerCase().replace(/\.(?=:|$)/, '');

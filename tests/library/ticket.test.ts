@@ -92,12 +92,12 @@ describe('문서 쿠키 (12시간, 문서 하나)', () => {
 });
 
 describe('docCookieHeader', () => {
-  it('문서 경로에만, HttpOnly·SameSite=Lax, https면 Secure', () => {
+  it('문서 경로(/d/{id}/)에만, HttpOnly·SameSite=Lax, https면 Secure', () => {
     expect(docCookieHeader(DOC, 'v', { secure: true })).toBe(
-      `${DOC_COOKIE_NAME}=v; Path=/${DOC}/; Max-Age=${DOC_COOKIE_TTL_SEC}; HttpOnly; Secure; SameSite=Lax`,
+      `${DOC_COOKIE_NAME}=v; Path=/d/${DOC}/; Max-Age=${DOC_COOKIE_TTL_SEC}; HttpOnly; Secure; SameSite=Lax`,
     );
     expect(docCookieHeader(DOC, 'v', { secure: false, maxAgeSec: 60 })).toBe(
-      `${DOC_COOKIE_NAME}=v; Path=/${DOC}/; Max-Age=60; HttpOnly; SameSite=Lax`,
+      `${DOC_COOKIE_NAME}=v; Path=/d/${DOC}/; Max-Age=60; HttpOnly; SameSite=Lax`,
     );
   });
 });

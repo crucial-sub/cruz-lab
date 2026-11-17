@@ -1,11 +1,12 @@
 // 입장권·문서 쿠키 값의 서명과 검증, 서가 토큰 확인, 문서 id 만들기 (서가 1단계 T3·T4, Plan J4·J5·J16)
 // - 입장권: 서가 화면이 만든다. 1분. 문서 출처의 /_open?t= 로 한 번 건넌다.
-// - 문서 쿠키: 문서 출처가 입장권을 확인하고 준다. 12시간. Path=/{문서 id}/ 라서 그 문서에만 실린다.
+// - 문서 쿠키: 문서 출처가 입장권을 확인하고 준다. 12시간. Path=/d/{문서 id}/ 라서 그 문서에만 실린다.
 // - 값의 꼴: {문서 id}.{만료 초}.{서명}. 서명 = HMAC-SHA256(비밀값, "{용도}|v1|{문서 id}|{만료 초}")
 //   용도(ticket / cookie)를 서명에 넣어 입장권을 쿠키로, 쿠키를 입장권으로 쓰지 못하게 한다.
 // - 서버(Node)에서만 쓴다(node:crypto). 저장소·네트워크 I/O는 없다.
 
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
+import { RAW_PATH_PREFIX } from './host';
 
 export const TICKET_TTL_SEC = 60;
 export const DOC_COOKIE_TTL_SEC = 12 * 60 * 60;
@@ -79,7 +80,7 @@ export function verifyDocCookie(value: string | null | undefined, docId: string,
 export function docCookieHeader(docId: string, value: string, options: { secure: boolean; maxAgeSec?: number }): string {
   const maxAge = options.maxAgeSec ?? DOC_COOKIE_TTL_SEC;
   const secure = options.secure ? '; Secure' : '';
-  return `${DOC_COOKIE_NAME}=${value}; Path=/${docId}/; Max-Age=${maxAge}; HttpOnly${secure}; SameSite=Lax`;
+  return `${DOC_COOKIE_NAME}=${value}; Path=${RAW_PATH_PREFIX}/${docId}/; Max-Age=${maxAge}; HttpOnly${secure}; SameSite=Lax`;
 }
 
 // Cookie 머리에서 같은 이름의 값을 모두 읽는다 (경로가 다른 문서 쿠키가 함께 올 수 있다)

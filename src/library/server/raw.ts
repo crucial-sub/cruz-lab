@@ -1,14 +1,16 @@
 // 문서 출처 응답 (서가 1단계 T5, Plan J4·J5·J9·J11·J12)
 // - 문서 출처 호스트(raw.cruzlab.dev)의 모든 요청은 여기로만 온다(미들웨어 분기). 관리자 쿠키를 읽지 않는다.
-// - /_open?t={입장권}: 입장권을 확인하고 문서 쿠키(Path=/{문서 id}/, 12시간)를 준 뒤 /{문서 id}/index.html로 302.
+// - 경로는 모두 /d/ 아래다(사용자 결정 2026-11-17, host.ts의 RAW_PATH_PREFIX).
+// - /d/_open?t={입장권}: 입장권을 확인하고 문서 쿠키(Path=/d/{문서 id}/, 12시간)를 준 뒤 /d/{문서 id}/index.html로 302.
 //   &pixel=1이면 302 대신 1px 그림을 준다(md 뷰어가 상대 이미지보다 먼저 불러 쿠키를 받는다, J12).
-// - /{문서 id}/{파일 경로}: 문서 쿠키가 맞으면 지금 판의 파일을 스트리밍으로 준다. 영상·소리는 저장소 서명 주소(10분)로 302.
+// - /d/{문서 id}/{파일 경로}: 문서 쿠키가 맞으면 지금 판의 파일을 스트리밍으로 준다. 영상·소리는 저장소 서명 주소(10분)로 302.
 //   html 판에 없는 파일은 md 판에서 찾는다(md 뷰어의 상대 이미지).
 // - J5: 문서를 열 수 없으면 모든 경로에 같은 404를 준다. 어떤 문서가 있는지 드러내지 않는다.
 // - 저장소 접근은 RawDeps로 받는다. 운영은 createRawDeps(), 단위 테스트는 가짜를 쓴다.
 
 import { Readable } from 'node:stream';
 import { memoize } from '@/lib/server/memo-cache';
+import { RAW_PATH_PREFIX, rawDocPath } from '../host';
 import { normalizeDocPath } from '../rules';
 import {
   DOC_COOKIE_NAME,
@@ -101,7 +103,7 @@ function findFile(state: RawDocState, path: string): { rev: number; meta: RawFil
   return null;
 }
 
-// /_open: 입장권 → 문서 쿠키
+// /d/_open: 입장권 → 문서 쿠키
 async function openWithTicket(url: URL, deps: RawDeps): Promise<Response> {
   const docId = verifyTicket(url.searchParams.get('t'), deps.now(), deps.secret);
   if (!docId) return rawNotFoundResponse(deps.siteOrigin);
@@ -115,7 +117,7 @@ async function openWithTicket(url: URL, deps: RawDeps): Promise<Response> {
   if (url.searchParams.get('pixel') === '1') {
     return new Response(PIXEL_GIF, { status: 200, headers: { ...common, 'Content-Type': 'image/gif' } });
   }
-  return new Response(null, { status: 302, headers: { ...common, Location: `/${docId}/index.html` } });
+  return new Response(null, { status: 302, headers: { ...common, Location: rawDocPath(docId) } });
 }
 
 // 문서 출처 요청 하나를 처리한다
@@ -123,9 +125,10 @@ export async function handleRawRequest(request: Request, deps: RawDeps): Promise
   const method = request.method.toUpperCase();
   if (method !== 'GET' && method !== 'HEAD') return rawNotFoundResponse(deps.siteOrigin);
   const url = new URL(request.url);
-  if (url.pathname === '/_open') return openWithTicket(url, deps);
+  if (url.pathname === `${RAW_PATH_PREFIX}/_open`) return openWithTicket(url, deps);
+  if (!url.pathname.startsWith(`${RAW_PATH_PREFIX}/`)) return rawNotFoundResponse(deps.siteOrigin);
 
-  const match = url.pathname.match(/^\/([^/]+)\/(.*)$/);
+  const match = url.pathname.slice(RAW_PATH_PREFIX.length).match(/^\/([^/]+)\/(.*)$/);
   if (!match || !isDocId(match[1])) return rawNotFoundResponse(deps.siteOrigin);
   const docId = match[1];
 
