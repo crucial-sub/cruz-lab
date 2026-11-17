@@ -12,10 +12,12 @@ import { AdminNav } from './AdminNav';
 export function AdminLayout({
   current,
   onCreate,
+  libraryEnabled = false,
   children,
 }: {
   current: AdminRoute['name'];
   onCreate: (kind: 'post' | 'note') => void;
+  libraryEnabled?: boolean;
   children: React.ReactNode;
 }) {
   const { logout } = useAdmin();
@@ -79,7 +81,12 @@ export function AdminLayout({
                 ×
               </button>
             </div>
-            <AdminNav current={current} onLogout={logout} onNavigate={() => setSheetOpen(false)} />
+            <AdminNav
+              current={current}
+              onLogout={logout}
+              onNavigate={() => setSheetOpen(false)}
+              libraryEnabled={libraryEnabled}
+            />
           </div>
         </div>
       )}
@@ -90,7 +97,7 @@ export function AdminLayout({
           <a href="/admin" className="mb-4 block px-3 py-1 font-semibold">
             Cruz Lab 관리
           </a>
-          <AdminNav current={current} onLogout={logout} />
+          <AdminNav current={current} onLogout={logout} libraryEnabled={libraryEnabled} />
         </aside>
         <main className="min-w-0 flex-1">
           <div className="mx-auto w-full max-w-[1120px] px-4 py-5 sm:px-6 lg:py-8">{children}</div>

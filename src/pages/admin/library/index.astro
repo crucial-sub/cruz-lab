@@ -1,0 +1,82 @@
+---
+// 서가 목록 화면 (서가 1단계 T6, Plan J1·J2·J14)
+// - Astro 서버 렌더 페이지다. 관리자 React 앱의 라우터에 넣지 않는다(J2).
+// - 미들웨어가 관리자 세션을 검사한다. 로그아웃이면 로그인 화면으로 보낸다(J3). 서가가 꺼져 있으면 404(C5).
+// - 위: 올리기 칸. 아래: 새로 올린 문서, 프로젝트별 묶음.
+export const prerender = false;
+
+import AdminPage from '@/layouts/AdminPage.astro';
+import { libraryEnabled } from '@/library/server/api';
+import { libraryOffResponse } from '@/library/server/raw';
+import { listLibraryDocs, type LibraryDocSummary } from '@/library/server/store';
+import LibraryList from '@/library/ui/LibraryList.astro';
+import UploadPanel from '@/library/ui/UploadPanel.astro';
+import { projectChoices } from '@/library/ui/list-view';
+
+// 미들웨어 판정이 빗나가도 이 페이지가 혼자 열리지 않게 한 번 더 본다
+if (!libraryEnabled()) return libraryOffResponse();
+
+let docs: LibraryDocSummary[] = [];
+let loadError = false;
+try {
+  docs = await listLibraryDocs(Astro.url.origin);
+} catch (error) {
+  console.error('[library] 서가 목록 읽기 실패', error);
+  loadError = true;
+}
+---
+
+<AdminPage title="서가 | Cruz Lab">
+  <header
+    class="sticky top-0 z-20 flex h-12 items-center gap-3 border-b border-border bg-bg-surface px-3 pt-[env(safe-area-inset-top)]"
+  >
+    <a href="/admin" class="rounded-md px-2 py-1 text-sm text-text-secondary hover:bg-bg-card hover:text-text-primary">
+      ← 관리
+    </a>
+    <h1 class="font-semibold">서가</h1>
+  </header>
+
+  <main class="mx-auto flex max-w-3xl flex-col gap-6 px-4 pb-16 pt-5">
+    <UploadPanel projects={projectChoices(docs)} />
+    {
+      loadError ? (
+        <p id="library-list" role="alert" class="rounded-lg border border-red-500/40 px-4 py-3 text-sm text-red-500">
+          서가 목록을 읽지 못했습니다. 잠시 뒤 다시 엽니다.
+        </p>
+      ) : (
+        <LibraryList docs={docs} />
+      )
+    }
+  </main>
+
+  <dialog
+    id="qr-dialog"
+    aria-labelledby="qr-title"
+    class="w-[min(22rem,calc(100vw-2rem))] rounded-lg border border-border bg-bg-surface p-4 text-text-primary shadow-popover backdrop:bg-black/50"
+  >
+    <h2 id="qr-title" class="mb-3 line-clamp-2 break-words font-semibold"></h2>
+    <img id="qr-image" alt="서가 문서 주소 QR 코드" width="240" height="240" class="mx-auto block size-60 rounded-md bg-white" />
+    <label for="qr-url" class="mt-3 block text-xs text-text-secondary">서가 문서 주소</label>
+    <input
+      id="qr-url"
+      readonly
+      class="mt-1 w-full rounded-md border border-border bg-bg-app px-2.5 py-1.5 text-xs text-text-primary"
+    />
+    <div class="mt-3 flex justify-end gap-2">
+      <button
+        type="button"
+        data-qr="copy"
+        class="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-bg-card"
+      >
+        주소 복사
+      </button>
+      <button type="button" data-qr="close" class="rounded-md bg-brand px-3 py-1.5 text-sm text-white hover:bg-brand-hover">
+        닫기
+      </button>
+    </div>
+  </dialog>
+
+  <script>
+    import '@/library/ui/library-page';
+  </script>
+</AdminPage>

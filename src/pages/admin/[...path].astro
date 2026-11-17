@@ -12,8 +12,12 @@ import AdminApp from '@/admin/AdminApp';
 import AdminPage from '@/layouts/AdminPage.astro';
 
 const sessionExpiresAt = Astro.locals.admin?.expiresAt ?? null;
+// 문서 서가(1단계 J2·J21): 켜져 있을 때만 메뉴에 "서가" 링크를 보인다.
+// 블로그 코드는 서가 모듈(src/library/)을 가져오지 않는다. 그래서 같은 판정('true' 또는 '1')을 여기에 적는다
+const libraryFlag = import.meta.env.LIBRARY_ENABLED as string | boolean | undefined;
+const libraryEnabled = libraryFlag === true || libraryFlag === 'true' || libraryFlag === '1';
 ---
 
 <AdminPage title="관리자 | Cruz Lab">
-  <AdminApp client:only="react" sessionExpiresAt={sessionExpiresAt} />
+  <AdminApp client:only="react" sessionExpiresAt={sessionExpiresAt} libraryEnabled={libraryEnabled} />
 </AdminPage>

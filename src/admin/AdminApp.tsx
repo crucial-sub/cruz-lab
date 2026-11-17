@@ -88,7 +88,13 @@ function currentRoute(): AdminRoute | null {
 
 const HOME: AdminRoute = { name: 'home', search: '' };
 
-export default function AdminApp({ sessionExpiresAt }: { sessionExpiresAt: string | null }) {
+export default function AdminApp({
+  sessionExpiresAt,
+  libraryEnabled = false,
+}: {
+  sessionExpiresAt: string | null;
+  libraryEnabled?: boolean;
+}) {
   const [route, setRoute] = useState<AdminRoute>(() => currentRoute() ?? HOME);
   const [list, setList] = useState<ListLoad>({ phase: 'idle' });
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -427,7 +433,7 @@ export default function AdminApp({ sessionExpiresAt }: { sessionExpiresAt: strin
       settings: <SettingsScreen />,
     };
     screen = (
-      <AdminLayout current={route.name} onCreate={createAndEdit}>
+      <AdminLayout current={route.name} onCreate={createAndEdit} libraryEnabled={libraryEnabled}>
         {screens[route.name]}
       </AdminLayout>
     );

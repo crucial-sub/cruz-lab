@@ -336,6 +336,12 @@ export interface UploadIdentity {
 // 프로젝트 이름: 영문·숫자·한글·-·_·. 1~64자 (경로 구분자 없음)
 const PROJECT_NAME = /^[\p{L}\p{N}_.-]{1,64}$/u;
 
+// 서가 화면이 고른 프로젝트 이름이 받을 수 있는 꼴인가 (NFC로 맞춘 뒤 본다)
+export function isProjectName(value: string): boolean {
+  const project = value.normalize('NFC');
+  return PROJECT_NAME.test(project) && project !== '.' && project !== '..';
+}
+
 // 맥 원본 경로 검사: ~/ 로 시작하고, 빈 칸·./.. 조각과 제어 문자가 없다
 // - 숨은 폴더(~/projects/x/.claude/worktrees/…)는 받는다. 키로만 쓰고 파일 경로로 쓰지 않는다
 function isSafeMacPath(sourcePath: string): boolean {
@@ -361,7 +367,7 @@ export function identifyUpload(source: UploadSource): UploadIdentity | null {
   }
   const project = source.project.normalize('NFC');
   const relativePath = source.relativePath.normalize('NFC').replace(/\/+$/, '');
-  if (!PROJECT_NAME.test(project) || project === '.' || project === '..') return null;
+  if (!isProjectName(project)) return null;
   if (!normalizeDocPath(relativePath)) return null;
   return { key: docKeyFromWebPath(project, relativePath), sourcePath: null, project, docDate };
 }

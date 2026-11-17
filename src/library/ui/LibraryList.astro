@@ -1,0 +1,53 @@
+---
+// 서가 목록 (서가 1단계 T6, Plan J14·분석 8.2)
+// - 위: 새로 올린 문서(안 읽음). 아래: 프로젝트별 묶음.
+// - 올리기·내리기 뒤 화면 스크립트가 이 페이지를 다시 받아 #library-list만 바꾼다(서버 렌더 하나로 그린다).
+import type { LibraryDocSummary } from '../server/store';
+import DocRow from './DocRow.astro';
+import { groupLibraryDocs } from './list-view';
+
+interface Props {
+  docs: LibraryDocSummary[];
+}
+
+const { docs } = Astro.props;
+const view = groupLibraryDocs(docs);
+const heading = 'mb-1 flex items-baseline gap-2 text-sm font-semibold text-text-secondary';
+---
+
+<div id="library-list" class="flex flex-col gap-6">
+  {
+    docs.length === 0 ? (
+      <p class="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-text-secondary">
+        아직 올린 문서가 없습니다.
+      </p>
+    ) : (
+      <>
+        {view.unread.length > 0 && (
+          <section aria-labelledby="library-unread">
+            <h2 id="library-unread" class={heading}>
+              새로 올린 문서 <span class="font-normal">{view.unread.length}</span>
+            </h2>
+            <ul>
+              {view.unread.map((doc) => (
+                <DocRow doc={doc} />
+              ))}
+            </ul>
+          </section>
+        )}
+        {view.projects.map((group, index) => (
+          <section aria-labelledby={`library-project-${index}`}>
+            <h2 id={`library-project-${index}`} class={heading}>
+              {group.name} <span class="font-normal">{group.docs.length}</span>
+            </h2>
+            <ul>
+              {group.docs.map((doc) => (
+                <DocRow doc={doc} />
+              ))}
+            </ul>
+          </section>
+        ))}
+      </>
+    )
+  }
+</div>

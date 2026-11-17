@@ -1,0 +1,73 @@
+---
+// 서가 올리기 칸 (서가 1단계 T6, Plan L2·J13·J14·J15)
+// - 프로젝트 고르기: 서가 화면으로 올릴 때만 고른다(브라우저는 원본 경로를 모른다). 마지막 값이 기본이다(L2).
+// - 데스크톱(마우스): 끌어다 놓는 칸 + 파일 고르기·폴더 고르기 단추.
+// - 폰(터치): 파일 고르기 단추만(J14).
+// - 동작은 library-page.ts가 한다. 결과·경고는 #upload-status에 쓴다.
+
+interface Props {
+  projects: string[];
+}
+
+const { projects } = Astro.props;
+const button =
+  'inline-flex items-center justify-center rounded-md border border-border px-3 py-1.5 text-sm font-medium text-text-primary hover:bg-bg-card disabled:cursor-not-allowed disabled:opacity-50';
+---
+
+<section id="library-upload" aria-labelledby="library-upload-title" class="flex flex-col gap-3">
+  <h2 id="library-upload-title" class="sr-only">서가에 올리기</h2>
+  <div class="flex flex-wrap items-center gap-2">
+    <label for="upload-project" class="text-sm text-text-secondary">프로젝트</label>
+    <input
+      id="upload-project"
+      name="project"
+      list="library-projects"
+      autocomplete="off"
+      autocapitalize="off"
+      spellcheck="false"
+      maxlength="64"
+      placeholder="예: cruz-lab"
+      class="w-44 rounded-md border border-border bg-bg-app px-2.5 py-1.5 text-sm text-text-primary placeholder:text-text-secondary/60 focus:border-brand"
+    />
+    <datalist id="library-projects">
+      {projects.map((name) => <option value={name} />)}
+    </datalist>
+    <button type="button" class={`${button} upload-touch`} data-pick="files">파일 고르기</button>
+  </div>
+
+  <div
+    id="upload-drop"
+    class="upload-pointer flex-col items-center gap-3 rounded-lg border-2 border-dashed border-border px-4 py-8 text-center text-sm text-text-secondary"
+  >
+    <p>문서 파일이나 폴더를 여기에 끌어다 놓습니다.</p>
+    <p class="text-xs">html 하나 + 옆 자산 폴더, 폴더째 문서, 이름이 같은 md·html 짝을 받습니다.</p>
+    <div class="flex gap-2">
+      <button type="button" class={button} data-pick="files">파일 고르기</button>
+      <button type="button" class={button} data-pick="folder">폴더 고르기</button>
+    </div>
+  </div>
+
+  <input id="upload-files" type="file" multiple hidden />
+  <input id="upload-folder" type="file" webkitdirectory hidden />
+
+  <div id="upload-status" class="flex flex-col gap-2" aria-live="polite"></div>
+</section>
+
+<style>
+  /* 마우스가 있는 화면만 끌어다 놓는 칸을 보인다. 터치 화면은 위의 단추 하나만 보인다 */
+  .upload-pointer {
+    display: none;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .upload-pointer {
+      display: flex;
+    }
+    .upload-touch {
+      display: none;
+    }
+  }
+  .upload-pointer[data-over='true'] {
+    border-color: var(--brand);
+    color: var(--text-primary);
+  }
+</style>
