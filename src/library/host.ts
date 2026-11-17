@@ -12,6 +12,20 @@ export function rawDocPath(docId: string, path = 'index.html'): string {
   return `${RAW_PATH_PREFIX}/${docId}/${path}`;
 }
 
+// 서가 문서 주소(J7)가 보낼 문서 출처 (https://raw.cruzlab.dev)
+// - docHost는 LIBRARY_DOC_HOST(호스트[:포트])다. 프로토콜·경로·@ 같은 글자가 들면 null이다(다른 곳으로 보내지 않는다).
+// - 운영은 늘 https다. 개발은 요청과 같은 프로토콜이다(http://raw.localhost:4341).
+export function docOriginFor(docHost: string | null | undefined, requestProtocol: string, dev: boolean): string | null {
+  const host = docHost?.trim().toLowerCase();
+  if (!host || !/^[a-z0-9.-]+(:\d{1,5})?$/.test(host)) return null;
+  return `${dev ? requestProtocol : 'https:'}//${host}`;
+}
+
+// 문서 출처의 입장권 주소: {문서 출처}/d/_open?t={입장권}
+export function rawOpenUrl(docOrigin: string, ticket: string): string {
+  return `${docOrigin}${RAW_PATH_PREFIX}/_open?t=${encodeURIComponent(ticket)}`;
+}
+
 // 호스트 값을 비교용으로 맞춘다: 소문자, 끝의 점 제거
 function normalizeHost(host: string): string {
   return host.trim().toLowerCase().replace(/\.(?=:|$)/, '');

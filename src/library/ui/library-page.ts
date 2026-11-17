@@ -550,6 +550,12 @@ function init() {
   window.addEventListener('dragover', (event) => event.preventDefault());
   window.addEventListener('drop', (event) => event.preventDefault());
 
+  // 문서를 열고 뒤로 돌아오면 브라우저가 옛 화면을 그대로 꺼낼 수 있다(뒤로-앞으로 캐시).
+  // 그때 목록을 새로 받아 "읽음"을 보인다 (J14)
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) void refreshList();
+  });
+
   document.addEventListener('click', (event) => {
     const target = event.target as Element | null;
     const pick = target?.closest<HTMLElement>('[data-pick]');

@@ -1,0 +1,69 @@
+---
+// 서가 문서 주소 /admin/library/d/{문서 id} (서가 1단계 Plan J7·J14)
+// - 목록의 제목 링크, QR 코드, 북마크가 이 주소를 쓴다. 문서 출처 주소와 달리 언제나 통한다.
+// - 미들웨어가 관리자 세션을 검사한다. 로그아웃이면 로그인 화면으로 보낸다(J3). 서가가 꺼져 있으면 404(C5).
+// - html 문서: 입장권을 만들고 읽음을 표시한 뒤 문서 출처로 302(J6 독립 페이지).
+// - md 문서: T7(md 뷰어) 전까지 안내 화면(사용자 결정 2026-11-18, 안 A).
+// - 없는 문서: 404 화면과 "서가로 돌아가기".
+export const prerender = false;
+
+import AdminPage from '@/layouts/AdminPage.astro';
+import { libraryEnabled } from '@/library/server/api';
+import { createDocOpenDeps, resolveDocOpen, type DocOpenResult } from '@/library/server/open';
+import { libraryOffResponse, rawMisconfiguredResponse } from '@/library/server/raw';
+
+// 미들웨어 판정이 빗나가도 이 페이지가 혼자 열리지 않게 한 번 더 본다
+if (!libraryEnabled()) return libraryOffResponse();
+
+let result: DocOpenResult;
+try {
+  result = await resolveDocOpen(Astro.params.id, createDocOpenDeps(Astro.url));
+} catch (error) {
+  console.error('[library] 서가 문서 열기 실패', error);
+  return rawMisconfiguredResponse();
+}
+
+if (result.kind === 'redirect') return Astro.redirect(result.location, 302);
+if (result.kind === 'not-found') Astro.response.status = 404;
+
+const doc = result.kind === 'md-pending' ? result.doc : null;
+const meta = doc ? [doc.project, doc.docDate].filter(Boolean).join(' · ') : '';
+---
+
+<AdminPage title={doc ? `${doc.title} | 서가` : '문서 없음 | 서가'}>
+  <header
+    class="sticky top-0 z-20 flex h-12 items-center gap-3 border-b border-border bg-bg-surface px-3 pt-[env(safe-area-inset-top)]"
+  >
+    <a
+      href="/admin/library"
+      class="rounded-md px-2 py-1 text-sm text-text-secondary hover:bg-bg-card hover:text-text-primary"
+    >
+      ← 서가
+    </a>
+  </header>
+
+  <main class="mx-auto flex max-w-3xl flex-col gap-3 px-4 pb-16 pt-8">
+    {
+      doc ? (
+        <>
+          <h1 class="break-words text-xl font-semibold">{doc.title}</h1>
+          {meta && <p class="text-sm text-text-secondary">{meta}</p>}
+          <p class="mt-4 rounded-lg border border-border px-4 py-3 text-sm text-text-secondary">
+            md 문서 보기는 아직 준비 중입니다.
+          </p>
+        </>
+      ) : (
+        <>
+          <h1 class="text-xl font-semibold">서가에 없는 문서입니다</h1>
+          <p class="text-sm text-text-secondary">주소가 틀렸거나 서가에서 내린 문서입니다.</p>
+        </>
+      )
+    }
+    <a
+      href="/admin/library"
+      class="mt-4 self-start rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover"
+    >
+      서가로 돌아가기
+    </a>
+  </main>
+</AdminPage>
