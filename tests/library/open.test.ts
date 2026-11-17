@@ -1,6 +1,7 @@
 // 서가 문서 주소의 열기 판정 테스트 (서가 1단계 J7·J14)
-// - html 판이 있으면 입장권을 만들고 읽음을 표시한 뒤 문서 출처로 보낸다(J6 독립 페이지).
-// - md 판만 있으면 T7 전까지 안내 화면이다(사용자 결정 2026-11-18, 안 A). 읽음을 표시하지 않는다.
+// - html 판만 있으면 입장권을 만들고 읽음을 표시한 뒤 문서 출처로 보낸다(J6 독립 페이지).
+// - md 판이 있으면 md 뷰어다(T7). 짝이어도 글(md)이 기본이고, ?v=html이면 그림(html)을 연다(사용자 결정 2026-11-18, 안 A).
+// - md 뷰어도 입장권을 만든다. 페이지가 입장권 그림(&pixel=1)으로 문서 쿠키를 먼저 받는다(J12). 읽음을 표시한다.
 // - 저장소 접근은 가짜 의존성으로 바꾼다.
 import { describe, expect, it } from 'vitest';
 import { resolveDocOpen, type DocOpenDeps } from '@/library/server/open';
@@ -68,10 +69,12 @@ describe('resolveDocOpen: html 문서 (J7, J6 독립 페이지)', () => {
     expect(d.read).toEqual([DOC]);
   });
 
-  it('md·html 짝이면 html을 연다 ("글 / 그림" 전환은 T7)', async () => {
+  it('md·html 짝에서 ?v=html이면 그림(html)을 연다', async () => {
     const d = deps(doc({ html: HTML, md: MD }));
-    const result = await resolveDocOpen(DOC, d.value);
+    const result = await resolveDocOpen(DOC, d.value, 'html');
     expect(result.kind).toBe('redirect');
+    if (result.kind !== 'redirect') return;
+    expect(ticketDocId(result.location)).toBe(DOC);
     expect(d.read).toEqual([DOC]);
   });
 
@@ -92,12 +95,44 @@ describe('resolveDocOpen: html 문서 (J7, J6 독립 페이지)', () => {
   });
 });
 
-describe('resolveDocOpen: md 문서 (T7 전, 안 A)', () => {
-  it('md 판만 있으면 안내 화면이고 읽음을 표시하지 않는다', async () => {
+describe('resolveDocOpen: md 뷰어 (T7, J12)', () => {
+  // 입장권 그림 주소: {문서 출처}/d/_open?t={입장권}&pixel=1
+  function pixelDocId(pixelUrl: string): string | null {
+    expect(new URL(pixelUrl).searchParams.get('pixel')).toBe('1');
+    return ticketDocId(pixelUrl);
+  }
+
+  it('md 판만 있으면 md 뷰어다. 입장권 그림 주소를 주고 읽음을 표시한다', async () => {
     const stored = doc({ md: MD });
     const d = deps(stored);
     const result = await resolveDocOpen(DOC, d.value);
-    expect(result).toEqual({ kind: 'md-pending', doc: stored });
+    expect(result.kind).toBe('md');
+    if (result.kind !== 'md') return;
+    expect(result.doc).toBe(stored);
+    expect(result.md).toEqual(MD);
+    expect(result.hasHtml).toBe(false);
+    expect(result.docOrigin).toBe(ORIGIN);
+    expect(pixelDocId(result.ticketPixelUrl)).toBe(DOC);
+    expect(d.read).toEqual([DOC]);
+  });
+
+  it('md·html 짝이면 글(md)이 기본이다', async () => {
+    const d = deps(doc({ html: HTML, md: MD }));
+    const result = await resolveDocOpen(DOC, d.value);
+    expect(result.kind).toBe('md');
+    if (result.kind !== 'md') return;
+    expect(result.hasHtml).toBe(true);
+    expect(d.read).toEqual([DOC]);
+  });
+
+  it('md 판만 있으면 ?v=html이어도 md 뷰어다', async () => {
+    const d = deps(doc({ md: MD }));
+    expect((await resolveDocOpen(DOC, d.value, 'html')).kind).toBe('md');
+  });
+
+  it('입장권 비밀값이 짧으면 읽음 표시 전에 던진다', async () => {
+    const d = deps(doc({ md: MD }), { secret: 'short' });
+    await expect(resolveDocOpen(DOC, d.value)).rejects.toThrow(/LIBRARY_TICKET_SECRET/);
     expect(d.read).toEqual([]);
   });
 });

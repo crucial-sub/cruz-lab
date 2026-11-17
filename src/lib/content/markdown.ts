@@ -334,9 +334,39 @@ function rehypeMathFlag() {
   };
 }
 
+// 본문 그림·영상 주소 바꾸기 (서가 md 뷰어, 서가 1단계 Plan J12)
+// - rewrite: 주소 하나를 받아 새 주소를 돌려준다. null이면 그 요소를 그대로 둔다. 주소를 푸는 규칙은 부르는 쪽(src/library)에 있다.
+// - defer: 참이면 바꾼 주소를 src 대신 data-src에 둔다. 페이지 스크립트가 준비를 마친 뒤 src로 옮긴다.
+export interface MediaUrlOption {
+  rewrite: (url: string) => string | null;
+  defer?: boolean;
+}
+
+// 그림(img)·영상(video)의 src를 바꾼다 (mediaUrl 옵션. 안전 주소 처리·영상 바꾸기 뒤에 돈다)
+// - 비어 있는 주소(safeUrl이 지운 위험 주소 포함)는 넘기지 않는다. 링크(a)는 바꾸지 않는다.
+function rehypeMediaUrl(options: MediaUrlOption) {
+  return (tree: HastRoot) => {
+    visit(tree, 'element', (node) => {
+      if (node.tagName !== 'img' && node.tagName !== 'video') return;
+      const src = node.properties.src;
+      if (typeof src !== 'string' || !src) return;
+      const next = options.rewrite(src);
+      if (next === null) return;
+      if (options.defer) {
+        delete node.properties.src;
+        node.properties.dataSrc = next;
+      } else {
+        node.properties.src = next;
+      }
+    });
+  };
+}
+
 export interface MarkdownRenderOptions {
   // 코드 하이라이터(Shiki). 없으면 코드 블록은 민무늬다(틀은 같다)
   highlighter?: CodeHighlighter;
+  // 그림·영상 주소 바꾸기 (서가 md 뷰어 J12). 블로그는 주지 않는다. 없으면 결과가 지금과 같다
+  mediaUrl?: MediaUrlOption;
   // 새 자산 srcset·크기(D15). 없으면 이미지 주소 그대로다
   assets?: { byId: ReadonlyMap<string, RenderAsset>; bucket: string };
   // 문서 안 id와 그 id를 가리키는 #주소·aria-describedby 앞에 붙일 글자.
@@ -372,7 +402,8 @@ export interface MarkdownRenderResult {
 }
 
 // 옵션에 맞는 처리기를 만든다
-// - 순서: 원시 HTML → 안전 처리 → 제목 id·목차 → KaTeX → 코드 블록(하이라이트·틀) → 주소·영상 규칙 → 표 스크롤 상자 → srcset
+// - 순서: 원시 HTML → 안전 처리 → 제목 id·목차 → KaTeX → 코드 블록(하이라이트·틀) → 주소·영상 규칙 → 표 스크롤 상자
+//   → 그림·영상 주소 바꾸기(mediaUrl, 서가만) → srcset
 // - 안전 처리(rehype-strip-unsafe)가 먼저 돈다. 그 뒤에 만드는 것(제목 앵커, 코드 틀의 button, Shiki·KaTeX의 style)은 남는다
 function createHtmlProcessor(options: MarkdownRenderOptions) {
   const processor = unified()
@@ -392,6 +423,9 @@ function createHtmlProcessor(options: MarkdownRenderOptions) {
     .use(rehypeCodeBlocks, { highlighter: options.highlighter })
     .use(rehypePublicRules)
     .use(rehypeTableScroll);
+  if (options.mediaUrl) {
+    processor.use(rehypeMediaUrl, options.mediaUrl);
+  }
   if (options.assets) {
     processor.use(rehypeAssets, { assets: options.assets.byId, bucket: options.assets.bucket });
   }
@@ -410,7 +444,7 @@ export function renderMarkdown(
   options: MarkdownRenderOptions = {},
 ): MarkdownRenderResult {
   const processor =
-    options.highlighter || options.assets || options.idPrefix
+    options.highlighter || options.assets || options.idPrefix || options.mediaUrl
       ? createHtmlProcessor(options)
       : plainHtmlProcessor;
   const file = processor.processSync(markdown);

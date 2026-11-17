@@ -1,0 +1,195 @@
+---
+// md 뷰어 (서가 1단계 T7, Plan J12·J14, 사용자 결정 2026-11-18 안 A)
+// 위에서 아래 순서:
+// 1. 머리줄: "← 서가", md·html 짝이면 "글 | 그림" 전환(그림 = ?v=html, 문서 출처의 원본 html로 간다)
+// 2. 입장권 그림(1px, 보이지 않음): 문서 쿠키를 먼저 받는다. 본문의 문서 그림은 그 뒤에 불린다(md-view.ts)
+// 3. 프로젝트 · 날짜, 제목(본문 첫 # 제목. 없으면 서가 제목)
+// 4. 목차(1280px 미만은 본문 위 <details>, 이상은 오른쪽 sticky) + 본문(.prose)
+// - 글자 모양은 블로그 글 상세와 같다(prose.css, shiki.css, 본문 폭 --measure). 목차 부품도 같은 것을 쓴다.
+// - 본문이 # 제목으로 시작하면 그 h1을 떼어 제목 자리에 둔다(render-md.ts). 목차가 제목 아래에 온다.
+//   제목은 블로그 글 제목 크기다(prose.css는 본문 h1을 h2 크기로 줄인다. 블로그 글은 제목이 따로 있기 때문이다).
+import '@/styles/prose.css';
+import '@/styles/shiki.css';
+import katexCssUrl from 'katex/dist/katex.min.css?url';
+import Toc from '@/components/post/Toc.astro';
+import type { LibraryMarkdownView } from '../server/render-md';
+import type { LibraryDoc } from '../server/store';
+
+interface Props {
+  docId: string;
+  doc: LibraryDoc;
+  view: LibraryMarkdownView;
+  hasHtml: boolean;
+  ticketPixelUrl: string;
+}
+
+const { docId, doc, view, hasHtml, ticketPixelUrl } = Astro.props;
+const { html, toc, hasMath, titleHtml } = view;
+const meta = [doc.project, doc.docDate].filter(Boolean).join(' · ');
+const pictureUrl = `/admin/library/d/${docId}?v=html`;
+---
+
+<header
+  class="sticky top-0 z-20 flex h-12 items-center gap-3 border-b border-border bg-bg-surface px-3 pt-[env(safe-area-inset-top)]"
+>
+  <a
+    href="/admin/library"
+    class="rounded-md px-2 py-1 text-sm text-text-secondary hover:bg-bg-card hover:text-text-primary"
+  >
+    ← 서가
+  </a>
+  {
+    hasHtml && (
+      <nav aria-label="보기" class="ml-auto flex overflow-hidden rounded-md border border-border text-sm">
+        <a href={`/admin/library/d/${docId}`} aria-current="page" class="bg-brand px-3 py-1 font-medium text-white">
+          글
+        </a>
+        <a href={pictureUrl} class="px-3 py-1 text-text-secondary hover:bg-bg-card hover:text-text-primary">
+          그림
+        </a>
+      </nav>
+    )
+  }
+</header>
+
+<img src={ticketPixelUrl} alt="" width="1" height="1" class="library-ticket" data-library-ticket />
+{hasMath && <link rel="stylesheet" href={katexCssUrl} />}
+
+<main class="px-4 pb-16 pt-8">
+  <article class:list={['library-md', toc.length > 0 && 'library-md-has-toc']} data-library-doc={docId}>
+    <div class="library-md-main">
+      {meta && <p class="library-md-meta">{meta}</p>}
+      {
+        titleHtml ? (
+          <div class="library-md-title prose" set:html={titleHtml} />
+        ) : (
+          <h1 class="library-md-title">{doc.title}</h1>
+        )
+      }
+      {
+        toc.length > 0 && (
+          <details class="library-md-toc-inline">
+            <summary>목차</summary>
+            <nav aria-label="목차">
+              <Toc entries={toc} />
+            </nav>
+          </details>
+        )
+      }
+      <div class="library-md-body prose" set:html={html} />
+    </div>
+    {
+      toc.length > 0 && (
+        <aside class="library-md-toc-side">
+          <nav aria-label="목차">
+            <p class="library-md-toc-title">목차</p>
+            <Toc entries={toc} />
+          </nav>
+        </aside>
+      )
+    }
+  </article>
+  <p class="sr-only" role="status" aria-live="polite" data-post-status></p>
+</main>
+
+<script>
+  import { setupPostPage } from '@/components/post/post-scripts';
+  import { setupMdView } from './md-view';
+  setupMdView();
+  setupPostPage();
+</script>
+
+<style>
+  /* 입장권 그림: 불리되 보이지 않는다(display:none이면 받지 않는 브라우저가 있어 크기와 투명도로 숨긴다) */
+  .library-ticket {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+  /* 본문 폭 --measure(68ch). 블로그 글 상세(.post)와 같다 */
+  .library-md {
+    font-size: var(--text-base);
+    max-width: var(--measure);
+    margin-inline: auto;
+  }
+  .library-md-main {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    min-width: 0;
+  }
+  .library-md-meta {
+    margin: 0 0 -0.75rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
+  }
+  /* 제목: 블로그 글 제목(.post-title)과 같은 크기. 본문에서 뗀 h1은 div.prose 안에 있다(제목 앵커 규칙을 같이 쓴다) */
+  h1.library-md-title,
+  .library-md-title > :global(h1) {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    color: var(--text-primary);
+    font-size: clamp(28px, 4vw, 40px);
+    font-weight: 800;
+    line-height: var(--leading-heading);
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+  .library-md-body {
+    min-width: 0;
+  }
+  .library-md-body > :global(:first-child) {
+    margin-top: 0;
+  }
+  .library-md-body > :global(:last-child) {
+    margin-bottom: 0;
+  }
+  .library-md-toc-inline {
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-surface);
+  }
+  .library-md-toc-inline summary {
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 0.9375rem;
+    font-weight: 600;
+  }
+  .library-md-toc-inline[open] summary {
+    margin-bottom: 0.5rem;
+  }
+  .library-md-toc-side {
+    display: none;
+  }
+  /* 1280px 이상: 본문 오른쪽에 목차를 고정한다(블로그 글 상세와 같은 규칙) */
+  @media (min-width: 1280px) {
+    .library-md-has-toc {
+      display: grid;
+      grid-template-columns: minmax(0, var(--measure)) 240px;
+      column-gap: 2.5rem;
+      max-width: calc(var(--measure) + 240px + 2.5rem);
+    }
+    .library-md-toc-inline {
+      display: none;
+    }
+    .library-md-toc-side {
+      display: block;
+      position: sticky;
+      top: 4.5rem;
+      align-self: start;
+      max-height: calc(100vh - 6rem);
+      overflow-y: auto;
+    }
+    .library-md-toc-title {
+      margin: 0 0 0.5rem;
+      color: var(--text-secondary);
+      font-size: 0.8125rem;
+      font-weight: 700;
+    }
+  }
+</style>

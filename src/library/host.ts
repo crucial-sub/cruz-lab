@@ -46,6 +46,12 @@ export function rawOpenUrl(docOrigin: string, ticket: string): string {
   return `${docOrigin}${RAW_PATH_PREFIX}/_open?t=${encodeURIComponent(ticket)}`;
 }
 
+// 입장권 그림 주소: {문서 출처}/d/_open?t={입장권}&pixel=1
+// - 문서 출처가 302 대신 1px 그림과 문서 쿠키를 준다(raw.ts). md 뷰어가 상대 그림보다 먼저 부른다(J12).
+export function rawTicketPixelUrl(docOrigin: string, ticket: string): string {
+  return `${rawOpenUrl(docOrigin, ticket)}&pixel=1`;
+}
+
 // 호스트 값을 비교용으로 맞춘다: 소문자, 끝의 점 제거
 function normalizeHost(host: string): string {
   return host.trim().toLowerCase().replace(/\.(?=:|$)/, '');

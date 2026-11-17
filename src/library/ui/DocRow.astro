@@ -1,6 +1,7 @@
 ---
 // 서가 목록의 문서 한 줄 (서가 1단계 T6, Plan J7·J14)
-// - 제목을 누르면 서가 문서 주소(/admin/library/d/{문서 id})로 간다. md면 뷰어, html이면 문서 출처로 간다(J7).
+// - 제목을 누르면 서가 문서 주소(/admin/library/d/{문서 id})로 간다. md가 있으면 md 뷰어(짝이어도 글이 기본,
+//   사용자 결정 2026-11-18 안 A), html만 있으면 문서 출처로 간다(J7).
 // - 단추: QR(서가 문서 주소, J20), 내리기(분석 8.3 제안 17). 동작은 library-page.ts가 data-* 값으로 한다.
 import type { LibraryDocSummary } from '../server/store';
 import { docMetaLine } from './list-view';
