@@ -54,12 +54,20 @@
   }
 
   // 응답을 읽을 수 있으면 실패(격리가 깨짐), 읽지 못하면 통과
+  // - 시간 초과는 판정 불가(실패)다. 서버가 늦거나 꺼져도 "막힘"으로 세지 않는다(PR #35 리뷰).
+  // - 그 밖의 거절은 서버에 닿는지 먼저 본다(no-cors 요청은 응답을 읽지 않고 닿기만 확인한다). 닿을 때만 통과다.
   async function expectUnreadable(url, init) {
     try {
       const res = await withTimeout(fetch(url, { credentials: 'include', ...init }), 8000);
       const text = await res.text();
       return { pass: false, detail: `읽음: ${res.status} ${text.slice(0, 80)}` };
     } catch (error) {
+      if (error && error.message === 'timeout') return { pass: false, detail: '판정 불가: 시간 초과' };
+      try {
+        await withTimeout(fetch(url, { mode: 'no-cors', credentials: 'omit' }), 8000);
+      } catch {
+        return { pass: false, detail: '판정 불가: 서버에 닿지 않음' };
+      }
       return { pass: true, detail: `막힘: ${error && error.name}` };
     }
   }

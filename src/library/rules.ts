@@ -76,8 +76,10 @@ function extensionOf(path: string): string {
 }
 
 // 받는 형식이면 Content-Type, 아니면 null
+// - 표의 자기 속성만 본다. 'constructor' 같은 객체 기본 속성 이름이 형식으로 통과하지 않게 한다(PR #35 리뷰)
 export function contentTypeForPath(path: string): string | null {
-  return LIBRARY_FILE_TYPES[extensionOf(path)] ?? null;
+  const extension = extensionOf(path);
+  return Object.hasOwn(LIBRARY_FILE_TYPES, extension) ? LIBRARY_FILE_TYPES[extension] : null;
 }
 
 // ---------- 올리기 목록 검사 ----------
@@ -240,6 +242,25 @@ function plainInlineMarkdown(text: string): string {
     .trim();
 }
 
+// md 줄마다 코드 펜스에 속하는지 (여는 줄·닫는 줄 포함). 제목 뽑기(titleFromMarkdown)와 상대 주소 찾기(refs.ts)가 쓴다
+// - CommonMark 규칙: 닫는 펜스는 여는 펜스와 같은 글자이고, 길이가 여는 펜스 이상이고, 뒤에 공백만 온다.
+//   그래서 긴 펜스 안의 짧은 펜스와 정보 문자열이 붙은 펜스(```js)는 코드 내용이다(PR #35 리뷰).
+// - 백틱 펜스의 정보 문자열에 백틱이 있으면 펜스가 아니다(줄 안 코드다).
+export function fencedLines(lines: readonly string[]): boolean[] {
+  let open: { char: string; length: number } | null = null;
+  return lines.map((line) => {
+    if (open === null) {
+      const opening = line.match(/^\s{0,3}(`{3,}|~{3,})(.*)$/);
+      if (!opening || (opening[1][0] === '`' && opening[2].includes('`'))) return false;
+      open = { char: opening[1][0], length: opening[1].length };
+      return true;
+    }
+    const closing = line.match(/^\s{0,3}(`{3,}|~{3,})[ \t]*$/);
+    if (closing && closing[1][0] === open.char && closing[1].length >= open.length) open = null;
+    return true;
+  });
+}
+
 // md의 첫 # 제목. 앞머리(---)와 코드 블록 안은 건너뛴다. 없으면 null
 export function titleFromMarkdown(markdown: string): string | null {
   const lines = markdown.replace(/^\uFEFF/, '').split(/\r?\n/);
@@ -248,17 +269,10 @@ export function titleFromMarkdown(markdown: string): string | null {
     const end = lines.findIndex((line, i) => i > 0 && line.trim() === '---');
     if (end > 0) index = end + 1;
   }
-  let fence: string | null = null;
-  for (; index < lines.length; index += 1) {
-    const line = lines[index];
-    const fenceMatch = line.match(/^\s{0,3}(`{3,}|~{3,})/);
-    if (fenceMatch) {
-      const marker = fenceMatch[1][0];
-      if (fence === null) fence = marker;
-      else if (fence === marker) fence = null;
-      continue;
-    }
-    if (fence !== null) continue;
+  const body = lines.slice(index);
+  const fenced = fencedLines(body);
+  for (const [i, line] of body.entries()) {
+    if (fenced[i]) continue;
     const heading = line.match(/^\s{0,3}#(?!#)\s+(.*?)(?:\s+#+\s*)?$/);
     if (heading) {
       const title = plainInlineMarkdown(heading[1]);

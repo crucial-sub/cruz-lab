@@ -22,7 +22,15 @@ import {
   verifyDocCookie,
   verifyTicket,
 } from '../ticket';
-import { getLibraryBucket, getLibraryDoc, getRevision, objectPath, rawStateKey } from './store';
+import {
+  getLibraryBucket,
+  getLibraryDoc,
+  getRevision,
+  objectPath,
+  rawStateKey,
+  type LibraryDoc,
+  type Revision,
+} from './store';
 
 // ---------- 의존성 ----------
 
@@ -195,22 +203,74 @@ export async function handleRawRequest(request: Request, deps: RawDeps): Promise
 
 // ---------- 운영 의존성 ----------
 
-// Firestore에서 문서의 지금 판들을 읽는다
-async function loadRawDocState(docId: string): Promise<RawDocState | null> {
-  const doc = await getLibraryDoc(docId);
-  if (!doc) return null;
-  const state: RawDocState = {};
-  for (const format of ['html', 'md'] as const) {
-    const current = doc.formats[format];
-    if (!current) continue;
-    const revision = await getRevision(docId, current.rev);
-    if (!revision || revision.status !== 'ready') continue;
-    state[format] = {
-      rev: current.rev,
-      files: new Map(revision.files.map((file) => [file.path, { contentType: file.contentType, bytes: file.bytes, sha256: file.sha256 }])),
-    };
+// 판 정보를 읽는 저장소 함수 (운영은 store.ts, 단위 테스트는 가짜)
+export interface RawStateLoaders {
+  getDoc(docId: string): Promise<LibraryDoc | null>;
+  getRevision(docId: string, rev: number): Promise<Revision | null>;
+}
+
+// 문서를 읽는 최대 횟수 (처음 한 번 + 다시 읽기 두 번)
+const RAW_STATE_ATTEMPTS = 3;
+
+// 문서의 지금 판들을 읽는다
+// - 문서가 가리킨 판이 없거나 준비 전이면 문서를 다시 읽는다. 읽는 사이 마무리(finalizeUpload)가 새 판을 켜고
+//   앞 판을 지웠을 수 있다(PR #35 리뷰). 마지막 시도에서는 읽은 형식만 준다. 문서가 없으면 null이다.
+export async function loadRawDocStateWith(loaders: RawStateLoaders, docId: string): Promise<RawDocState | null> {
+  for (let attempt = 1; attempt <= RAW_STATE_ATTEMPTS; attempt += 1) {
+    const doc = await loaders.getDoc(docId);
+    if (!doc) return null;
+    const state: RawDocState = {};
+    let stale = false;
+    for (const format of ['html', 'md'] as const) {
+      const current = doc.formats[format];
+      if (!current) continue;
+      const revision = await loaders.getRevision(docId, current.rev);
+      if (!revision || revision.status !== 'ready') {
+        stale = true;
+        continue;
+      }
+      state[format] = {
+        rev: current.rev,
+        files: new Map(revision.files.map((file) => [file.path, { contentType: file.contentType, bytes: file.bytes, sha256: file.sha256 }])),
+      };
+    }
+    if (!stale || attempt === RAW_STATE_ATTEMPTS) return state.html || state.md ? state : null;
   }
-  return state.html || state.md ? state : null;
+  return null;
+}
+
+// 저장소 파일 흐름의 첫 조각을 먼저 읽는다
+// - 파일이 없으면 오류가 첫 읽기에서 난다. 여기서 던져야 처리기가 404를 준다.
+//   그렇지 않으면 200을 보낸 뒤 본문이 끊긴다(PR #35 리뷰).
+// - 돌려준 흐름은 읽은 첫 조각을 내보낸 뒤 나머지를 그대로 넘긴다. 받는 쪽이 취소하면 원래 흐름도 취소한다.
+export async function primeStream(stream: ReadableStream<Uint8Array>): Promise<ReadableStream<Uint8Array>> {
+  const reader = stream.getReader();
+  const first = await reader.read();
+  let pending: Uint8Array | null = first.done ? null : first.value;
+  let finished = first.done;
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      if (pending) {
+        controller.enqueue(pending);
+        pending = null;
+        return;
+      }
+      if (finished) {
+        controller.close();
+        return;
+      }
+      const next = await reader.read();
+      if (next.done) {
+        finished = true;
+        controller.close();
+      } else {
+        controller.enqueue(next.value);
+      }
+    },
+    cancel(reason) {
+      return reader.cancel(reason);
+    },
+  });
 }
 
 // 문서 출처 요청의 블로그 출처 (규칙은 host.ts의 blogOriginForDocHost)
@@ -232,10 +292,11 @@ export function createRawDeps(requestUrl: URL): RawDeps {
     secret: assertSecret(import.meta.env.LIBRARY_TICKET_SECRET),
     siteOrigin: siteOriginForRaw(requestUrl),
     forceSecure: !import.meta.env.DEV,
-    loadDoc: (docId) => memoize(rawStateKey(docId), () => loadRawDocState(docId), RAW_STATE_TTL_MS),
+    loadDoc: (docId) =>
+      memoize(rawStateKey(docId), () => loadRawDocStateWith({ getDoc: getLibraryDoc, getRevision }, docId), RAW_STATE_TTL_MS),
     openFile: async (docId, rev, path) => {
       const stream = getLibraryBucket().file(objectPath(docId, rev, path)).createReadStream();
-      return Readable.toWeb(stream) as ReadableStream<Uint8Array>;
+      return primeStream(Readable.toWeb(stream) as ReadableStream<Uint8Array>);
     },
     signedReadUrl: async (docId, rev, path) => {
       const [url] = await getLibraryBucket()

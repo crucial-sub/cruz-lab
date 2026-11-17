@@ -4,7 +4,7 @@
 // - 맥 입구: 빠진 자산을 원본 폴더에서 찾아 함께 올린다.
 // - I/O가 없는 순수 함수다. 정규식으로 읽는다(완전한 HTML 파서가 아니다). 놓친 자산은 화면 대조(8.2)가 잡는다.
 
-import { decodeHtmlEntities, normalizeDocPath } from './rules';
+import { decodeHtmlEntities, fencedLines, normalizeDocPath } from './rules';
 
 // 주소 하나를 판정한 결과
 // - local: 문서 안 경로(문서 뿌리 기준, 정규화됨)
@@ -121,8 +121,11 @@ function srcsetUrls(value: string): string[] {
     while (i < value.length && /[\s,]/.test(value[i])) i += 1;
     const start = i;
     while (i < value.length && !/\s/.test(value[i])) i += 1;
-    const url = value.slice(start, i).replace(/,+$/, '');
+    const token = value.slice(start, i);
+    const url = token.replace(/,+$/, '');
     if (url) urls.push(url);
+    // 주소가 쉼표로 끝나면 설명자 없는 후보다. 바로 다음 후보를 읽는다(HTML srcset 규칙, PR #35 리뷰)
+    if (token.endsWith(',')) continue;
     // 너비·배율 설명자는 다음 쉼표까지 건너뛴다
     while (i < value.length && value[i] !== ',') i += 1;
   }
@@ -186,20 +189,11 @@ export function findHtmlRefs(html: string, baseDir = ''): RefScan {
 
 // ---------- md ----------
 
-// 코드 블록(``` · ~~~)과 줄 안 코드를 지운다. 그 안의 주소 모양은 주소가 아니다
+// 코드 블록(``` · ~~~)과 줄 안 코드를 지운다. 그 안의 주소 모양은 주소가 아니다 (펜스 판정은 rules.ts fencedLines)
 function stripMarkdownCode(markdown: string): string {
   const lines = markdown.split(/\r?\n/);
-  let fence: string | null = null;
-  const kept = lines.map((line) => {
-    const fenceMatch = line.match(/^\s{0,3}(`{3,}|~{3,})/);
-    if (fenceMatch) {
-      const marker = fenceMatch[1][0];
-      if (fence === null) fence = marker;
-      else if (fence === marker) fence = null;
-      return '';
-    }
-    return fence === null ? line : '';
-  });
+  const fenced = fencedLines(lines);
+  const kept = lines.map((line, index) => (fenced[index] ? '' : line));
   return kept.join('\n').replace(/`[^`\n]*`/g, '');
 }
 
