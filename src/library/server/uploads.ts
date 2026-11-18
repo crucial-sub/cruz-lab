@@ -73,7 +73,7 @@ export async function startUpload(input: StartUploadInput): Promise<StartUploadR
   const fallbackTitle = extractTitle({ format: input.format, text: '', fileName: input.source.fileName });
 
   // 판 번호를 매기고 pending 판을 만든다 (같은 문서를 동시에 올려도 번호가 겹치지 않게 트랜잭션)
-  const { rev, createdDoc } = await getServerDb().runTransaction(async (tx) => {
+  const { rev } = await getServerDb().runTransaction(async (tx) => {
     const snapshot = await tx.get(ref);
     const existing = snapshot.exists ? parseStored(libraryDocSchema, '서가 문서', snapshot.data()) : null;
     const nextRev = (existing?.lastRev ?? 0) + 1;
@@ -110,7 +110,7 @@ export async function startUpload(input: StartUploadInput): Promise<StartUploadR
     };
     revisionSchema.parse(revision);
     tx.create(revisionRef(docId, nextRev), revision);
-    return { rev: nextRev, createdDoc: !existing };
+    return { rev: nextRev };
   });
 
   await removeStalePendingRevisions(docId, now.getTime());
@@ -126,7 +126,7 @@ export async function startUpload(input: StartUploadInput): Promise<StartUploadR
         return url;
       },
     },
-    { docId, rev, createdDoc, files: manifest.files, expires },
+    { docId, rev, files: manifest.files, expires },
   );
 
   return { docId, rev, expiresAt: new Date(expires).toISOString(), uploads };
@@ -151,20 +151,20 @@ export interface IssueUploadUrlsDeps {
 }
 
 // 파일마다 서명 PUT 주소와 입구가 보낼 머리를 만든다
-// - 새 문서(createdDoc)면 {문서 id}/ 아래 남은 파일을 먼저 지운다 (PR #35 리뷰 의견 1·2).
-//   앞서 내린 같은 문서의 끊긴 올리기가 파일을 남겼으면, 판 번호가 1부터 다시 시작해 같은 이름이 된다.
+// - 서명하기 전에 할당한 판 경로 {문서 id}/{판}/ 아래 남은 파일을 지운다 (PR #35 리뷰 의견 1·2).
+//   앞서 내린 같은 문서의 끊긴 올리기가 파일을 남겼으면, 판 번호가 다시 매겨져 같은 이름이 될 수 있다.
 //   "없을 때만 만들기" 조건 때문에 그 PUT이 412가 되지 않게 한다. 청소가 실패해도 주소는 준다(기록만 남긴다).
+// - 자기 판 경로만 지운다 (PR #36 리뷰 I4). 판 번호는 트랜잭션이 하나씩만 주므로 이 경로를 쓰는 요청은 이것뿐이다.
+//   문서 전체({문서 id}/)를 지우면, 같은 새 문서를 다른 입구가 동시에 올릴 때 그쪽이 이미 마무리한 판의 파일까지 지운다.
 export async function issueUploadUrlsWith(
   deps: IssueUploadUrlsDeps,
-  input: { docId: string; rev: number; createdDoc: boolean; files: { path: string; contentType: string }[]; expires: number },
+  input: { docId: string; rev: number; files: { path: string; contentType: string }[]; expires: number },
 ): Promise<StartUploadResult['uploads']> {
-  const { docId, rev, createdDoc, files, expires } = input;
-  if (createdDoc) {
-    try {
-      await deps.deleteFiles(`${docId}/`);
-    } catch (error) {
-      console.error(`[library] 새 문서 자리 청소 실패: ${docId}`, error);
-    }
+  const { docId, rev, files, expires } = input;
+  try {
+    await deps.deleteFiles(revisionPrefix(docId, rev));
+  } catch (error) {
+    console.error(`[library] 판 자리 청소 실패: ${docId}/${rev}`, error);
   }
   return Promise.all(
     files.map(async (file) => {

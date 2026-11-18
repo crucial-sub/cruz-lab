@@ -7,8 +7,10 @@
 <!--
   문서 서가 1단계 격리 시험 문서 (Plan 2.1 C4, 8.1 3)
   - 서가에 올려 문서 출처(raw…/d/{id}/index.html)에서 연다. 열리면 바로 시도하고 결과를 화면에 적는다.
-  - 문서의 스크립트가 블로그 관리자 API로 쓰기를 보내도 막히는지, 읽기 응답을 읽지 못하는지 본다.
-    서버의 403(ORIGIN_MISMATCH)은 smoke:library가 같은 요청을 직접 보내 따로 확인한다.
+  - 문서의 스크립트가 블로그 관리자 API의 응답(쓰기·읽기)을 읽지 못하는지 본다("읽기 격리").
+  - 쓰기가 서버에서 실제로 거절되는지(403 ORIGIN_MISMATCH, 사전 요청 차단)는 이 문서가 볼 수 없다.
+    다른 출처의 응답은 상태와 상관없이 읽지 못하는 것이 정상이기 때문이다. smoke:library가 같은 요청을
+    Origin 머리와 함께 직접 보내 따로 확인한다(PR #36 리뷰 I2, Plan 8.1).
   - 결과: 화면의 표, <pre id="isolation-results">의 JSON, 문서 제목(ISOLATION:PASS / ISOLATION:FAIL).
     자동 점검은 헤드리스 Chrome으로 이 문서를 열고 제목과 JSON을 읽는다.
 -->
@@ -56,11 +58,14 @@
   // 응답을 읽을 수 있으면 실패(격리가 깨짐), 읽지 못하면 통과
   // - 시간 초과는 판정 불가(실패)다. 서버가 늦거나 꺼져도 "막힘"으로 세지 않는다(PR #35 리뷰).
   // - 그 밖의 거절은 서버에 닿는지 먼저 본다(no-cors 요청은 응답을 읽지 않고 닿기만 확인한다). 닿을 때만 통과다.
+  // - fetch가 끝나면(응답 상태·머리를 읽었으면) 바로 실패다. 본문 읽기는 판정에 넣지 않는다.
+  //   본문이 중간에 끊긴 오류를 "막힘"으로 세면, CORS가 열린 회귀를 통과로 보고한다(PR #36 리뷰 I1).
+  // - 이 문서는 서버의 응답 상태(403 등)를 볼 수 없다. 다른 출처의 응답은 읽지 못하는 것이 정상이기 때문이다.
+  //   서버 상태 확인은 smoke:library가 한다(PR #36 리뷰 I2).
   async function expectUnreadable(url, init) {
+    let res;
     try {
-      const res = await withTimeout(fetch(url, { credentials: 'include', ...init }), 8000);
-      const text = await res.text();
-      return { pass: false, detail: `읽음: ${res.status} ${text.slice(0, 80)}` };
+      res = await withTimeout(fetch(url, { credentials: 'include', ...init }), 8000);
     } catch (error) {
       if (error && error.message === 'timeout') return { pass: false, detail: '판정 불가: 시간 초과' };
       try {
@@ -68,21 +73,23 @@
       } catch {
         return { pass: false, detail: '판정 불가: 서버에 닿지 않음' };
       }
-      return { pass: true, detail: `막힘: ${error && error.name}` };
+      return { pass: true, detail: `막힘(서버에 닿음, 상태는 못 봄): ${error && error.name}` };
     }
+    const text = await withTimeout(res.text(), 2000).catch(() => '(본문 못 읽음)');
+    return { pass: false, detail: `읽음: ${res.status} ${text.slice(0, 80)}` };
   }
 
   const ATTEMPTS = [
     {
       id: 'write-post',
       what: '관리자 API로 POST (단순 요청)',
-      expect: '응답을 읽지 못한다. 서버는 403',
+      expect: '응답을 읽지 못한다 (서버 403은 smoke:library가 본다)',
       run: () => expectUnreadable(`${SITE}/api/admin/library/uploads`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: '{}' }),
     },
     {
       id: 'write-delete',
       what: '관리자 API로 DELETE',
-      expect: '사전 요청에서 막힌다',
+      expect: '응답을 읽지 못한다 (사전 요청 차단·서버 403은 smoke:library가 본다)',
       run: () => expectUnreadable(`${SITE}/api/admin/library/docs/00000000000000000000`, { method: 'DELETE' }),
     },
     {

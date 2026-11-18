@@ -1,5 +1,6 @@
 // 서가 화면 올리기 계획 테스트 (서가 1단계 T6, Plan J8·J15)
 import { describe, expect, it } from 'vitest';
+import { identifyUpload } from '@/library/rules';
 import { analyzeJob, planDrop, textSourcesFor, type PickedFile, type UploadJob } from '@/library/ui/upload-plan';
 
 const files = (...paths: string[]): PickedFile[] => paths.map((path) => ({ path, bytes: 10 }));
@@ -28,8 +29,22 @@ describe('planDrop: 놓은 파일을 문서별 작업으로', () => {
 
   it('꼴 b: 폴더 하나. 폴더 이름을 떼고, 폴더 이름이 키가 된다', () => {
     const [job] = jobsOf(files('mood/index.html', 'mood/app.js', 'mood/style.css', 'mood/shots/a.png', 'mood/scene.html'));
-    expect(job).toMatchObject({ format: 'html', relativePath: 'mood', fileName: 'mood.html' });
+    expect(job).toMatchObject({ format: 'html', relativePath: 'mood.html', fileName: 'mood.html' });
     expect(pathsOf(job)).toEqual(['index.html', 'app.js', 'style.css', 'shots/a.png', 'scene.html']);
+  });
+
+  // PR #36 리뷰(CodeRabbit I6): 서버는 relativePath 끝의 .md·.html을 떼고 같은 문서 키를 만든다(J8).
+  // 폴더 작업이 폴더 이름만 보내면, 이름이 .md·.html로 끝나는 폴더가 다른 문서와 같은 키가 되어 앞 판을 갈아치운다.
+  it('꼴 b: 폴더 작업의 키는 폴더 이름 + 형식 확장자. 이름이 .md·.html로 끝나는 폴더도 다른 문서와 겹치지 않는다', () => {
+    const keyOf = (job: UploadJob) =>
+      identifyUpload({ kind: 'web', project: 'p', relativePath: job.relativePath, fileName: job.fileName })?.key;
+    const [plain] = jobsOf(files('notes/index.html'));
+    const [dottedMd] = jobsOf(files('notes.md/index.html'));
+    const [dottedHtml] = jobsOf(files('notes.html/index.html'));
+    const [file] = jobsOf(files('notes.html'));
+    // 폴더 notes와 파일 notes.html은 같은 문서다(J8, 바뀌지 않음)
+    expect(keyOf(plain)).toBe(keyOf(file));
+    expect(new Set([keyOf(plain), keyOf(dottedMd), keyOf(dottedHtml)]).size).toBe(3);
   });
 
   it('꼴 b: index.html이 없으면 뿌리에 하나뿐인 html이 진입 파일이다', () => {
@@ -63,8 +78,8 @@ describe('planDrop: 놓은 파일을 문서별 작업으로', () => {
   it('폴더 안의 짝: index.html + index.md', () => {
     const jobs = jobsOf(files('doc/index.html', 'doc/index.md'));
     expect(jobs.map((job) => [job.format, job.relativePath, job.fileName])).toEqual([
-      ['html', 'doc', 'doc.html'],
-      ['md', 'doc', 'doc.md'],
+      ['html', 'doc.html', 'doc.html'],
+      ['md', 'doc.md', 'doc.md'],
     ]);
   });
 
@@ -115,7 +130,7 @@ describe('planDrop: 놓은 파일을 문서별 작업으로', () => {
 
   it('끌어다 놓기 경로의 앞 / 를 뗀다', () => {
     const [job] = jobsOf(files('/mood/index.html', '/mood/a.png'));
-    expect(job.relativePath).toBe('mood');
+    expect(job.relativePath).toBe('mood.html');
     expect(pathsOf(job)).toEqual(['index.html', 'a.png']);
   });
 });

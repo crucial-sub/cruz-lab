@@ -2,7 +2,7 @@
 // - 문서 출처 주소는 /d/ 아래다(사용자 결정 2026-11-17: Vercel이 라우트 없는 경로를 함수로 보내지 않는다)
 // - 저장소 접근은 가짜 의존성으로 바꾼다. 처리기의 판정(입장권, 쿠키, 경로, 머리)만 본다.
 import { describe, expect, it } from 'vitest';
-import { handleRawRequest, type RawDeps, type RawDocState } from '@/library/server/raw';
+import { handleRawRequest, primeStream, type RawDeps, type RawDocState } from '@/library/server/raw';
 import { DOC_COOKIE_NAME, createDocCookie, createTicket } from '@/library/ticket';
 
 const SECRET = 'k'.repeat(48);
@@ -183,6 +183,16 @@ describe('/d/{문서 id}/{파일}: 문서 쿠키로 연다 (J4·J5)', () => {
       bodies.add(await res.text());
     }
     expect(bodies.size).toBe(1);
+  });
+
+  // PR #35 리뷰(CodeRabbit 되답): 판 기록에는 있는데 버킷에 파일이 없으면, 첫 읽기 오류가 200이 아니라 J5 404가 된다
+  it('버킷 파일의 첫 읽기가 실패하면(primeStream이 던짐) J5 404', async () => {
+    const missing = () =>
+      primeStream(new ReadableStream<Uint8Array>({ pull: () => Promise.reject(new Error('No such object')) }));
+    const res = await handleRawRequest(req(`/d/${DOC}/index.html`, { cookie: cookieFor() }), deps({ openFile: missing }));
+    expect(res.status).toBe(404);
+    expect(res.headers.get('X-Astro-Reroute')).toBe('no');
+    expect(await res.text()).toContain('href="https://www.cruzlab.dev/admin/library"');
   });
 
   it('여러 문서 쿠키가 함께 오면 이 문서의 것을 찾는다', async () => {

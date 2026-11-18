@@ -124,11 +124,12 @@ function jobsFor(
   html: JobFile | null,
   md: JobFile | null,
   assets: JobFile[],
-  key: { relativePath: string; fileName: (format: DocFormat) => string },
+  key: { relativePath: (format: DocFormat) => string; fileName: (format: DocFormat) => string },
 ): UploadJob[] {
   const jobs: UploadJob[] = [];
-  if (html) jobs.push(makeJob('html', html, assets, { relativePath: key.relativePath, fileName: key.fileName('html') }, false));
-  if (md) jobs.push(makeJob('md', md, assets, { relativePath: key.relativePath, fileName: key.fileName('md') }, html !== null));
+  const keyOf = (format: DocFormat) => ({ relativePath: key.relativePath(format), fileName: key.fileName(format) });
+  if (html) jobs.push(makeJob('html', html, assets, keyOf('html'), false));
+  if (md) jobs.push(makeJob('md', md, assets, keyOf('md'), html !== null));
   return jobs;
 }
 
@@ -149,8 +150,12 @@ function planFolder(root: string, kept: JobFile[]): UploadJob[] | null {
   if (!html && !md) return null;
 
   const assets = inner.filter((file) => file !== html && file !== md);
-  // 폴더 이름에는 점이 들어갈 수 있다. 제목 대체가 이름을 자르지 않게 형식 확장자를 붙인다
-  return jobsFor(html, md, assets, { relativePath: root, fileName: (format) => `${root}.${format}` });
+  // 폴더 이름에는 점이 들어갈 수 있다. 제목 대체가 이름을 자르지 않게 형식 확장자를 붙인다.
+  // 키(relativePath)에도 붙인다. 서버는 끝의 .md·.html을 떼고 같은 문서 키를 만든다(J8). 폴더 이름만 보내면
+  // notes.md/ 같은 폴더가 notes/ 문서와 같은 키가 되어 그 문서의 앞 판을 갈아치운다(PR #36 리뷰 I6).
+  // 보통 폴더의 키는 그대로다(notes.html → notes).
+  const withFormat = (format: DocFormat) => `${root}.${format}`;
+  return jobsFor(html, md, assets, { relativePath: withFormat, fileName: withFormat });
 }
 
 // 뿌리에 놓은 파일들
@@ -174,7 +179,7 @@ function planFiles(kept: JobFile[]): UploadJob[] | 'NO_DOC' | 'MIXED' {
     const assets = kept.filter((file) => file !== html && file !== md);
     const entry = (html ?? md) as JobFile;
     return jobsFor(html, md, assets, {
-      relativePath: entry.path,
+      relativePath: () => entry.path,
       fileName: (format) => (format === 'html' ? html : md)?.path ?? entry.path,
     });
   }
@@ -187,7 +192,7 @@ function planFiles(kept: JobFile[]): UploadJob[] | 'NO_DOC' | 'MIXED' {
     const entry = (html ?? md) as JobFile;
     jobs.push(
       ...jobsFor(html, md, [], {
-        relativePath: entry.path,
+        relativePath: () => entry.path,
         fileName: (format) => (format === 'html' ? html : md)?.path ?? entry.path,
       }),
     );
