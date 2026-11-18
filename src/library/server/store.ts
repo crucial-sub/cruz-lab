@@ -214,27 +214,59 @@ export async function deleteRevisionFiles(docId: string, rev: number): Promise<v
   }
 }
 
-// 서가에서 내린다: 문서 → 판 기록 → 파일 순서로 지운다. 문서가 없으면 false
-// - 문서를 먼저 지워서 목록과 문서 출처가 바로 404가 된다.
-export async function removeLibraryDoc(docId: string): Promise<boolean> {
-  const ref = libraryDocRef(docId);
-  const snapshot = await ref.get();
-  if (!snapshot.exists) return false;
-  const revisions = await ref.collection(REVISIONS_SUBCOLLECTION).listDocuments();
-  await ref.delete();
-  invalidateRawState(docId);
-  const db = getServerDb();
-  for (let i = 0; i < revisions.length; i += 400) {
-    const batch = db.batch();
-    for (const revRef of revisions.slice(i, i + 400)) batch.delete(revRef);
-    await batch.commit();
-  }
+// 내리기가 쓰는 저장소 동작 (테스트는 메모리 저장소를 넣는다)
+export interface RemoveDocDeps {
+  docExists(docId: string): Promise<boolean>;
+  // 접두사 아래 파일을 모두 지운다. 하나라도 실패하면 던진다
+  deleteFiles(prefix: string): Promise<void>;
+  deleteRevisionRecords(docId: string): Promise<void>;
+  deleteDocRecord(docId: string): Promise<void>;
+  invalidate(docId: string): void;
+}
+
+// 서가에서 내린다: 판 파일 → 판 기록 → 문서 기록 순서로 지운다. 문서가 없으면 false (PR #35 리뷰 의견 1·2)
+// - 문서 기록을 마지막에 지운다. 중간에 실패하면 던지고 뒤 단계를 하지 않는다.
+//   문서 기록(판 번호 셈값 lastRev 포함)이 남으므로 다시 내리기가 남은 것을 이어 지우고,
+//   다시 올리기는 이어지는 판 번호를 받아 남은 판 기록과 겹치지 않는다.
+// - 파일을 먼저 지우므로, 내리는 사이 다시 올린 판이 "준비됨"이 된 뒤 늦은 파일 삭제에 지워지는 일이 없다.
+//   겹쳐 올린 쪽은 마무리 때 판 기록이나 문서 기록이 없어 404로 끝난다.
+// - 지우는 동안(보통 1초 안) 문서는 목록에 보이고, 열면 파일이 없어 404일 수 있다(받아들임).
+export async function removeLibraryDocWith(deps: RemoveDocDeps, docId: string): Promise<boolean> {
+  if (!(await deps.docExists(docId))) return false;
   try {
-    await getLibraryBucket().deleteFiles({ prefix: `${docId}/`, force: true });
-  } catch (error) {
-    console.error(`[library] 문서 파일 삭제 실패: ${docId}`, error);
+    await deps.deleteFiles(`${docId}/`);
+    await deps.deleteRevisionRecords(docId);
+    await deps.deleteDocRecord(docId);
+  } finally {
+    // 파일을 지우기 시작했으면 문서 출처의 판 정보 캐시는 이미 낡았다
+    deps.invalidate(docId);
   }
   return true;
+}
+
+// Firestore·서가 버킷으로 지운다
+const firestoreRemoveDeps: RemoveDocDeps = {
+  docExists: async (docId) => (await libraryDocRef(docId).get()).exists,
+  deleteFiles: async (prefix) => {
+    await getLibraryBucket().deleteFiles({ prefix, force: true });
+  },
+  deleteRevisionRecords: async (docId) => {
+    const revisions = await libraryDocRef(docId).collection(REVISIONS_SUBCOLLECTION).listDocuments();
+    const db = getServerDb();
+    for (let i = 0; i < revisions.length; i += 400) {
+      const batch = db.batch();
+      for (const revRef of revisions.slice(i, i + 400)) batch.delete(revRef);
+      await batch.commit();
+    }
+  },
+  deleteDocRecord: async (docId) => {
+    await libraryDocRef(docId).delete();
+  },
+  invalidate: invalidateRawState,
+};
+
+export function removeLibraryDoc(docId: string): Promise<boolean> {
+  return removeLibraryDocWith(firestoreRemoveDeps, docId);
 }
 
 // 이 문서의 형식 하나의 지금 판

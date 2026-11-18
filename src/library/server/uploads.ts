@@ -73,7 +73,7 @@ export async function startUpload(input: StartUploadInput): Promise<StartUploadR
   const fallbackTitle = extractTitle({ format: input.format, text: '', fileName: input.source.fileName });
 
   // 판 번호를 매기고 pending 판을 만든다 (같은 문서를 동시에 올려도 번호가 겹치지 않게 트랜잭션)
-  const rev = await getServerDb().runTransaction(async (tx) => {
+  const { rev } = await getServerDb().runTransaction(async (tx) => {
     const snapshot = await tx.get(ref);
     const existing = snapshot.exists ? parseStored(libraryDocSchema, '서가 문서', snapshot.data()) : null;
     const nextRev = (existing?.lastRev ?? 0) + 1;
@@ -110,25 +110,72 @@ export async function startUpload(input: StartUploadInput): Promise<StartUploadR
     };
     revisionSchema.parse(revision);
     tx.create(revisionRef(docId, nextRev), revision);
-    return nextRev;
+    return { rev: nextRev };
   });
 
   await removeStalePendingRevisions(docId, now.getTime());
 
   const expires = now.getTime() + LIBRARY_UPLOAD_URL_TTL_MS;
-  const uploads = await Promise.all(
-    manifest.files.map(async (file) => {
-      const [url] = await bucket.file(objectPath(docId, rev, file.path)).getSignedUrl({
-        version: 'v4',
-        action: 'write',
-        expires,
-        contentType: file.contentType,
-      });
-      return { path: file.path, url, headers: { 'Content-Type': file.contentType } };
-    }),
+  const uploads = await issueUploadUrlsWith(
+    {
+      deleteFiles: async (prefix) => {
+        await bucket.deleteFiles({ prefix, force: true });
+      },
+      signWriteUrl: async (name, options) => {
+        const [url] = await bucket.file(name).getSignedUrl({ version: 'v4', action: 'write', ...options });
+        return url;
+      },
+    },
+    { docId, rev, files: manifest.files, expires },
   );
 
   return { docId, rev, expiresAt: new Date(expires).toISOString(), uploads };
+}
+
+// 서명 PUT의 "없을 때만 만들기" 조건 (PR #35 리뷰 의견 3)
+// - 버킷에 같은 이름의 파일이 있으면 412로 거절한다. 마무리 뒤 같은 주소로 다시 보내도 준비된 판이 바뀌지 않는다.
+// - 서명에 넣은 머리라 입구가 같은 값을 보내야 한다. 서가 버킷 CORS가 이 머리를 허용해야 한다(scripts/ops/library-bucket.mjs).
+export const CREATE_ONLY_HEADERS = { 'x-goog-if-generation-match': '0' } as const;
+
+export interface SignWriteOptions {
+  expires: number;
+  contentType: string;
+  extensionHeaders: Record<string, string>;
+}
+
+// 서명 주소를 만드는 데 쓰는 버킷 동작 (테스트는 가짜를 넣는다)
+export interface IssueUploadUrlsDeps {
+  // 접두사 아래 파일을 모두 지운다
+  deleteFiles(prefix: string): Promise<void>;
+  signWriteUrl(objectName: string, options: SignWriteOptions): Promise<string>;
+}
+
+// 파일마다 서명 PUT 주소와 입구가 보낼 머리를 만든다
+// - 서명하기 전에 할당한 판 경로 {문서 id}/{판}/ 아래 남은 파일을 지운다 (PR #35 리뷰 의견 1·2).
+//   앞서 내린 같은 문서의 끊긴 올리기가 파일을 남겼으면, 판 번호가 다시 매겨져 같은 이름이 될 수 있다.
+//   "없을 때만 만들기" 조건 때문에 그 PUT이 412가 되지 않게 한다. 청소가 실패해도 주소는 준다(기록만 남긴다).
+// - 자기 판 경로만 지운다 (PR #36 리뷰 I4). 판 번호는 트랜잭션이 하나씩만 주므로 이 경로를 쓰는 요청은 이것뿐이다.
+//   문서 전체({문서 id}/)를 지우면, 같은 새 문서를 다른 입구가 동시에 올릴 때 그쪽이 이미 마무리한 판의 파일까지 지운다.
+export async function issueUploadUrlsWith(
+  deps: IssueUploadUrlsDeps,
+  input: { docId: string; rev: number; files: { path: string; contentType: string }[]; expires: number },
+): Promise<StartUploadResult['uploads']> {
+  const { docId, rev, files, expires } = input;
+  try {
+    await deps.deleteFiles(revisionPrefix(docId, rev));
+  } catch (error) {
+    console.error(`[library] 판 자리 청소 실패: ${docId}/${rev}`, error);
+  }
+  return Promise.all(
+    files.map(async (file) => {
+      const url = await deps.signWriteUrl(objectPath(docId, rev, file.path), {
+        expires,
+        contentType: file.contentType,
+        extensionHeaders: { ...CREATE_ONLY_HEADERS },
+      });
+      return { path: file.path, url, headers: { 'Content-Type': file.contentType, ...CREATE_ONLY_HEADERS } };
+    }),
+  );
 }
 
 // 24시간 넘게 끝내지 않은 판을 지운다 (올리다 멈춘 파일이 남지 않게). 실패는 기록만 남긴다

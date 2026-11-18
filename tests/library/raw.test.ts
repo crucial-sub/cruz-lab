@@ -2,7 +2,7 @@
 // - 문서 출처 주소는 /d/ 아래다(사용자 결정 2026-11-17: Vercel이 라우트 없는 경로를 함수로 보내지 않는다)
 // - 저장소 접근은 가짜 의존성으로 바꾼다. 처리기의 판정(입장권, 쿠키, 경로, 머리)만 본다.
 import { describe, expect, it } from 'vitest';
-import { handleRawRequest, type RawDeps, type RawDocState } from '@/library/server/raw';
+import { handleRawRequest, primeStream, type RawDeps, type RawDocState } from '@/library/server/raw';
 import { DOC_COOKIE_NAME, createDocCookie, createTicket } from '@/library/ticket';
 
 const SECRET = 'k'.repeat(48);
@@ -185,6 +185,16 @@ describe('/d/{문서 id}/{파일}: 문서 쿠키로 연다 (J4·J5)', () => {
     expect(bodies.size).toBe(1);
   });
 
+  // PR #35 리뷰(CodeRabbit 되답): 판 기록에는 있는데 버킷에 파일이 없으면, 첫 읽기 오류가 200이 아니라 J5 404가 된다
+  it('버킷 파일의 첫 읽기가 실패하면(primeStream이 던짐) J5 404', async () => {
+    const missing = () =>
+      primeStream(new ReadableStream<Uint8Array>({ pull: () => Promise.reject(new Error('No such object')) }));
+    const res = await handleRawRequest(req(`/d/${DOC}/index.html`, { cookie: cookieFor() }), deps({ openFile: missing }));
+    expect(res.status).toBe(404);
+    expect(res.headers.get('X-Astro-Reroute')).toBe('no');
+    expect(await res.text()).toContain('href="https://www.cruzlab.dev/admin/library"');
+  });
+
   it('여러 문서 쿠키가 함께 오면 이 문서의 것을 찾는다', async () => {
     const both = `${cookieFor(OTHER)}; ${cookieFor()}`;
     expect((await handleRawRequest(req(`/d/${DOC}/index.html`, { cookie: both }), deps())).status).toBe(200);
@@ -198,5 +208,15 @@ describe('/d/{문서 id}/{파일}: 문서 쿠키로 연다 (J4·J5)', () => {
   it('404 화면에 "서가에서 다시 열기" 링크가 있다 (J5)', async () => {
     const res = await handleRawRequest(req('/x'), deps());
     expect(await res.text()).toContain('href="https://www.cruzlab.dev/admin/library"');
+  });
+
+  // 배포 환경의 Astro는 미들웨어가 돌려준 404를 사이트 404 화면(/404.html)으로 바꿔 그린다.
+  // X-Astro-Reroute: no가 있어야 J5 화면이 그대로 나간다(2026-11-18 미리보기에서 발견).
+  it('J5 404에는 Astro가 404 화면으로 바꾸지 않게 하는 표시가 있다', async () => {
+    for (const path of ['/x', '/d/_open', `/d/${DOC}/index.html`]) {
+      const res = await handleRawRequest(req(path), deps());
+      expect(res.status).toBe(404);
+      expect(res.headers.get('X-Astro-Reroute')).toBe('no');
+    }
   });
 });

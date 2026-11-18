@@ -3,6 +3,8 @@
 //   이로써 Plan D10의 메뉴 7개가 모두 있다. 글 하나의 독자 화면(entryReaders)은 "독자"를 지금 화면으로 보인다.
 // - 순서는 Plan D10을 따른다(글·이미지·분류·연재·독자·출간 기록·설정).
 // - 아래: 사이트 보기(새 탭), 로그아웃.
+// - 서가(문서 서가 1단계 J2): 앱 밖의 서버 렌더 페이지(/admin/library)라서 일반 링크로 간다.
+//   서가가 켜져 있을 때(LIBRARY_ENABLED)만 보인다(J21).
 // - 넓은 화면(1024px 이상)은 왼쪽 막대, 좁은 화면은 시트 안에 같은 메뉴를 그린다.
 
 import { classNames } from '@/editor/ui/class-names';
@@ -27,10 +29,12 @@ export function AdminNav({
   current,
   onLogout,
   onNavigate,
+  libraryEnabled = false,
 }: {
   current: AdminRoute['name'];
   onLogout: () => void;
   onNavigate?: () => void;
+  libraryEnabled?: boolean;
 }) {
   return (
     <nav aria-label="관리자 메뉴" className="flex h-full flex-col gap-1 text-sm">
@@ -52,6 +56,16 @@ export function AdminNav({
             </a>
           </li>
         ))}
+        {libraryEnabled && (
+          <li>
+            <a
+              href="/admin/library"
+              className="block rounded-md px-3 py-2 text-text-secondary hover:bg-bg-card hover:text-text-primary"
+            >
+              서가
+            </a>
+          </li>
+        )}
       </ul>
       <div className="mt-auto flex flex-col gap-0.5 border-t border-border pt-3">
         <a

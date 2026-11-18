@@ -92,6 +92,12 @@ describe('contentTypeForPath: 받는 형식 (J10)', () => {
     expect(contentTypeForPath('noext')).toBeNull();
     expect(contentTypeForPath('page.htm')).toBeNull();
   });
+
+  it('객체 기본 속성 이름의 확장자는 null이다 (PR #35 리뷰)', () => {
+    for (const path of ['payload.constructor', 'x.__proto__', 'a.toString', 'a.hasOwnProperty', 'a.valueOf']) {
+      expect(contentTypeForPath(path)).toBeNull();
+    }
+  });
 });
 
 describe('validateManifest: 올리기 목록 검사', () => {
@@ -224,6 +230,10 @@ describe('자동 분류 (J13)', () => {
     expect(titleFromMarkdown('---\ntitle: x\n---\n\n# 서가 **1단계** Plan\n\n## 둘')).toBe('서가 1단계 Plan');
     expect(titleFromMarkdown('```md\n# 코드 안\n```\n# 진짜 제목 #')).toBe('진짜 제목');
     expect(titleFromMarkdown('## 둘째 수준만\n본문')).toBeNull();
+    // 닫는 펜스는 같은 글자, 여는 펜스 이상 길이, 뒤에 공백만 (CommonMark, PR #35 리뷰)
+    expect(titleFromMarkdown('````md\n```\n# 예시\n````\n# 진짜')).toBe('진짜');
+    expect(titleFromMarkdown('```\n```js\n# 안쪽\n```\n# 진짜')).toBe('진짜');
+    expect(titleFromMarkdown('~~~\n```\n# 안쪽\n~~~\n# 진짜')).toBe('진짜');
     expect(titleFromMarkdown('# [링크](a.md)와 `코드`')).toBe('링크와 코드');
   });
 

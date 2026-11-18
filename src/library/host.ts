@@ -12,6 +12,46 @@ export function rawDocPath(docId: string, path = 'index.html'): string {
   return `${RAW_PATH_PREFIX}/${docId}/${path}`;
 }
 
+// 서가 문서 주소(J7)가 보낼 문서 출처 (https://raw.cruzlab.dev)
+// - docHost는 LIBRARY_DOC_HOST(호스트[:포트])다. 프로토콜·경로·@ 같은 글자가 들면 null이다(다른 곳으로 보내지 않는다).
+// - 운영은 늘 https다. 개발은 요청과 같은 프로토콜이다(http://raw.localhost:4341).
+export function docOriginFor(docHost: string | null | undefined, requestProtocol: string, dev: boolean): string | null {
+  const host = docHost?.trim().toLowerCase();
+  if (!host || !/^[a-z0-9.-]+(:\d{1,5})?$/.test(host)) return null;
+  return `${dev ? requestProtocol : 'https:'}//${host}`;
+}
+
+// 문서 출처 404 화면(J5)의 "서가에서 다시 열기"가 갈 블로그 출처
+// - 'raw-'로 시작하는 호스트는 'raw-'를 뗀다: raw-preview.cruzlab.dev → https://preview.cruzlab.dev (미리보기)
+// - 개발은 'raw.'를 떼고 요청 프로토콜·포트를 지킨다: raw.localhost:4341 → http://localhost:4341
+// - 그 밖(운영 raw.cruzlab.dev)은 사이트 주소(astro.config의 site)다
+// - 떼고 남은 값이 호스트 꼴이 아니면 사이트 주소로 간다(다른 곳으로 보내지 않는다)
+export function blogOriginForDocHost(
+  requestHost: string,
+  input: { dev: boolean; protocol: string; site: string },
+): string {
+  const host = requestHost.trim().toLowerCase();
+  const site = input.site.replace(/\/$/, '');
+  const protocol = input.dev ? input.protocol : 'https:';
+  if (host.startsWith('raw-')) {
+    const rest = host.slice('raw-'.length);
+    return /^[a-z0-9][a-z0-9.-]*(:\d{1,5})?$/.test(rest) ? `${protocol}//${rest}` : site;
+  }
+  if (input.dev) return `${protocol}//${host.replace(/^raw\./, '')}`;
+  return site;
+}
+
+// 문서 출처의 입장권 주소: {문서 출처}/d/_open?t={입장권}
+export function rawOpenUrl(docOrigin: string, ticket: string): string {
+  return `${docOrigin}${RAW_PATH_PREFIX}/_open?t=${encodeURIComponent(ticket)}`;
+}
+
+// 입장권 그림 주소: {문서 출처}/d/_open?t={입장권}&pixel=1
+// - 문서 출처가 302 대신 1px 그림과 문서 쿠키를 준다(raw.ts). md 뷰어가 상대 그림보다 먼저 부른다(J12).
+export function rawTicketPixelUrl(docOrigin: string, ticket: string): string {
+  return `${rawOpenUrl(docOrigin, ticket)}&pixel=1`;
+}
+
 // 호스트 값을 비교용으로 맞춘다: 소문자, 끝의 점 제거
 function normalizeHost(host: string): string {
   return host.trim().toLowerCase().replace(/\.(?=:|$)/, '');

@@ -106,6 +106,11 @@ describe('findHtmlRefs (J15)', () => {
     expect(findHtmlRefs('<img src="../shots/a.png">', 'pages').assets).toEqual(['shots/a.png']);
   });
 
+  it('srcset에서 설명자 없이 쉼표로 끝난 후보 뒤의 후보도 찾는다 (PR #35 리뷰)', () => {
+    expect(findHtmlRefs('<img srcset="a.png, b.png 2x">').assets).toEqual(['a.png', 'b.png']);
+    expect(findHtmlRefs('<img srcset="a.png, b.png 2x, c.png,  d.png 3x">').assets).toEqual(['a.png', 'b.png', 'c.png', 'd.png']);
+  });
+
   it('srcset의 data: 주소 쉼표에 속지 않는다', () => {
     expect(findHtmlRefs('<img srcset="data:image/png;base64,AA,BB 1x, b.png 2x">').assets).toEqual(['b.png']);
   });
@@ -140,6 +145,12 @@ describe('findMarkdownRefs', () => {
     const r = findMarkdownRefs(md);
     expect(r.assets).toEqual(['img/a.png', 'img/b.png', 'img/c.png']);
     expect(r.links).toEqual(['other.md']);
+  });
+
+  it('긴 펜스 안의 짧은 펜스는 코드다 (PR #35 리뷰)', () => {
+    const md = ['````md', '```', '![예시](missing.png)', '````', '![진짜](real.png)'].join('\n');
+    expect(findMarkdownRefs(md).assets).toEqual(['real.png']);
+    expect(findMarkdownRefs(['```', '```js', '![안](in.png)', '```', '![밖](out.png)'].join('\n')).assets).toEqual(['out.png']);
   });
 
   it('꺾쇠로 감싼 주소와 공백 이름을 읽는다', () => {
