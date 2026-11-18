@@ -12,6 +12,8 @@
     "smoke:public": "node --env-file=.env scripts/smoke/stage2-public.mjs",
     "smoke:roundtrip": "node --env-file=.env scripts/smoke/stage3-roundtrip.mjs",
     "smoke:stage4": "node --env-file=.env scripts/smoke/stage4-public.mjs",
+    "smoke:library": "node --env-file=.env scripts/smoke/library-private.mjs",
+    "smoke:library-compare": "node --env-file=.env scripts/smoke/library-compare.mjs",
     "preview": "astro preview",
     "astro": "astro",
     "format": "prettier . --write",

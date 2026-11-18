@@ -44,4 +44,15 @@ describe('Node가 서가 모듈을 바로 가져온다', () => {
       expect.arrayContaining(['describeApiError', 'describeNote', 'describePlanError']),
     );
   });
+
+  // T10: smoke:library가 만료 입장권·쿠키를 서명한다 (Plan 8.1 2)
+  it('ticket.ts', () => {
+    expect(exportsOf('src/library/ticket.ts')).toEqual(
+      expect.arrayContaining(['createDocCookie', 'createTicket', 'verifyDocCookie', 'DOC_COOKIE_NAME']),
+    );
+  });
+
+  it('host.ts', () => {
+    expect(exportsOf('src/library/host.ts')).toEqual(expect.arrayContaining(['rawDocPath', 'rawOpenUrl']));
+  });
 });

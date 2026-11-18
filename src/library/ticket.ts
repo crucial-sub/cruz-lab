@@ -4,9 +4,11 @@
 // - 값의 꼴: {문서 id}.{만료 초}.{서명}. 서명 = HMAC-SHA256(비밀값, "{용도}|v1|{문서 id}|{만료 초}")
 //   용도(ticket / cookie)를 서명에 넣어 입장권을 쿠키로, 쿠키를 입장권으로 쓰지 못하게 한다.
 // - 서버(Node)에서만 쓴다(node:crypto). 저장소·네트워크 I/O는 없다.
+// - smoke:library(scripts/smoke/library-private.mjs)가 빌드 없이 Node로 가져온다. 그래서 상대 가져오기에 .ts를 붙인다
+//   (tests/library/node-load.test.ts).
 
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
-import { RAW_PATH_PREFIX } from './host';
+import { RAW_PATH_PREFIX } from './host.ts';
 
 export const TICKET_TTL_SEC = 60;
 export const DOC_COOKIE_TTL_SEC = 12 * 60 * 60;
