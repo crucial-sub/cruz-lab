@@ -503,7 +503,10 @@ async function removeDoc(row: HTMLElement, button: HTMLButtonElement) {
     await refreshList();
   } catch (error) {
     button.disabled = false;
-    window.alert(`내리지 못했습니다: ${error instanceof Error ? error.message : String(error)}`);
+    // 내리기는 문서 기록을 마지막에 지운다. 다시 누르면 남은 것을 이어서 지운다(store.ts removeLibraryDocWith)
+    window.alert(
+      `내리지 못했습니다: ${error instanceof Error ? error.message : String(error)}\n다시 누르면 남은 것을 이어서 지웁니다.`,
+    );
   }
 }
 

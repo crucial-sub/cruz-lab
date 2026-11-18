@@ -27,7 +27,8 @@ export const LIBRARY_CORS = [
       'https://www.cruzlab.dev',
     ],
     method: ['PUT'],
-    responseHeader: ['Content-Type'],
+    // x-goog-if-generation-match: 서명 PUT의 "없을 때만 만들기" 조건(PR #35 리뷰 의견 3, uploads.ts CREATE_ONLY_HEADERS)
+    responseHeader: ['Content-Type', 'x-goog-if-generation-match'],
     maxAgeSeconds: 3600,
   },
 ];
