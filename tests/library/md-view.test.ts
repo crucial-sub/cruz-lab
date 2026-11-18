@@ -2,11 +2,30 @@
 // - 본문의 문서 그림·영상은 data-src에 주소가 있다. 입장권 그림이 끝난 뒤(성공·실패·시간 초과) src로 옮긴다.
 // - DOM 없이 시험한다. 요소와 타이머는 가짜다.
 import { describe, expect, it } from 'vitest';
-import { releaseDeferredMedia, whenTicketReady, type TicketPixel } from '@/library/ui/md-view';
+import { releaseDeferredMedia, reloadMediaOf, whenTicketReady, type TicketPixel } from '@/library/ui/md-view';
 
 function media(src?: string) {
   return { src: '', dataset: (src === undefined ? {} : { src }) as Record<string, string | undefined> };
 }
+
+// PR #36 리뷰(Codex): 영상의 poster, 영상·소리 안의 <source>
+describe('poster와 <source>', () => {
+  it('data-poster를 poster로 옮기고 data-poster를 지운다', () => {
+    const video = { src: '', poster: '', dataset: { poster: 'https://raw.example/d/x/c.jpg' } as Record<string, string | undefined> };
+    expect(releaseDeferredMedia([video])).toBe(1);
+    expect(video.poster).toBe('https://raw.example/d/x/c.jpg');
+    expect(video.dataset.poster).toBeUndefined();
+    expect(video.src).toBe('');
+  });
+
+  it('주소를 옮긴 <source>의 영상·소리를 한 번씩 load()한다(source의 src만 바꾸면 브라우저가 다시 고르지 않는다)', () => {
+    let loads = 0;
+    const video = { load: () => (loads += 1) };
+    const sources = [{ parentElement: video }, { parentElement: video }, { parentElement: null }, { parentElement: {} }];
+    expect(reloadMediaOf(sources)).toBe(1);
+    expect(loads).toBe(1);
+  });
+});
 
 describe('releaseDeferredMedia', () => {
   it('data-src를 src로 옮기고 data-src를 지운다', () => {

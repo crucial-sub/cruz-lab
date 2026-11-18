@@ -342,22 +342,34 @@ export interface MediaUrlOption {
   defer?: boolean;
 }
 
-// 그림(img)·영상(video)의 src를 바꾼다 (mediaUrl 옵션. 안전 주소 처리·영상 바꾸기 뒤에 돈다)
+// 그림·영상·소리의 주소를 바꾼다 (mediaUrl 옵션. 안전 주소 처리·영상 바꾸기 뒤에 돈다)
+// - src를 바꾸는 요소: img, video, audio, 그리고 video·audio 안의 source(PR #36 리뷰, 원시 HTML 영상).
+// - video의 poster도 바꾼다. defer면 data-poster에 둔다.
+// - picture 안의 source는 바꾸지 않는다(srcset만 쓰는데, 안전 처리가 srcset을 지운다).
 // - 비어 있는 주소(safeUrl이 지운 위험 주소 포함)는 넘기지 않는다. 링크(a)는 바꾸지 않는다.
 function rehypeMediaUrl(options: MediaUrlOption) {
+  // 속성 하나를 바꾼다. defer면 원래 속성을 지우고 data 속성에 둔다
+  const rewriteProperty = (properties: Properties, name: 'src' | 'poster', deferredName: 'dataSrc' | 'dataPoster') => {
+    const value = properties[name];
+    if (typeof value !== 'string' || !value) return;
+    const next = options.rewrite(value);
+    if (next === null) return;
+    if (options.defer) {
+      delete properties[name];
+      properties[deferredName] = next;
+    } else {
+      properties[name] = next;
+    }
+  };
   return (tree: HastRoot) => {
-    visit(tree, 'element', (node) => {
-      if (node.tagName !== 'img' && node.tagName !== 'video') return;
-      const src = node.properties.src;
-      if (typeof src !== 'string' || !src) return;
-      const next = options.rewrite(src);
-      if (next === null) return;
-      if (options.defer) {
-        delete node.properties.src;
-        node.properties.dataSrc = next;
-      } else {
-        node.properties.src = next;
+    visit(tree, 'element', (node, _index, parent) => {
+      const inMedia =
+        parent?.type === 'element' && (parent.tagName === 'video' || parent.tagName === 'audio');
+      const tag = node.tagName;
+      if (tag === 'img' || tag === 'video' || tag === 'audio' || (tag === 'source' && inMedia)) {
+        rewriteProperty(node.properties, 'src', 'dataSrc');
       }
+      if (tag === 'video') rewriteProperty(node.properties, 'poster', 'dataPoster');
     });
   };
 }

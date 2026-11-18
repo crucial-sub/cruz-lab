@@ -70,6 +70,41 @@ describe('mediaUrl 옵션이 있을 때 (서가 md 뷰어)', () => {
     expect(html).not.toContain(' src="https://raw.example');
   });
 
+  // PR #36 리뷰(Codex): md 안의 원시 HTML 영상은 <source>와 poster로 주소를 줄 수 있다
+  it('영상·소리 안의 <source> 주소와 영상의 poster 주소도 바꾼다', () => {
+    const html = markdownToHtml(
+      '<video controls poster="cover.jpg"><source src="clip.mp4" type="video/mp4"></video>\n\n' +
+        '<audio controls><source src="a.mp3"></audio>\n\n<audio src="b.mp3"></audio>',
+      { mediaUrl: { rewrite: relativeOnly } },
+    );
+    expect(html).toContain('poster="https://raw.example/d/doc/cover.jpg"');
+    expect(html).toContain('<source src="https://raw.example/d/doc/clip.mp4" type="video/mp4">');
+    expect(html).toContain('<source src="https://raw.example/d/doc/a.mp3">');
+    expect(html).toContain('<audio src="https://raw.example/d/doc/b.mp3">');
+  });
+
+  it('defer가 참이면 <source>는 data-src, poster는 data-poster에 둔다', () => {
+    const html = markdownToHtml(
+      '<video controls poster="cover.jpg"><source src="clip.mp4" type="video/mp4"></video>',
+      { mediaUrl: { rewrite: relativeOnly, defer: true } },
+    );
+    expect(html).toContain('data-poster="https://raw.example/d/doc/cover.jpg"');
+    expect(html).toContain('<source type="video/mp4" data-src="https://raw.example/d/doc/clip.mp4">');
+    expect(html).not.toContain(' poster=');
+    expect(html).not.toContain(' src="https://raw.example');
+  });
+
+  it('영상·소리 밖의 <source>(picture)와 바깥 poster는 바꾸지 않는다', () => {
+    const html = markdownToHtml(
+      '<picture><source src="p.png"><img src="https://cdn.example/a.png"></picture>\n\n' +
+        '<video src="https://cdn.example/v.mp4" poster="https://cdn.example/c.jpg"></video>',
+      { mediaUrl: { rewrite: relativeOnly, defer: true } },
+    );
+    expect(html).toContain('<source src="p.png">');
+    expect(html).toContain('poster="https://cdn.example/c.jpg"');
+    expect(html).not.toContain('data-poster');
+  });
+
   it('defer여도 바꾸지 않은 주소는 src에 그대로 둔다', () => {
     const html = markdownToHtml('![a](https://cdn.example/a.png)', {
       mediaUrl: { rewrite: relativeOnly, defer: true },
