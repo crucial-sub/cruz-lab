@@ -1,0 +1,6 @@
+# 의존성과 빌드 결과
+/node_modules
+/dist
+
+# Raycast가 package.json에서 만드는 타입 파일
+raycast-env.d.ts

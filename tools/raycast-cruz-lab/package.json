@@ -1,0 +1,62 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "cruz-lab",
+  "title": "cruz-lab",
+  "description": "cruz-lab 문서 서가: 맥의 md·html 문서를 올리고, 서가 문서를 열고 내린다.",
+  "icon": "icon.png",
+  "author": "crucial-sub",
+  "license": "MIT",
+  "private": true,
+  "platforms": [
+    "macOS"
+  ],
+  "categories": [
+    "Productivity"
+  ],
+  "commands": [
+    {
+      "name": "push-to-library",
+      "title": "서가에 올리기",
+      "description": "Finder에서 고른 md·html 파일이나 폴더째 문서를 서가에 올린다. 고른 것이 없으면 파일 고르기 칸을 연다.",
+      "mode": "view"
+    },
+    {
+      "name": "library-docs",
+      "title": "서가 문서",
+      "description": "서가 문서를 최근 것부터 보인다. 열기, 주소 복사, QR 보기, 내리기를 한다.",
+      "mode": "view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "token",
+      "type": "password",
+      "required": true,
+      "title": "서가 토큰",
+      "description": "터미널에서 lab token --copy를 실행하고 붙여 넣는다."
+    },
+    {
+      "name": "server",
+      "type": "textfield",
+      "required": false,
+      "default": "https://www.cruzlab.dev",
+      "title": "서버 주소",
+      "description": "운영 서가를 켜기 전에는 http://localhost:4341을 넣는다."
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^2.12.1",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.5",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "19.3.0",
+    "typescript": "^5.9.3"
+  },
+  "scripts": {
+    "build": "ray build -e dist -o dist",
+    "dev": "ray develop",
+    "typecheck": "tsc --noEmit"
+  }
+}

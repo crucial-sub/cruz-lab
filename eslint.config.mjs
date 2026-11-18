@@ -10,7 +10,18 @@ import tseslint from 'typescript-eslint';
 
 export default [
   // 무시 경로
-  { ignores: ['dist', 'node_modules', '.astro', '.vercel', 'coverage'] },
+  // tools/raycast-cruz-lab의 빌드 결과와 Raycast가 만드는 타입 파일은 생성물이다
+  {
+    ignores: [
+      'dist',
+      'node_modules',
+      '.astro',
+      '.vercel',
+      'coverage',
+      'tools/raycast-cruz-lab/dist',
+      'tools/raycast-cruz-lab/raycast-env.d.ts',
+    ],
+  },
 
   {
     files: ['**/*.{js,mjs,cjs}'],

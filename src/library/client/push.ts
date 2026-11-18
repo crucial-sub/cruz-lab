@@ -233,7 +233,7 @@ function toPushJob(job: UploadJob, parent: string, home: string): PushJob {
 
 // ---------- 올리기 ----------
 
-// 올리기 실패
+// 서가 토큰 API 실패 (올리기, 목록, 내리기 — client/docs.ts도 쓴다)
 // - code: 서버 오류 코드(UNAUTHENTICATED, BAD_MANIFEST …) 또는 입구 코드(NETWORK, PUT_FAILED, CHANGED, BAD_RESPONSE)
 // - status: HTTP 상태. 서버에 닿지 못했으면 null
 export class PushError extends Error {
@@ -257,10 +257,14 @@ export interface PushedDoc {
   url: string; // 서가 문서 주소 (J7). QR 코드와 북마크가 쓴다
 }
 
-export interface PushOptions {
+// 서가 토큰 API를 부를 때 필요한 것
+export interface TokenApiOptions {
   server: string; // 블로그 출처 (예: https://www.cruzlab.dev)
   token: string; // 서가 토큰
   fetch?: typeof fetch;
+}
+
+export interface PushOptions extends TokenApiOptions {
   concurrency?: number; // 동시에 보내는 PUT 수 (기본 4)
   onProgress?: (sentFiles: number, totalFiles: number) => void;
 }
@@ -283,16 +287,21 @@ function describeManifestErrors(errors: readonly ManifestError[]): string {
 }
 
 // 서가 토큰 API 호출. 오류 응답 { error: { code, message } }는 PushError로 바꾼다
-async function callApi<T>(options: PushOptions, path: string, body: unknown): Promise<T> {
+// - body가 있으면 JSON으로 보낸다(POST). 없으면 몸 없이 보낸다(GET, DELETE)
+// - 204(몸 없음)는 null을 돌려준다
+export async function callTokenApi<T>(
+  options: TokenApiOptions,
+  method: 'GET' | 'POST' | 'DELETE',
+  path: string,
+  body?: unknown,
+): Promise<T> {
   const fetchFn = options.fetch ?? fetch;
   const url = `${options.server.replace(/\/+$/, '')}${path}`;
+  const headers: Record<string, string> = { Authorization: `Bearer ${options.token}` };
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
   let response: Response;
   try {
-    response = await fetchFn(url, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${options.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    response = await fetchFn(url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
   } catch (error) {
     throw new PushError('NETWORK', `서버에 닿지 못했습니다: ${url} (${error instanceof Error ? error.message : String(error)})`);
   }
@@ -310,6 +319,7 @@ async function callApi<T>(options: PushOptions, path: string, body: unknown): Pr
     }
     throw new PushError(`HTTP_${response.status}`, `서버가 ${response.status}로 답했습니다: ${url}`, response.status);
   }
+  if (response.status === 204) return null as T;
   if (data === null) throw new PushError('BAD_RESPONSE', `서버 응답을 읽지 못했습니다: ${url}`, response.status);
   return data as T;
 }
@@ -346,7 +356,7 @@ export async function pushJob(job: PushJob, options: PushOptions): Promise<Pushe
     throw new PushError('BAD_MANIFEST', `올릴 파일 목록이 올바르지 않습니다: ${describeManifestErrors(check.errors)}`, null, check.errors);
   }
 
-  const start = await callApi<StartResponse>(options, '/api/library/token/uploads', {
+  const start = await callTokenApi<StartResponse>(options, 'POST', '/api/library/token/uploads', {
     format: job.format,
     sourcePath: job.sourcePath,
     fileName: job.fileName,
@@ -379,7 +389,7 @@ export async function pushJob(job: PushJob, options: PushOptions): Promise<Pushe
     options.onProgress?.(sentFiles, start.uploads.length);
   });
 
-  const { doc } = await callApi<{ doc: PushedDoc }>(options, '/api/library/token/uploads/finalize', {
+  const { doc } = await callTokenApi<{ doc: PushedDoc }>(options, 'POST', '/api/library/token/uploads/finalize', {
     docId: start.docId,
     rev: start.rev,
   });
