@@ -9,8 +9,9 @@
 // 4. 자산 없는 문서 파일 여러 개: 문서마다 작업 하나.
 // 그 밖(여러 문서 + 자산)은 어느 자산이 어느 문서 것인지 알 수 없어 거부한다.
 
-import { findCssRefs, findHtmlRefs, findMarkdownRefs, missingRefs } from '../refs';
-import { contentTypeForPath, ENTRY_PATHS, normalizeDocPath, type DocFormat } from '../rules';
+// .ts 확장자: 맥 입구(client/push.ts)가 폴더 문서를 나눌 때 이 파일을 Node로 바로 가져온다
+import { findCssRefs, findHtmlRefs, findMarkdownRefs, missingRefs } from '../refs.ts';
+import { contentTypeForPath, ENTRY_PATHS, normalizeDocPath, type DocFormat } from '../rules.ts';
 
 // 놓은 파일 하나. path는 놓은 자리 기준 상대 경로다(폴더를 놓으면 폴더 이름부터)
 export interface PickedFile {

@@ -4,7 +4,8 @@
 // - 맥 입구: 빠진 자산을 원본 폴더에서 찾아 함께 올린다.
 // - I/O가 없는 순수 함수다. 정규식으로 읽는다(완전한 HTML 파서가 아니다). 놓친 자산은 화면 대조(8.2)가 잡는다.
 
-import { decodeHtmlEntities, fencedLines, normalizeDocPath } from './rules';
+// .ts 확장자: 맥 입구(scripts/lab.mjs)가 빌드 없이 Node로 이 파일을 가져온다(tests/library/node-load.test.ts)
+import { decodeHtmlEntities, fencedLines, normalizeDocPath } from './rules.ts';
 
 // 주소 하나를 판정한 결과
 // - local: 문서 안 경로(문서 뿌리 기준, 정규화됨)
@@ -62,8 +63,12 @@ class RefCollector {
   private readonly assets = new Set<string>();
   private readonly links = new Set<string>();
   private readonly outside = new Set<string>();
+  private readonly baseDir: string;
 
-  constructor(private readonly baseDir: string) {}
+  // 생성자 매개변수 속성을 쓰지 않는다. Node의 타입 지우기가 받지 않는 문법이다
+  constructor(baseDir: string) {
+    this.baseDir = baseDir;
+  }
 
   add(rawRef: string, role: 'asset' | 'link'): void {
     const resolved = resolveRef(this.baseDir, rawRef);
