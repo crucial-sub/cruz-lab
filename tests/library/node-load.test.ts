@@ -33,4 +33,15 @@ describe('Node가 서가 모듈을 바로 가져온다', () => {
   it('client/push.ts', () => {
     expect(exportsOf('src/library/client/push.ts')).toEqual(expect.arrayContaining(['planPush', 'pushJob']));
   });
+
+  // T9: Raycast 확장과 lab.mjs가 함께 쓴다
+  it('client/docs.ts', () => {
+    expect(exportsOf('src/library/client/docs.ts')).toEqual(expect.arrayContaining(['listDocs', 'removeDoc']));
+  });
+
+  it('client/messages.ts', () => {
+    expect(exportsOf('src/library/client/messages.ts')).toEqual(
+      expect.arrayContaining(['describeApiError', 'describeNote', 'describePlanError']),
+    );
+  });
 });

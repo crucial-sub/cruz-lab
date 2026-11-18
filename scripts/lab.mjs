@@ -22,7 +22,8 @@ import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import process from 'node:process';
 import QRCode from 'qrcode';
-import { planPush, PushError, pushJob } from '../src/library/client/push.ts';
+import { describeApiError, describeNote, describePlanError } from '../src/library/client/messages.ts';
+import { planPush, pushJob } from '../src/library/client/push.ts';
 
 const DEFAULT_SERVER = 'https://www.cruzlab.dev';
 const KEYCHAIN_SERVICE = 'cruz-lab-library';
@@ -150,30 +151,7 @@ function parsePushArgs(args) {
   return options;
 }
 
-const PLAN_ERRORS = {
-  NOT_FOUND: '경로가 없습니다',
-  OUTSIDE_HOME: '홈 폴더 밖 파일은 올릴 수 없습니다',
-  NOT_DOC: 'md·html 파일이나 폴더가 아닙니다',
-  NO_ENTRY_IN_FOLDER: '폴더 뿌리에서 진입 파일(index.html, 하나뿐인 html·md)을 정할 수 없습니다',
-  EMPTY: '폴더에 올릴 파일이 없습니다',
-};
-
-const NOTE_LABELS = {
-  missing: '원본에 없음',
-  outside: '문서 밖 주소(함께 올리지 않음)',
-  type: '받지 않는 형식(함께 올리지 않음)',
-  skipped: '뺀 파일',
-};
-
-// 올리기 실패를 한 줄 글로. 자주 겪는 원인은 할 일을 덧붙인다
-function describePushError(error, server) {
-  if (!(error instanceof PushError)) return error instanceof Error ? error.message : String(error);
-  if (error.code === 'UNAUTHENTICATED') {
-    return `${error.message} 서버의 LIBRARY_TOKEN_SHA256이 키체인 토큰의 해시와 같은지 봅니다(lab token).`;
-  }
-  if (error.status === 404) return `서가가 꺼져 있거나 서버 주소가 틀렸습니다 (${server}).`;
-  return error.message;
-}
+// 계획 오류·알림·올리기 실패의 글은 공용 모듈 client/messages.ts에 있다(Raycast 확장과 같은 글)
 
 function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} B`;
@@ -206,7 +184,7 @@ async function runPush(args) {
 
   for (const plan of plans) {
     if (!plan.ok) {
-      const message = `${plan.target}: ${PLAN_ERRORS[plan.error] ?? plan.error}`;
+      const message = `${plan.target}: ${describePlanError(plan.error)}`;
       failures.push(message);
       console.error(`실패: ${message}`);
       continue;
@@ -214,14 +192,14 @@ async function runPush(args) {
     for (const job of plan.jobs) {
       const total = job.files.reduce((sum, file) => sum + file.bytes, 0);
       console.log(`올리는 중: ${job.fileName} (${job.format}, 파일 ${job.files.length}개, ${formatBytes(total)})`);
-      for (const note of plan.notes) console.log(`  알림: ${NOTE_LABELS[note.kind] ?? note.kind}: ${note.ref}`);
+      for (const note of plan.notes) console.log(`  알림: ${describeNote(note)}`);
       try {
         const doc = await pushJob(job, { server: options.server, token });
         docs.set(doc.id, doc);
         console.log(`올림: ${doc.title}`);
         console.log(`  ${doc.url}`);
       } catch (error) {
-        const message = `${job.fileName}: ${describePushError(error, options.server)}`;
+        const message = `${job.fileName}: ${describeApiError(error, options.server)}`;
         failures.push(message);
         console.error(`실패: ${message}`);
       }
