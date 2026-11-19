@@ -3,6 +3,7 @@
 // - 사이트 헤더·푸터 없는 전체 화면. 관리자 앱(/admin/**, 5단계 D9)과 로그인 화면(/admin/login, 5단계 D4)이 같이 쓴다.
 // - global.css의 토큰과 html.light 전환을 그대로 쓴다(M10). 테마 초기화 규칙은 BaseHead.astro와 같다.
 // - 검색 엔진에 싣지 않는다(noindex). 페이지 CSS는 각 페이지가 가져온다.
+// - 머리 칸(slot name="head"): 서가 페이지가 앱 설정 파일·아이콘 태그를 더한다(서가 2단계 J24). 다른 화면은 비워 둔다.
 import '@/styles/global.css';
 
 interface Props {
@@ -20,6 +21,7 @@ const { title } = Astro.props;
     <meta name="robots" content="noindex" />
     <title>{title}</title>
     <link rel="icon" href="/favicon.svg" />
+    <slot name="head" />
     <!-- 그려지기 전에 html.light/dark를 정한다 -->
     <script is:inline>
       (() => {

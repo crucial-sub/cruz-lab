@@ -16,7 +16,9 @@ import {
   type ManifestFile,
   type UploadSource,
 } from '../rules';
+import { SEARCH_ENTRY_READ_BYTES } from '../search';
 import { docIdForKey } from '../ticket';
+import { writeSearchIndex } from './search-store';
 import {
   deleteRevisionFiles,
   getLibraryBucket,
@@ -39,8 +41,6 @@ import {
 export const LIBRARY_UPLOAD_URL_TTL_MS = 15 * 60 * 1000;
 // 끝내지 않은 판을 지우는 기준 24시간
 export const PENDING_REVISION_EXPIRE_MS = 24 * 60 * 60 * 1000;
-// 제목을 뽑으려고 읽는 진입 파일의 앞부분 2 MB
-const TITLE_READ_BYTES = 2 * 1024 * 1024;
 
 export type UploadOrigin = 'mac' | 'web';
 
@@ -199,9 +199,9 @@ function toMillis(value: Revision['createdAt']): number {
   return value instanceof Date ? value.getTime() : value.toMillis();
 }
 
-// 진입 파일의 앞부분을 글자로 읽는다 (제목 뽑기용)
+// 진입 파일의 앞부분(5 MB)을 글자로 읽는다. 제목 뽑기(J13)와 검색 색인(서가 2단계 J26)이 같이 쓴다
 async function readEntryHead(docId: string, rev: number, entry: string, bytes: number): Promise<string> {
-  const end = Math.min(bytes, TITLE_READ_BYTES) - 1;
+  const end = Math.min(bytes, SEARCH_ENTRY_READ_BYTES) - 1;
   if (end < 0) return '';
   const [buffer] = await getLibraryBucket()
     .file(objectPath(docId, rev, entry))
@@ -239,11 +239,8 @@ export async function finalizeUpload(input: { docId: string; rev: number }, site
   const entry = ENTRY_PATHS[revision.format];
   const entryFile = revision.files.find((file) => file.path === entry);
   if (!entryFile) throw new ApiError(500, 'CORRUPT_LIBRARY_DATA', '판에 진입 파일이 없습니다.');
-  const title = extractTitle({
-    format: revision.format,
-    text: await readEntryHead(docId, rev, entry, entryFile.bytes),
-    fileName: revision.fileName,
-  });
+  const entryText = await readEntryHead(docId, rev, entry, entryFile.bytes);
+  const title = extractTitle({ format: revision.format, text: entryText, fileName: revision.fileName });
   const totalBytes = revision.files.reduce((sum, file) => sum + file.bytes, 0);
 
   const docRef = libraryDocRef(docId);
@@ -283,7 +280,16 @@ export async function finalizeUpload(input: { docId: string; rev: number }, site
     }
   }
 
-  return readSummary(docId, siteOrigin);
+  const summary = await readSummary(docId, siteOrigin);
+  // 검색 색인 (서가 2단계 J26). 새 판을 쓴 때만 쓴다. 실패해도 올리기는 끝난다(색인 채우기 스크립트로 다시 만든다)
+  if (plan.activate) {
+    try {
+      await writeSearchIndex(docId, { title: summary.title, project: summary.project, format: revision.format, text: entryText });
+    } catch (error) {
+      console.error(`[library] 검색 색인 쓰기 실패: ${docId}/${rev}`, error);
+    }
+  }
+  return summary;
 }
 
 async function readSummary(docId: string, siteOrigin: string): Promise<LibraryDocSummary> {

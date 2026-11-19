@@ -2,7 +2,14 @@
 // - 본문의 문서 그림·영상은 data-src에 주소가 있다. 입장권 그림이 끝난 뒤(성공·실패·시간 초과) src로 옮긴다.
 // - DOM 없이 시험한다. 요소와 타이머는 가짜다.
 import { describe, expect, it } from 'vitest';
-import { releaseDeferredMedia, reloadMediaOf, whenTicketReady, type TicketPixel } from '@/library/ui/md-view';
+import {
+  FONT_SCALES,
+  parseFontScale,
+  releaseDeferredMedia,
+  reloadMediaOf,
+  whenTicketReady,
+  type TicketPixel,
+} from '@/library/ui/md-view';
 
 function media(src?: string) {
   return { src: '', dataset: (src === undefined ? {} : { src }) as Record<string, string | undefined> };
@@ -106,5 +113,14 @@ describe('whenTicketReady', () => {
     t.run();
     p.fire('load');
     expect(calls).toBe(1);
+  });
+});
+
+// 서가 2단계 T4: 글자 크기 (Plan J35). 기기마다 localStorage에 5단계 중 하나를 둔다
+describe('parseFontScale', () => {
+  it('5단계 값만 받는다. 없거나 틀리면 100이다', () => {
+    expect(FONT_SCALES).toEqual([90, 100, 112, 125, 140]);
+    for (const scale of FONT_SCALES) expect(parseFontScale(String(scale))).toBe(scale);
+    for (const value of [null, '', 'abc', '113', '1e2', ' 112']) expect(parseFontScale(value)).toBe(100);
   });
 });

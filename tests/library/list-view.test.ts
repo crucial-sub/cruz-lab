@@ -1,7 +1,7 @@
 // 서가 목록 묶기 테스트 (서가 1단계 T6, Plan J14)
 import { describe, expect, it } from 'vitest';
 import type { LibraryDocSummary } from '@/library/server/store';
-import { docMetaLine, groupLibraryDocs, kstDate, projectChoices } from '@/library/ui/list-view';
+import { docMetaLine, groupLibraryDocs, isIosWebApp, kstDate, projectChoices } from '@/library/ui/list-view';
 
 function doc(id: string, project: string, extra: Partial<LibraryDocSummary> = {}): LibraryDocSummary {
   return {
@@ -12,6 +12,7 @@ function doc(id: string, project: string, extra: Partial<LibraryDocSummary> = {}
     formats: { html: { rev: 1, entry: 'index.html', bytes: 10, fileCount: 1 } },
     unread: false,
     readAt: null,
+    pinnedAt: null,
     uploadedAt: '2026-11-16T16:30:00.000Z',
     updatedAt: '2026-11-16T16:30:00.000Z',
     url: `https://www.cruzlab.dev/admin/library/d/${id}`,
@@ -37,7 +38,7 @@ describe('groupLibraryDocs', () => {
   });
 
   it('빈 서가', () => {
-    expect(groupLibraryDocs([])).toEqual({ unread: [], projects: [] });
+    expect(groupLibraryDocs([])).toEqual({ pinned: [], unread: [], projects: [] });
   });
 });
 
@@ -70,5 +71,16 @@ describe('projectChoices', () => {
       'cruz-lab',
       'desktop',
     ]);
+  });
+});
+
+// 서가 2단계 J23: 아이폰에서 웹 앱으로 열렸는지 (navigator.standalone은 iOS Safari에만 있다)
+describe('isIosWebApp', () => {
+  it('navigator.standalone이 참일 때만 참이다', () => {
+    expect(isIosWebApp({ standalone: true })).toBe(true);
+    expect(isIosWebApp({ standalone: false })).toBe(false);
+    // 안드로이드·데스크톱 브라우저에는 이 속성이 없다
+    expect(isIosWebApp({})).toBe(false);
+    expect(isIosWebApp({ standalone: 'true' })).toBe(false);
   });
 });

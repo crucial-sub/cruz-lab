@@ -3,13 +3,19 @@
 // - Astro 서버 렌더 페이지다. 관리자 React 앱의 라우터에 넣지 않는다(J2).
 // - 미들웨어가 관리자 세션을 검사한다. 로그아웃이면 로그인 화면으로 보낸다(J3). 서가가 꺼져 있으면 404(C5).
 // - 위: 올리기 칸. 아래: 새로 올린 문서, 프로젝트별 묶음.
+// - 서가 2단계 T2: 맨 위 검색 칸. ?q=… 이면 목록 대신 검색 결과를 그린다(J27, 서버 렌더).
 export const prerender = false;
 
 import AdminPage from '@/layouts/AdminPage.astro';
 import { libraryEnabled } from '@/library/server/api';
 import { libraryOffResponse } from '@/library/server/raw';
+import type { SearchHit } from '@/library/search';
+import { searchLibrary } from '@/library/server/search-store';
 import { listLibraryDocs, type LibraryDocSummary } from '@/library/server/store';
+import LibraryHead from '@/library/ui/LibraryHead.astro';
 import LibraryList from '@/library/ui/LibraryList.astro';
+import SearchBox from '@/library/ui/SearchBox.astro';
+import SearchResults from '@/library/ui/SearchResults.astro';
 import UploadPanel from '@/library/ui/UploadPanel.astro';
 import { projectChoices } from '@/library/ui/list-view';
 
@@ -24,9 +30,23 @@ try {
   console.error('[library] 서가 목록 읽기 실패', error);
   loadError = true;
 }
+
+// 검색어 (J27). 200자까지만 본다
+const query = (Astro.url.searchParams.get('q') ?? '').trim().slice(0, 200);
+let hits: SearchHit[] = [];
+let searchError = false;
+if (query && !loadError) {
+  try {
+    hits = await searchLibrary(docs, query);
+  } catch (error) {
+    console.error('[library] 서가 검색 실패', error);
+    searchError = true;
+  }
+}
 ---
 
 <AdminPage title="서가 | Cruz Lab">
+  <LibraryHead slot="head" />
   <header
     class="sticky top-0 z-20 flex h-12 items-center gap-3 border-b border-border bg-bg-surface px-3 pt-[env(safe-area-inset-top)]"
   >
@@ -37,12 +57,24 @@ try {
   </header>
 
   <main class="mx-auto flex max-w-3xl flex-col gap-6 px-4 pb-16 pt-5">
-    <UploadPanel projects={projectChoices(docs)} />
+    <!-- 아이폰 홈 화면 웹 앱으로 열렸을 때만 보인다(J23, library-page.ts) -->
+    <p
+      data-webapp-notice
+      hidden
+      class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-text-primary"
+    >
+      웹 앱으로 열렸습니다. 홈 화면의 서가 아이콘을 지우고 "웹 앱으로 열기"를 끈 채 다시 추가하면 Safari 바로가기가
+      됩니다. 그러면 로그인과 저장이 Safari와 같아집니다.
+    </p>
+    <SearchBox query={query} />
+    {!query && <UploadPanel projects={projectChoices(docs)} />}
     {
-      loadError ? (
+      loadError || searchError ? (
         <p id="library-list" role="alert" class="rounded-lg border border-red-500/40 px-4 py-3 text-sm text-red-500">
-          서가 목록을 읽지 못했습니다. 잠시 뒤 다시 엽니다.
+          {loadError ? '서가 목록을 읽지 못했습니다. 잠시 뒤 다시 엽니다.' : '검색하지 못했습니다. 잠시 뒤 다시 찾습니다.'}
         </p>
+      ) : query ? (
+        <SearchResults query={query} hits={hits} docs={docs} />
       ) : (
         <LibraryList docs={docs} />
       )

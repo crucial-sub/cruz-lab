@@ -6,14 +6,19 @@
 //   (사용자 결정 2026-11-18, 안 A).
 // - html 판만 있거나 ?v=html이면: 입장권을 만들고 읽음을 표시한 뒤 문서 출처로 302(J6 독립 페이지).
 // - 없는 문서: 404 화면과 "서가로 돌아가기". md 파일을 읽지 못하면 500 화면.
+// - 서가 2단계 J31: md 링크로 온 없는 문서면 주소의 ref(원래 링크 글)·from(앞 문서)으로 무엇이 없는지와 "← 앞 문서"를 보인다.
 export const prerender = false;
 
 import AdminPage from '@/layouts/AdminPage.astro';
+import { markNotFound } from '@/lib/server/not-found';
 import { libraryEnabled } from '@/library/server/api';
+import { readLinkNotice } from '@/library/links';
 import { createDocOpenDeps, DOC_VIEW_PARAM, resolveDocOpen, type DocOpenResult } from '@/library/server/open';
 import { libraryOffResponse, rawMisconfiguredResponse } from '@/library/server/raw';
 import { loadLibraryMarkdownView, type LibraryMarkdownView } from '@/library/server/render-md';
+import LibraryHead from '@/library/ui/LibraryHead.astro';
 import MdView from '@/library/ui/MdView.astro';
+import MissingView from '@/library/ui/MissingView.astro';
 
 // 미들웨어 판정이 빗나가도 이 페이지가 혼자 열리지 않게 한 번 더 본다
 if (!libraryEnabled()) return libraryOffResponse();
@@ -35,20 +40,25 @@ if (result.kind === 'redirect') return Astro.redirect(result.location, 302);
 let view: LibraryMarkdownView | null = null;
 if (result.kind === 'md') {
   try {
-    view = await loadLibraryMarkdownView(Astro.params.id as string, result.md, result.docOrigin);
+    view = await loadLibraryMarkdownView(Astro.params.id as string, result.doc.key, result.md, result.docOrigin);
   } catch (error) {
     console.error(`[library] md 문서 읽기 실패: ${Astro.params.id}`, error);
     Astro.response.status = 500;
+    // 배포 환경 Astro가 500을 블로그 오류 화면으로 바꿔 그리지 않게 한다(이 페이지가 안내를 그린다)
+    Astro.response.headers.set('X-Astro-Reroute', 'no');
   }
 } else {
-  Astro.response.status = 404;
+  // 404도 블로그 404 화면으로 바꿔 그리지 않게 한다. 바꿔 그리면 링크 글·"← 앞 문서" 안내가 사라진다(2단계 J31)
+  markNotFound(Astro.response);
 }
 
 const md = result.kind === 'md' ? result : null;
+const notice = readLinkNotice(Astro.url.searchParams);
 const pageTitle = md ? `${md.doc.title} | 서가` : '문서 없음 | 서가';
 ---
 
 <AdminPage title={pageTitle}>
+  <LibraryHead slot="head" />
   {
     md && view ? (
       <MdView
@@ -58,36 +68,21 @@ const pageTitle = md ? `${md.doc.title} | 서가` : '문서 없음 | 서가';
         hasHtml={md.hasHtml}
         ticketPixelUrl={md.ticketPixelUrl}
       />
+    ) : md ? (
+      <MissingView heading={md.doc.title}>
+        <p>md 문서를 읽지 못했습니다. 잠시 뒤 다시 열어 주세요.</p>
+      </MissingView>
     ) : (
-      <>
-        <header class="sticky top-0 z-20 flex h-12 items-center gap-3 border-b border-border bg-bg-surface px-3 pt-[env(safe-area-inset-top)]">
-          <a
-            href="/admin/library"
-            class="rounded-md px-2 py-1 text-sm text-text-secondary hover:bg-bg-card hover:text-text-primary"
-          >
-            ← 서가
-          </a>
-        </header>
-        <main class="mx-auto flex max-w-3xl flex-col gap-3 px-4 pb-16 pt-8">
-          {md ? (
-            <>
-              <h1 class="break-words text-xl font-semibold">{md.doc.title}</h1>
-              <p class="text-sm text-text-secondary">md 문서를 읽지 못했습니다. 잠시 뒤 다시 열어 주세요.</p>
-            </>
-          ) : (
-            <>
-              <h1 class="text-xl font-semibold">서가에 없는 문서입니다</h1>
-              <p class="text-sm text-text-secondary">주소가 틀렸거나 서가에서 내린 문서입니다.</p>
-            </>
-          )}
-          <a
-            href="/admin/library"
-            class="mt-4 self-start rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover"
-          >
-            서가로 돌아가기
-          </a>
-        </main>
-      </>
+      <MissingView heading="서가에 없는 문서입니다" from={notice.from}>
+        {notice.ref ? (
+          <p>
+            링크한 문서 <code class="rounded bg-bg-card px-1 py-0.5 text-text-primary">{notice.ref}</code>는 서가에
+            없습니다. 맥에서 올리면 이 링크가 열립니다.
+          </p>
+        ) : (
+          <p>주소가 틀렸거나 서가에서 내린 문서입니다.</p>
+        )}
+      </MissingView>
     )
   }
 </AdminPage>

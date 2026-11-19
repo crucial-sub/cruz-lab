@@ -5,14 +5,17 @@
 // - 바꾼 주소는 data-src에 둔다(mediaUrl.defer). 그림 요청에 문서 쿠키가 실려야 하므로, 페이지가 입장권 그림을
 //   먼저 불러 쿠키를 받은 뒤 src로 옮긴다. 공유 파이프라인에는 주소 바꾸기 옵션 하나만 더했다(블로그는 주지 않는다).
 // - 앞머리(---)는 지운다. 제목 뽑기(rules.ts titleFromMarkdown)와 같은 규칙이다.
-// - 링크(a)는 바꾸지 않는다. md 문서 사이 링크를 서가 주소로 바꾸는 일은 2단계 검토다(Plan 2.3).
+// - 서가 2단계 T3: 링크(a)는 links.ts가 바꾼다(공유 파이프라인의 linkUrl 옵션, J29~J32). md 사이 링크는 서가 문서
+//   주소, 판 안 파일은 문서 출처 주소, 판에 없는 파일은 안내 화면이다. 풀이에 이 문서의 키와 판 파일 목록을 쓴다.
 
 import { renderMarkdown, type CodeHighlighter, type MarkdownRenderResult } from '@/lib/content/markdown';
 import { getServerHighlighter } from '@/lib/server/code-highlighter';
 import { memoize } from '@/lib/server/memo-cache';
 import { rawDocPath } from '../host';
+import { libraryLinkUrl } from '../links';
 import { resolveRef } from '../refs';
-import { getLibraryBucket, objectPath, type FormatState } from './store';
+import { stripFrontmatter } from '../rules';
+import { getLibraryBucket, getRevision, objectPath, type FormatState } from './store';
 
 // md 뷰어가 그릴 것: 렌더 결과 + 본문 첫 h1
 export interface LibraryMarkdownView extends MarkdownRenderResult {
@@ -30,29 +33,47 @@ export function libraryMediaUrl(docOrigin: string, docId: string): (url: string)
   return (url) => {
     const resolved = resolveRef('', url);
     if (resolved.kind !== 'local') return null;
-    const encoded = resolved.path.split('/').map(encodeURIComponent).join('/');
-    return `${docOrigin}${rawDocPath(docId, encoded)}`;
+    return rawFileUrl(docOrigin, docId, resolved.path);
   };
 }
 
-// 맨 앞 앞머리(--- … ---)를 지운다. 닫는 줄이 없으면 그대로 둔다
-export function stripFrontmatter(markdown: string): string {
-  const text = markdown.replace(/^\uFEFF/, '');
-  const lines = text.split(/\r?\n/);
-  if (lines[0]?.trim() !== '---') return text;
-  const end = lines.findIndex((line, index) => index > 0 && line.trim() === '---');
-  if (end < 0) return text;
-  return lines.slice(end + 1).join('\n');
+// 판 안 파일 경로(문서 안 경로) → 문서 출처 주소. 그림 주소와 판 안 파일 링크(links.ts)가 같이 쓴다
+export function rawFileUrl(docOrigin: string, docId: string, path: string): string {
+  const encoded = path.split('/').map(encodeURIComponent).join('/');
+  return `${docOrigin}${rawDocPath(docId, encoded)}`;
 }
 
+// 링크 풀이 재료: 이 문서의 같은 문서 키(J8)와 이 판의 파일 경로
+export interface LibraryMarkdownLinks {
+  key: string;
+  files: ReadonlySet<string>;
+}
+
+// 맨 앞 앞머리를 지우는 규칙은 rules.ts에 있다(검색 색인과 같이 쓴다). 여기서 다시 내보낸다
+export { stripFrontmatter };
+
 // md 글자 → md 뷰어 렌더 결과 (I/O 없음)
+// - links가 있으면 링크를 바꾼다(서가 2단계 T3). 없으면 링크는 그대로다
 export function renderLibraryMarkdown(
   markdown: string,
-  input: { docOrigin: string; docId: string; highlighter?: CodeHighlighter },
+  input: { docOrigin: string; docId: string; highlighter?: CodeHighlighter; links?: LibraryMarkdownLinks },
 ): LibraryMarkdownView {
+  const { docOrigin, docId, links } = input;
   const rendered = renderMarkdown(stripFrontmatter(markdown), {
     highlighter: input.highlighter,
-    mediaUrl: { rewrite: libraryMediaUrl(input.docOrigin, input.docId), defer: true },
+    mediaUrl: { rewrite: libraryMediaUrl(docOrigin, docId), defer: true },
+    ...(links
+      ? {
+          linkUrl: {
+            rewrite: libraryLinkUrl({
+              key: links.key,
+              docId,
+              files: links.files,
+              fileUrl: (path) => rawFileUrl(docOrigin, docId, path),
+            }),
+          },
+        }
+      : {}),
   });
   return { ...rendered, ...splitLeadingTitle(rendered.html) };
 }
@@ -67,15 +88,30 @@ function splitLeadingTitle(html: string): { titleHtml: string | null; html: stri
 }
 
 // 서가 버킷에서 md 판의 진입 파일을 읽어 그린다. 같은 판이면 메모리 결과를 쓴다
-export function loadLibraryMarkdownView(docId: string, md: FormatState, docOrigin: string): Promise<LibraryMarkdownView> {
+// - key: 이 문서의 같은 문서 키(링크 풀이의 기준). 판 파일 목록은 판 기록에서 읽는다(판마다 한 번)
+export function loadLibraryMarkdownView(
+  docId: string,
+  key: string,
+  md: FormatState,
+  docOrigin: string,
+): Promise<LibraryMarkdownView> {
   return memoize(
     `library:md:${docId}:${md.rev}`,
     async () => {
-      const [buffer] = await getLibraryBucket().file(objectPath(docId, md.rev, md.entry)).download();
+      const [[buffer], revision] = await Promise.all([
+        getLibraryBucket().file(objectPath(docId, md.rev, md.entry)).download(),
+        getRevision(docId, md.rev),
+      ]);
       const markdown = buffer.toString('utf8');
+      const files = new Set((revision?.files ?? []).map((file) => file.path));
       // 하이라이터를 만들지 못했으면 코드는 민무늬다(code-highlighter.ts)
       const highlighter = await getServerHighlighter(markdown);
-      return renderLibraryMarkdown(markdown, { docOrigin, docId, highlighter: highlighter ?? undefined });
+      return renderLibraryMarkdown(markdown, {
+        docOrigin,
+        docId,
+        highlighter: highlighter ?? undefined,
+        links: { key, files },
+      });
     },
     MD_VIEW_TTL_MS,
   );

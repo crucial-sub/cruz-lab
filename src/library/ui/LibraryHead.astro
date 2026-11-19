@@ -1,0 +1,17 @@
+---
+// 서가 페이지 머리 태그 (서가 2단계 Plan J22·L8)
+// - 서가 페이지만 넣는다(관리자 화면 틀의 머리 칸, J24). 블로그·블로그 관리자 화면에는 없다.
+// - 앱 설정 파일(public/library.webmanifest)은 공개 정적 파일이다. 브라우저는 이 파일을 쿠키 없이 받는다(1.3절 6).
+// - scope는 끝에 /가 없는 /admin/library다. 끝에 /를 붙이면 시작 주소(/admin/library)가 범위 밖이 되어
+//   브라우저가 범위를 /admin/ 전체로 넓힌다(앱 설정 파일 규칙). 서가 주소는 모두 /admin/library로 시작한다.
+// - 아이폰: 홈 화면에 추가할 때 apple-touch-icon과 apple-mobile-web-app-title("서가")을 쓴다.
+// - theme-color: 머리줄 바탕색(--bg-surface)과 같다. 시스템 색 모드를 따른다.
+// - crossorigin="use-credentials": 브라우저는 앱 설정 파일을 기본으로 쿠키 없이 받는다. 미리보기는 Vercel 보호 벽이
+//   쿠키 없는 요청을 막는다. 쿠키를 함께 보내면 미리보기에서도 앱 설치를 시험한다. 운영에서는 같은 출처 정적 파일이라 해가 없다.
+---
+
+<link rel="manifest" href="/library.webmanifest" crossorigin="use-credentials" />
+<link rel="apple-touch-icon" href="/icons/library-180.png" />
+<meta name="apple-mobile-web-app-title" content="서가" />
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />

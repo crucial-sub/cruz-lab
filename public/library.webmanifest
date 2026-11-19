@@ -1,0 +1,22 @@
+{
+  "id": "/admin/library",
+  "name": "서가",
+  "short_name": "서가",
+  "description": "고른 문서를 올려 두고 읽는 비공개 서가",
+  "lang": "ko",
+  "start_url": "/admin/library",
+  "scope": "/admin/library",
+  "display": "standalone",
+  "background_color": "#0e0f12",
+  "theme_color": "#14161a",
+  "icons": [
+    { "src": "/icons/library-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/library-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    {
+      "src": "/icons/library-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -14,6 +14,7 @@ import {
   type SkippedFile,
   type UploadJob,
 } from './upload-plan';
+import { isIosWebApp } from './list-view';
 
 // 마지막에 고른 프로젝트 (L2: 마지막 값이 기본)
 const LAST_PROJECT_KEY = 'cruz-library:last-project';
@@ -458,8 +459,12 @@ async function handlePicked(picked: PickedEntry[]) {
 // ---------- 목록 ----------
 
 // 이 페이지를 다시 받아 목록과 프로젝트 후보를 바꾼다
+// - 검색어(?q=)를 함께 보낸다. 검색 결과 화면이면 같은 검색 결과를 다시 받는다(서가 2단계 T2)
 async function refreshList() {
-  const response = await fetch(window.location.pathname, { credentials: 'same-origin', cache: 'no-store' });
+  const response = await fetch(window.location.pathname + window.location.search, {
+    credentials: 'same-origin',
+    cache: 'no-store',
+  });
   if (response.redirected && new URL(response.url).pathname.startsWith('/admin/login')) redirectToLogin();
   if (!response.ok) return;
   const page = new DOMParser().parseFromString(await response.text(), 'text/html');
@@ -510,9 +515,26 @@ async function removeDoc(row: HTMLElement, button: HTMLButtonElement) {
   }
 }
 
+// 고정하거나 고정을 푼다 (서가 2단계 J34). 바뀐 뒤 목록을 다시 받는다(고정 칸이 바뀐다)
+async function togglePin(row: HTMLElement, button: HTMLButtonElement) {
+  const pinned = button.getAttribute('aria-pressed') === 'true';
+  button.disabled = true;
+  try {
+    await api(pinned ? 'DELETE' : 'PUT', `/api/admin/library/docs/${encodeURIComponent(row.dataset.docId ?? '')}/pin`);
+    await refreshList();
+  } catch (error) {
+    button.disabled = false;
+    window.alert(`${pinned ? '고정을 풀지' : '고정하지'} 못했습니다: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 // ---------- 연결 ----------
 
 function init() {
+  // 아이폰 홈 화면 웹 앱으로 열렸으면 Safari 바로가기로 다시 추가하라고 알린다 (서가 2단계 J23)
+  const notice = document.querySelector<HTMLElement>('[data-webapp-notice]');
+  if (notice && isIosWebApp(window.navigator as { standalone?: unknown })) notice.hidden = false;
+
   const project = $<HTMLInputElement>('upload-project');
   if (project && !project.value) project.value = readLocal(LAST_PROJECT_KEY) ?? '';
 
@@ -571,6 +593,7 @@ function init() {
     if (action && row) {
       if (action.dataset.action === 'qr') openQr(row);
       if (action.dataset.action === 'remove') void removeDoc(row, action);
+      if (action.dataset.action === 'pin') void togglePin(row, action);
       return;
     }
     const qr = target?.closest<HTMLButtonElement>('button[data-qr]');

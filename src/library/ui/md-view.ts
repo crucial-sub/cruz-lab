@@ -8,6 +8,17 @@
 // 입장권 그림을 기다리는 최대 시간
 export const TICKET_WAIT_MS = 3000;
 
+// 글자 크기 (서가 2단계 J35): 5단계(%), 기기마다 localStorage에 둔다
+// - 머리 안 인라인 스크립트(MdView.astro)가 그리기 전에 같은 값을 읽어 --library-font-scale을 정한다.
+export const FONT_SCALES = [90, 100, 112, 125, 140] as const;
+export const FONT_SCALE_KEY = 'cruz-library:font-scale';
+
+// 저장된 값 → 글자 크기(%). 5단계 값이 아니면 100
+export function parseFontScale(value: string | null): number {
+  const scale = FONT_SCALES.find((step) => String(step) === value);
+  return scale ?? 100;
+}
+
 // data-src·data-poster를 가진 그림·영상·소리·source (HTMLImageElement, HTMLVideoElement, HTMLAudioElement,
 // HTMLSourceElement가 이 꼴이다. poster는 영상만 가진다)
 export interface DeferredMedia {
@@ -80,8 +91,80 @@ export function whenTicketReady(pixel: TicketPixel | null, onReady: () => void, 
   setTimer(ready, TICKET_WAIT_MS);
 }
 
+// localStorage 읽기·쓰기. 막힌 브라우저(개인 정보 보호 등)에서는 조용히 넘어간다
+function readLocal(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeLocal(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // 저장하지 못해도 이 화면에서는 바뀐 크기로 보인다
+  }
+}
+
+// 글자 크기를 화면에 적용하고 단추의 눌림 표시를 맞춘다 (J35)
+function applyFontScale(scale: number): void {
+  document.documentElement.style.setProperty('--library-font-scale', String(scale / 100));
+  for (const button of document.querySelectorAll<HTMLButtonElement>('button[data-font-scale]')) {
+    button.setAttribute('aria-pressed', button.dataset.fontScale === String(scale) ? 'true' : 'false');
+  }
+}
+
+// "가" 글자 크기 차림 (J35): 고르면 이 기기에 저장하고 차림을 닫는다. 차림 밖을 누르면 닫는다
+function setupFontMenu(): void {
+  const menu = document.querySelector<HTMLDetailsElement>('details[data-font-menu]');
+  if (!menu) return;
+  applyFontScale(parseFontScale(readLocal(FONT_SCALE_KEY)));
+  menu.addEventListener('click', (event) => {
+    const button = (event.target as Element | null)?.closest<HTMLButtonElement>('button[data-font-scale]');
+    if (!button) return;
+    const scale = parseFontScale(button.dataset.fontScale ?? null);
+    applyFontScale(scale);
+    writeLocal(FONT_SCALE_KEY, String(scale));
+    menu.open = false;
+  });
+  document.addEventListener('click', (event) => {
+    if (menu.open && !menu.contains(event.target as Node)) menu.open = false;
+  });
+}
+
+// 머리줄 고정 단추 (J34): 고정 API를 부르고 단추 글을 바꾼다. 로그아웃이면 로그인 화면으로 보낸다
+function setupPinButton(): void {
+  const button = document.querySelector<HTMLButtonElement>('button[data-md-pin]');
+  if (!button) return;
+  button.addEventListener('click', async () => {
+    const pinned = button.getAttribute('aria-pressed') === 'true';
+    button.disabled = true;
+    try {
+      const response = await fetch(`/api/admin/library/docs/${encodeURIComponent(button.dataset.mdPin ?? '')}/pin`, {
+        method: pinned ? 'DELETE' : 'PUT',
+        credentials: 'same-origin',
+      });
+      if (response.status === 401) {
+        window.location.assign(`/admin/login?next=${encodeURIComponent(window.location.pathname)}`);
+        return;
+      }
+      if (!response.ok) throw new Error(`요청이 실패했습니다 (${response.status}).`);
+      button.setAttribute('aria-pressed', pinned ? 'false' : 'true');
+      button.textContent = pinned ? '고정' : '고정 풀기';
+    } catch (error) {
+      window.alert(`${pinned ? '고정을 풀지' : '고정하지'} 못했습니다: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+
 // md 뷰어 페이지에서 한 번 부른다
 export function setupMdView(): void {
+  setupFontMenu();
+  setupPinButton();
   const pixel = document.querySelector<HTMLImageElement>('img[data-library-ticket]');
   whenTicketReady(pixel, () => {
     releaseDeferredMedia(

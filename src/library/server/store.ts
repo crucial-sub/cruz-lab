@@ -5,13 +5,14 @@
 //   다운로드 토큰을 만들지 않는다. 읽기는 서버와 단기 서명 주소로만 한다(1.3절 2).
 // - 블로그 데이터(entries, assets)와 기본 버킷은 건드리지 않는다.
 
-import type { DocumentData } from 'firebase-admin/firestore';
+import { FieldValue, type DocumentData } from 'firebase-admin/firestore';
 import { z } from 'zod';
 import { isTimestampLike, toDateValue, type TimestampLike } from '@/lib/entry-schema';
 import { ApiError, zodIssues } from '@/lib/server/api-response';
 import { getServerDb, getServerStorage } from '@/lib/server/firebase-server';
 import { invalidateMemo } from '@/lib/server/memo-cache';
 import type { DocFormat } from '../rules';
+import { deleteSearchIndex } from './search-store';
 
 export const LIBRARY_COLLECTION = 'library_docs';
 export const REVISIONS_SUBCOLLECTION = 'revisions';
@@ -42,6 +43,8 @@ export const libraryDocSchema = z.object({
   readAt: timestampSchema.nullable(),
   uploadedAt: timestampSchema,
   updatedAt: timestampSchema,
+  // 고정한 시각 (서가 2단계 J34). 선택 칸이다. 없으면 고정하지 않은 문서다(1단계 문서와 같다)
+  pinnedAt: timestampSchema.optional(),
 });
 export type LibraryDoc = z.infer<typeof libraryDocSchema>;
 
@@ -131,6 +134,7 @@ export interface LibraryDocSummary {
   formats: { md?: FormatState; html?: FormatState };
   unread: boolean;
   readAt: string | null;
+  pinnedAt: string | null; // 고정한 시각 (서가 2단계 J34). 고정하지 않았으면 null
   uploadedAt: string;
   updatedAt: string;
   url: string; // 서가 문서 주소 (J7). QR 코드와 북마크가 쓴다
@@ -152,6 +156,7 @@ export function summarize(id: string, doc: LibraryDoc, siteOrigin: string): Libr
     formats: doc.formats,
     unread: doc.readAt === null,
     readAt: toIso(doc.readAt),
+    pinnedAt: toIso(doc.pinnedAt ?? null),
     uploadedAt: toIso(doc.uploadedAt) ?? '',
     updatedAt: toIso(doc.updatedAt) ?? '',
     url: libraryDocUrl(siteOrigin, id),
@@ -205,6 +210,22 @@ export async function markLibraryDocRead(docId: string): Promise<boolean> {
   });
 }
 
+// 문서를 고정하거나 고정을 푼다 (서가 2단계 J34). 문서가 없으면 null
+// - 고정: pinnedAt에 지금 시각. 풀기: 칸을 지운다(1단계 문서와 같은 꼴로 돌아간다).
+// - 다른 칸(읽음, 판, 제목)은 건드리지 않는다. 다시 올려도 고정은 남는다(올리기는 이 칸을 쓰지 않는다).
+export async function setLibraryDocPin(docId: string, pinned: boolean, siteOrigin: string): Promise<LibraryDocSummary | null> {
+  const ref = libraryDocRef(docId);
+  return getServerDb().runTransaction(async (tx) => {
+    const snapshot = await tx.get(ref);
+    if (!snapshot.exists) return null;
+    const doc = parseStored(libraryDocSchema, '서가 문서', snapshot.data());
+    if (!hasReadyFormat(doc)) return null;
+    const pinnedAt = pinned ? new Date() : undefined;
+    tx.update(ref, { pinnedAt: pinnedAt ?? FieldValue.delete() });
+    return summarize(docId, { ...doc, pinnedAt }, siteOrigin);
+  });
+}
+
 // 판 하나의 파일을 모두 지운다 (실패는 기록만 남긴다. 남은 파일은 다음 내리기·정리 때 지운다)
 export async function deleteRevisionFiles(docId: string, rev: number): Promise<void> {
   try {
@@ -220,11 +241,13 @@ export interface RemoveDocDeps {
   // 접두사 아래 파일을 모두 지운다. 하나라도 실패하면 던진다
   deleteFiles(prefix: string): Promise<void>;
   deleteRevisionRecords(docId: string): Promise<void>;
+  // 검색 색인(library_search/{문서 id})을 지운다 (서가 2단계 J26)
+  deleteSearchIndex(docId: string): Promise<void>;
   deleteDocRecord(docId: string): Promise<void>;
   invalidate(docId: string): void;
 }
 
-// 서가에서 내린다: 판 파일 → 판 기록 → 문서 기록 순서로 지운다. 문서가 없으면 false (PR #35 리뷰 의견 1·2)
+// 서가에서 내린다: 판 파일 → 판 기록 → 검색 색인 → 문서 기록 순서로 지운다. 문서가 없으면 false (PR #35 리뷰 의견 1·2)
 // - 문서 기록을 마지막에 지운다. 중간에 실패하면 던지고 뒤 단계를 하지 않는다.
 //   문서 기록(판 번호 셈값 lastRev 포함)이 남으므로 다시 내리기가 남은 것을 이어 지우고,
 //   다시 올리기는 이어지는 판 번호를 받아 남은 판 기록과 겹치지 않는다.
@@ -236,6 +259,7 @@ export async function removeLibraryDocWith(deps: RemoveDocDeps, docId: string): 
   try {
     await deps.deleteFiles(`${docId}/`);
     await deps.deleteRevisionRecords(docId);
+    await deps.deleteSearchIndex(docId);
     await deps.deleteDocRecord(docId);
   } finally {
     // 파일을 지우기 시작했으면 문서 출처의 판 정보 캐시는 이미 낡았다
@@ -259,6 +283,7 @@ const firestoreRemoveDeps: RemoveDocDeps = {
       await batch.commit();
     }
   },
+  deleteSearchIndex,
   deleteDocRecord: async (docId) => {
     await libraryDocRef(docId).delete();
   },
