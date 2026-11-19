@@ -4,8 +4,8 @@
 // 1. 머리줄: "← 문서", 문서 제목, 취소·저장
 // 2. 되돌릴 원본 한 줄: 맥 원본 경로와 "lab pull로 원본에 씁니다", 또는 "서가 화면으로 올린 문서라 되돌릴 원본이 없습니다"
 // 3. 임시 글 안내(숨김): 같은 판의 임시 글을 불러왔을 때, 앞 판에서 고치던 글이 있을 때 (edit-view.ts)
-// 4. 글자 칸: md 원문 그대로. 고정폭 글꼴 16px(아이폰이 확대하지 않는 크기). 한국어 입력·자동 고침은 기기 기본 그대로다
-// 5. 상태 줄: 저장 중·실패·409 안내
+// 4. 상태 줄: 저장 중·실패·409 안내. 글자 칸 위에 둔다(아이폰 자판이 올라와도 저장 단추 가까이 보인다)
+// 5. 글자 칸: md 원문 그대로. 고정폭 글꼴 16px(아이폰이 확대하지 않는 크기). 한국어 입력·자동 고침은 기기 기본 그대로다
 import type { FormatState, LibraryDoc } from '../server/store';
 import { textareaContent, usesCrlf } from './edit-view';
 
@@ -76,8 +76,8 @@ const noticeButton = 'rounded-md border border-border px-2 py-0.5 text-xs text-t
     <button type="button" data-edit-older-copy class={noticeButton}>그 글 복사</button>
     <button type="button" data-edit-older-discard class={noticeButton}>버리기</button>
   </p>
+  <p data-edit-status role="status" aria-live="polite" class="edit-status break-words text-sm"></p>
   <textarea data-edit-text aria-label="md 원문" class="edit-text">{textareaContent(text)}</textarea>
-  <p data-edit-status role="status" aria-live="polite" class="edit-status min-h-5 break-words text-sm"></p>
 </main>
 
 <script>
@@ -121,6 +121,9 @@ const noticeButton = 'rounded-md border border-border px-2 py-0.5 text-xs text-t
   .edit-text:focus {
     outline: 2px solid var(--brand);
     outline-offset: 1px;
+  }
+  .edit-status:empty {
+    display: none;
   }
   .edit-status[data-tone='error'] {
     color: #dc2626;

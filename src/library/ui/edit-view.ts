@@ -76,6 +76,7 @@ function setStatus(element: HTMLElement | null, text: string, tone: 'info' | 'er
   if (!element) return;
   element.replaceChildren(document.createTextNode(text));
   element.dataset.tone = tone;
+  element.scrollIntoView({ block: 'nearest' });
   if (link) {
     const anchor = document.createElement('a');
     anchor.href = link.href;
@@ -110,6 +111,8 @@ export function setupEditView(): void {
   const key = draftKey(docId, baseRev);
   const original = textarea.value;
   let saving = false;
+  // 저장을 마쳤거나 취소해 이 화면을 떠나는 중이다. 떠날 때 pagehide가 임시 글을 다시 쓰지 않게 한다
+  let leaving = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   // 같은 판의 임시 글을 불러온다
@@ -152,7 +155,7 @@ export function setupEditView(): void {
     timer = setTimeout(storeDraft, DRAFT_DELAY_MS);
   });
   window.addEventListener('pagehide', () => {
-    if (!saving) storeDraft();
+    if (!saving && !leaving) storeDraft();
   });
 
   async function save() {
@@ -186,6 +189,8 @@ export function setupEditView(): void {
         setStatus(status, `저장하지 못했습니다: ${data?.error?.message ?? `(${response.status})`} 고친 글은 이 기기에 남아 있습니다.`, 'error');
         return;
       }
+      leaving = true;
+      if (timer) clearTimeout(timer);
       removeLocal(key);
       window.location.assign(viewUrl);
     } catch (error) {
@@ -212,8 +217,8 @@ export function setupEditView(): void {
   cancelButton?.addEventListener('click', () => {
     if (textarea.value !== original && !window.confirm('고친 글을 버리고 나갈까요?')) return;
     if (timer) clearTimeout(timer);
+    leaving = true;
     removeLocal(key);
-    saving = true; // pagehide가 임시 글을 다시 쓰지 않게 한다
     window.location.assign(viewUrl);
   });
 }

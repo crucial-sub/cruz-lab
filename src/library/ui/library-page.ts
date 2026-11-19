@@ -3,6 +3,7 @@
 //   올리기 시작(서명 주소) → 버킷에 바로 PUT → 마무리 → 결과(주소·QR).
 // - 목록: QR 보기·주소 복사, 서가에서 내리기. 바뀐 뒤 이 페이지를 다시 받아 #library-list만 바꾼다.
 // - 서버 API: /api/admin/library/**(관리자 쿠키, 같은 출처). 로그아웃이면 로그인 화면으로 보낸다.
+// - 서가 2단계 J42: 폰에서 고친 판이 있어 올리기 시작이 409(PHONE_EDIT_PENDING)면 확인 창으로 묻고, 덮어쓰기면 force로 다시 시작한다.
 
 import { isProjectName, validateManifest, type ManifestError } from '../rules';
 import {
