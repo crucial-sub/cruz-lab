@@ -12,6 +12,7 @@ import { getServerHighlighter } from '@/lib/server/code-highlighter';
 import { memoize } from '@/lib/server/memo-cache';
 import { rawDocPath } from '../host';
 import { resolveRef } from '../refs';
+import { stripFrontmatter } from '../rules';
 import { getLibraryBucket, objectPath, type FormatState } from './store';
 
 // md 뷰어가 그릴 것: 렌더 결과 + 본문 첫 h1
@@ -35,15 +36,8 @@ export function libraryMediaUrl(docOrigin: string, docId: string): (url: string)
   };
 }
 
-// 맨 앞 앞머리(--- … ---)를 지운다. 닫는 줄이 없으면 그대로 둔다
-export function stripFrontmatter(markdown: string): string {
-  const text = markdown.replace(/^\uFEFF/, '');
-  const lines = text.split(/\r?\n/);
-  if (lines[0]?.trim() !== '---') return text;
-  const end = lines.findIndex((line, index) => index > 0 && line.trim() === '---');
-  if (end < 0) return text;
-  return lines.slice(end + 1).join('\n');
-}
+// 맨 앞 앞머리를 지우는 규칙은 rules.ts에 있다(검색 색인과 같이 쓴다). 여기서 다시 내보낸다
+export { stripFrontmatter };
 
 // md 글자 → md 뷰어 렌더 결과 (I/O 없음)
 export function renderLibraryMarkdown(

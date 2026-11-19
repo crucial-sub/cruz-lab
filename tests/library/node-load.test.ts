@@ -45,6 +45,11 @@ describe('Node가 서가 모듈을 바로 가져온다', () => {
     );
   });
 
+  // 2단계 T2: 색인 채우기 스크립트(scripts/ops/library-search-backfill.mjs)가 글자 뽑기를 가져온다 (Plan J28)
+  it('search.ts', () => {
+    expect(exportsOf('src/library/search.ts')).toEqual(expect.arrayContaining(['searchTextOf', 'SEARCH_ENTRY_READ_BYTES']));
+  });
+
   // T10: smoke:library가 만료 입장권·쿠키를 서명한다 (Plan 8.1 2)
   it('ticket.ts', () => {
     expect(exportsOf('src/library/ticket.ts')).toEqual(

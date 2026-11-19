@@ -261,6 +261,16 @@ export function fencedLines(lines: readonly string[]): boolean[] {
   });
 }
 
+// 맨 앞 앞머리(--- … ---)를 지운다. 닫는 줄이 없으면 그대로 둔다 (md 뷰어 render-md.ts, 검색 색인 search.ts)
+export function stripFrontmatter(markdown: string): string {
+  const text = markdown.replace(/^\uFEFF/, '');
+  const lines = text.split(/\r?\n/);
+  if (lines[0]?.trim() !== '---') return text;
+  const end = lines.findIndex((line, index) => index > 0 && line.trim() === '---');
+  if (end < 0) return text;
+  return lines.slice(end + 1).join('\n');
+}
+
 // md의 첫 # 제목. 앞머리(---)와 코드 블록 안은 건너뛴다. 없으면 null
 export function titleFromMarkdown(markdown: string): string | null {
   const lines = markdown.replace(/^\uFEFF/, '').split(/\r?\n/);

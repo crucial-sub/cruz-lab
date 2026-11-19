@@ -1,0 +1,60 @@
+---
+// 서가 검색 결과 (서가 2단계 T2, Plan J27)
+// - 제목에 맞은 문서가 먼저다(search.ts searchDocs). 결과마다 제목, 프로젝트·날짜·형식, 글 조각.
+// - 제목·글 조각은 search.ts가 HTML 이스케이프한 뒤 맞은 낱말만 <mark>로 감싼 글이다. 그래서 set:html로 넣는다.
+// - id="library-list": 목록 스크립트(library-page.ts)가 내리기 뒤 이 페이지(같은 검색어)를 다시 받아 이 칸을 바꾼다.
+import type { SearchHit } from '../search';
+import type { LibraryDocSummary } from '../server/store';
+import { docMetaLine } from './list-view';
+
+interface Props {
+  query: string;
+  hits: SearchHit[];
+  docs: LibraryDocSummary[];
+}
+
+const { query, hits, docs } = Astro.props;
+const byId = new Map(docs.map((doc) => [doc.id, doc]));
+---
+
+<section id="library-list" aria-labelledby="library-search-title" class="flex flex-col gap-2">
+  <div class="flex items-baseline gap-2">
+    <h2 id="library-search-title" class="text-sm font-semibold text-text-secondary">
+      검색 결과 <span class="font-normal">{hits.length}</span>
+    </h2>
+    <a href="/admin/library" class="ml-auto text-sm text-text-secondary hover:text-text-primary">모든 문서 보기</a>
+  </div>
+  {
+    hits.length === 0 ? (
+      <p class="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-text-secondary">
+        "{query}"이(가) 든 문서가 없습니다.
+      </p>
+    ) : (
+      <ul>
+        {hits.map((hit) => {
+          const doc = byId.get(hit.id);
+          return (
+            <li class="library-hit border-b border-border py-3 last:border-b-0" data-doc-id={hit.id}>
+              <a href={`/admin/library/d/${hit.id}`} class="group block min-w-0">
+                <span class="line-clamp-2 break-words font-medium group-hover:text-brand" set:html={hit.titleHtml} />
+                {doc && <span class="mt-0.5 block text-xs text-text-secondary">{`${doc.project} · ${docMetaLine(doc)}`}</span>}
+                {hit.snippetHtml && (
+                  <span class="mt-1 line-clamp-3 block break-words text-sm text-text-secondary" set:html={hit.snippetHtml} />
+                )}
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    )
+  }
+</section>
+
+<style>
+  /* 맞은 낱말: 브랜드 색 바탕을 옅게 깐다. 글자 색은 둘레를 따른다(어두운·밝은 화면 모두 읽힌다) */
+  .library-hit :global(mark) {
+    border-radius: 2px;
+    background: rgb(16 185 129 / 0.28);
+    color: inherit;
+  }
+</style>

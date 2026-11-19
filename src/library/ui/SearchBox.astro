@@ -1,0 +1,34 @@
+---
+// 서가 검색 칸 (서가 2단계 T2, Plan J27)
+// - 보통 GET 양식이다. /admin/library?q=… 를 서버가 그린다(JS 없이도 찾는다).
+// - 글자 크기 16px 이상: 아이폰 Safari가 입력 칸을 누를 때 화면을 키우지 않는다.
+
+interface Props {
+  query: string;
+}
+
+const { query } = Astro.props;
+---
+
+<form method="get" action="/admin/library" role="search" class="flex gap-2">
+  <label for="library-q" class="sr-only">서가 검색</label>
+  <input
+    id="library-q"
+    name="q"
+    type="search"
+    value={query}
+    maxlength="200"
+    placeholder="제목·본문 낱말로 찾기"
+    enterkeyhint="search"
+    autocomplete="off"
+    autocapitalize="off"
+    spellcheck="false"
+    class="min-w-0 flex-1 rounded-md border border-border bg-bg-app px-3 py-2 text-base text-text-primary placeholder:text-text-secondary/60 focus:border-brand"
+  />
+  <button
+    type="submit"
+    class="shrink-0 rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover"
+  >
+    찾기
+  </button>
+</form>

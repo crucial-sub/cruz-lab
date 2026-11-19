@@ -11,9 +11,11 @@ function fakeStore(docId: string) {
     revisions: new Set(['1', '2', '3']),
     files: new Set([`${docId}/2/index.html`, `${docId}/3/index.html`, `${docId}/3/img/a.png`, 'other/1/index.html']),
     invalidated: 0,
+    // 서가 2단계 J26: 검색 색인(library_search/{문서 id})
+    searchIndex: true,
   };
-  const fail = new Set<'files' | 'revisions' | 'doc'>();
-  const once = (step: 'files' | 'revisions' | 'doc') => {
+  const fail = new Set<'files' | 'revisions' | 'search' | 'doc'>();
+  const once = (step: 'files' | 'revisions' | 'search' | 'doc') => {
     if (!fail.has(step)) return;
     fail.delete(step);
     throw new Error(`${step} 삭제 실패`);
@@ -27,6 +29,10 @@ function fakeStore(docId: string) {
     deleteRevisionRecords: async () => {
       once('revisions');
       state.revisions.clear();
+    },
+    deleteSearchIndex: async () => {
+      once('search');
+      state.searchIndex = false;
     },
     deleteDocRecord: async () => {
       once('doc');
@@ -56,6 +62,18 @@ describe('removeLibraryDocWith', () => {
     expect(state.revisions.size).toBe(0);
     expect(state.doc).toBe(false);
     expect(state.invalidated).toBeGreaterThan(0);
+  });
+
+  // 서가 2단계: 내린 문서가 검색에 나오지 않게 색인도 지운다. 문서 기록보다 먼저라서 실패하면 다시 내리기가 이어 지운다
+  it('검색 색인을 지운다. 색인 삭제가 실패하면 던지고 문서 기록을 남긴다', async () => {
+    const { state, fail, deps } = fakeStore(DOC);
+    fail.add('search');
+    await expect(removeLibraryDocWith(deps, DOC)).rejects.toThrow('search 삭제 실패');
+    expect(state.searchIndex).toBe(true);
+    expect(state.doc).toBe(true);
+    expect(await removeLibraryDocWith(deps, DOC)).toBe(true);
+    expect(state.searchIndex).toBe(false);
+    expect(state.doc).toBe(false);
   });
 
   it('판 파일 삭제가 실패하면 던지고 판 기록과 문서 기록을 남긴다', async () => {

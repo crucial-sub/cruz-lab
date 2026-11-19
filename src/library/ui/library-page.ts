@@ -459,8 +459,12 @@ async function handlePicked(picked: PickedEntry[]) {
 // ---------- 목록 ----------
 
 // 이 페이지를 다시 받아 목록과 프로젝트 후보를 바꾼다
+// - 검색어(?q=)를 함께 보낸다. 검색 결과 화면이면 같은 검색 결과를 다시 받는다(서가 2단계 T2)
 async function refreshList() {
-  const response = await fetch(window.location.pathname, { credentials: 'same-origin', cache: 'no-store' });
+  const response = await fetch(window.location.pathname + window.location.search, {
+    credentials: 'same-origin',
+    cache: 'no-store',
+  });
   if (response.redirected && new URL(response.url).pathname.startsWith('/admin/login')) redirectToLogin();
   if (!response.ok) return;
   const page = new DOMParser().parseFromString(await response.text(), 'text/html');

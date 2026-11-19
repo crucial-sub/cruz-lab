@@ -12,6 +12,7 @@ import { ApiError, zodIssues } from '@/lib/server/api-response';
 import { getServerDb, getServerStorage } from '@/lib/server/firebase-server';
 import { invalidateMemo } from '@/lib/server/memo-cache';
 import type { DocFormat } from '../rules';
+import { deleteSearchIndex } from './search-store';
 
 export const LIBRARY_COLLECTION = 'library_docs';
 export const REVISIONS_SUBCOLLECTION = 'revisions';
@@ -220,11 +221,13 @@ export interface RemoveDocDeps {
   // 접두사 아래 파일을 모두 지운다. 하나라도 실패하면 던진다
   deleteFiles(prefix: string): Promise<void>;
   deleteRevisionRecords(docId: string): Promise<void>;
+  // 검색 색인(library_search/{문서 id})을 지운다 (서가 2단계 J26)
+  deleteSearchIndex(docId: string): Promise<void>;
   deleteDocRecord(docId: string): Promise<void>;
   invalidate(docId: string): void;
 }
 
-// 서가에서 내린다: 판 파일 → 판 기록 → 문서 기록 순서로 지운다. 문서가 없으면 false (PR #35 리뷰 의견 1·2)
+// 서가에서 내린다: 판 파일 → 판 기록 → 검색 색인 → 문서 기록 순서로 지운다. 문서가 없으면 false (PR #35 리뷰 의견 1·2)
 // - 문서 기록을 마지막에 지운다. 중간에 실패하면 던지고 뒤 단계를 하지 않는다.
 //   문서 기록(판 번호 셈값 lastRev 포함)이 남으므로 다시 내리기가 남은 것을 이어 지우고,
 //   다시 올리기는 이어지는 판 번호를 받아 남은 판 기록과 겹치지 않는다.
@@ -236,6 +239,7 @@ export async function removeLibraryDocWith(deps: RemoveDocDeps, docId: string): 
   try {
     await deps.deleteFiles(`${docId}/`);
     await deps.deleteRevisionRecords(docId);
+    await deps.deleteSearchIndex(docId);
     await deps.deleteDocRecord(docId);
   } finally {
     // 파일을 지우기 시작했으면 문서 출처의 판 정보 캐시는 이미 낡았다
@@ -259,6 +263,7 @@ const firestoreRemoveDeps: RemoveDocDeps = {
       await batch.commit();
     }
   },
+  deleteSearchIndex,
   deleteDocRecord: async (docId) => {
     await libraryDocRef(docId).delete();
   },
