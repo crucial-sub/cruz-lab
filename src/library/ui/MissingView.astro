@@ -1,0 +1,45 @@
+---
+// 서가 안내 화면 틀: 없는 문서, 판에 없는 파일 (서가 1단계 J7 404 화면, 2단계 J31·J32)
+// - 머리줄 "← 서가", 제목, 안내 글(기본 칸), 단추.
+// - from(앞 문서 id)이 있으면 "← 앞 문서"를 먼저 보인다. md 링크를 눌러 온 사람이 한 번에 돌아간다.
+
+interface Props {
+  heading: string;
+  from?: string | null;
+}
+
+const { heading, from = null } = Astro.props;
+const button = 'rounded-md px-4 py-2 text-sm font-medium';
+---
+
+<header
+  class="sticky top-0 z-20 flex h-12 items-center gap-3 border-b border-border bg-bg-surface px-3 pt-[env(safe-area-inset-top)]"
+>
+  <a href="/admin/library" class="rounded-md px-2 py-1 text-sm text-text-secondary hover:bg-bg-card hover:text-text-primary">
+    ← 서가
+  </a>
+</header>
+<main class="mx-auto flex max-w-3xl flex-col gap-3 px-4 pb-16 pt-8">
+  <h1 class="break-words text-xl font-semibold">{heading}</h1>
+  <div class="flex flex-col gap-2 break-words text-sm text-text-secondary">
+    <slot />
+  </div>
+  <div class="mt-4 flex flex-wrap gap-2">
+    {
+      from && (
+        <a href={`/admin/library/d/${from}`} class={`${button} bg-brand text-white hover:bg-brand-hover`}>
+          ← 앞 문서
+        </a>
+      )
+    }
+    <a
+      href="/admin/library"
+      class:list={[
+        button,
+        from ? 'border border-border text-text-primary hover:bg-bg-card' : 'bg-brand text-white hover:bg-brand-hover',
+      ]}
+    >
+      서가로 돌아가기
+    </a>
+  </div>
+</main>

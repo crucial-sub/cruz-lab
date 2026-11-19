@@ -4,6 +4,7 @@
 // - 앞머리(---)는 지운다. 제목 뽑기(titleFromMarkdown)와 같은 규칙이다.
 import { describe, expect, it } from 'vitest';
 import { libraryMediaUrl, renderLibraryMarkdown, stripFrontmatter } from '@/library/server/render-md';
+import { docIdForKey } from '@/library/ticket';
 
 const ORIGIN = 'https://raw.cruzlab.dev';
 const DOC = 'a1b2c3d4e5f6a7b8c9d0';
@@ -83,5 +84,26 @@ describe('renderLibraryMarkdown', () => {
       [2, '하나'],
       [3, '둘'],
     ]);
+  });
+});
+
+// 서가 2단계 T3: md 사이 링크 (Plan J30~J32). 풀이 규칙은 tests/library/links.test.ts가 자세히 본다
+describe('renderLibraryMarkdown: 링크', () => {
+  const links = { key: 'mac:~/projects/p/docs/a', files: new Set(['index.md', 'data/t.csv']) };
+
+  it('md 링크는 서가 문서 주소로, 판 안 파일 링크는 문서 출처 주소로 바꾼다', () => {
+    const { html } = renderLibraryMarkdown('[b](./b.md) [표](data/t.csv) [밖](https://example.com)', {
+      docOrigin: ORIGIN,
+      docId: DOC,
+      links,
+    });
+    expect(html).toContain(`href="/admin/library/d/${docIdForKey('mac:~/projects/p/docs/b')}?ref=.%2Fb.md&#x26;from=${DOC}"`);
+    expect(html).toContain(`href="${ORIGIN}/d/${DOC}/data/t.csv"`);
+    expect(html).toContain('href="https://example.com"');
+  });
+
+  it('제목 앵커(#…)는 그대로다', () => {
+    const { html } = renderLibraryMarkdown('# 제목\n\n## 소제목', { docOrigin: ORIGIN, docId: DOC, links });
+    expect(html).toMatch(/<a class="heading-anchor" href="#[^"]+"/);
   });
 });
