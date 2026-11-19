@@ -3,6 +3,8 @@
 //    파일은 입구가 버킷으로 바로 보낸다(Vercel 함수의 요청 본문 한도 4.5 MB를 거치지 않는다).
 // ③ 마무리: 파일이 모두 있고 크기가 맞는지 보고, 제목을 뽑고, 판을 바꾸고, 앞 판의 파일을 지운다.
 // - 입구 둘이 같은 함수를 쓴다: 서가 화면(쿠키, origin 'web'), 맥 입구(서가 토큰, origin 'mac').
+// - 서가 2단계 T5(J39·J42): 아직 되돌리지 않은 폰 판이 있으면 md 올리기 시작이 409(PHONE_EDIT_PENDING)다. force면 올린다.
+//   md 판을 새로 쓰는 마무리는 되돌리기 상태(mdSync)를 그 판 기준으로 다시 적는다(폰 판은 덮였다).
 
 import { ApiError } from '@/lib/server/api-response';
 import { getServerDb } from '@/lib/server/firebase-server';
@@ -17,8 +19,9 @@ import {
   type UploadSource,
 } from '../rules';
 import { SEARCH_ENTRY_READ_BYTES } from '../search';
+import { mdSyncForUpload, phoneEditBlocksUpload } from '../sync';
 import { docIdForKey } from '../ticket';
-import { writeSearchIndex } from './search-store';
+import { writeSearchIndexIfCurrent } from './search-store';
 import {
   deleteRevisionFiles,
   getLibraryBucket,
@@ -49,6 +52,8 @@ export interface StartUploadInput {
   source: UploadSource;
   files: ManifestFile[];
   origin: UploadOrigin;
+  // 폰 판이 있어도 올린다 (서가 2단계 J42: 묻는 창에서 "덮어쓰기"를 고른 뒤)
+  force?: boolean;
 }
 
 export interface StartUploadResult {
@@ -76,6 +81,14 @@ export async function startUpload(input: StartUploadInput): Promise<StartUploadR
   const { rev } = await getServerDb().runTransaction(async (tx) => {
     const snapshot = await tx.get(ref);
     const existing = snapshot.exists ? parseStored(libraryDocSchema, '서가 문서', snapshot.data()) : null;
+    if (existing && phoneEditBlocksUpload(existing.mdSync, input.format, Boolean(input.force))) {
+      throw new ApiError(
+        409,
+        'PHONE_EDIT_PENDING',
+        '폰에서 고친 판이 맥 원본에 아직 없습니다. lab pull로 먼저 가져오거나, 덮어쓰려면 다시 올리기를 고릅니다.',
+        { pendingRev: existing.mdSync?.pendingRev ?? null },
+      );
+    }
     const nextRev = (existing?.lastRev ?? 0) + 1;
     if (existing) {
       tx.update(ref, {
@@ -258,6 +271,10 @@ export async function finalizeUpload(input: { docId: string; rev: number }, site
         uploadedAt: now,
         // 다시 올린 문서는 "새로 올린 문서(안 읽음)"로 다시 보인다
         readAt: null,
+        // md 판을 새로 쓰면 되돌리기 상태를 이 판 기준으로 적는다 (서가 2단계 J39). 폰 판은 이 판에 덮였다
+        ...(revision.format === 'md' && revision.origin !== 'phone'
+          ? { mdSync: mdSyncForUpload(revision.origin, entryFile.sha256) }
+          : {}),
       });
       tx.update(revisionRef(docId, rev), { status: 'ready' });
     } else if (decision.retire === rev) {
@@ -282,9 +299,16 @@ export async function finalizeUpload(input: { docId: string; rev: number }, site
 
   const summary = await readSummary(docId, siteOrigin);
   // 검색 색인 (서가 2단계 J26). 새 판을 쓴 때만 쓴다. 실패해도 올리기는 끝난다(색인 채우기 스크립트로 다시 만든다)
+  // - 그 판이 아직 지금 판일 때만 쓴다(겹쳐 마무리된 옛 판 글이 남지 않게, PR-A 리뷰 Codex P2)
   if (plan.activate) {
     try {
-      await writeSearchIndex(docId, { title: summary.title, project: summary.project, format: revision.format, text: entryText });
+      await writeSearchIndexIfCurrent(docId, {
+        title: summary.title,
+        project: summary.project,
+        format: revision.format,
+        rev,
+        text: entryText,
+      });
     } catch (error) {
       console.error(`[library] 검색 색인 쓰기 실패: ${docId}/${rev}`, error);
     }

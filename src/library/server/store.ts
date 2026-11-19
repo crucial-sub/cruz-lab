@@ -30,6 +30,15 @@ const formatStateSchema = z.object({
 });
 export type FormatState = z.infer<typeof formatStateSchema>;
 
+// 폰 판 되돌리기 상태 (서가 2단계 J39): 맥 원본에 있다고 아는 md 해시, 아직 맥에 되돌리지 않은 폰 판 번호
+const mdSyncSchema = z.object({
+  macSha256: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .nullable(),
+  pendingRev: z.number().int().positive().nullable(),
+});
+
 // 문서 하나 (5.3)
 // - lastRev: 판 번호를 매기는 셈값. 판 번호는 형식과 상관없이 문서 안에서 하나씩 는다
 export const libraryDocSchema = z.object({
@@ -45,6 +54,8 @@ export const libraryDocSchema = z.object({
   updatedAt: timestampSchema,
   // 고정한 시각 (서가 2단계 J34). 선택 칸이다. 없으면 고정하지 않은 문서다(1단계 문서와 같다)
   pinnedAt: timestampSchema.optional(),
+  // 폰 판 되돌리기 상태 (서가 2단계 J39, sync.ts). 선택 칸이다. 없으면 1단계 문서다(맥 원본 해시를 모른다)
+  mdSync: mdSyncSchema.optional(),
 });
 export type LibraryDoc = z.infer<typeof libraryDocSchema>;
 
@@ -135,6 +146,7 @@ export interface LibraryDocSummary {
   unread: boolean;
   readAt: string | null;
   pinnedAt: string | null; // 고정한 시각 (서가 2단계 J34). 고정하지 않았으면 null
+  mdPendingRev: number | null; // 아직 맥에 되돌리지 않은 폰 판 번호 (서가 2단계 J39). 없으면 null
   uploadedAt: string;
   updatedAt: string;
   url: string; // 서가 문서 주소 (J7). QR 코드와 북마크가 쓴다
@@ -157,6 +169,7 @@ export function summarize(id: string, doc: LibraryDoc, siteOrigin: string): Libr
     unread: doc.readAt === null,
     readAt: toIso(doc.readAt),
     pinnedAt: toIso(doc.pinnedAt ?? null),
+    mdPendingRev: doc.mdSync?.pendingRev ?? null,
     uploadedAt: toIso(doc.uploadedAt) ?? '',
     updatedAt: toIso(doc.updatedAt) ?? '',
     url: libraryDocUrl(siteOrigin, id),
@@ -185,12 +198,16 @@ export async function getRevision(docId: string, rev: number): Promise<Revision 
 }
 
 // 서가 목록: 올린 형식이 있는 문서, 최근 올린 것부터 (J14)
-export async function listLibraryDocs(siteOrigin: string): Promise<LibraryDocSummary[]> {
+// - where: 더 거를 조건 (서가 2단계 J41: lab pull 목록은 폰 판이 있는 맥 문서만)
+export async function listLibraryDocs(
+  siteOrigin: string,
+  where: (doc: LibraryDoc) => boolean = () => true,
+): Promise<LibraryDocSummary[]> {
   const snapshot = await libraryDocsRef().orderBy('updatedAt', 'desc').limit(1000).get();
   const docs: LibraryDocSummary[] = [];
   for (const docSnap of snapshot.docs) {
     const doc = parseStored(libraryDocSchema, '서가 문서', docSnap.data());
-    if (hasReadyFormat(doc)) docs.push(summarize(docSnap.id, doc, siteOrigin));
+    if (hasReadyFormat(doc) && where(doc)) docs.push(summarize(docSnap.id, doc, siteOrigin));
   }
   return docs;
 }
