@@ -114,7 +114,7 @@ afterEach(() => {
 });
 
 // 서버 계약을 흉내 내는 가짜 fetch. 원본 경로(확장자 뺀 것)가 같으면 같은 문서 id를 준다(J8 짝 묶기)
-function fakeServer(options: { startStatus?: number } = {}) {
+function fakeServer(options: { startStatus?: number; phonePending?: boolean } = {}) {
   const ids = new Map<string, string>();
   const titles = new Map<string, string>();
   let rev = 0;
@@ -124,7 +124,16 @@ function fakeServer(options: { startStatus?: number } = {}) {
       if (options.startStatus) {
         return Response.json({ error: { code: 'UNAUTHENTICATED', message: '서가 토큰이 틀렸습니다.' } }, { status: options.startStatus });
       }
-      const body = JSON.parse(String(init.body)) as { sourcePath: string; fileName: string; files: { path: string }[] };
+      const body = JSON.parse(String(init.body)) as {
+        sourcePath: string;
+        fileName: string;
+        files: { path: string }[];
+        force?: boolean;
+      };
+      // 서가 2단계 J42: 폰 판이 있는 문서처럼 막는다(force면 통과)
+      if (options.phonePending && !body.force) {
+        return Response.json({ error: { code: 'PHONE_EDIT_PENDING', message: '폰 판이 있습니다.' } }, { status: 409 });
+      }
       const key = body.sourcePath.replace(/\.(md|html)$/, '');
       if (!ids.has(key)) ids.set(key, `doc${String(ids.size).padStart(17, '0')}`);
       const docId = ids.get(key)!;
@@ -207,5 +216,43 @@ describe('uploadPaths', () => {
     expect(report.failures).toHaveLength(1);
     expect(report.failures[0]).toMatch(/^notes\.md: 서가 토큰이 틀렸습니다\. Raycast 설정/);
     expect(report.failures[0]).toContain('lab token --copy');
+  });
+});
+
+// 서가 2단계 T7 (Plan J42): 폰에서 고친 판이 있으면 확인 창으로 묻는다
+describe('uploadPaths: 폰 판이 있을 때', () => {
+  it('묻고 덮어쓰기를 고르면 force로 다시 올린다', async () => {
+    const md = put('projects/blog/notes.md', '# 노트');
+    const asked: string[] = [];
+
+    const report = await uploadPaths([md], {
+      home,
+      server: 'http://localhost:4341',
+      token: 't',
+      fetch: fakeServer({ phonePending: true }),
+      confirmOverwrite: async (fileName) => {
+        asked.push(fileName);
+        return true;
+      },
+    });
+
+    expect(asked).toEqual(['notes.md']);
+    expect(report.failures).toEqual([]);
+    expect(report.docs).toHaveLength(1);
+  });
+
+  it('그만두기를 고르면 올리지 않고 실패로 남긴다', async () => {
+    const md = put('projects/blog/notes.md', '# 노트');
+
+    const report = await uploadPaths([md], {
+      home,
+      server: 'http://localhost:4341',
+      token: 't',
+      fetch: fakeServer({ phonePending: true }),
+      confirmOverwrite: async () => false,
+    });
+
+    expect(report.docs).toEqual([]);
+    expect(report.failures[0]).toContain('폰에서 고친 판');
   });
 });

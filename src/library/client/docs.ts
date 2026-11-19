@@ -23,6 +23,8 @@ export interface LibraryDocItem {
   formats: { md?: LibraryFormatState; html?: LibraryFormatState };
   unread: boolean;
   readAt: string | null;
+  pinnedAt?: string | null; // 고정한 시각 (서가 2단계 J34)
+  mdPendingRev?: number | null; // 아직 맥에 되돌리지 않은 폰 판 번호 (서가 2단계 J39)
   uploadedAt: string;
   updatedAt: string;
   url: string; // 서가 문서 주소 (J7). QR 코드와 북마크가 쓴다

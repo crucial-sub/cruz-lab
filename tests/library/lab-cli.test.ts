@@ -3,6 +3,7 @@
 // - 키체인 대신 LAB_TOKEN 환경 변수로 토큰을 준다(시험용 길). HOME은 임시 폴더로 바꾼다.
 
 import { execFile } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -17,7 +18,13 @@ const DOC_ID = 'abc123def456abc123de';
 
 let server: Server;
 let origin: string;
-const seen: { method: string; url: string; auth?: string; ifMatch?: string }[] = [];
+const seen: { method: string; url: string; auth?: string; ifMatch?: string; body?: string }[] = [];
+
+// 서가 2단계 T7: lab pull용 폰 판 하나 (원본 ~/projects/blog/pull.md)
+const PULL_DOC_ID = 'pull123doc456';
+const PULL_BASE = '# 되돌리기\n\n맥 글\n';
+const PULL_PHONE = '# 되돌리기\n\n폰 글\n';
+const sha = (text: string) => createHash('sha256').update(text, 'utf8').digest('hex');
 
 function readBody(request: IncomingMessage): Promise<string> {
   return new Promise((resolve) => {
@@ -36,6 +43,7 @@ beforeAll(async () => {
       url,
       auth: request.headers.authorization,
       ifMatch: request.headers['x-goog-if-generation-match'] as string | undefined,
+      body,
     });
     const json = (status: number, data: unknown) => {
       response.writeHead(status, { 'Content-Type': 'application/json' });
@@ -45,7 +53,11 @@ beforeAll(async () => {
       return json(401, { error: { code: 'UNAUTHENTICATED', message: '서가 토큰이 필요합니다.' } });
     }
     if (request.method === 'POST' && url === '/api/library/token/uploads') {
-      const sent = JSON.parse(body) as { files: { path: string }[] };
+      const sent = JSON.parse(body) as { files: { path: string }[]; sourcePath: string; force?: boolean };
+      // 서가 2단계 J42: 원본 경로에 phone-pending이 들면 폰 판이 있는 문서처럼 409 (force면 통과)
+      if (sent.sourcePath.includes('phone-pending') && !sent.force) {
+        return json(409, { error: { code: 'PHONE_EDIT_PENDING', message: '폰에서 고친 판이 있습니다.' } });
+      }
       return json(200, {
         docId: DOC_ID,
         rev: 1,
@@ -64,6 +76,27 @@ beforeAll(async () => {
     }
     if (request.method === 'POST' && url === '/api/library/token/uploads/finalize') {
       return json(200, { doc: { id: DOC_ID, title: '노트', url: `${origin}/admin/library/d/${DOC_ID}` } });
+    }
+    // 서가 2단계 T7: 되돌리기 토큰 API (J41)
+    if (request.method === 'GET' && url === '/api/library/token/docs?pending=md') {
+      return json(200, { docs: [{ id: PULL_DOC_ID, title: '되돌리기', project: 'blog', mdPendingRev: 5 }] });
+    }
+    if (request.method === 'GET' && url === `/api/library/token/docs/${PULL_DOC_ID}/md`) {
+      return json(200, {
+        id: PULL_DOC_ID,
+        title: '되돌리기',
+        rev: 5,
+        origin: 'phone',
+        text: PULL_PHONE,
+        sha256: sha(PULL_PHONE),
+        macSha256: sha(PULL_BASE),
+        pendingRev: 5,
+        sourcePath: '~/projects/blog/pull.md',
+      });
+    }
+    if (request.method === 'POST' && url === `/api/library/token/docs/${PULL_DOC_ID}/md/pulled`) {
+      response.writeHead(204);
+      return response.end();
     }
     return json(404, { error: { code: 'NOT_FOUND', message: '없는 주소입니다.' } });
   });
@@ -168,5 +201,69 @@ describe('lab push', () => {
 
     expect(result.code).toBe(2);
     expect(result.stderr).toContain('lab push');
+  });
+});
+
+// 서가 2단계 T7 (Plan J40·J42)
+describe('lab push: 폰 판이 있을 때', () => {
+  function putPending(): string {
+    const dir = join(home, 'projects/phone-pending');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'notes.md'), '# 노트');
+    return join(dir, 'notes.md');
+  }
+
+  it('터미널이 아니면 묻지 않고 멈춘다. lab pull과 --force를 안내하고 1로 끝난다', async () => {
+    const result = await lab(['push', '--no-qr', '--server', origin, putPending()]);
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('lab pull');
+    expect(result.stderr).toContain('--force');
+    expect(seen.some((request) => request.url === '/api/library/token/uploads/finalize')).toBe(false);
+  });
+
+  it('--force면 덮어쓰고 올린다', async () => {
+    const result = await lab(['push', '--no-qr', '--force', '--server', origin, putPending()]);
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain('올림: 노트');
+    const start = seen.find((request) => request.url === '/api/library/token/uploads');
+    expect(JSON.parse(start?.body ?? '{}')).toMatchObject({ force: true });
+  });
+});
+
+describe('lab pull', () => {
+  it('① 원본이 서가가 아는 내용이면 폰 판으로 바꾸고 백업 경로를 보인다. 0으로 끝난다', async () => {
+    const dir = join(home, 'projects/blog');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'pull.md'), PULL_BASE);
+
+    const result = await lab(['pull', '--server', origin]);
+
+    expect(result.code).toBe(0);
+    expect(readFileSync(join(dir, 'pull.md'), 'utf8')).toBe(PULL_PHONE);
+    expect(result.stdout).toContain('되돌림: 되돌리기');
+    expect(result.stdout).toContain('~/Library/Application Support/cruz-lab/pull-backup/');
+    expect(seen.some((request) => request.method === 'POST' && request.url.endsWith('/md/pulled'))).toBe(true);
+  });
+
+  it('③ 원본도 바뀌었으면 원본을 두고 .phone.md와 차이를 보인다. 2로 끝난다', async () => {
+    const dir = join(home, 'projects/blog');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'pull.md'), '# 되돌리기\n\n맥에서 또 고친 글\n');
+
+    const result = await lab(['pull', '--server', origin]);
+
+    expect(result.code).toBe(2);
+    expect(readFileSync(join(dir, 'pull.md'), 'utf8')).toBe('# 되돌리기\n\n맥에서 또 고친 글\n');
+    expect(readFileSync(join(dir, 'pull.phone.md'), 'utf8')).toBe(PULL_PHONE);
+    expect(result.stdout).toContain('충돌: 되돌리기');
+    expect(result.stdout).toContain('+ 폰 글');
+  });
+
+  it('토큰이 틀리면 1로 끝난다', async () => {
+    const result = await lab(['pull', '--server', origin], { LAB_TOKEN: 'wrong' });
+    expect(result.code).toBe(1);
+    expect(result.stdout + result.stderr).toContain('LIBRARY_TOKEN_SHA256');
   });
 });

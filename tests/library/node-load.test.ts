@@ -57,6 +57,15 @@ describe('Node가 서가 모듈을 바로 가져온다', () => {
     );
   });
 
+  // 2단계 T7: lab pull과 Raycast "서가에서 가져오기"가 되돌리기 모듈을 가져온다 (Plan J40·J43)
+  it('sync.ts', () => {
+    expect(exportsOf('src/library/sync.ts')).toEqual(expect.arrayContaining(['decidePull', 'diffPreview']));
+  });
+
+  it('client/pull.ts', () => {
+    expect(exportsOf('src/library/client/pull.ts')).toEqual(expect.arrayContaining(['pullTargets', 'pullExitCode']));
+  });
+
   it('host.ts', () => {
     expect(exportsOf('src/library/host.ts')).toEqual(expect.arrayContaining(['rawDocPath', 'rawOpenUrl']));
   });

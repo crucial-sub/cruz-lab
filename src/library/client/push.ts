@@ -266,6 +266,8 @@ export interface TokenApiOptions {
 
 export interface PushOptions extends TokenApiOptions {
   concurrency?: number; // 동시에 보내는 PUT 수 (기본 4)
+  // 아직 되돌리지 않은 폰 판이 있어도 올린다 (서가 2단계 J42). 없으면 서버가 md를 409 PHONE_EDIT_PENDING으로 막는다
+  force?: boolean;
   onProgress?: (sentFiles: number, totalFiles: number) => void;
 }
 
@@ -361,6 +363,7 @@ export async function pushJob(job: PushJob, options: PushOptions): Promise<Pushe
     sourcePath: job.sourcePath,
     fileName: job.fileName,
     files: manifest,
+    ...(options.force ? { force: true } : {}),
   });
 
   // 서버가 정규화한 경로로 돌려준다. 우리 경로도 NFC라 그대로 맞는다
