@@ -12,15 +12,20 @@ export interface ProjectGroup {
 }
 
 export interface LibraryListView {
+  pinned: LibraryDocSummary[];
   unread: LibraryDocSummary[];
   projects: ProjectGroup[];
 }
 
+// - 서가 2단계 J34: 맨 위 "고정" 칸. 최근에 고정한 것부터. 고정한 문서도 아래 칸들에 그대로 있다
 export function groupLibraryDocs(docs: readonly LibraryDocSummary[]): LibraryListView {
+  const pinned = docs
+    .filter((doc) => Boolean(doc.pinnedAt))
+    .sort((a, b) => (b.pinnedAt ?? '').localeCompare(a.pinnedAt ?? ''));
   const unread = docs.filter((doc) => doc.unread);
   const byProject = new Map<string, LibraryDocSummary[]>();
   for (const doc of docs) byProject.set(doc.project, [...(byProject.get(doc.project) ?? []), doc]);
-  return { unread, projects: [...byProject].map(([name, list]) => ({ name, docs: list })) };
+  return { pinned, unread, projects: [...byProject].map(([name, list]) => ({ name, docs: list })) };
 }
 
 // 한국 시각 기준 날짜 'YYYY-MM-DD'. 값이 없거나 틀리면 ''

@@ -1,7 +1,8 @@
 ---
 // md 뷰어 (서가 1단계 T7, Plan J12·J14, 사용자 결정 2026-11-18 안 A)
 // 위에서 아래 순서:
-// 1. 머리줄: "← 서가", md·html 짝이면 "글 | 그림" 전환(그림 = ?v=html, 문서 출처의 원본 html로 간다)
+// 1. 머리줄: "← 서가", md·html 짝이면 "글 | 그림" 전환(그림 = ?v=html, 문서 출처의 원본 html로 간다),
+//    고정·고정 풀기(2단계 J34), "가" 글자 크기(2단계 J35: 5단계, 기기마다 localStorage)
 // 2. 입장권 그림(1px, 보이지 않음): 문서 쿠키를 먼저 받는다. 본문의 문서 그림은 그 뒤에 불린다(md-view.ts)
 // 3. 프로젝트 · 날짜, 제목(본문 첫 # 제목. 없으면 서가 제목)
 // 4. 목차(1280px 미만은 본문 위 <details>, 이상은 오른쪽 sticky) + 본문(.prose)
@@ -14,6 +15,7 @@ import katexCssUrl from 'katex/dist/katex.min.css?url';
 import Toc from '@/components/post/Toc.astro';
 import type { LibraryMarkdownView } from '../server/render-md';
 import type { LibraryDoc } from '../server/store';
+import { FONT_SCALE_KEY, FONT_SCALES } from './md-view';
 
 interface Props {
   docId: string;
@@ -27,7 +29,20 @@ const { docId, doc, view, hasHtml, ticketPixelUrl } = Astro.props;
 const { html, toc, hasMath, titleHtml } = view;
 const meta = [doc.project, doc.docDate].filter(Boolean).join(' · ');
 const pictureUrl = `/admin/library/d/${docId}?v=html`;
+const pinned = Boolean(doc.pinnedAt);
+const headerButton =
+  'rounded-md px-2 py-1 text-sm text-text-secondary hover:bg-bg-card hover:text-text-primary aria-pressed:text-brand';
 ---
+
+<!-- 글자 크기: 본문을 그리기 전에 이 기기에 저장한 값을 읽는다(깜박임 없이). 값 확인은 md-view.ts parseFontScale과 같다 -->
+<script is:inline define:vars={{ scales: FONT_SCALES, key: FONT_SCALE_KEY }}>
+  try {
+    const saved = window.localStorage.getItem(key);
+    if (scales.some((scale) => String(scale) === saved)) {
+      document.documentElement.style.setProperty('--library-font-scale', String(Number(saved) / 100));
+    }
+  } catch {}
+</script>
 
 <header
   class="sticky top-0 z-20 flex h-12 items-center gap-3 border-b border-border bg-bg-surface px-3 pt-[env(safe-area-inset-top)]"
@@ -38,18 +53,44 @@ const pictureUrl = `/admin/library/d/${docId}?v=html`;
   >
     ← 서가
   </a>
-  {
-    hasHtml && (
-      <nav aria-label="보기" class="ml-auto flex overflow-hidden rounded-md border border-border text-sm">
-        <a href={`/admin/library/d/${docId}`} aria-current="page" class="bg-brand px-3 py-1 font-medium text-white">
-          글
-        </a>
-        <a href={pictureUrl} class="px-3 py-1 text-text-secondary hover:bg-bg-card hover:text-text-primary">
-          그림
-        </a>
-      </nav>
-    )
-  }
+  <div class="ml-auto flex items-center gap-1">
+    {
+      hasHtml && (
+        <nav aria-label="보기" class="mr-1 flex overflow-hidden rounded-md border border-border text-sm">
+          <a href={`/admin/library/d/${docId}`} aria-current="page" class="bg-brand px-3 py-1 font-medium text-white">
+            글
+          </a>
+          <a href={pictureUrl} class="px-3 py-1 text-text-secondary hover:bg-bg-card hover:text-text-primary">
+            그림
+          </a>
+        </nav>
+      )
+    }
+    <button type="button" class={headerButton} data-md-pin={docId} aria-pressed={pinned ? 'true' : 'false'}>
+      {pinned ? '고정 풀기' : '고정'}
+    </button>
+    <details class="library-font relative" data-font-menu>
+      <summary class={`${headerButton} cursor-pointer font-semibold`} aria-label="글자 크기">가</summary>
+      <div
+        role="group"
+        aria-label="글자 크기"
+        class="absolute right-0 top-full z-30 mt-2 flex gap-1 rounded-lg border border-border bg-bg-surface p-1 shadow-popover"
+      >
+        {
+          FONT_SCALES.map((scale) => (
+            <button
+              type="button"
+              data-font-scale={scale}
+              aria-pressed={scale === 100 ? 'true' : 'false'}
+              class="rounded-md px-2 py-1 text-sm tabular-nums text-text-secondary hover:bg-bg-card hover:text-text-primary aria-pressed:bg-brand aria-pressed:text-white"
+            >
+              {scale}%
+            </button>
+          ))
+        }
+      </div>
+    </details>
+  </div>
 </header>
 
 <img src={ticketPixelUrl} alt="" width="1" height="1" class="library-ticket" data-library-ticket />
@@ -100,6 +141,13 @@ const pictureUrl = `/admin/library/d/${docId}?v=html`;
 </script>
 
 <style>
+  /* 글자 크기 단추: 펼침 삼각형을 숨긴다(Safari는 ::-webkit-details-marker) */
+  .library-font > summary {
+    list-style: none;
+  }
+  .library-font > summary::-webkit-details-marker {
+    display: none;
+  }
   /* 입장권 그림: 불리되 보이지 않는다(display:none이면 받지 않는 브라우저가 있어 크기와 투명도로 숨긴다) */
   .library-ticket {
     position: absolute;
@@ -108,8 +156,17 @@ const pictureUrl = `/admin/library/d/${docId}?v=html`;
     opacity: 0;
     pointer-events: none;
   }
-  /* 본문 폭 --measure(68ch). 블로그 글 상세(.post)와 같다 */
+  /* 본문 폭 --measure(68ch). 블로그 글 상세(.post)와 같다
+     글자 크기(2단계 J35): prose.css가 쓰는 글자 크기 토큰을 이 안에서만 배율로 다시 정한다.
+     값은 global.css의 토큰 값과 같다(토큰이 자기 자신을 가리킬 수 없어 숫자로 쓴다). ch 단위 폭도 함께 커진다 */
   .library-md {
+    --library-scale: var(--library-font-scale, 1);
+    --text-xs: calc(12px * var(--library-scale));
+    --text-sm: calc(14px * var(--library-scale));
+    --text-base: calc(17px * var(--library-scale));
+    --text-lg: calc(19px * var(--library-scale));
+    --text-xl: calc(22px * var(--library-scale));
+    --text-2xl: calc(27px * var(--library-scale));
     font-size: var(--text-base);
     max-width: var(--measure);
     margin-inline: auto;
@@ -133,7 +190,7 @@ const pictureUrl = `/admin/library/d/${docId}?v=html`;
     padding: 0;
     border: 0;
     color: var(--text-primary);
-    font-size: clamp(28px, 4vw, 40px);
+    font-size: calc(clamp(28px, 4vw, 40px) * var(--library-font-scale, 1));
     font-weight: 800;
     line-height: var(--leading-heading);
     word-break: keep-all;

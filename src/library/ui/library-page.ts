@@ -515,6 +515,19 @@ async function removeDoc(row: HTMLElement, button: HTMLButtonElement) {
   }
 }
 
+// 고정하거나 고정을 푼다 (서가 2단계 J34). 바뀐 뒤 목록을 다시 받는다(고정 칸이 바뀐다)
+async function togglePin(row: HTMLElement, button: HTMLButtonElement) {
+  const pinned = button.getAttribute('aria-pressed') === 'true';
+  button.disabled = true;
+  try {
+    await api(pinned ? 'DELETE' : 'PUT', `/api/admin/library/docs/${encodeURIComponent(row.dataset.docId ?? '')}/pin`);
+    await refreshList();
+  } catch (error) {
+    button.disabled = false;
+    window.alert(`${pinned ? '고정을 풀지' : '고정하지'} 못했습니다: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 // ---------- 연결 ----------
 
 function init() {
@@ -580,6 +593,7 @@ function init() {
     if (action && row) {
       if (action.dataset.action === 'qr') openQr(row);
       if (action.dataset.action === 'remove') void removeDoc(row, action);
+      if (action.dataset.action === 'pin') void togglePin(row, action);
       return;
     }
     const qr = target?.closest<HTMLButtonElement>('button[data-qr]');

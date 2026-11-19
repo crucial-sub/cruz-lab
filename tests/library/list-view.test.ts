@@ -12,6 +12,7 @@ function doc(id: string, project: string, extra: Partial<LibraryDocSummary> = {}
     formats: { html: { rev: 1, entry: 'index.html', bytes: 10, fileCount: 1 } },
     unread: false,
     readAt: null,
+    pinnedAt: null,
     uploadedAt: '2026-11-16T16:30:00.000Z',
     updatedAt: '2026-11-16T16:30:00.000Z',
     url: `https://www.cruzlab.dev/admin/library/d/${id}`,
@@ -37,7 +38,7 @@ describe('groupLibraryDocs', () => {
   });
 
   it('빈 서가', () => {
-    expect(groupLibraryDocs([])).toEqual({ unread: [], projects: [] });
+    expect(groupLibraryDocs([])).toEqual({ pinned: [], unread: [], projects: [] });
   });
 });
 

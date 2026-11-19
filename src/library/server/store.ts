@@ -5,7 +5,7 @@
 //   다운로드 토큰을 만들지 않는다. 읽기는 서버와 단기 서명 주소로만 한다(1.3절 2).
 // - 블로그 데이터(entries, assets)와 기본 버킷은 건드리지 않는다.
 
-import type { DocumentData } from 'firebase-admin/firestore';
+import { FieldValue, type DocumentData } from 'firebase-admin/firestore';
 import { z } from 'zod';
 import { isTimestampLike, toDateValue, type TimestampLike } from '@/lib/entry-schema';
 import { ApiError, zodIssues } from '@/lib/server/api-response';
@@ -43,6 +43,8 @@ export const libraryDocSchema = z.object({
   readAt: timestampSchema.nullable(),
   uploadedAt: timestampSchema,
   updatedAt: timestampSchema,
+  // 고정한 시각 (서가 2단계 J34). 선택 칸이다. 없으면 고정하지 않은 문서다(1단계 문서와 같다)
+  pinnedAt: timestampSchema.optional(),
 });
 export type LibraryDoc = z.infer<typeof libraryDocSchema>;
 
@@ -132,6 +134,7 @@ export interface LibraryDocSummary {
   formats: { md?: FormatState; html?: FormatState };
   unread: boolean;
   readAt: string | null;
+  pinnedAt: string | null; // 고정한 시각 (서가 2단계 J34). 고정하지 않았으면 null
   uploadedAt: string;
   updatedAt: string;
   url: string; // 서가 문서 주소 (J7). QR 코드와 북마크가 쓴다
@@ -153,6 +156,7 @@ export function summarize(id: string, doc: LibraryDoc, siteOrigin: string): Libr
     formats: doc.formats,
     unread: doc.readAt === null,
     readAt: toIso(doc.readAt),
+    pinnedAt: toIso(doc.pinnedAt ?? null),
     uploadedAt: toIso(doc.uploadedAt) ?? '',
     updatedAt: toIso(doc.updatedAt) ?? '',
     url: libraryDocUrl(siteOrigin, id),
@@ -203,6 +207,22 @@ export async function markLibraryDocRead(docId: string): Promise<boolean> {
     if (!hasReadyFormat(doc)) return false;
     if (doc.readAt === null) tx.update(ref, { readAt: new Date() });
     return true;
+  });
+}
+
+// 문서를 고정하거나 고정을 푼다 (서가 2단계 J34). 문서가 없으면 null
+// - 고정: pinnedAt에 지금 시각. 풀기: 칸을 지운다(1단계 문서와 같은 꼴로 돌아간다).
+// - 다른 칸(읽음, 판, 제목)은 건드리지 않는다. 다시 올려도 고정은 남는다(올리기는 이 칸을 쓰지 않는다).
+export async function setLibraryDocPin(docId: string, pinned: boolean, siteOrigin: string): Promise<LibraryDocSummary | null> {
+  const ref = libraryDocRef(docId);
+  return getServerDb().runTransaction(async (tx) => {
+    const snapshot = await tx.get(ref);
+    if (!snapshot.exists) return null;
+    const doc = parseStored(libraryDocSchema, '서가 문서', snapshot.data());
+    if (!hasReadyFormat(doc)) return null;
+    const pinnedAt = pinned ? new Date() : undefined;
+    tx.update(ref, { pinnedAt: pinnedAt ?? FieldValue.delete() });
+    return summarize(docId, { ...doc, pinnedAt }, siteOrigin);
   });
 }
 
