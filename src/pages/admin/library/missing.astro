@@ -3,10 +3,11 @@
 // - md 뷰어의 링크 중 서가에서 열 수 없는 것이 여기로 온다(links.ts):
 //   이 판에 없는 파일(csv·txt 등. md를 맥에서 올리면 그림만 함께 올라간다), 서가 밖(홈·프로젝트 위, 절대 경로)을 가리키는 문서 링크.
 // - 미들웨어가 관리자 세션을 검사한다(로그아웃이면 로그인 화면). 서가가 꺼져 있으면 404.
-// - 응답 상태는 404다. 링크 글은 화면에 글자로만 보인다(Astro가 이스케이프한다).
+// - 응답 상태는 404다(X-Astro-Reroute: no로 이 안내를 그대로 보낸다). 링크 글은 화면에 글자로만 보인다(Astro가 이스케이프한다).
 export const prerender = false;
 
 import AdminPage from '@/layouts/AdminPage.astro';
+import { markNotFound } from '@/lib/server/not-found';
 import { readLinkNotice } from '@/library/links';
 import { libraryEnabled } from '@/library/server/api';
 import { libraryOffResponse } from '@/library/server/raw';
@@ -17,7 +18,8 @@ import MissingView from '@/library/ui/MissingView.astro';
 if (!libraryEnabled()) return libraryOffResponse();
 
 const notice = readLinkNotice(Astro.url.searchParams);
-Astro.response.status = 404;
+// 상태는 404, 안내는 이 페이지가 그린다(배포 환경 Astro가 블로그 404 화면으로 바꿔 그리지 않게 한다)
+markNotFound(Astro.response);
 ---
 
 <AdminPage title="열 수 없는 링크 | 서가">

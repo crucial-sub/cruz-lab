@@ -10,6 +10,7 @@
 export const prerender = false;
 
 import AdminPage from '@/layouts/AdminPage.astro';
+import { markNotFound } from '@/lib/server/not-found';
 import { libraryEnabled } from '@/library/server/api';
 import { readLinkNotice } from '@/library/links';
 import { createDocOpenDeps, DOC_VIEW_PARAM, resolveDocOpen, type DocOpenResult } from '@/library/server/open';
@@ -43,9 +44,12 @@ if (result.kind === 'md') {
   } catch (error) {
     console.error(`[library] md 문서 읽기 실패: ${Astro.params.id}`, error);
     Astro.response.status = 500;
+    // 배포 환경 Astro가 500을 블로그 오류 화면으로 바꿔 그리지 않게 한다(이 페이지가 안내를 그린다)
+    Astro.response.headers.set('X-Astro-Reroute', 'no');
   }
 } else {
-  Astro.response.status = 404;
+  // 404도 블로그 404 화면으로 바꿔 그리지 않게 한다. 바꿔 그리면 링크 글·"← 앞 문서" 안내가 사라진다(2단계 J31)
+  markNotFound(Astro.response);
 }
 
 const md = result.kind === 'md' ? result : null;
