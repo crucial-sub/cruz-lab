@@ -14,6 +14,7 @@ import {
   type SkippedFile,
   type UploadJob,
 } from './upload-plan';
+import { isIosWebApp } from './list-view';
 
 // 마지막에 고른 프로젝트 (L2: 마지막 값이 기본)
 const LAST_PROJECT_KEY = 'cruz-library:last-project';
@@ -513,6 +514,10 @@ async function removeDoc(row: HTMLElement, button: HTMLButtonElement) {
 // ---------- 연결 ----------
 
 function init() {
+  // 아이폰 홈 화면 웹 앱으로 열렸으면 Safari 바로가기로 다시 추가하라고 알린다 (서가 2단계 J23)
+  const notice = document.querySelector<HTMLElement>('[data-webapp-notice]');
+  if (notice && isIosWebApp(window.navigator as { standalone?: unknown })) notice.hidden = false;
+
   const project = $<HTMLInputElement>('upload-project');
   if (project && !project.value) project.value = readLocal(LAST_PROJECT_KEY) ?? '';
 

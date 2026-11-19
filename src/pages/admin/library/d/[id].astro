@@ -13,6 +13,7 @@ import { libraryEnabled } from '@/library/server/api';
 import { createDocOpenDeps, DOC_VIEW_PARAM, resolveDocOpen, type DocOpenResult } from '@/library/server/open';
 import { libraryOffResponse, rawMisconfiguredResponse } from '@/library/server/raw';
 import { loadLibraryMarkdownView, type LibraryMarkdownView } from '@/library/server/render-md';
+import LibraryHead from '@/library/ui/LibraryHead.astro';
 import MdView from '@/library/ui/MdView.astro';
 
 // 미들웨어 판정이 빗나가도 이 페이지가 혼자 열리지 않게 한 번 더 본다
@@ -49,6 +50,7 @@ const pageTitle = md ? `${md.doc.title} | 서가` : '문서 없음 | 서가';
 ---
 
 <AdminPage title={pageTitle}>
+  <LibraryHead slot="head" />
   {
     md && view ? (
       <MdView

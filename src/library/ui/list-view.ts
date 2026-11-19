@@ -45,3 +45,10 @@ export function projectChoices(docs: readonly LibraryDocSummary[]): string[] {
   names.add('desktop');
   return [...names].sort((a, b) => a.localeCompare(b, 'ko'));
 }
+
+// 아이폰에서 홈 화면 웹 앱으로 열렸는가 (서가 2단계 J23)
+// - navigator.standalone은 iOS Safari에만 있다. 홈 화면에 "웹 앱으로 열기"를 켠 채 추가하면 참이다.
+// - 웹 앱은 Safari와 로그인·저장을 따로 쓴다(Plan 1.3절 2). 그래서 목록 맨 위에 안내 한 줄을 보인다.
+export function isIosWebApp(nav: { standalone?: unknown }): boolean {
+  return nav.standalone === true;
+}

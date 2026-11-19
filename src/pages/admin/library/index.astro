@@ -9,6 +9,7 @@ import AdminPage from '@/layouts/AdminPage.astro';
 import { libraryEnabled } from '@/library/server/api';
 import { libraryOffResponse } from '@/library/server/raw';
 import { listLibraryDocs, type LibraryDocSummary } from '@/library/server/store';
+import LibraryHead from '@/library/ui/LibraryHead.astro';
 import LibraryList from '@/library/ui/LibraryList.astro';
 import UploadPanel from '@/library/ui/UploadPanel.astro';
 import { projectChoices } from '@/library/ui/list-view';
@@ -27,6 +28,7 @@ try {
 ---
 
 <AdminPage title="서가 | Cruz Lab">
+  <LibraryHead slot="head" />
   <header
     class="sticky top-0 z-20 flex h-12 items-center gap-3 border-b border-border bg-bg-surface px-3 pt-[env(safe-area-inset-top)]"
   >
@@ -37,6 +39,15 @@ try {
   </header>
 
   <main class="mx-auto flex max-w-3xl flex-col gap-6 px-4 pb-16 pt-5">
+    <!-- 아이폰 홈 화면 웹 앱으로 열렸을 때만 보인다(J23, library-page.ts) -->
+    <p
+      data-webapp-notice
+      hidden
+      class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-text-primary"
+    >
+      웹 앱으로 열렸습니다. 홈 화면의 서가 아이콘을 지우고 "웹 앱으로 열기"를 끈 채 다시 추가하면 Safari 바로가기가
+      됩니다. 그러면 로그인과 저장이 Safari와 같아집니다.
+    </p>
     <UploadPanel projects={projectChoices(docs)} />
     {
       loadError ? (
