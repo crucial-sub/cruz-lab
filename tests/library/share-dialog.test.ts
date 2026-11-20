@@ -49,3 +49,19 @@ describe('shareRequestBody: POST /api/admin/library/shares 본문', () => {
     expect(shareRequestBody({ kind: 'doc', docId: 'aaaaaaaaaaaaaaaaaaaa', title: 't' }, '', '2d').duration).toBe('7d');
   });
 });
+
+// 미리보기 확인에서 찾은 결함(2026-11-20): hidden 속성과 Tailwind 표시 클래스(flex 등)를 한 요소에 두면
+// 클래스가 이겨서 숨지 않는다. 그래서 문서 하나 공유에도 "범위" 칸이 보였고, 결과 뒤에도 입력 칸이 남았다.
+// 스크립트가 hidden으로 켜고 끄는 요소에는 표시 클래스를 두지 않는다(안쪽 요소에 둔다).
+describe('ShareDialog.astro: 켜고 끄는 칸에 표시 클래스가 없다', () => {
+  it('data-share-form·result·scope-row·error 요소의 class에 flex·grid·block이 없다', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const source = await readFile(new URL('../../src/library/ui/ShareDialog.astro', import.meta.url), 'utf8');
+    for (const name of ['data-share-form', 'data-share-result', 'data-share-scope-row', 'data-share-error']) {
+      const tag = source.match(new RegExp(`<[a-z]+[^>]*\\b${name}\\b[^>]*>`))?.[0];
+      expect(tag, name).toBeDefined();
+      const classes = tag?.match(/class="([^"]*)"/)?.[1] ?? '';
+      expect(classes, name).not.toMatch(/(^|\s)(flex|inline-flex|grid|block|inline-block|table)(\s|$)/);
+    }
+  });
+});

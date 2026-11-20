@@ -167,17 +167,17 @@ export function shareLabel(scope: ShareScope, docTitle: string | null = null): s
   return `${scope.project} · ${scope.folder}`;
 }
 
-// 남은 기간 글 (공유 중 칸)
+// 남은 기간 글 (공유 중 칸). 올림으로 센다: 방금 만든 7일 공유는 "7일 남음"이다
+// - 하루 넘게 남으면 일, 한 시간 넘게 남으면 시간, 그 밖은 분
 export function shareRemainingLabel(expiresAtMs: number | null, nowMs: number): string {
   if (expiresAtMs === null) return '끌 때까지';
   const remaining = expiresAtMs - nowMs;
   if (remaining <= 0) return '끝남';
-  const minutes = Math.floor(remaining / 60_000);
-  if (minutes < 1) return '1분 안에 끝남';
+  const minutes = Math.ceil(remaining / 60_000);
   if (minutes < 60) return `${minutes}분 남음`;
-  const hours = Math.floor(minutes / 60);
+  const hours = Math.ceil(remaining / 3_600_000);
   if (hours < 24) return `${hours}시간 남음`;
-  return `${Math.floor(hours / 24)}일 남음`;
+  return `${Math.ceil(remaining / DAY_MS)}일 남음`;
 }
 
 // ---------- 올리기 결과의 경고 줄 (J52) ----------

@@ -200,14 +200,25 @@ describe('공유 이름 (J49 og:title, 공유 중 칸)', () => {
   });
 });
 
-describe('남은 기간 글 (공유 중 칸)', () => {
-  it('끌 때까지, 일, 시간, 분', () => {
+describe('남은 기간 글 (공유 중 칸): 올림으로 센다', () => {
+  it('방금 만든 공유는 고른 기간 그대로 보인다 (7일 → "7일 남음", 1일 → "1일 남음")', () => {
     expect(shareRemainingLabel(null, NOW)).toBe('끌 때까지');
     expect(shareRemainingLabel(NOW + 7 * DAY, NOW)).toBe('7일 남음');
-    expect(shareRemainingLabel(NOW + DAY + 60_000, NOW)).toBe('1일 남음');
-    expect(shareRemainingLabel(NOW + 5 * 60 * 60 * 1000 + 1, NOW)).toBe('5시간 남음');
+    expect(shareRemainingLabel(NOW + 7 * DAY - 1000, NOW)).toBe('7일 남음');
+    expect(shareRemainingLabel(NOW + DAY - 1000, NOW)).toBe('1일 남음');
+    expect(shareRemainingLabel(NOW + 30 * DAY - 1000, NOW)).toBe('30일 남음');
+  });
+
+  it('하루가 안 남으면 시간, 한 시간이 안 남으면 분 (올림)', () => {
+    expect(shareRemainingLabel(NOW + DAY + 60_000, NOW)).toBe('2일 남음');
+    expect(shareRemainingLabel(NOW + 5 * 60 * 60 * 1000, NOW)).toBe('5시간 남음');
+    expect(shareRemainingLabel(NOW + 5 * 60 * 60 * 1000 + 1, NOW)).toBe('6시간 남음');
     expect(shareRemainingLabel(NOW + 30 * 60 * 1000, NOW)).toBe('30분 남음');
-    expect(shareRemainingLabel(NOW + 10_000, NOW)).toBe('1분 안에 끝남');
+    expect(shareRemainingLabel(NOW + 10_000, NOW)).toBe('1분 남음');
+  });
+
+  it('끝났으면 "끝남"', () => {
+    expect(shareRemainingLabel(NOW, NOW)).toBe('끝남');
     expect(shareRemainingLabel(NOW - 1, NOW)).toBe('끝남');
   });
 });
