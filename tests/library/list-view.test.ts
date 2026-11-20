@@ -13,6 +13,7 @@ function doc(id: string, project: string, extra: Partial<LibraryDocSummary> = {}
     unread: false,
     readAt: null,
     pinnedAt: null,
+    mdPendingRev: null,
     uploadedAt: '2026-11-16T16:30:00.000Z',
     updatedAt: '2026-11-16T16:30:00.000Z',
     url: `https://www.cruzlab.dev/admin/library/d/${id}`,

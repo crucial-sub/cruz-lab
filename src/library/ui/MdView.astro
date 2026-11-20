@@ -2,7 +2,7 @@
 // md 뷰어 (서가 1단계 T7, Plan J12·J14, 사용자 결정 2026-11-18 안 A)
 // 위에서 아래 순서:
 // 1. 머리줄: "← 서가", md·html 짝이면 "글 | 그림" 전환(그림 = ?v=html, 문서 출처의 원본 html로 간다),
-//    고정·고정 풀기(2단계 J34), "가" 글자 크기(2단계 J35: 5단계, 기기마다 localStorage)
+//    고치기(2단계 J36: 글자 칸 화면 /edit), 고정·고정 풀기(2단계 J34), "가" 글자 크기(2단계 J35: 5단계, 기기마다 localStorage)
 // 2. 입장권 그림(1px, 보이지 않음): 문서 쿠키를 먼저 받는다. 본문의 문서 그림은 그 뒤에 불린다(md-view.ts)
 // 3. 프로젝트 · 날짜, 제목(본문 첫 # 제목. 없으면 서가 제목)
 // 4. 목차(1280px 미만은 본문 위 <details>, 이상은 오른쪽 sticky) + 본문(.prose)
@@ -66,6 +66,7 @@ const headerButton =
         </nav>
       )
     }
+    <a href={`/admin/library/d/${docId}/edit`} class={headerButton}>고치기</a>
     <button type="button" class={headerButton} data-md-pin={docId} aria-pressed={pinned ? 'true' : 'false'}>
       {pinned ? '고정 풀기' : '고정'}
     </button>

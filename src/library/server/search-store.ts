@@ -12,6 +12,7 @@ import { searchDocs, searchTextOf, type SearchHit } from '../search';
 import type { LibraryDocSummary } from './store';
 
 export const SEARCH_COLLECTION = 'library_search';
+const LIBRARY_DOCS_COLLECTION = 'library_docs';
 const SEARCH_MEMO_KEY = 'library:search';
 const SEARCH_MEMO_TTL_MS = 2 * 60_000;
 
@@ -25,17 +26,28 @@ function searchRef(docId: string) {
   return getServerDb().collection(SEARCH_COLLECTION).doc(docId);
 }
 
-// 형식 하나의 색인을 쓴다. 다른 형식의 글자는 그대로 둔다(merge)
+// 형식 하나의 색인을 쓴다. 다른 형식의 글자는 그대로 둔다(merge). 그 판이 아직 지금 판일 때만 쓴다
+// (서가 2단계 T5, PR-A 리뷰 Codex P2)
 // - text는 진입 파일의 글(앞 5 MB)이다. 여기서 검색 글자를 뽑고 200 KB로 자른다.
-export async function writeSearchIndex(
+// - 같은 형식의 두 판이 겹쳐 마무리되면 늦게 쓰는 옛 판 글이 색인에 남을 수 있었다.
+//   한 트랜잭션에서 문서 기록의 formats.{형식}.rev를 읽고, 같을 때만 쓴다. 다르면 쓰지 않고 false다.
+// - 문서 기록 컬렉션 이름은 store.ts의 LIBRARY_COLLECTION과 같다(store.ts가 이 파일을 가져오므로 돌아 가져오지 않는다).
+export async function writeSearchIndexIfCurrent(
   docId: string,
-  input: { title: string; project: string; format: DocFormat; text: string },
-): Promise<void> {
-  await searchRef(docId).set(
-    { title: input.title, project: input.project, [input.format]: searchTextOf(input.format, input.text), updatedAt: new Date() },
-    { merge: true },
-  );
-  invalidateMemo(SEARCH_MEMO_KEY);
+  input: { title: string; project: string; format: DocFormat; rev: number; text: string },
+): Promise<boolean> {
+  const db = getServerDb();
+  const docRef = db.collection(LIBRARY_DOCS_COLLECTION).doc(docId);
+  const value = searchTextOf(input.format, input.text);
+  const written = await db.runTransaction(async (tx) => {
+    const snapshot = await tx.get(docRef);
+    const current = snapshot.exists ? (snapshot.data()?.formats?.[input.format]?.rev as unknown) : undefined;
+    if (current !== input.rev) return false;
+    tx.set(searchRef(docId), { title: input.title, project: input.project, [input.format]: value, updatedAt: new Date() }, { merge: true });
+    return true;
+  });
+  if (written) invalidateMemo(SEARCH_MEMO_KEY);
+  return written;
 }
 
 // 문서 하나의 색인을 지운다 (서가에서 내릴 때)

@@ -332,6 +332,32 @@ describe('pushJob', () => {
     expect(error).toMatchObject({ code: 'UNAUTHENTICATED', status: 401, message: '서가 토큰이 필요합니다.' });
   });
 
+  // 서가 2단계 J42: 폰 판이 있을 때 묻고 덮어쓰기를 고르면 force: true로 다시 부른다
+  it('force를 주면 올리기 시작에 force: true를 보낸다', async () => {
+    const md = put('projects/blog/notes.md', '# 노트');
+    const [plan] = await planPush([md], { home });
+    if (!plan.ok) throw new Error('계획 실패');
+    const server = fakeServer();
+
+    await pushJob(plan.jobs[0], { server: 'http://localhost:4341', token: 't', fetch: server.fetch, force: true });
+
+    expect(JSON.parse(server.requests[0].body!.toString('utf8'))).toMatchObject({ force: true });
+  });
+
+  it('폰 판이 있어 409 PHONE_EDIT_PENDING이면 그 코드로 PushError를 올린다', async () => {
+    const md = put('projects/blog/notes.md', '# 노트');
+    const [plan] = await planPush([md], { home });
+    if (!plan.ok) throw new Error('계획 실패');
+    const server = fakeServer({
+      start: Response.json({ error: { code: 'PHONE_EDIT_PENDING', message: '폰 판이 있습니다.' } }, { status: 409 }),
+    });
+
+    const error = await pushJob(plan.jobs[0], { server: 'http://localhost:4341', token: 't', fetch: server.fetch }).catch((e) => e);
+
+    expect(error).toMatchObject({ code: 'PHONE_EDIT_PENDING', status: 409 });
+    expect(JSON.parse(server.requests[0].body!.toString('utf8'))).not.toHaveProperty('force');
+  });
+
   it('PUT이 거절되면 마무리를 부르지 않고 PushError를 올린다', async () => {
     const md = put('projects/blog/notes.md', '# 노트');
     const [plan] = await planPush([md], { home });

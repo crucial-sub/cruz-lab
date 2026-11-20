@@ -3,10 +3,13 @@
 // 2. 그 밖에는 파일 고르기 칸을 연다(다른 앱이 앞에 있었으면 Finder에 남은 선택을 쓰지 않는다. lib/finder.ts).
 // 3. 끝나면 올린 문서마다 QR·주소를 보인다. 알림(빠진 자산 등)과 실패도 함께 보인다.
 // - 올리기 규칙은 lab push와 같다(공용 모듈 src/library/client/push.ts, lib/upload.ts).
+// - 서가 2단계 J42: 폰에서 고친 판(아직 맥에 없음)이 있으면 확인 창으로 묻는다. "덮어쓰기"면 맥 원본으로 올린다.
 
 import {
   Action,
   ActionPanel,
+  Alert,
+  confirmAlert,
   Detail,
   Form,
   getFrontmostApplication,
@@ -70,6 +73,14 @@ export default function Command() {
           toast.message = status;
           setStage({ kind: 'uploading', status });
         },
+        confirmOverwrite: (fileName) =>
+          confirmAlert({
+            title: '폰에서 고친 판이 있습니다',
+            message: `「${fileName}」은 폰에서 고친 글이 맥 원본에 아직 없습니다. 덮어쓰면 폰에서 고친 글이 서가에서 사라집니다. 먼저 가져오려면 "서가에서 가져오기"를 씁니다.`,
+            icon: Icon.Warning,
+            primaryAction: { title: '덮어쓰기', style: Alert.ActionStyle.Destructive },
+            dismissAction: { title: '그만두기' },
+          }),
       });
       const qrs = await Promise.all(report.docs.map((doc) => qrDataUrl(doc.url)));
       if (report.failures.length === 0) {

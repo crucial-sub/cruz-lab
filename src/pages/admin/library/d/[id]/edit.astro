@@ -1,0 +1,62 @@
+---
+// 서가 고치기 화면 /admin/library/d/{문서 id}/edit (서가 2단계 T6, Plan J36)
+// - md 뷰어 머리줄의 "고치기"로 온다. 미들웨어가 관리자 세션을 검사한다(로그아웃이면 로그인 화면, J3).
+// - md 판이 없는 문서(html만), 없는 문서: 404 안내. md가 2 MB를 넘으면: 폰에서 고칠 수 없다는 안내.
+// - 글을 읽지 못하면 500 안내. 배포 환경 Astro가 404·500을 블로그 화면으로 바꿔 그리지 않게 한다(markNotFound).
+export const prerender = false;
+
+import AdminPage from '@/layouts/AdminPage.astro';
+import { markNotFound } from '@/lib/server/not-found';
+import { libraryEnabled } from '@/library/server/api';
+import { loadPhoneEditSource, type PhoneEditSource } from '@/library/server/edit';
+import { libraryOffResponse } from '@/library/server/raw';
+import { isDocId } from '@/library/ticket';
+import EditView from '@/library/ui/EditView.astro';
+import LibraryHead from '@/library/ui/LibraryHead.astro';
+import MissingView from '@/library/ui/MissingView.astro';
+
+// 미들웨어 판정이 빗나가도 이 페이지가 혼자 열리지 않게 한 번 더 본다
+if (!libraryEnabled()) return libraryOffResponse();
+
+const docId = Astro.params.id;
+let source: PhoneEditSource | null = null;
+let failed = false;
+if (isDocId(docId)) {
+  try {
+    source = await loadPhoneEditSource(docId);
+  } catch (error) {
+    console.error(`[library] 고칠 md 읽기 실패: ${docId}`, error);
+    failed = true;
+  }
+}
+
+if (failed) {
+  Astro.response.status = 500;
+  Astro.response.headers.set('X-Astro-Reroute', 'no');
+} else if (!source) {
+  markNotFound(Astro.response);
+}
+
+const pageTitle = source ? `고치기 · ${source.doc.title} | 서가` : '고치기 | 서가';
+---
+
+<AdminPage title={pageTitle}>
+  <LibraryHead slot="head" />
+  {
+    source && !source.tooLarge ? (
+      <EditView docId={docId as string} doc={source.doc} md={source.md} text={source.text} />
+    ) : source ? (
+      <MissingView heading={source.doc.title}>
+        <p>md가 2 MB를 넘어 폰에서 고칠 수 없습니다. 맥에서 고친 뒤 다시 올립니다.</p>
+      </MissingView>
+    ) : failed ? (
+      <MissingView heading="고칠 글을 읽지 못했습니다">
+        <p>잠시 뒤 다시 열어 주세요.</p>
+      </MissingView>
+    ) : (
+      <MissingView heading="고칠 md 문서가 없습니다">
+        <p>주소가 틀렸거나, 서가에서 내렸거나, md가 없는 문서(html만)입니다.</p>
+      </MissingView>
+    )
+  }
+</AdminPage>

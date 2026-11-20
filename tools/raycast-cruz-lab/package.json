@@ -2,7 +2,7 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "cruz-lab",
   "title": "cruz-lab",
-  "description": "cruz-lab 문서 서가: 맥의 md·html 문서를 올리고, 서가 문서를 열고 내린다.",
+  "description": "cruz-lab 문서 서가: 맥의 md·html 문서를 올리고, 서가 문서를 열고 내리고, 폰에서 고친 md를 가져온다.",
   "icon": "icon.png",
   "author": "crucial-sub",
   "license": "MIT",
@@ -24,6 +24,12 @@
       "name": "library-docs",
       "title": "서가 문서",
       "description": "서가 문서를 최근 것부터 보인다. 열기, 주소 복사, QR 보기, 내리기를 한다.",
+      "mode": "view"
+    },
+    {
+      "name": "pull-from-library",
+      "title": "서가에서 가져오기",
+      "description": "폰에서 고친 md(폰 판)를 맥 원본에 되돌린다. 원본이 서가가 아는 내용일 때만 바꾸고, 아니면 옆에 .phone.md를 둔다.",
       "mode": "view"
     }
   ],

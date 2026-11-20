@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { ApiError, withAdminApi, withApiErrors } from '@/lib/server/api-response';
 import { isLibraryEnabled } from '../host';
 import { MAX_FILE_COUNT } from '../rules';
+import { MAX_PHONE_TEXT_BYTES } from './edit';
 import { isDocId, verifyBearerToken } from '../ticket';
 
 // 서가가 켜져 있는가 (LIBRARY_ENABLED)
@@ -71,6 +72,7 @@ export const webStartSchema = z.object({
   relativePath: z.string().min(1).max(1024),
   fileName: fileNameSchema,
   files: filesSchema,
+  force: z.boolean().optional(), // 폰 판이 있어도 올린다 (서가 2단계 J42)
 });
 
 // 맥 입구 올리기 시작: 원본 경로(~/…)
@@ -79,9 +81,23 @@ export const macStartSchema = z.object({
   sourcePath: z.string().min(3).max(1024),
   fileName: fileNameSchema,
   files: filesSchema,
+  force: z.boolean().optional(), // 폰 판이 있어도 올린다 (서가 2단계 J42)
 });
 
 export const finalizeSchema = z.object({
   docId: z.string().refine(isDocId, { message: '문서 id 꼴이 틀렸습니다' }),
   rev: z.number().int().positive(),
+});
+
+// 폰 저장 (서가 2단계 J37): 고치기 시작 때의 md 판 번호와 고친 글
+// - 글자 수 상한은 대강 막는다. 바이트 상한(2 MB)은 savePhoneEdit가 본다
+export const phoneSaveSchema = z.object({
+  baseRev: z.number().int().positive(),
+  text: z.string().max(MAX_PHONE_TEXT_BYTES),
+});
+
+// 되돌림 알림 (서가 2단계 J41): 맥 원본에 쓴 판과 그 글의 해시
+export const pulledSchema = z.object({
+  rev: z.number().int().positive(),
+  sha256: z.string().regex(/^[0-9a-f]{64}$/),
 });

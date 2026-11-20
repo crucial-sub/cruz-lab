@@ -3,6 +3,7 @@
 //   올리기 시작(서명 주소) → 버킷에 바로 PUT → 마무리 → 결과(주소·QR).
 // - 목록: QR 보기·주소 복사, 서가에서 내리기. 바뀐 뒤 이 페이지를 다시 받아 #library-list만 바꾼다.
 // - 서버 API: /api/admin/library/**(관리자 쿠키, 같은 출처). 로그아웃이면 로그인 화면으로 보낸다.
+// - 서가 2단계 J42: 폰에서 고친 판이 있어 올리기 시작이 409(PHONE_EDIT_PENDING)면 확인 창으로 묻고, 덮어쓰기면 force로 다시 시작한다.
 
 import { isProjectName, validateManifest, type ManifestError } from '../rules';
 import {
@@ -52,6 +53,15 @@ function redirectToLogin(): never {
   throw new Error('로그인이 필요합니다.');
 }
 
+// 서가 API 실패: 서버의 오류 코드를 함께 둔다 (서가 2단계 J42: PHONE_EDIT_PENDING이면 묻는다)
+class ApiFailure extends Error {
+  readonly code: string | undefined;
+  constructor(message: string, code: string | undefined) {
+    super(message);
+    this.code = code;
+  }
+}
+
 // 서가 API 요청. 오류 응답이면 서버의 message로 던진다
 async function api<T>(method: string, url: string, body?: unknown): Promise<T> {
   const response = await fetch(url, {
@@ -64,8 +74,8 @@ async function api<T>(method: string, url: string, body?: unknown): Promise<T> {
   if (!response.ok) {
     const data = (await response.json().catch(() => null)) as { error?: { code?: string; message?: string } } | null;
     const code = data?.error?.code;
-    if (code === 'LIBRARY_NOT_CONFIGURED') throw new Error('서가 저장소 설정(LIBRARY_BUCKET)이 없습니다.');
-    throw new Error(data?.error?.message ?? `요청이 실패했습니다 (${response.status}).`);
+    if (code === 'LIBRARY_NOT_CONFIGURED') throw new ApiFailure('서가 저장소 설정(LIBRARY_BUCKET)이 없습니다.', code);
+    throw new ApiFailure(data?.error?.message ?? `요청이 실패했습니다 (${response.status}).`, code);
   }
   return (response.status === 204 ? undefined : await response.json()) as T;
 }
@@ -350,13 +360,19 @@ async function uploadJob(job: UploadJob, project: string, files: Map<string, Fil
     if (!check.ok) throw new Error(describeManifestErrors(check.errors));
 
     line.set('올리기 시작');
-    const start = await api<StartResponse>('POST', '/api/admin/library/uploads', {
-      format: job.format,
-      project,
-      relativePath: job.relativePath,
-      fileName: job.fileName,
-      files: manifest,
-    });
+    const startBody = { format: job.format, project, relativePath: job.relativePath, fileName: job.fileName, files: manifest };
+    let start: StartResponse;
+    try {
+      start = await api<StartResponse>('POST', '/api/admin/library/uploads', startBody);
+    } catch (error) {
+      // 폰에서 고친 판이 있으면 묻는다 (서가 2단계 J42). 덮어쓰기를 고르면 force로 다시 시작한다
+      if (!(error instanceof ApiFailure) || error.code !== 'PHONE_EDIT_PENDING') throw error;
+      const overwrite = window.confirm(
+        `"${job.fileName}"에는 폰에서 고친 판이 있습니다. 지금 올리는 파일로 덮어쓰면 폰에서 고친 글이 서가에서 사라집니다. 덮어쓸까요?`,
+      );
+      if (!overwrite) throw new Error('올리지 않았습니다(폰에서 고친 판이 있습니다).');
+      start = await api<StartResponse>('POST', '/api/admin/library/uploads', { ...startBody, force: true });
+    }
 
     const sourceOf = new Map(job.files.map((file) => [file.path, file.source]));
     const total = manifest.reduce((sum, file) => sum + file.bytes, 0) || 1;

@@ -2,7 +2,7 @@
 // - lab push(scripts/lab.mjs)와 Raycast 확장이 같은 글로 계획 오류, 알림, API 오류를 알린다.
 
 import { describe, expect, it } from 'vitest';
-import { describeApiError, describeNote, describePlanError } from '@/library/client/messages';
+import { describeApiError, describeNote, describePlanError, describePullOutcome } from '@/library/client/messages';
 import { PushError } from '@/library/client/push';
 
 describe('describePlanError', () => {
@@ -60,5 +60,74 @@ describe('describeApiError', () => {
     );
     expect(describeApiError(new Error('읽지 못함'), 's')).toBe('읽지 못함');
     expect(describeApiError('문자열 오류', 's')).toBe('문자열 오류');
+  });
+});
+
+// 서가 2단계 T7: 되돌리기 결과(lab pull, Raycast "서가에서 가져오기")와 폰 판이 있을 때의 올리기 실패 (Plan J40·J42)
+describe('describePullOutcome', () => {
+  const home = '/Users/me';
+
+  it('① 바꾼 원본과 백업 경로를 ~ 로 줄여 보인다', () => {
+    expect(
+      describePullOutcome(
+        {
+          kind: 'replaced',
+          docId: 'd1',
+          title: '노트',
+          path: '/Users/me/projects/p/a.md',
+          rev: 3,
+          backupPath: '/Users/me/Library/Application Support/cruz-lab/pull-backup/x/projects/p/a.md',
+        },
+        home,
+      ),
+    ).toEqual([
+      '되돌림: 노트',
+      '  원본을 폰 판으로 바꿨습니다: ~/projects/p/a.md',
+      '  앞 원본 백업: ~/Library/Application Support/cruz-lab/pull-backup/x/projects/p/a.md',
+    ]);
+  });
+
+  it('③ 충돌: 원본을 두었다는 것, .phone.md, 차이, 할 일을 보인다', () => {
+    const lines = describePullOutcome(
+      {
+        kind: 'conflict',
+        docId: 'd1',
+        title: '노트',
+        path: '/Users/me/projects/p/a.md',
+        rev: 3,
+        reason: 'both-changed',
+        phonePath: '/Users/me/projects/p/a.phone.md',
+        diff: ['@@ 3번째 줄부터', '- 맥', '+ 폰'],
+      },
+      home,
+    );
+    expect(lines[0]).toBe('충돌: 노트');
+    expect(lines).toContain('  맥 원본도 바뀌어 덮어쓰지 않았습니다: ~/projects/p/a.md');
+    expect(lines).toContain('  폰 판: ~/projects/p/a.phone.md');
+    expect(lines).toContain('    - 맥');
+    expect(lines.at(-1)).toBe('  두 파일을 합친 뒤 lab push로 올립니다.');
+  });
+
+  it('④ 건너뛴 이유를 보인다', () => {
+    expect(
+      describePullOutcome({ kind: 'skipped', docId: 'd1', title: '노트', path: null, reason: 'no-source' }, home),
+    ).toEqual(['건너뜀: 노트', '  서가 화면으로 올린 문서라 되돌릴 원본이 없습니다.']);
+  });
+
+  it('바꾼 뒤 경고가 있으면 덧붙인다', () => {
+    const lines = describePullOutcome(
+      { kind: 'same', docId: 'd1', title: '노트', path: '/Users/me/a.md', rev: 3, warning: '서버에 알리지 못했습니다.' },
+      home,
+    );
+    expect(lines).toEqual(['같음: 노트', '  원본이 이미 폰 판입니다: ~/a.md', '  주의: 서버에 알리지 못했습니다.']);
+  });
+});
+
+describe('describeApiError: 폰 판이 있을 때 (J42)', () => {
+  it('PHONE_EDIT_PENDING이면 가져오기와 --force를 안내한다', () => {
+    const message = describeApiError(new PushError('PHONE_EDIT_PENDING', '서버 글', 409), 'https://www.cruzlab.dev');
+    expect(message).toContain('폰에서 고친 판');
+    expect(message).toContain('lab pull');
+    expect(message).toContain('--force');
   });
 });
