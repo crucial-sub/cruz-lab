@@ -1,7 +1,7 @@
 // 공유 창 보조 함수 테스트 (서가 2단계 T9, Plan J51)
 // - "공유" 단추의 data-* 값 → 공유 대상, 고른 범위·기간 → POST 본문. DOM 없이 시험한다.
 import { describe, expect, it } from 'vitest';
-import { shareRequestBody, shareTargetFrom } from '@/library/ui/share-dialog';
+import { runShareCreate, shareRequestBody, shareTargetFrom } from '@/library/ui/share-dialog';
 
 describe('shareTargetFrom: "공유" 단추의 data-* 값', () => {
   it('문서 하나: 문서 id와 제목', () => {
@@ -63,5 +63,65 @@ describe('ShareDialog.astro: 켜고 끄는 칸에 표시 클래스가 없다', (
       const classes = tag?.match(/class="([^"]*)"/)?.[1] ?? '';
       expect(classes, name).not.toMatch(/(^|\s)(flex|inline-flex|grid|block|inline-block|table)(\s|$)/);
     }
+  });
+});
+
+// CodeRabbit Major 2 (PR-C #42, T12 사용자 결정 2026-11-20): 만들기가 끝나기 전에 창을 닫고 다른 문서로 다시 열면
+// 늦게 온 앞 문서의 공유 주소가 새 창에 그려졌다. 결과는 시작한 차례가 지금 차례일 때만 그린다.
+describe('runShareCreate: 늦게 온 만들기 결과', () => {
+  // 밖에서 풀어 주는 약속 (요청이 끝나는 때를 시험이 정한다)
+  function deferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (error: unknown) => void;
+    const promise = new Promise<T>((ok, fail) => {
+      resolve = ok;
+      reject = fail;
+    });
+    return { promise, resolve, reject };
+  }
+  const recorder = () => {
+    const calls: string[] = [];
+    return {
+      calls,
+      handlers: {
+        done: (value: string) => calls.push(`done:${value}`),
+        failed: (error: unknown) => calls.push(`failed:${String(error)}`),
+        stale: () => calls.push('stale'),
+      },
+    };
+  };
+
+  it('차례가 그대로면 결과를 그린다', async () => {
+    const { calls, handlers } = recorder();
+    await runShareCreate(1, () => 1, async () => 'A', handlers);
+    expect(calls).toEqual(['done:A']);
+  });
+
+  it('기다리는 사이 차례가 바뀌면(닫기·다른 문서로 열기) 그리지 않고 stale만 부른다', async () => {
+    const { calls, handlers } = recorder();
+    let turn = 1;
+    const pending = deferred<string>();
+    const running = runShareCreate(1, () => turn, () => pending.promise, handlers);
+    turn = 2;
+    pending.resolve('A');
+    await running;
+    expect(calls).toEqual(['stale']);
+  });
+
+  it('차례가 바뀐 뒤 실패하면 아무것도 부르지 않는다(새 창에 앞 문서의 오류를 쓰지 않는다)', async () => {
+    const { calls, handlers } = recorder();
+    let turn = 1;
+    const pending = deferred<string>();
+    const running = runShareCreate(1, () => turn, () => pending.promise, handlers);
+    turn = 3;
+    pending.reject('boom');
+    await running;
+    expect(calls).toEqual([]);
+  });
+
+  it('차례가 그대로인데 실패하면 failed', async () => {
+    const { calls, handlers } = recorder();
+    await runShareCreate(2, () => 2, async () => Promise.reject('boom'), handlers);
+    expect(calls).toEqual(['failed:boom']);
   });
 });

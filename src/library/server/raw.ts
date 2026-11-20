@@ -10,6 +10,10 @@
 // - 서가 2단계 J47: 공유 입장권(공유 주소 페이지가 만든다)이면 공유 쿠키(cruz_share)를 준다. 수명은 12시간과 남은 공유 기간 중
 //   짧은 쪽이다. 공유 쿠키로 파일을 열 때마다 공유가 살아 있는지와 문서가 범위 안인지 본다(checkShare, 메모리 60초).
 //   그래서 끈 공유는 1분 안에 막힌다(C11). 공유 스위치(LIBRARY_SHARE_ENABLED)가 꺼지면 공유 입장권·쿠키는 모두 404다(J50).
+// - 서가 2단계 T12(사용자 결정 2026-11-20):
+//   공유 쿠키로 준 파일은 Cache-Control: private, no-store이고 ETag가 없다. 친구 기기 캐시에 사본을 남기지 않는다.
+//   공유 쿠키가 실린 요청의 404에는 "서가에서 다시 열기"(관리자 로그인 화면으로 간다)가 없다(C12).
+//   영상·소리의 서명 주소(10분)는 그대로 둔다. 끈 뒤에도 이미 재생을 시작한 파일 하나가 최대 10분 열린다(알려진 한계).
 
 import { Readable } from 'node:stream';
 import { memoize } from '@/lib/server/memo-cache';
@@ -88,11 +92,16 @@ const SECURITY_HEADERS = {
 const PIXEL_GIF = Uint8Array.from(atob('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'), (c) => c.charCodeAt(0));
 
 // 문서 출처의 404 화면 (J5). 본문이 모든 경로에서 같다
-export function rawNotFoundResponse(siteOrigin: string): Response {
+// - shareViewer(요청에 공유 쿠키가 실림, T12 의견 1): 공유로 읽는 사람의 화면. 관리자 주소로 가는 단추를 빼고
+//   "공유한 사람에게 새 주소를 받습니다"를 쓴다(C12). 쿠키 이름으로만 가른다. 그래서 어떤 공유·문서가 있는지 드러나지 않는다.
+export function rawNotFoundResponse(siteOrigin: string, options: { shareViewer?: boolean } = {}): Response {
   const home = `${siteOrigin.replace(/\/$/, '')}/admin/library`;
+  const message = options.shareViewer
+    ? '<p>주소가 틀렸거나 공유가 끝났습니다. 공유한 사람에게 새 주소를 받습니다.</p>'
+    : `<p>주소가 틀렸거나 열람 시간이 끝났습니다.</p><a href="${home}">서가에서 다시 열기</a>`;
   const body = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>문서를 열 수 없습니다</title>
 <style>body{font-family:-apple-system,system-ui,sans-serif;margin:0;padding:48px 20px;text-align:center;color:#1d1d1f;background:#fafafa}@media (prefers-color-scheme:dark){body{color:#f5f5f7;background:#111}}a{display:inline-block;margin-top:16px;padding:12px 18px;background:#0a64d8;color:#fff;border-radius:10px;text-decoration:none;font-weight:600}</style></head>
-<body><h1>문서를 열 수 없습니다</h1><p>주소가 틀렸거나 열람 시간이 끝났습니다.</p><a href="${home}">서가에서 다시 열기</a></body></html>`;
+<body><h1>문서를 열 수 없습니다</h1>${message}</body></html>`;
   return new Response(body, {
     status: 404,
     headers: {
@@ -158,12 +167,12 @@ async function cookieForTicket(url: URL, deps: RawDeps): Promise<{ docId: string
 }
 
 // /d/_open: 입장권 → 문서 쿠키(관리자) 또는 공유 쿠키(공유 주소)
-async function openWithTicket(url: URL, deps: RawDeps): Promise<Response> {
+async function openWithTicket(url: URL, deps: RawDeps, notFound: () => Response): Promise<Response> {
   const issued = await cookieForTicket(url, deps);
-  if (!issued) return rawNotFoundResponse(deps.siteOrigin);
+  if (!issued) return notFound();
   const { docId, cookie } = issued;
   const state = await deps.loadDoc(docId);
-  if (!state || (!state.html && !state.md)) return rawNotFoundResponse(deps.siteOrigin);
+  if (!state || (!state.html && !state.md)) return notFound();
 
   const common = { 'Set-Cookie': cookie, 'Cache-Control': 'private, no-store', ...SECURITY_HEADERS };
   if (url.searchParams.get('pixel') === '1') {
@@ -172,47 +181,54 @@ async function openWithTicket(url: URL, deps: RawDeps): Promise<Response> {
   return new Response(null, { status: 302, headers: { ...common, Location: rawDocPath(docId) } });
 }
 
-// 요청 쿠키가 이 문서를 열게 하는가
+// 요청 쿠키가 이 문서를 열게 하는가. 열면 어느 쿠키로 열었는지('admin' | 'share'), 아니면 null
 // - 관리자 문서 쿠키가 맞으면 바로 연다(공유를 묻지 않는다)
 // - 공유 쿠키가 맞으면 공유가 살아 있고 문서가 범위 안인지 묻는다(J47). 쿠키가 여럿이면 하나라도 통하면 연다
-async function cookieAllows(request: Request, docId: string, deps: RawDeps): Promise<boolean> {
+async function cookieAllows(request: Request, docId: string, deps: RawDeps): Promise<'admin' | 'share' | null> {
   const header = request.headers.get('cookie');
-  if (readCookieValues(header, DOC_COOKIE_NAME).some((value) => verifyDocCookie(value, docId, deps.now(), deps.secret))) return true;
-  if (!shareOn(deps)) return false;
+  if (readCookieValues(header, DOC_COOKIE_NAME).some((value) => verifyDocCookie(value, docId, deps.now(), deps.secret))) return 'admin';
+  if (!shareOn(deps)) return null;
   for (const value of readCookieValues(header, SHARE_COOKIE_NAME)) {
     const shareId = verifyShareCookie(value, docId, deps.now(), deps.secret);
-    if (shareId && (await deps.checkShare(shareId, docId))) return true;
+    if (shareId && (await deps.checkShare(shareId, docId))) return 'share';
   }
-  return false;
+  return null;
+}
+
+// 요청에 공유 쿠키가 실렸는가 (서명은 보지 않는다. 404 화면을 고를 때만 쓴다, T12 의견 1)
+function carriesShareCookie(request: Request): boolean {
+  return readCookieValues(request.headers.get('cookie'), SHARE_COOKIE_NAME).length > 0;
 }
 
 // 문서 출처 요청 하나를 처리한다
 export async function handleRawRequest(request: Request, deps: RawDeps): Promise<Response> {
+  const notFound = () => rawNotFoundResponse(deps.siteOrigin, { shareViewer: carriesShareCookie(request) });
   const method = request.method.toUpperCase();
-  if (method !== 'GET' && method !== 'HEAD') return rawNotFoundResponse(deps.siteOrigin);
+  if (method !== 'GET' && method !== 'HEAD') return notFound();
   const url = new URL(request.url);
-  if (url.pathname === `${RAW_PATH_PREFIX}/_open`) return openWithTicket(url, deps);
-  if (!url.pathname.startsWith(`${RAW_PATH_PREFIX}/`)) return rawNotFoundResponse(deps.siteOrigin);
+  if (url.pathname === `${RAW_PATH_PREFIX}/_open`) return openWithTicket(url, deps, notFound);
+  if (!url.pathname.startsWith(`${RAW_PATH_PREFIX}/`)) return notFound();
 
   const match = url.pathname.slice(RAW_PATH_PREFIX.length).match(/^\/([^/]+)\/(.*)$/);
-  if (!match || !isDocId(match[1])) return rawNotFoundResponse(deps.siteOrigin);
+  if (!match || !isDocId(match[1])) return notFound();
   const docId = match[1];
 
-  if (!(await cookieAllows(request, docId, deps))) return rawNotFoundResponse(deps.siteOrigin);
+  const via = await cookieAllows(request, docId, deps);
+  if (!via) return notFound();
 
   let rawPath: string;
   try {
     rawPath = decodeURIComponent(match[2]);
   } catch {
-    return rawNotFoundResponse(deps.siteOrigin);
+    return notFound();
   }
   if (rawPath === '' || rawPath.endsWith('/')) rawPath += 'index.html';
   const path = normalizeDocPath(rawPath);
-  if (!path) return rawNotFoundResponse(deps.siteOrigin);
+  if (!path) return notFound();
 
   const state = await deps.loadDoc(docId);
   const found = state ? findFile(state, path) : null;
-  if (!found) return rawNotFoundResponse(deps.siteOrigin);
+  if (!found) return notFound();
   const { rev, meta } = found;
 
   // 영상·소리: iOS Safari는 범위 요청(206)으로만 재생한다. 저장소가 직접 범위 요청을 받게 넘긴다
@@ -227,15 +243,14 @@ export async function handleRawRequest(request: Request, deps: RawDeps): Promise
     });
   }
 
-  // 판 번호 + 파일 해시 (J9). 다시 올리면 바뀐다
+  // 관리자: 판 번호 + 파일 해시 ETag (J9). 다시 올리면 바뀐다. 다시 열 때 304로 몸통을 아낀다
+  // 공유: 친구 기기 캐시에 사본을 남기지 않는다(no-store). ETag도 304도 없다(T12 의견 3)
   const etag = `"r${rev}-${meta.sha256.slice(0, 16)}"`;
-  const headers = {
-    'Content-Type': meta.contentType,
-    'Cache-Control': 'private, no-cache',
-    ETag: etag,
-    ...SECURITY_HEADERS,
-  };
-  if (request.headers.get('if-none-match') === etag) return new Response(null, { status: 304, headers });
+  const headers: Record<string, string> =
+    via === 'admin'
+      ? { 'Content-Type': meta.contentType, 'Cache-Control': 'private, no-cache', ETag: etag, ...SECURITY_HEADERS }
+      : { 'Content-Type': meta.contentType, 'Cache-Control': 'private, no-store', ...SECURITY_HEADERS };
+  if (via === 'admin' && request.headers.get('if-none-match') === etag) return new Response(null, { status: 304, headers });
   const withLength = { ...headers, 'Content-Length': String(meta.bytes) };
   if (method === 'HEAD') return new Response(null, { status: 200, headers: withLength });
 
@@ -244,7 +259,7 @@ export async function handleRawRequest(request: Request, deps: RawDeps): Promise
     body = await deps.openFile(docId, rev, path);
   } catch (error) {
     console.error(`[library] 문서 파일 열기 실패: ${docId}/${rev}/${path}`, error);
-    return rawNotFoundResponse(deps.siteOrigin);
+    return notFound();
   }
   return new Response(body, { status: 200, headers: withLength });
 }
