@@ -6,6 +6,7 @@
 import { toHomePath } from '../rules.ts';
 import type { PullOutcome } from './pull.ts';
 import { PushError, type PlanErrorCode, type PushNote } from './push.ts';
+import { describeFolderEntryError, type RootDocCount } from '../ui/upload-plan.ts';
 
 const PLAN_ERROR_MESSAGES: Record<PlanErrorCode, string> = {
   NOT_FOUND: '경로가 없습니다',
@@ -30,7 +31,9 @@ export const PHONE_EDIT_PENDING_MESSAGE =
   '폰에서 고친 판이 맥 원본에 아직 없습니다. 먼저 lab pull(또는 Raycast "서가에서 가져오기")로 가져옵니다. 맥 원본으로 덮어쓰려면 lab push --force로 올립니다.';
 
 // 계획 오류 코드 → 글
-export function describePlanError(error: PlanErrorCode): string {
+// - rootDocs(폴더 뿌리의 html·md 개수)가 있으면 진입 파일 오류에 막힌 이유와 할 일을 쓴다. 서가 화면과 같은 글이다
+export function describePlanError(error: PlanErrorCode, rootDocs?: RootDocCount): string {
+  if (error === 'NO_ENTRY_IN_FOLDER' && rootDocs) return describeFolderEntryError(rootDocs);
   return PLAN_ERROR_MESSAGES[error] ?? error;
 }
 
