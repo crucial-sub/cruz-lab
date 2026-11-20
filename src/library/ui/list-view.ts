@@ -5,6 +5,7 @@
 // - I/O가 없는 순수 함수다. 목록은 최근 올린 것부터 들어온다고 본다(listLibraryDocs의 순서).
 
 import type { LibraryDocSummary } from '../server/store';
+import { shareCoversDoc, type ShareScope } from '../share';
 
 export interface ProjectGroup {
   name: string;
@@ -56,4 +57,25 @@ export function projectChoices(docs: readonly LibraryDocSummary[]): string[] {
 // - 웹 앱은 Safari와 로그인·저장을 따로 쓴다(Plan 1.3절 2). 그래서 목록 맨 위에 안내 한 줄을 보인다.
 export function isIosWebApp(nav: { standalone?: unknown }): boolean {
   return nav.standalone === true;
+}
+
+// 프로젝트 공유 창이 고르는 폴더 (서가 2단계 J51): 그 프로젝트 문서의 폴더와 그 상위 폴더 모두, 한국어 순서
+// - 뿌리 문서(폴더 '')는 "프로젝트 전체"로 공유한다. 그래서 빈 값은 뺀다
+export function projectFolders(docs: readonly LibraryDocSummary[], project: string): string[] {
+  const folders = new Set<string>();
+  for (const doc of docs) {
+    if (doc.project !== project || !doc.folder) continue;
+    const parts = doc.folder.split('/');
+    for (let length = 1; length <= parts.length; length += 1) folders.add(parts.slice(0, length).join('/'));
+  }
+  return [...folders].sort((a, b) => a.localeCompare(b, 'ko'));
+}
+
+// 살아 있는 공유 중 하나라도 덮는 문서 id (서가 2단계 J52: 목록의 "공유 중" 표시). 판정은 share.ts 하나다
+export function sharedDocIds(shares: readonly { scope: ShareScope }[], docs: readonly LibraryDocSummary[]): Set<string> {
+  const ids = new Set<string>();
+  for (const doc of docs) {
+    if (shares.some((share) => shareCoversDoc(share.scope, doc))) ids.add(doc.id);
+  }
+  return ids;
 }

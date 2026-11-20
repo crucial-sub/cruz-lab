@@ -248,7 +248,7 @@ interface Recorded {
 }
 
 // 서버 계약을 흉내 내는 가짜 fetch (POST 시작 → PUT → POST 마무리)
-function fakeServer(overrides: { start?: Response; put?: Response } = {}) {
+function fakeServer(overrides: { start?: Response; put?: Response; finalize?: Response } = {}) {
   const requests: Recorded[] = [];
   const fetchFn = async (input: string | URL | Request, init: RequestInit = {}) => {
     const url = String(input);
@@ -271,6 +271,7 @@ function fakeServer(overrides: { start?: Response; put?: Response } = {}) {
     }
     if (url.startsWith('https://storage.example/put/')) return overrides.put ?? new Response(null, { status: 200 });
     if (url.endsWith('/api/library/token/uploads/finalize')) {
+      if (overrides.finalize) return overrides.finalize;
       return Response.json({ doc: { id: 'abc123def456abc123de', title: '노트', url: 'http://localhost:4341/admin/library/d/abc123def456abc123de' } });
     }
     return new Response('없음', { status: 404 });
@@ -279,6 +280,20 @@ function fakeServer(overrides: { start?: Response; put?: Response } = {}) {
 }
 
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
+
+describe('pushJob: 공유 중 경고 (서가 2단계 J52)', () => {
+  it('마무리 응답의 sharedBy를 그대로 돌려준다', async () => {
+    const md = put('projects/blog/shared.md', '# 공유');
+    const [plan] = await planPush([md], { home });
+    if (!plan.ok) throw new Error('계획 실패');
+    const sharedBy = [{ id: 'AbCdEfGhIjKlMnOpQrStUv_-', kind: 'folder', label: 'blog · notes' }];
+    const server = fakeServer({
+      finalize: Response.json({ doc: { id: 'abc123def456abc123de', title: '공유', url: 'http://x/admin/library/d/abc123def456abc123de' }, sharedBy }),
+    });
+    const doc = await pushJob(plan.jobs[0], { server: 'http://localhost:4341', token: 't', fetch: server.fetch });
+    expect(doc.sharedBy).toEqual(sharedBy);
+  });
+});
 
 describe('pushJob', () => {
   it('목록·해시를 보내고, 서버가 준 머리를 그대로 붙여 PUT하고, 마무리한다', async () => {
@@ -290,7 +305,13 @@ describe('pushJob', () => {
 
     const doc = await pushJob(plan.jobs[0], { server: 'http://localhost:4341/', token: 'secret-token', fetch: server.fetch });
 
-    expect(doc).toEqual({ id: 'abc123def456abc123de', title: '노트', url: 'http://localhost:4341/admin/library/d/abc123def456abc123de' });
+    // 옛 서버 응답(sharedBy 없음)이면 빈 목록이다 (서가 2단계 J52)
+    expect(doc).toEqual({
+      id: 'abc123def456abc123de',
+      title: '노트',
+      url: 'http://localhost:4341/admin/library/d/abc123def456abc123de',
+      sharedBy: [],
+    });
     const [start, ...rest] = server.requests;
     expect(start.method).toBe('POST');
     expect(start.url).toBe('http://localhost:4341/api/library/token/uploads');

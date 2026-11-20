@@ -17,6 +17,7 @@
 // - --notify: Finder 빠른 동작용. 끝나면 맥 알림을 띄우고 서가 문서 주소를 클립보드에 넣는다(J18). QR은 그리지 않는다.
 // - 서가 2단계 J42: md를 다시 올릴 때 아직 되돌리지 않은 폰 판이 있으면 서버가 409(PHONE_EDIT_PENDING)로 막는다.
 //   터미널이면 묻는다(y/N). 터미널이 아니면(Finder 빠른 동작, Claude 도구) 멈추고 lab pull 또는 --force를 안내한다.
+// - 서가 2단계 J52: 올린 문서가 공유 중인 묶음·문서에 들면 "주의:" 줄을 보인다. --notify면 알림에 첫 경고 줄을 싣는다.
 // - lab pull(J40): 인자가 없으면 폰 판이 있는 문서 모두. 원본이 서가가 아는 내용일 때만 백업한 뒤 바꾼다.
 //   아니면 원본 옆에 {이름}.phone.md를 두고 차이 앞부분을 보인다(공용 모듈 src/library/client/pull.ts).
 // - 종료 코드: 0 모두 올림·되돌림, 1 하나라도 실패, 2 쓰는 법이 틀림 또는 (lab pull) 충돌이 있어 원본을 두었다.
@@ -31,6 +32,7 @@ import QRCode from 'qrcode';
 import { describeApiError, describeNote, describePlanError, describePullOutcome } from '../src/library/client/messages.ts';
 import { backupDirFor, pullExitCode, pullTargets } from '../src/library/client/pull.ts';
 import { planPush, PushError, pushJob } from '../src/library/client/push.ts';
+import { sharedByLines } from '../src/library/share.ts';
 
 const DEFAULT_SERVER = 'https://www.cruzlab.dev';
 const KEYCHAIN_SERVICE = 'cruz-lab-library';
@@ -228,6 +230,7 @@ async function runPush(args) {
 
   const docs = new Map(); // 문서 id → 요약 (md·html 짝은 한 문서다)
   const failures = [];
+  const warnings = new Set(); // 공유 중 경고 줄 (Finder 알림에 첫 줄을 싣는다)
   const plans = await planPush(options.paths, { home: homedir() });
 
   for (const plan of plans) {
@@ -246,6 +249,11 @@ async function runPush(args) {
         docs.set(doc.id, doc);
         console.log(`올림: ${doc.title}`);
         console.log(`  ${doc.url}`);
+        // 공유 중인 묶음·문서에 들어갔다 (서가 2단계 J52)
+        for (const line of sharedByLines(doc.sharedBy)) {
+          console.log(`  주의: ${line}`);
+          warnings.add(line);
+        }
       } catch (error) {
         const message = `${job.fileName}: ${describeApiError(error, options.server)}`;
         failures.push(message);
@@ -273,9 +281,10 @@ async function runPush(args) {
     const urls = [...docs.values()].map((doc) => doc.url);
     if (urls.length > 0) spawnSync('/usr/bin/pbcopy', { input: urls.join('\n') });
     const copied = urls.length > 0 ? ' 주소를 클립보드에 넣었습니다.' : '';
+    const warning = warnings.size > 0 ? ` ${[...warnings][0]}` : '';
     if (failures.length === 0) {
       const first = [...docs.values()][0];
-      notify('서가에 올렸습니다', docs.size === 1 ? `${first.title}.${copied}` : `문서 ${docs.size}개.${copied}`);
+      notify('서가에 올렸습니다', `${docs.size === 1 ? `${first.title}.` : `문서 ${docs.size}개.`}${copied}${warning}`);
     } else {
       const more = failures.length > 1 ? ` 외 ${failures.length - 1}건` : '';
       const title = docs.size > 0 ? `서가: ${docs.size}개 올림, ${failures.length}개 실패` : '서가 올리기 실패';

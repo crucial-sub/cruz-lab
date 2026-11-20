@@ -1,0 +1,55 @@
+---
+// 공유 묶음 목록 화면 (서가 2단계 T8, Plan J46)
+// - 프로젝트 전체·폴더 공유의 첫 화면(/s/{공유 id}). 범위 안 문서를 폴더·제목 순으로 보인다. 나중에 올린 문서도 보인다(L7).
+// - 문서 주소는 /s/{공유 id}/d/{문서 id}다. md가 있으면 공유 md 화면, html만 있으면 문서 출처로 간다.
+// - 관리자 주소와 관리자 단추가 없다(C12).
+import type { ShareListItem } from '../server/shares';
+
+interface Props {
+  shareId: string;
+  label: string;
+  docs: ShareListItem[];
+}
+
+const { shareId, label, docs } = Astro.props;
+// 폴더마다 묶는다. 목록은 이미 폴더·제목 순이다(shares.ts)
+const groups: { folder: string; docs: ShareListItem[] }[] = [];
+for (const doc of docs) {
+  const last = groups.at(-1);
+  if (last && last.folder === doc.folder) last.docs.push(doc);
+  else groups.push({ folder: doc.folder, docs: [doc] });
+}
+const metaLine = (doc: ShareListItem) => [doc.docDate, doc.formats.join('·')].filter(Boolean).join(' · ');
+---
+
+<header
+  class="sticky top-0 z-20 flex h-12 items-center gap-3 border-b border-border bg-bg-surface px-4 pt-[env(safe-area-inset-top)]"
+>
+  <h1 class="min-w-0 truncate font-semibold">{label}</h1>
+  <span class="ml-auto shrink-0 text-xs text-text-secondary">공유 문서 {docs.length}</span>
+</header>
+<main class="mx-auto flex max-w-3xl flex-col gap-6 px-4 pb-16 pt-5">
+  {
+    docs.length === 0 ? (
+      <p class="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-text-secondary">
+        아직 문서가 없습니다.
+      </p>
+    ) : (
+      groups.map((group) => (
+        <section>
+          {group.folder && <h2 class="mb-1 break-words text-sm font-semibold text-text-secondary">{group.folder}</h2>}
+          <ul>
+            {group.docs.map((doc) => (
+              <li class="border-b border-border py-3 last:border-b-0">
+                <a href={`/s/${shareId}/d/${doc.id}`} class="group block">
+                  <span class="line-clamp-2 break-words font-medium group-hover:text-brand">{doc.title}</span>
+                  <span class="mt-0.5 block text-xs text-text-secondary">{metaLine(doc)}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))
+    )
+  }
+</main>

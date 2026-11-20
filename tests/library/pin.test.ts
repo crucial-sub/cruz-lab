@@ -28,6 +28,13 @@ describe('문서 기록의 pinnedAt', () => {
     const doc = libraryDocSchema.parse({ ...stage1Doc, pinnedAt: new Date('2026-11-19T01:02:03Z') });
     expect(summarize('d1', doc, 'https://www.cruzlab.dev').pinnedAt).toBe('2026-11-19T01:02:03.000Z');
   });
+
+  // 서가 2단계 T9(J45·J51): 목록의 프로젝트 공유 창이 폴더를 고른다. 폴더는 키에서 계산한다
+  it('요약에 폴더(프로젝트 뿌리 기준)가 있다', () => {
+    const nested = libraryDocSchema.parse({ ...stage1Doc, key: 'mac:~/projects/p/bundles/a/q' });
+    expect(summarize('d1', nested, 'https://www.cruzlab.dev').folder).toBe('bundles/a');
+    expect(summarize('d1', libraryDocSchema.parse(stage1Doc), 'https://www.cruzlab.dev').folder).toBe('');
+  });
 });
 
 function row(id: string, extra: Partial<LibraryDocSummary> = {}): LibraryDocSummary {
@@ -41,6 +48,7 @@ function row(id: string, extra: Partial<LibraryDocSummary> = {}): LibraryDocSumm
     readAt: null,
     pinnedAt: null,
     mdPendingRev: null,
+    folder: '',
     uploadedAt: '2026-11-16T16:30:00.000Z',
     updatedAt: '2026-11-16T16:30:00.000Z',
     url: `https://www.cruzlab.dev/admin/library/d/${id}`,

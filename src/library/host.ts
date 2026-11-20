@@ -79,11 +79,20 @@ function under(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
 
-// 서가 화면·서가 API 경로 (LIBRARY_ENABLED가 거짓이면 모두 404)
-// - /admin/library/**, /api/admin/library/**, /api/library/**
+// 공유 주소 접두사 (서가 2단계 J46): /s/{공유 id}, /s/{공유 id}/d/{문서 id}
+export const SHARE_PATH_PREFIX = '/s';
+
+// 서가 화면·서가 API·공유 주소 경로 (LIBRARY_ENABLED가 거짓이면 모두 404)
+// - /admin/library/**, /api/admin/library/**, /api/library/**, /s/**(서가 2단계 J50)
+// - /s/**는 로그인 없이 연다. 관리자 검사를 하지 않는다(미들웨어가 공개 경로로 넘긴다). 공유 스위치는 페이지가 본다
 // - 3단계 공개 서가가 쓸 /library는 아직 서가 경로가 아니다(J1)
 export function isLibraryPath(pathname: string): boolean {
-  return under(pathname, '/admin/library') || under(pathname, '/api/admin/library') || under(pathname, '/api/library');
+  return (
+    under(pathname, '/admin/library') ||
+    under(pathname, '/api/admin/library') ||
+    under(pathname, '/api/library') ||
+    under(pathname, SHARE_PATH_PREFIX)
+  );
 }
 
 // 서가 토큰으로 부르는 경로 (/api/library/token/**). 쿠키를 보지 않는다
@@ -94,6 +103,12 @@ export function isLibraryTokenPath(pathname: string): boolean {
 // LIBRARY_ENABLED 값: 'true' 또는 '1'일 때만 켠다
 export function isLibraryEnabled(value: string | boolean | undefined | null): boolean {
   return value === true || value === 'true' || value === '1';
+}
+
+// LIBRARY_SHARE_ENABLED 값 (서가 2단계 J50): 'true' 또는 '1'일 때만 켠다. 기본은 꺼짐
+// - 서가 스위치(LIBRARY_ENABLED)가 꺼지면 공유 경로도 404다(미들웨어가 먼저 막는다)
+export function isLibraryShareEnabled(value: string | boolean | undefined | null): boolean {
+  return isLibraryEnabled(value);
 }
 
 // 미들웨어 분기 셋 (Plan 5.1)

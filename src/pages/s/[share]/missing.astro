@@ -1,0 +1,14 @@
+---
+// 공유 md 화면의 없는 문서·파일 링크 /s/{공유 id}/missing (서가 2단계 T9, Plan J48)
+// - 공유 화면은 무엇이 없는지 알리지 않는다. 열 수 없는 공유와 같은 404 화면이다(links.ts shareBase).
+export const prerender = false;
+
+import { markNotFound } from '@/lib/server/not-found';
+import { applyShareHeaders } from '@/library/server/share-page';
+import ShareScreen from '@/library/ui/ShareScreen.astro';
+
+applyShareHeaders(Astro.response.headers);
+markNotFound(Astro.response);
+---
+
+<ShareScreen result={{ kind: 'not-found' }} />

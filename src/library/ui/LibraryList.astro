@@ -2,17 +2,25 @@
 // 서가 목록 (서가 1단계 T6, Plan J14·분석 8.2)
 // - 맨 위: 고정(서가 2단계 J34). 그 아래: 새로 올린 문서(안 읽음). 아래: 프로젝트별 묶음.
 // - 올리기·내리기 뒤 화면 스크립트가 이 페이지를 다시 받아 #library-list만 바꾼다(서버 렌더 하나로 그린다).
+// - 서가 2단계 J51·J52(공유 스위치가 켜졌을 때): 맨 위 "공유 중" 칸(범위, 남은 기간, 복사, 끄기), 프로젝트 묶음 머리의
+//   "공유"(프로젝트 전체 또는 그 안 폴더), 문서 줄의 "공유"와 "공유 중" 표시. 공유 창은 share-dialog.ts가 연다.
+import type { ShareView } from '../server/shares';
 import type { LibraryDocSummary } from '../server/store';
 import DocRow from './DocRow.astro';
-import { groupLibraryDocs } from './list-view';
+import { groupLibraryDocs, projectFolders, sharedDocIds } from './list-view';
 
 interface Props {
   docs: LibraryDocSummary[];
+  shareEnabled?: boolean;
+  shares?: ShareView[];
 }
 
-const { docs } = Astro.props;
+const { docs, shareEnabled = false, shares = [] } = Astro.props;
 const view = groupLibraryDocs(docs);
 const heading = 'mb-1 flex items-baseline gap-2 text-sm font-semibold text-text-secondary';
+const shared = shareEnabled ? sharedDocIds(shares, docs) : new Set<string>();
+const kindLabel = { doc: '문서', project: '프로젝트', folder: '폴더' } as const;
+const smallButton = 'rounded-md px-2 py-1 text-xs text-text-secondary hover:bg-bg-card hover:text-text-primary';
 ---
 
 <div id="library-list" class="flex flex-col gap-6">
@@ -23,6 +31,43 @@ const heading = 'mb-1 flex items-baseline gap-2 text-sm font-semibold text-text-
       </p>
     ) : (
       <>
+        {shareEnabled && shares.length > 0 && (
+          <section aria-labelledby="library-sharing">
+            <h2 id="library-sharing" class={heading}>
+              공유 중 <span class="font-normal">{shares.length}</span>
+            </h2>
+            <ul>
+              {shares.map((share) => (
+                <li
+                  class="flex items-start gap-2 border-b border-border py-3 last:border-b-0"
+                  data-share-id={share.id}
+                  data-share-url={share.url}
+                  data-share-label={share.label}
+                >
+                  <div class="min-w-0 flex-1">
+                    <p class="line-clamp-2 break-words font-medium">{share.label}</p>
+                    <p class="mt-0.5 text-xs text-text-secondary">
+                      {kindLabel[share.scope.kind]} · {share.remaining}
+                    </p>
+                  </div>
+                  <div class="flex shrink-0 gap-1">
+                    <button type="button" class={smallButton} data-share-action="copy-live" aria-label={`${share.label} 공유 주소 복사`}>
+                      복사
+                    </button>
+                    <button
+                      type="button"
+                      class="rounded-md px-2 py-1 text-xs text-text-secondary hover:bg-bg-card hover:text-red-500"
+                      data-share-action="revoke"
+                      aria-label={`${share.label} 공유 끄기`}
+                    >
+                      끄기
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         {view.pinned.length > 0 && (
           <section aria-labelledby="library-pinned">
             <h2 id="library-pinned" class={heading}>
@@ -30,7 +75,7 @@ const heading = 'mb-1 flex items-baseline gap-2 text-sm font-semibold text-text-
             </h2>
             <ul>
               {view.pinned.map((doc) => (
-                <DocRow doc={doc} />
+                <DocRow doc={doc} shareEnabled={shareEnabled} shared={shared.has(doc.id)} />
               ))}
             </ul>
           </section>
@@ -42,7 +87,7 @@ const heading = 'mb-1 flex items-baseline gap-2 text-sm font-semibold text-text-
             </h2>
             <ul>
               {view.unread.map((doc) => (
-                <DocRow doc={doc} />
+                <DocRow doc={doc} shareEnabled={shareEnabled} shared={shared.has(doc.id)} />
               ))}
             </ul>
           </section>
@@ -50,11 +95,24 @@ const heading = 'mb-1 flex items-baseline gap-2 text-sm font-semibold text-text-
         {view.projects.map((group, index) => (
           <section aria-labelledby={`library-project-${index}`}>
             <h2 id={`library-project-${index}`} class={heading}>
-              {group.name} <span class="font-normal">{group.docs.length}</span>
+              <span class="min-w-0 break-words">{group.name}</span> <span class="font-normal">{group.docs.length}</span>
+              {shareEnabled && (
+                <button
+                  type="button"
+                  class={`${smallButton} ml-auto font-normal`}
+                  data-share-open
+                  data-share-kind="project"
+                  data-share-project={group.name}
+                  data-share-folders={JSON.stringify(projectFolders(docs, group.name))}
+                  aria-label={`${group.name} 프로젝트 공유`}
+                >
+                  공유
+                </button>
+              )}
             </h2>
             <ul>
               {group.docs.map((doc) => (
-                <DocRow doc={doc} />
+                <DocRow doc={doc} shareEnabled={shareEnabled} shared={shared.has(doc.id)} />
               ))}
             </ul>
           </section>

@@ -56,6 +56,26 @@ describe('isLibraryPath', () => {
   });
 });
 
+describe('isLibraryPath: 공유 주소 /s (서가 2단계 J50)', () => {
+  it('/s와 그 아래는 서가 경로다 (LIBRARY_ENABLED가 끄면 함께 꺼진다)', () => {
+    for (const p of ['/s', '/s/', '/s/AbCdEfGhIjKlMnOpQrStUv_-', '/s/AbCdEfGhIjKlMnOpQrStUv_-/d/abc123', '/s/[share]']) {
+      expect(isLibraryPath(p), p).toBe(true);
+    }
+  });
+
+  it('/s로 시작하는 다른 이름은 아니다', () => {
+    for (const p of ['/sx', '/search', '/s-x', '/series', '/blog/s/x']) {
+      expect(isLibraryPath(p), p).toBe(false);
+    }
+  });
+
+  it('서가가 꺼지면 /s도 404, 켜져 있으면 공개 경로로 넘긴다(관리자 검사를 하지 않는다)', () => {
+    const base = { docHost: 'raw.cruzlab.dev', host: 'www.cruzlab.dev', routePattern: '/s/[share]' };
+    expect(resolveLibraryRoute({ ...base, enabled: false, pathname: '/s/AbCdEfGhIjKlMnOpQrStUv_-' })).toBe('not-found');
+    expect(resolveLibraryRoute({ ...base, enabled: true, pathname: '/s/AbCdEfGhIjKlMnOpQrStUv_-' })).toBe('pass');
+  });
+});
+
 describe('isLibraryTokenPath', () => {
   it('/api/library/token/ 아래만', () => {
     expect(isLibraryTokenPath('/api/library/token/uploads')).toBe(true);

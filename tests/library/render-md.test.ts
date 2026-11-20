@@ -107,3 +107,14 @@ describe('renderLibraryMarkdown: 링크', () => {
     expect(html).toMatch(/<a class="heading-anchor" href="#[^"]+"/);
   });
 });
+
+// 서가 2단계 T9(J48): 공유 md 화면은 링크를 같은 공유 주소 아래로 잇는다
+describe('renderLibraryMarkdown: 공유 화면 링크', () => {
+  it('links.shareBase가 있으면 문서 링크는 /s/{공유 id}/d/{id}, 본문에 /admin 주소가 없다', () => {
+    const links = { key: 'mac:~/projects/p/docs/a', files: new Set(['index.md']), shareBase: '/s/SHARE' };
+    const { html } = renderLibraryMarkdown('[다음](b.md) [없는 것](x.csv)', { docOrigin: ORIGIN, docId: DOC, links });
+    expect(html).toContain(`href="/s/SHARE/d/${docIdForKey('mac:~/projects/p/docs/b')}"`);
+    expect(html).toContain('href="/s/SHARE/missing"');
+    expect(html).not.toContain('/admin');
+  });
+});

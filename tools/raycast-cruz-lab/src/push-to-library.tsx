@@ -50,6 +50,8 @@ function reportMarkdown(report: UploadReport, qrs: string[]): string {
   } else {
     parts.push('# 서가에 올리지 못했습니다');
   }
+  // 공유 중인 묶음·문서에 들어갔다 (서가 2단계 J52)
+  if (report.warnings.length > 0) parts.push('### 공유 중', ...report.warnings.map((line) => `- ${escapeMarkdown(line)}`));
   if (report.failures.length > 0) parts.push('### 실패', ...report.failures.map((line) => `- ${escapeMarkdown(line)}`));
   if (report.notes.length > 0) parts.push('### 알림', ...report.notes.map((line) => `- ${escapeMarkdown(line)}`));
   return parts.join('\n\n');

@@ -20,6 +20,7 @@ import {
   type ManifestError,
   type ManifestFile,
 } from '../rules.ts';
+import type { SharedByEntry } from '../share.ts';
 import { analyzeJob, planDrop, textSourcesFor, type PickedFile, type UploadJob } from '../ui/upload-plan.ts';
 
 // ---------- 계획 ----------
@@ -255,6 +256,8 @@ export interface PushedDoc {
   id: string;
   title: string;
   url: string; // 서가 문서 주소 (J7). QR 코드와 북마크가 쓴다
+  // 이 문서를 덮는 살아 있는 공유 (서가 2단계 J52). 경고 줄은 share.ts sharedByLines가 만든다. 옛 서버면 빈 목록
+  sharedBy: SharedByEntry[];
 }
 
 // 서가 토큰 API를 부를 때 필요한 것
@@ -392,9 +395,11 @@ export async function pushJob(job: PushJob, options: PushOptions): Promise<Pushe
     options.onProgress?.(sentFiles, start.uploads.length);
   });
 
-  const { doc } = await callTokenApi<{ doc: PushedDoc }>(options, 'POST', '/api/library/token/uploads/finalize', {
-    docId: start.docId,
-    rev: start.rev,
-  });
-  return { id: doc.id, title: doc.title, url: doc.url };
+  const { doc, sharedBy } = await callTokenApi<{ doc: PushedDoc; sharedBy?: SharedByEntry[] }>(
+    options,
+    'POST',
+    '/api/library/token/uploads/finalize',
+    { docId: start.docId, rev: start.rev },
+  );
+  return { id: doc.id, title: doc.title, url: doc.url, sharedBy: Array.isArray(sharedBy) ? sharedBy : [] };
 }

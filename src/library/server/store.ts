@@ -12,6 +12,7 @@ import { ApiError, zodIssues } from '@/lib/server/api-response';
 import { getServerDb, getServerStorage } from '@/lib/server/firebase-server';
 import { invalidateMemo } from '@/lib/server/memo-cache';
 import type { DocFormat } from '../rules';
+import { docFolder } from '../share';
 import { deleteSearchIndex } from './search-store';
 
 export const LIBRARY_COLLECTION = 'library_docs';
@@ -147,6 +148,7 @@ export interface LibraryDocSummary {
   readAt: string | null;
   pinnedAt: string | null; // 고정한 시각 (서가 2단계 J34). 고정하지 않았으면 null
   mdPendingRev: number | null; // 아직 맥에 되돌리지 않은 폰 판 번호 (서가 2단계 J39). 없으면 null
+  folder: string; // 프로젝트 뿌리 기준 폴더 (서가 2단계 J45, share.ts docFolder). 뿌리면 ''
   uploadedAt: string;
   updatedAt: string;
   url: string; // 서가 문서 주소 (J7). QR 코드와 북마크가 쓴다
@@ -170,6 +172,7 @@ export function summarize(id: string, doc: LibraryDoc, siteOrigin: string): Libr
     readAt: toIso(doc.readAt),
     pinnedAt: toIso(doc.pinnedAt ?? null),
     mdPendingRev: doc.mdSync?.pendingRev ?? null,
+    folder: docFolder(doc.key),
     uploadedAt: toIso(doc.uploadedAt) ?? '',
     updatedAt: toIso(doc.updatedAt) ?? '',
     url: libraryDocUrl(siteOrigin, id),

@@ -96,6 +96,18 @@ describe('libraryLinkUrl: md 링크 → 서가 주소', () => {
       `/s/SHARE/d/${docIdForKey('mac:~/projects/p/docs/b')}?ref=${encodeURIComponent('b.md')}&from=${FROM}`,
     );
   });
+
+  // 서가 2단계 T9(J48): 공유 md 화면은 같은 공유 주소 아래로 잇는다. 관리자 주소(/admin)와 앞 문서 id를 싣지 않는다
+  it('공유 화면: 문서 링크는 {공유 주소}/d/{id}, 없는 파일은 {공유 주소}/missing', () => {
+    const shared = libraryLinkUrl({ key: MAC_KEY, docId: FROM, files, fileUrl, shareBase: '/s/SHARE' });
+    expect(shared('b.md')).toBe(`/s/SHARE/d/${docIdForKey('mac:~/projects/p/docs/b')}`);
+    expect(shared('../x/c.html#h')).toBe(`/s/SHARE/d/${docIdForKey('mac:~/projects/p/x/c')}?v=html#h`);
+    expect(shared('/abs.md')).toBe('/s/SHARE/missing');
+    expect(shared('nope.csv')).toBe('/s/SHARE/missing');
+    expect(shared('img/a.png')).toBe(fileUrl('img/a.png'));
+    expect(shared('https://example.com')).toBeNull();
+    for (const href of ['b.md', '/abs.md', 'nope.csv']) expect(shared(href)).not.toContain('/admin');
+  });
 });
 
 // J31·J32 안내 화면이 주소에서 링크 글과 앞 문서를 읽는다

@@ -26,7 +26,10 @@ export interface LibraryLinkContext {
   docId: string; // 이 문서 id (안내 화면의 "← 앞 문서")
   files: ReadonlySet<string>; // 이 판의 파일 경로 (문서 안 경로, NFC)
   fileUrl: (path: string) => string; // 판 안 파일 → 문서 출처 주소
-  docPath?: (docId: string) => string; // 문서 id → 서가 문서 주소. 공유 화면(PR-C)이 바꾼다
+  docPath?: (docId: string) => string; // 문서 id → 서가 문서 주소
+  // 공유 md 화면(서가 2단계 J48)이면 공유 주소(/s/{공유 id}). 문서 링크는 {shareBase}/d/{id}, 없는 문서·파일은
+  // {shareBase}/missing이다. 관리자 주소와 ref·from(앞 문서 id)을 싣지 않는다. 범위 밖 문서는 그 주소가 404다
+  shareBase?: string;
 }
 
 const defaultDocPath = (docId: string): string => `/admin/library/d/${docId}`;
@@ -73,8 +76,13 @@ export function linkTargetKey(key: string, href: string): string | null {
 
 // 문서 하나의 링크 바꾸기 함수 (공유 파이프라인 linkUrl.rewrite)
 export function libraryLinkUrl(context: LibraryLinkContext): (href: string) => string | null {
-  const docPath = context.docPath ?? defaultDocPath;
-  const missing = (ref: string) => `/admin/library/missing?from=${context.docId}&ref=${encodeURIComponent(ref)}`;
+  const { shareBase } = context;
+  const docPath = shareBase ? (id: string) => `${shareBase}/d/${id}` : (context.docPath ?? defaultDocPath);
+  const missing = shareBase
+    ? () => `${shareBase}/missing`
+    : (ref: string) => `/admin/library/missing?from=${context.docId}&ref=${encodeURIComponent(ref)}`;
+  // 안내 화면용 링크 글·앞 문서. 공유 화면은 싣지 않는다(공유 404 화면은 늘 같다)
+  const notice = (ref: string) => (shareBase ? '' : `ref=${encodeURIComponent(ref)}&from=${context.docId}`);
   return (rawHref) => {
     const href = rawHref.trim();
     if (!href || href.startsWith('#') || href.startsWith('?') || href.startsWith('//') || SCHEME.test(href)) return null;
@@ -85,8 +93,8 @@ export function libraryLinkUrl(context: LibraryLinkContext): (href: string) => s
     if (DOC_LINK.test(path)) {
       const target = linkTargetKey(context.key, href);
       if (!target) return missing(href);
-      const view = HTML_LINK.test(path) ? 'v=html&' : '';
-      return `${docPath(docIdForKey(target))}?${view}ref=${encodeURIComponent(href)}&from=${context.docId}${fragment}`;
+      const query = [HTML_LINK.test(path) ? 'v=html' : '', notice(href)].filter(Boolean).join('&');
+      return `${docPath(docIdForKey(target))}${query ? `?${query}` : ''}${fragment}`;
     }
 
     // 그 밖의 파일: 이 판 안의 경로로 푼다 (그림 주소 바꾸기와 같은 resolveRef)

@@ -44,9 +44,11 @@ export function rawFileUrl(docOrigin: string, docId: string, path: string): stri
 }
 
 // 링크 풀이 재료: 이 문서의 같은 문서 키(J8)와 이 판의 파일 경로
+// - shareBase: 공유 md 화면이면 공유 주소(/s/{공유 id}). 링크를 그 아래로 잇는다(서가 2단계 J48, links.ts)
 export interface LibraryMarkdownLinks {
   key: string;
   files: ReadonlySet<string>;
+  shareBase?: string;
 }
 
 // 맨 앞 앞머리를 지우는 규칙은 rules.ts에 있다(검색 색인과 같이 쓴다). 여기서 다시 내보낸다
@@ -70,6 +72,7 @@ export function renderLibraryMarkdown(
               docId,
               files: links.files,
               fileUrl: (path) => rawFileUrl(docOrigin, docId, path),
+              shareBase: links.shareBase,
             }),
           },
         }
@@ -89,14 +92,16 @@ function splitLeadingTitle(html: string): { titleHtml: string | null; html: stri
 
 // 서가 버킷에서 md 판의 진입 파일을 읽어 그린다. 같은 판이면 메모리 결과를 쓴다
 // - key: 이 문서의 같은 문서 키(링크 풀이의 기준). 판 파일 목록은 판 기록에서 읽는다(판마다 한 번)
+// - shareBase: 공유 md 화면이면 공유 주소(서가 2단계 J48). 링크가 달라지므로 메모리 키도 따로 둔다
 export function loadLibraryMarkdownView(
   docId: string,
   key: string,
   md: FormatState,
   docOrigin: string,
+  shareBase?: string,
 ): Promise<LibraryMarkdownView> {
   return memoize(
-    `library:md:${docId}:${md.rev}`,
+    `library:md:${docId}:${md.rev}${shareBase ? `:${shareBase}` : ''}`,
     async () => {
       const [[buffer], revision] = await Promise.all([
         getLibraryBucket().file(objectPath(docId, md.rev, md.entry)).download(),
@@ -110,7 +115,7 @@ export function loadLibraryMarkdownView(
         docOrigin,
         docId,
         highlighter: highlighter ?? undefined,
-        links: { key, files },
+        links: { key, files, shareBase },
       });
     },
     MD_VIEW_TTL_MS,

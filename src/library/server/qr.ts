@@ -6,10 +6,15 @@ import QRCode from 'qrcode';
 import { libraryDocUrl } from './store';
 
 // 서가 문서 주소의 QR 코드 SVG
+export async function libraryDocQrSvg(siteOrigin: string, docId: string): Promise<string> {
+  return qrSvg(libraryDocUrl(siteOrigin, docId));
+}
+
+// 주소 하나의 QR 코드 SVG (서가 문서 주소, 서가 2단계 J51 공유 주소)
 // - 오류 정정 M: 화면에서 찍는 용도라 가장 흔한 단계로 둔다
 // - 여백 2칸: 어두운 화면에서도 카메라가 테두리를 찾게 한다(흰 바탕은 SVG가 칠한다)
-export async function libraryDocQrSvg(siteOrigin: string, docId: string): Promise<string> {
-  return QRCode.toString(libraryDocUrl(siteOrigin, docId), {
+export async function qrSvg(url: string): Promise<string> {
+  return QRCode.toString(url, {
     type: 'svg',
     errorCorrectionLevel: 'M',
     margin: 2,

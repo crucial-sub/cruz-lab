@@ -69,4 +69,9 @@ describe('Node가 서가 모듈을 바로 가져온다', () => {
   it('host.ts', () => {
     expect(exportsOf('src/library/host.ts')).toEqual(expect.arrayContaining(['rawDocPath', 'rawOpenUrl']));
   });
+
+  // 2단계 T8: 점검 스크립트(smoke:library)가 공유 id 꼴·범위 판정을 가져온다 (Plan 7.1)
+  it('share.ts', () => {
+    expect(exportsOf('src/library/share.ts')).toEqual(expect.arrayContaining(['isShareId', 'shareCoversDoc', 'docFolder']));
+  });
 });

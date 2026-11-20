@@ -3,7 +3,14 @@
 // - 저장소 접근은 가짜 의존성으로 바꾼다. 처리기의 판정(입장권, 쿠키, 경로, 머리)만 본다.
 import { describe, expect, it } from 'vitest';
 import { handleRawRequest, primeStream, type RawDeps, type RawDocState } from '@/library/server/raw';
-import { DOC_COOKIE_NAME, createDocCookie, createTicket } from '@/library/ticket';
+import {
+  DOC_COOKIE_NAME,
+  SHARE_COOKIE_NAME,
+  createDocCookie,
+  createShareCookie,
+  createShareTicket,
+  createTicket,
+} from '@/library/ticket';
 
 const SECRET = 'k'.repeat(48);
 const NOW = Date.UTC(2026, 10, 17, 3, 0, 0);
@@ -218,5 +225,98 @@ describe('/d/{문서 id}/{파일}: 문서 쿠키로 연다 (J4·J5)', () => {
       expect(res.status).toBe(404);
       expect(res.headers.get('X-Astro-Reroute')).toBe('no');
     }
+  });
+});
+
+// ---------- 공유 입장권·공유 쿠키 (서가 2단계 T8, Plan J47·J50) ----------
+
+describe('공유 입장권·공유 쿠키 (J47)', () => {
+  const SHARE = 'AbCdEfGhIjKlMnOpQrStUv_-';
+  const shareTicket = (id = DOC, now = NOW) => createShareTicket(id, SHARE, now, SECRET);
+  const shareCookie = (id = DOC, ttl = 600) => `${SHARE_COOKIE_NAME}=${createShareCookie(id, SHARE, NOW, SECRET, ttl)}`;
+  // 공유가 살아 있고 문서가 범위 안이면 끝나는 시각을 준다. asked에 물은 것을 남긴다
+  const shareDeps = (access: { expiresAtMs: number | null } | null, overrides: Partial<RawDeps> = {}) => {
+    const asked: string[] = [];
+    const d = deps({
+      shareEnabled: true,
+      checkShare: async (shareId, docId) => {
+        asked.push(`${shareId}:${docId}`);
+        return access;
+      },
+      ...overrides,
+    });
+    return Object.assign(d, { asked });
+  };
+
+  it('공유 입장권 → 공유 쿠키(문서 경로, 12시간과 남은 기간 중 짧은 쪽) → index.html 302', async () => {
+    const d = shareDeps({ expiresAtMs: NOW + 90_000 });
+    const res = await handleRawRequest(req(`/d/_open?t=${shareTicket()}`), d);
+    expect(res.status).toBe(302);
+    expect(res.headers.get('location')).toBe(`/d/${DOC}/index.html`);
+    const setCookie = res.headers.get('set-cookie') ?? '';
+    expect(setCookie).toContain(`${SHARE_COOKIE_NAME}=`);
+    expect(setCookie).toContain(`Path=/d/${DOC}/`);
+    expect(setCookie).toContain('Max-Age=90');
+    expect(setCookie).toContain('Secure');
+    expect(setCookie).not.toContain(`${DOC_COOKIE_NAME}=`);
+    expect(d.asked).toEqual([`${SHARE}:${DOC}`]);
+  });
+
+  it('끌 때까지 공유는 12시간 쿠키. pixel=1이면 1px 그림 (공유 md 화면의 그림, J48)', async () => {
+    const res = await handleRawRequest(req(`/d/_open?t=${shareTicket()}&pixel=1`), shareDeps({ expiresAtMs: null }));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('image/gif');
+    expect(res.headers.get('set-cookie')).toContain(`Max-Age=${12 * 60 * 60}`);
+  });
+
+  it('끈 공유·끝난 공유·범위 밖 문서(checkShare null), 공유 스위치 꺼짐은 같은 404', async () => {
+    const bodies = new Set<string>();
+    const cases: [string, RawDeps][] = [
+      ['꺼진 공유', shareDeps(null)],
+      ['스위치 꺼짐', shareDeps({ expiresAtMs: null }, { shareEnabled: false })],
+      ['1초 안에 끝남', shareDeps({ expiresAtMs: NOW + 500 })],
+      ['스위치 설정 없음', deps()],
+    ];
+    for (const [name, d] of cases) {
+      const res = await handleRawRequest(req(`/d/_open?t=${shareTicket()}`), d);
+      expect(res.status, name).toBe(404);
+      expect(res.headers.get('set-cookie'), name).toBeNull();
+      bodies.add(await res.text());
+    }
+    expect(bodies.size).toBe(1);
+  });
+
+  it('공유 쿠키가 맞고 공유가 살아 있으면 파일을 준다', async () => {
+    const d = shareDeps({ expiresAtMs: null });
+    const res = await handleRawRequest(req(`/d/${DOC}/index.html`, { cookie: shareCookie() }), d);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe('body:index.html');
+    expect(d.asked).toEqual([`${SHARE}:${DOC}`]);
+  });
+
+  it('끈 뒤(checkShare null)에는 같은 공유 쿠키로도 404', async () => {
+    const res = await handleRawRequest(req(`/d/${DOC}/index.html`, { cookie: shareCookie() }), shareDeps(null));
+    expect(res.status).toBe(404);
+  });
+
+  it('다른 문서의 공유 쿠키, 스위치 꺼짐이면 404. 공유를 묻지도 않는다', async () => {
+    const other = shareDeps({ expiresAtMs: null });
+    expect((await handleRawRequest(req(`/d/${DOC}/index.html`, { cookie: shareCookie(OTHER) }), other)).status).toBe(404);
+    expect(other.asked).toEqual([]);
+    const off = shareDeps({ expiresAtMs: null }, { shareEnabled: false });
+    expect((await handleRawRequest(req(`/d/${DOC}/index.html`, { cookie: shareCookie() }), off)).status).toBe(404);
+    expect(off.asked).toEqual([]);
+  });
+
+  it('공유 쿠키는 관리자 문서 쿠키 자리에서 통하지 않는다 (이름을 바꿔 보내도 404)', async () => {
+    const value = createShareCookie(DOC, SHARE, NOW, SECRET, 600);
+    const res = await handleRawRequest(req(`/d/${DOC}/index.html`, { cookie: `${DOC_COOKIE_NAME}=${value}` }), shareDeps({ expiresAtMs: null }));
+    expect(res.status).toBe(404);
+  });
+
+  it('관리자 문서 쿠키는 공유를 묻지 않고 그대로 통한다', async () => {
+    const d = shareDeps(null);
+    expect((await handleRawRequest(req(`/d/${DOC}/index.html`, { cookie: cookieFor() }), d)).status).toBe(200);
+    expect(d.asked).toEqual([]);
   });
 });

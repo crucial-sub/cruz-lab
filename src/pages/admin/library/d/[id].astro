@@ -11,7 +11,7 @@ export const prerender = false;
 
 import AdminPage from '@/layouts/AdminPage.astro';
 import { markNotFound } from '@/lib/server/not-found';
-import { libraryEnabled } from '@/library/server/api';
+import { libraryEnabled, libraryShareEnabled } from '@/library/server/api';
 import { readLinkNotice } from '@/library/links';
 import { createDocOpenDeps, DOC_VIEW_PARAM, resolveDocOpen, type DocOpenResult } from '@/library/server/open';
 import { libraryOffResponse, rawMisconfiguredResponse } from '@/library/server/raw';
@@ -19,6 +19,7 @@ import { loadLibraryMarkdownView, type LibraryMarkdownView } from '@/library/ser
 import LibraryHead from '@/library/ui/LibraryHead.astro';
 import MdView from '@/library/ui/MdView.astro';
 import MissingView from '@/library/ui/MissingView.astro';
+import ShareDialog from '@/library/ui/ShareDialog.astro';
 
 // 미들웨어 판정이 빗나가도 이 페이지가 혼자 열리지 않게 한 번 더 본다
 if (!libraryEnabled()) return libraryOffResponse();
@@ -55,6 +56,8 @@ if (result.kind === 'md') {
 const md = result.kind === 'md' ? result : null;
 const notice = readLinkNotice(Astro.url.searchParams);
 const pageTitle = md ? `${md.doc.title} | 서가` : '문서 없음 | 서가';
+// 공유 단추와 공유 창 (서가 2단계 J51). 공유 스위치가 꺼져 있으면 그리지 않는다
+const shareEnabled = libraryShareEnabled();
 ---
 
 <AdminPage title={pageTitle}>
@@ -67,6 +70,7 @@ const pageTitle = md ? `${md.doc.title} | 서가` : '문서 없음 | 서가';
         view={view}
         hasHtml={md.hasHtml}
         ticketPixelUrl={md.ticketPixelUrl}
+        shareEnabled={shareEnabled}
       />
     ) : md ? (
       <MissingView heading={md.doc.title}>
@@ -85,4 +89,5 @@ const pageTitle = md ? `${md.doc.title} | 서가` : '문서 없음 | 서가';
       </MissingView>
     )
   }
+  {md && view && shareEnabled && <ShareDialog />}
 </AdminPage>
