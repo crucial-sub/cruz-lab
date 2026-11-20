@@ -1,7 +1,14 @@
 // 서가 화면 올리기 계획 테스트 (서가 1단계 T6, Plan J8·J15)
 import { describe, expect, it } from 'vitest';
 import { identifyUpload } from '@/library/rules';
-import { analyzeJob, planDrop, textSourcesFor, type PickedFile, type UploadJob } from '@/library/ui/upload-plan';
+import {
+  analyzeJob,
+  describeFolderEntryError,
+  planDrop,
+  textSourcesFor,
+  type PickedFile,
+  type UploadJob,
+} from '@/library/ui/upload-plan';
 
 const files = (...paths: string[]): PickedFile[] => paths.map((path) => ({ path, bytes: 10 }));
 
@@ -56,6 +63,17 @@ describe('planDrop: 놓은 파일을 문서별 작업으로', () => {
   it('꼴 b: 진입 파일을 정할 수 없으면 거부한다', () => {
     expect(planDrop(files('x/a.html', 'x/b.html'))).toMatchObject({ ok: false, error: 'NO_ENTRY_IN_FOLDER' });
     expect(planDrop(files('x/a.png'))).toMatchObject({ ok: false, error: 'NO_ENTRY_IN_FOLDER' });
+  });
+
+  it('꼴 b: 진입 파일을 정할 수 없으면 폴더 뿌리의 html·md 개수를 함께 준다 (하위 폴더 문서는 세지 않는다)', () => {
+    // md가 하나뿐이면 md가 진입 파일이 된다(지금 규칙). 그래서 md도 둘 둔다
+    expect(planDrop(files('x/a.html', 'x/b.html', 'x/a.md', 'x/b.md', 'x/sub/c.html'))).toMatchObject({
+      ok: false,
+      error: 'NO_ENTRY_IN_FOLDER',
+      rootDocs: { html: 2, md: 2 },
+    });
+    expect(planDrop(files('x/a.md', 'x/b.md'))).toMatchObject({ rootDocs: { html: 0, md: 2 } });
+    expect(planDrop(files('x/sub/a.html', 'x/a.png'))).toMatchObject({ rootDocs: { html: 0, md: 0 } });
   });
 
   it('꼴 b: html과 이름이 다른 md(README.md)는 자산이다', () => {
@@ -167,5 +185,34 @@ describe('textSourcesFor·analyzeJob: 빠진 자산', () => {
     const result = analyzeJob(job, () => '<img src="a-assets/1.png">');
     expect(result.missing).toEqual([]);
     expect(result.outside).toEqual([]);
+  });
+});
+
+// ---------- 진입 파일 오류 글 ----------
+
+describe('describeFolderEntryError: 폴더 뿌리의 문서 개수로 막힌 이유와 할 일을 알린다', () => {
+  it('html이 여럿이고 index.html이 없다', () => {
+    expect(describeFolderEntryError({ html: 9, md: 9 })).toBe(
+      '진입 파일을 정할 수 없습니다. 폴더 뿌리에 html이 9개 있고 index.html이 없습니다. ' +
+        '폴더째 올리기는 문서 하나만 받습니다. ' +
+        '문서마다 따로 올리려면 폴더 대신 폴더 안 파일을 모두 골라 올립니다. ' +
+        '한 문서로 올리려면 폴더 뿌리에 index.html을 둡니다.',
+    );
+  });
+
+  it('html이 없고 md가 여럿이며 index.md가 없다', () => {
+    expect(describeFolderEntryError({ html: 0, md: 3 })).toBe(
+      '진입 파일을 정할 수 없습니다. 폴더 뿌리에 md가 3개 있고 index.md가 없습니다. ' +
+        '폴더째 올리기는 문서 하나만 받습니다. ' +
+        '문서마다 따로 올리려면 폴더 대신 폴더 안 파일을 모두 골라 올립니다. ' +
+        '한 문서로 올리려면 폴더 뿌리에 index.md를 둡니다.',
+    );
+  });
+
+  it('폴더 뿌리에 문서가 없다', () => {
+    expect(describeFolderEntryError({ html: 0, md: 0 })).toBe(
+      '진입 파일을 정할 수 없습니다. 폴더 뿌리에 md·html 문서가 없습니다. ' +
+        '문서가 하위 폴더에 있으면 그 폴더를 올립니다.',
+    );
   });
 });

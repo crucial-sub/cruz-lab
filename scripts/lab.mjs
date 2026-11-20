@@ -235,7 +235,7 @@ async function runPush(args) {
 
   for (const plan of plans) {
     if (!plan.ok) {
-      const message = `${plan.target}: ${describePlanError(plan.error)}`;
+      const message = `${plan.target}: ${describePlanError(plan.error, plan.rootDocs)}`;
       failures.push(message);
       console.error(`실패: ${message}`);
       continue;

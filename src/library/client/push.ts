@@ -21,7 +21,14 @@ import {
   type ManifestFile,
 } from '../rules.ts';
 import type { SharedByEntry } from '../share.ts';
-import { analyzeJob, planDrop, textSourcesFor, type PickedFile, type UploadJob } from '../ui/upload-plan.ts';
+import {
+  analyzeJob,
+  planDrop,
+  textSourcesFor,
+  type PickedFile,
+  type RootDocCount,
+  type UploadJob,
+} from '../ui/upload-plan.ts';
 
 // ---------- 계획 ----------
 
@@ -59,9 +66,10 @@ export type PushNote = { kind: 'missing' | 'outside' | 'type' | 'skipped'; ref: 
 // - EMPTY: 폴더에 받을 파일이 없다
 export type PlanErrorCode = 'NOT_FOUND' | 'OUTSIDE_HOME' | 'NOT_DOC' | 'NO_ENTRY_IN_FOLDER' | 'EMPTY';
 
+// - rootDocs: NO_ENTRY_IN_FOLDER일 때 폴더 뿌리의 html·md 개수. 오류 글이 막힌 이유를 알리는 데 쓴다
 export type TargetPlan =
   | { ok: true; target: string; jobs: PushJob[]; notes: PushNote[] }
-  | { ok: false; target: string; error: PlanErrorCode };
+  | { ok: false; target: string; error: PlanErrorCode; rootDocs?: RootDocCount };
 
 export interface PlanOptions {
   home: string; // 홈 폴더 절대 경로
@@ -204,7 +212,13 @@ async function planFolder(folder: string, home: string, fail: (error: PlanErrorC
   const name = basename(folder);
   // 서가 화면 올리기 계획(planDrop)과 같은 규칙으로 나눈다. 놓은 자리 = 폴더의 부모
   const plan = planDrop(await walkFolder(folder, name));
-  if (!plan.ok) return fail(plan.error === 'EMPTY' ? 'EMPTY' : 'NO_ENTRY_IN_FOLDER');
+  if (!plan.ok) {
+    if (plan.error === 'EMPTY') return fail('EMPTY');
+    // 막힌 이유를 알리도록 폴더 뿌리의 html·md 개수를 함께 준다
+    return plan.rootDocs
+      ? { ok: false, target: folder, error: 'NO_ENTRY_IN_FOLDER', rootDocs: plan.rootDocs }
+      : fail('NO_ENTRY_IN_FOLDER');
+  }
 
   const notes = new Notes();
   for (const skipped of plan.skipped) notes.add('skipped', skipped.path);

@@ -218,7 +218,13 @@ describe('planPush: 폴더째 문서 (꼴 b)', () => {
 
     const [plan] = await planPush([join(home, 'projects/blog/mixed')], { home });
 
-    expect(plan).toEqual({ ok: false, target: join(home, 'projects/blog/mixed'), error: 'NO_ENTRY_IN_FOLDER' });
+    // 막힌 이유를 알리도록 폴더 뿌리의 html·md 개수를 함께 준다
+    expect(plan).toEqual({
+      ok: false,
+      target: join(home, 'projects/blog/mixed'),
+      error: 'NO_ENTRY_IN_FOLDER',
+      rootDocs: { html: 2, md: 0 },
+    });
   });
 });
 

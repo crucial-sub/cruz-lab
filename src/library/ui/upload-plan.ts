@@ -54,9 +54,16 @@ export type DropErrorCode =
   | 'NO_ENTRY_IN_FOLDER' // 폴더 뿌리에 진입 파일을 정할 수 없다
   | 'MIXED'; // 여러 문서와 자산이 섞였다
 
+// 폴더 뿌리에 있는 문서 파일 개수 (진입 파일을 정하지 못한 이유를 알릴 때 쓴다)
+export interface RootDocCount {
+  html: number;
+  md: number;
+}
+
+// - rootDocs: NO_ENTRY_IN_FOLDER일 때만 있다
 export type DropPlan =
   | { ok: true; jobs: UploadJob[]; skipped: SkippedFile[] }
-  | { ok: false; error: DropErrorCode; skipped: SkippedFile[] };
+  | { ok: false; error: DropErrorCode; skipped: SkippedFile[]; rootDocs?: RootDocCount };
 
 // 문서 형식 확장자
 const DOC_EXTENSION = /\.(md|html)$/i;
@@ -135,7 +142,8 @@ function jobsFor(
 }
 
 // 폴더 하나(꼴 b)
-function planFolder(root: string, kept: JobFile[]): UploadJob[] | null {
+// - 진입 파일을 정하지 못하면 폴더 뿌리의 html·md 개수를 돌려준다(오류 글이 쓴다)
+function planFolder(root: string, kept: JobFile[]): UploadJob[] | RootDocCount {
   const inner = kept.map((file) => ({ ...file, path: file.path.slice(root.length + 1) }));
   const atRoot = inner.filter((file) => !file.path.includes('/'));
   const htmls = atRoot.filter((file) => docFormatOf(file.path) === 'html');
@@ -148,7 +156,7 @@ function planFolder(root: string, kept: JobFile[]): UploadJob[] | null {
   const md = html
     ? (mds.find((file) => stem(file.path) === stem(html.path)) ?? null)
     : (mds.find((file) => file.path === 'index.md') ?? (mds.length === 1 ? mds[0] : null));
-  if (!html && !md) return null;
+  if (!html && !md) return { html: htmls.length, md: mds.length };
 
   const assets = inner.filter((file) => file !== html && file !== md);
   // 폴더 이름에는 점이 들어갈 수 있다. 제목 대체가 이름을 자르지 않게 형식 확장자를 붙인다.
@@ -212,11 +220,38 @@ export function planDrop(picked: readonly PickedFile[]): DropPlan {
   if (topFiles.length === 0) {
     if (topDirs.size !== 1) return { ok: false, error: 'MIXED', skipped };
     const jobs = planFolder([...topDirs][0], kept);
-    return jobs ? { ok: true, jobs, skipped } : { ok: false, error: 'NO_ENTRY_IN_FOLDER', skipped };
+    return Array.isArray(jobs)
+      ? { ok: true, jobs, skipped }
+      : { ok: false, error: 'NO_ENTRY_IN_FOLDER', skipped, rootDocs: jobs };
   }
 
   const jobs = planFiles(kept);
   return typeof jobs === 'string' ? { ok: false, error: jobs, skipped } : { ok: true, jobs, skipped };
+}
+
+// ---------- 진입 파일 오류 글 ----------
+
+// 폴더째 올리기에서 진입 파일을 정하지 못한 이유와 할 일 (서가 화면과 맥 입구가 같은 글을 쓴다)
+// - 폴더째 올리기는 문서 하나(진입 파일 하나 + 자산)만 받는다. 문서 여러 편이 든 폴더는 파일을 골라 올리면 문서마다 올라간다
+// - 진입 파일 규칙(planFolder): index.html, 없으면 하나뿐인 html. html이 없으면 index.md, 없으면 하나뿐인 md
+export function describeFolderEntryError(rootDocs: RootDocCount): string {
+  const head = '진입 파일을 정할 수 없습니다.';
+  if (rootDocs.html === 0 && rootDocs.md === 0) {
+    return `${head} 폴더 뿌리에 md·html 문서가 없습니다. 문서가 하위 폴더에 있으면 그 폴더를 올립니다.`;
+  }
+  // html이 하나라도 있으면 html로 진입 파일을 정한다. 그래서 막힌 이유는 html 쪽이다
+  const reason =
+    rootDocs.html > 0
+      ? `폴더 뿌리에 html이 ${rootDocs.html}개 있고 index.html이 없습니다.`
+      : `폴더 뿌리에 md가 ${rootDocs.md}개 있고 index.md가 없습니다.`;
+  const single = rootDocs.html > 0 ? 'index.html을' : 'index.md를';
+  return [
+    head,
+    reason,
+    '폴더째 올리기는 문서 하나만 받습니다.',
+    '문서마다 따로 올리려면 폴더 대신 폴더 안 파일을 모두 골라 올립니다.',
+    `한 문서로 올리려면 폴더 뿌리에 ${single} 둡니다.`,
+  ].join(' ');
 }
 
 // ---------- 빠진 자산 (J15) ----------

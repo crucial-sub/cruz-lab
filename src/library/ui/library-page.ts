@@ -10,6 +10,7 @@
 import { isProjectName, validateManifest, type ManifestError } from '../rules';
 import {
   analyzeJob,
+  describeFolderEntryError,
   planDrop,
   textSourcesFor,
   type DropErrorCode,
@@ -168,7 +169,8 @@ function entriesFromInput(input: HTMLInputElement): PickedEntry[] {
 const DROP_ERRORS: Record<DropErrorCode, string> = {
   EMPTY: '올릴 수 있는 파일이 없습니다.',
   NO_DOC: 'md 또는 html 문서가 없습니다.',
-  NO_ENTRY_IN_FOLDER: '폴더 뿌리에 index.html이 없습니다. 진입 파일 하나를 정할 수 없습니다.',
+  // 계획에 폴더 뿌리의 문서 개수(rootDocs)가 있으면 describeFolderEntryError의 글을 쓴다. 이 글은 개수가 없을 때만 쓴다
+  NO_ENTRY_IN_FOLDER: '폴더 뿌리에서 진입 파일(index.html, 하나뿐인 html·md)을 정할 수 없습니다.',
   MIXED: '여러 문서와 자산이 섞여 있습니다. 문서마다 따로 놓습니다.',
 };
 
@@ -440,7 +442,8 @@ async function handlePicked(picked: PickedEntry[]) {
   const plan = planDrop(picked.map(({ path, file }) => ({ path, bytes: file.size })));
   showSkipped(plan.skipped);
   if (!plan.ok) {
-    showMessage(DROP_ERRORS[plan.error], 'error');
+    // 진입 파일 오류는 폴더 뿌리의 문서 개수로 막힌 이유와 할 일을 알린다
+    showMessage(plan.rootDocs ? describeFolderEntryError(plan.rootDocs) : DROP_ERRORS[plan.error], 'error');
     return;
   }
 

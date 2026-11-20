@@ -52,7 +52,7 @@ export async function uploadPaths(paths: readonly string[], options: UploadOptio
   for (const plan of plans) {
     const name = basename(plan.target).normalize('NFC');
     if (!plan.ok) {
-      failures.push(`${name}: ${describePlanError(plan.error)}`);
+      failures.push(`${name}: ${describePlanError(plan.error, plan.rootDocs)}`);
       continue;
     }
     for (const note of plan.notes) notes.push(`${name} — ${describeNote(note)}`);

@@ -4,12 +4,26 @@
 import { describe, expect, it } from 'vitest';
 import { describeApiError, describeNote, describePlanError, describePullOutcome } from '@/library/client/messages';
 import { PushError } from '@/library/client/push';
+import { describeFolderEntryError } from '@/library/ui/upload-plan';
 
 describe('describePlanError', () => {
   it('계획 오류 코드를 사용자 글로 바꾼다', () => {
     expect(describePlanError('NOT_FOUND')).toBe('경로가 없습니다');
     expect(describePlanError('OUTSIDE_HOME')).toBe('홈 폴더 밖 파일은 올릴 수 없습니다');
     expect(describePlanError('NOT_DOC')).toBe('md·html 파일이나 폴더가 아닙니다');
+  });
+
+  it('진입 파일 오류는 폴더 뿌리의 문서 개수가 있으면 막힌 이유와 할 일을 알린다 (서가 화면과 같은 글)', () => {
+    expect(describePlanError('NO_ENTRY_IN_FOLDER', { html: 9, md: 9 })).toBe(
+      describeFolderEntryError({ html: 9, md: 9 }),
+    );
+    expect(describePlanError('NO_ENTRY_IN_FOLDER', { html: 9, md: 9 })).toContain('index.html이 없습니다');
+  });
+
+  it('진입 파일 오류에 개수가 없으면 규칙만 알린다', () => {
+    expect(describePlanError('NO_ENTRY_IN_FOLDER')).toBe(
+      '폴더 뿌리에서 진입 파일(index.html, 하나뿐인 html·md)을 정할 수 없습니다',
+    );
   });
 });
 
