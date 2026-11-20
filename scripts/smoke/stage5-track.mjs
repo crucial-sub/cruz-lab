@@ -32,7 +32,7 @@ import {
   parseTrackBody,
   shiftDay,
 } from '../../src/lib/tracker/events.ts';
-import { ENTRIES, initAdmin, parseArgs } from '../migrate/lib/admin.mjs';
+import { adminCookieName, ENTRIES, initAdmin, parseArgs, sessionCookieMatch } from '../migrate/lib/admin.mjs';
 
 const args = parseArgs();
 const BASE = (typeof args.base === 'string' ? args.base : 'http://localhost:4337').replace(
@@ -134,7 +134,7 @@ async function track(
 async function api(method, path, { cookie = true } = {}) {
   if (interrupted) throw new Error('중단');
   const headers = { Origin: ORIGIN };
-  if (cookie && sessionCookie) headers.Cookie = `cruz_admin=${sessionCookie}`;
+  if (cookie && sessionCookie) headers.Cookie = `${adminCookieName(BASE)}=${sessionCookie}`;
   const response = await fetch(`${BASE}${path}`, { method, headers, redirect: 'manual' });
   const text = await response.text();
   let json = null;
@@ -188,7 +188,7 @@ async function signIn() {
     redirect: 'manual',
   });
   check(response.status === 204, `세션 발급: 204 (${response.status})`);
-  const match = (response.headers.get('set-cookie') ?? '').match(/cruz_admin=([^;]+)/);
+  const match = sessionCookieMatch(response.headers, BASE);
   if (!match) throw new Error('세션 쿠키가 없다');
   sessionCookie = match[1];
 }

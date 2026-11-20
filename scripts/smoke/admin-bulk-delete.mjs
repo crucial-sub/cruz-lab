@@ -20,7 +20,7 @@ import process from 'node:process';
 import { getAuth } from 'firebase-admin/auth';
 import sharp from 'sharp';
 import { runBulkDelete } from '../../src/admin/home/bulk-select.ts';
-import { initAdmin, parseArgs } from '../migrate/lib/admin.mjs';
+import { adminCookieName, initAdmin, parseArgs, sessionCookieMatch } from '../migrate/lib/admin.mjs';
 
 const args = parseArgs();
 const BASE = (typeof args.base === 'string' ? args.base : 'http://localhost:4341').replace(
@@ -54,7 +54,7 @@ let sessionCookie = '';
 async function api(method, path, { body, origin = ORIGIN, cookie = true } = {}) {
   const headers = {};
   if (origin) headers.Origin = origin;
-  if (cookie && sessionCookie) headers.Cookie = `cruz_admin=${sessionCookie}`;
+  if (cookie && sessionCookie) headers.Cookie = `${adminCookieName(BASE)}=${sessionCookie}`;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   const response = await fetch(`${BASE}${path}`, {
     method,
@@ -115,7 +115,7 @@ async function signIn() {
     cookie: false,
   });
   check(response.status === 204, `세션 발급: 204 (${response.status} ${response.text})`);
-  const match = (response.headers.get('set-cookie') ?? '').match(/cruz_admin=([^;]+)/);
+  const match = sessionCookieMatch(response.headers, BASE);
   if (!match) throw new Error('세션 쿠키가 없다');
   sessionCookie = match[1];
 }

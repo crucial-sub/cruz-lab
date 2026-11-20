@@ -14,7 +14,7 @@ import { createHash } from 'node:crypto';
 import process from 'node:process';
 import { getAuth } from 'firebase-admin/auth';
 import sharp from 'sharp';
-import { initAdmin, parseArgs } from '../migrate/lib/admin.mjs';
+import { adminCookieName, initAdmin, parseArgs, sessionCookieMatch } from '../migrate/lib/admin.mjs';
 
 const args = parseArgs();
 const BASE = (typeof args.base === 'string' ? args.base : 'http://localhost:4321').replace(/\/$/, '');
@@ -41,7 +41,7 @@ let sessionCookie = '';
 async function api(method, path, { body, origin = ORIGIN, cookie = true } = {}) {
   const headers = {};
   if (origin) headers.Origin = origin;
-  if (cookie && sessionCookie) headers.Cookie = `cruz_admin=${sessionCookie}`;
+  if (cookie && sessionCookie) headers.Cookie = `${adminCookieName(BASE)}=${sessionCookie}`;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   const response = await fetch(`${BASE}${path}`, {
     method,
@@ -93,7 +93,7 @@ async function signIn() {
   const response = await api('POST', '/api/admin/session', { body: { idToken: signIn.idToken }, cookie: false });
   check(response.status === 204, `세션 발급: 204여야 한다 (${response.status} ${response.text})`);
   const setCookie = response.headers.get('set-cookie') ?? '';
-  const match = setCookie.match(/cruz_admin=([^;]+)/);
+  const match = sessionCookieMatch(response.headers, BASE);
   if (!match) throw new Error('세션 쿠키가 없다');
   sessionCookie = match[1];
   check(/HttpOnly/i.test(setCookie), '세션 쿠키: HttpOnly가 없다');
@@ -116,14 +116,14 @@ async function checkGuards() {
   check(page.status === 302, `쿠키 없는 /admin: 302여야 한다 (${page.status})`);
   check(page.headers.get('location') === '/admin/login?next=%2Fadmin', `쿠키 없는 /admin: 이동 주소가 다르다 (${page.headers.get('location')})`);
 
-  const pageWithCookie = await fetch(`${BASE}/admin`, { headers: { Cookie: `cruz_admin=${sessionCookie}` }, redirect: 'manual' });
+  const pageWithCookie = await fetch(`${BASE}/admin`, { headers: { Cookie: `${adminCookieName(BASE)}=${sessionCookie}` }, redirect: 'manual' });
   check(pageWithCookie.status === 200, `쿠키 있는 /admin: 200이어야 한다 (${pageWithCookie.status})`);
   check((pageWithCookie.headers.get('cache-control') ?? '').includes('no-store'), '관리자 페이지: no-store가 없다');
 
   const login = await fetch(`${BASE}/admin/login`, { redirect: 'manual' });
   check(login.status === 200, `/admin/login: 200이어야 한다 (${login.status})`);
 
-  const badCookie = await fetch(`${BASE}/api/admin/posts`, { headers: { Cookie: 'cruz_admin=forged' } });
+  const badCookie = await fetch(`${BASE}/api/admin/posts`, { headers: { Cookie: `${adminCookieName(BASE)}=forged` } });
   check(badCookie.status === 401, `위조 쿠키: 401이어야 한다 (${badCookie.status})`);
 
   const foreign = await api('POST', '/api/admin/posts', { body: { kind: 'post' }, origin: 'https://evil.example' });
