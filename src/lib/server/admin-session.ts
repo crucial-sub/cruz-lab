@@ -10,7 +10,25 @@ import { isAdminClaims, isRecentLogin, shouldDeleteRejectedUser } from '@/lib/ad
 import { ApiError } from './api-response';
 import { getServerAuth } from './firebase-server';
 
+// 관리자 세션 쿠키 이름 (서가 2단계 L10·J54)
+// - https: __Host-cruz_admin. 브라우저는 __Host- 쿠키를 Secure·Path=/·Domain 없음일 때만 받는다.
+//   그래서 문서 출처(raw.cruzlab.dev)의 스크립트가 Domain=cruzlab.dev로 같은 이름의 쿠키를 심지 못한다(C14).
+// - http(로컬 개발): 옛 이름 cruz_admin. http에서는 Secure 쿠키가 저장되지 않는다.
+// - 이름을 바꾼 날 모든 기기가 한 번 로그아웃된다(L10의 대가). 옛 이름 쿠키는 읽지 않고, 로그인·로그아웃 때 지운다.
 export const ADMIN_SESSION_COOKIE = 'cruz_admin';
+export const SECURE_ADMIN_SESSION_COOKIE = '__Host-cruz_admin';
+
+const isHttps = (requestUrl: URL) => requestUrl.protocol === 'https:';
+
+// 이 요청에서 쓰는 관리자 쿠키 이름
+export function adminCookieName(requestUrl: URL): string {
+  return isHttps(requestUrl) ? SECURE_ADMIN_SESSION_COOKIE : ADMIN_SESSION_COOKIE;
+}
+
+// 로그인·로그아웃 때 지울 옛 이름. http는 지금 이름과 같아 없다(null)
+export function legacyAdminCookieName(requestUrl: URL): string | null {
+  return isHttps(requestUrl) ? ADMIN_SESSION_COOKIE : null;
+}
 // 세션 만료 14일 (Firebase 최대값)
 export const ADMIN_SESSION_MAX_AGE_SECONDS = 14 * 24 * 60 * 60;
 
@@ -27,11 +45,11 @@ export function getAdminUid(): string | null {
   return typeof uid === 'string' && uid.trim() ? uid.trim() : null;
 }
 
-// 쿠키 속성. https가 아닌 로컬 개발에서만 Secure를 뺀다
+// 쿠키 속성. https가 아닌 로컬 개발에서만 Secure를 뺀다. Domain을 쓰지 않는다(호스트 전용, __Host- 조건)
 export function adminCookieOptions(requestUrl: URL): AstroCookieSetOptions {
   return {
     httpOnly: true,
-    secure: requestUrl.protocol === 'https:',
+    secure: isHttps(requestUrl),
     sameSite: 'lax',
     path: '/',
     maxAge: ADMIN_SESSION_MAX_AGE_SECONDS,

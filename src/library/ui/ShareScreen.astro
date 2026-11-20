@@ -1,0 +1,52 @@
+---
+// 공유 주소 화면 (서가 2단계 T8, Plan J46·J48·J49)
+// - /s/{공유 id}와 /s/{공유 id}/d/{문서 id}가 같이 쓴다. 페이지가 판정(share-page.ts loadSharePage)과 응답 머리를 맡는다.
+// - 열 수 없는 공유(없음·끝남·꺼짐·범위 밖·공유 스위치 꺼짐)는 모두 같은 화면이다. 어떤 공유·문서가 있는지 드러내지 않는다.
+// - 관리자 주소(/admin)와 관리자 정보를 싣지 않는다(C12). 링크 미리보기용 og:title만 둔다. 그림·설명은 두지 않는다(J49).
+// - 화면 틀은 관리자 화면 틀(noindex, 테마)을 그대로 쓴다. 서가 머리 태그(앱 설정 파일)는 넣지 않는다.
+import AdminPage from '@/layouts/AdminPage.astro';
+import type { SharePageResult } from '../server/share-page';
+import { shareBasePath } from '../server/share-page';
+import MdView from './MdView.astro';
+import ShareList from './ShareList.astro';
+
+interface Props {
+  result: SharePageResult;
+}
+
+const { result } = Astro.props;
+// 탭 제목과 링크 미리보기 제목: md는 문서 제목, 묶음은 공유 이름
+const ogTitle = result.kind === 'md' ? result.open.doc.title : result.kind === 'list' ? result.open.label : null;
+const pageTitle = ogTitle ? `${ogTitle} | 공유 문서` : '열 수 없는 공유 주소';
+---
+
+<AdminPage title={pageTitle}>
+  <Fragment slot="head">
+    <meta name="referrer" content="no-referrer" />
+    {ogTitle && <meta property="og:title" content={ogTitle} />}
+  </Fragment>
+  {
+    result.kind === 'md' && result.view ? (
+      <MdView
+        docId={result.open.docId}
+        doc={result.open.doc}
+        view={result.view}
+        hasHtml={result.open.hasHtml}
+        ticketPixelUrl={result.open.ticketPixelUrl}
+        share={{ base: shareBasePath(result.open.shareId), bundle: result.open.bundle }}
+      />
+    ) : result.kind === 'md' ? (
+      <main class="mx-auto flex max-w-3xl flex-col gap-3 px-4 pb-16 pt-12">
+        <h1 class="break-words text-xl font-semibold">{result.open.doc.title}</h1>
+        <p class="text-sm text-text-secondary">문서를 읽지 못했습니다. 잠시 뒤 다시 열어 주세요.</p>
+      </main>
+    ) : result.kind === 'list' ? (
+      <ShareList shareId={result.open.shareId} label={result.open.label} docs={result.open.docs} />
+    ) : (
+      <main class="mx-auto flex max-w-3xl flex-col gap-3 px-4 pb-16 pt-12 text-center">
+        <h1 class="text-xl font-semibold">열 수 없는 공유 주소입니다</h1>
+        <p class="text-sm text-text-secondary">주소가 틀렸거나 공유가 끝났습니다. 공유한 사람에게 새 주소를 받습니다.</p>
+      </main>
+    )
+  }
+</AdminPage>

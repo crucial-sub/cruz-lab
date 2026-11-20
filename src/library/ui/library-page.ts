@@ -3,6 +3,8 @@
 //   올리기 시작(서명 주소) → 버킷에 바로 PUT → 마무리 → 결과(주소·QR).
 // - 목록: QR 보기·주소 복사, 서가에서 내리기. 바뀐 뒤 이 페이지를 다시 받아 #library-list만 바꾼다.
 // - 서버 API: /api/admin/library/**(관리자 쿠키, 같은 출처). 로그아웃이면 로그인 화면으로 보낸다.
+// - 서가 2단계 J51·J52: 공유 창(share-dialog.ts)을 연결한다. 공유를 만들거나 끄면 목록을 다시 받는다.
+//   올린 문서가 공유 중인 묶음·문서에 들면 결과에 경고 줄을 보인다(마무리 응답의 sharedBy).
 // - 서가 2단계 J42: 폰에서 고친 판이 있어 올리기 시작이 409(PHONE_EDIT_PENDING)면 확인 창으로 묻고, 덮어쓰기면 force로 다시 시작한다.
 
 import { isProjectName, validateManifest, type ManifestError } from '../rules';
@@ -15,7 +17,9 @@ import {
   type SkippedFile,
   type UploadJob,
 } from './upload-plan';
+import { sharedByLines } from '../share';
 import { isIosWebApp } from './list-view';
+import { setupShareDialog } from './share-dialog';
 
 // 마지막에 고른 프로젝트 (L2: 마지막 값이 기본)
 const LAST_PROJECT_KEY = 'cruz-library:last-project';
@@ -280,8 +284,8 @@ function jobLine(job: UploadJob) {
   };
 }
 
-// 올린 결과: 제목, 열기 링크, QR 코드
-function showResult(line: ReturnType<typeof jobLine>, doc: DocSummary) {
+// 올린 결과: 제목, 열기 링크, QR 코드, 공유 중 경고 줄(서가 2단계 J52)
+function showResult(line: ReturnType<typeof jobLine>, doc: DocSummary, sharedBy: unknown) {
   const open = el('a', { class: 'text-sm text-brand underline', text: '열기' });
   open.href = `/admin/library/d/${encodeURIComponent(doc.id)}`;
   const qr = el('img', { class: 'size-36 rounded-md bg-white' });
@@ -300,6 +304,9 @@ function showResult(line: ReturnType<typeof jobLine>, doc: DocSummary) {
         el('p', { class: 'text-xs text-brand', text: '올렸습니다' }),
         el('p', { class: 'mt-0.5 break-words font-medium', text: doc.title }),
         el('p', { class: 'mt-1 break-all text-xs text-text-secondary', text: doc.url }),
+        ...sharedByLines(sharedBy).map((text) =>
+          el('p', { class: 'mt-2 rounded bg-amber-500/10 px-2 py-1 text-xs text-amber-700 dark:text-amber-300', text }),
+        ),
         el('p', { class: 'mt-2' }, open),
       ),
     ),
@@ -392,11 +399,11 @@ async function uploadJob(job: UploadJob, project: string, files: Map<string, Fil
     });
 
     line.set('마무리 중', 1);
-    const { doc } = await api<{ doc: DocSummary }>('POST', '/api/admin/library/uploads/finalize', {
+    const { doc, sharedBy } = await api<{ doc: DocSummary; sharedBy?: unknown }>('POST', '/api/admin/library/uploads/finalize', {
       docId: start.docId,
       rev: start.rev,
     });
-    showResult(line, doc);
+    showResult(line, doc, sharedBy);
     return doc;
   } catch (error) {
     line.set(`실패: ${error instanceof Error ? error.message : String(error)}`);
@@ -619,3 +626,4 @@ function init() {
 }
 
 init();
+setupShareDialog({ onChanged: refreshList });

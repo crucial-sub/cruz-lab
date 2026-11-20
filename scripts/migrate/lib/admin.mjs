@@ -199,3 +199,29 @@ export function parseArgs(argv = process.argv.slice(2)) {
   }
   return args;
 }
+
+// ───────────── 관리자 세션 쿠키 (서가 2단계 J54) ─────────────
+
+// 관리자 세션 쿠키 이름: https는 __Host-cruz_admin, http(로컬 개발)는 cruz_admin.
+// 서버(src/lib/server/admin-session.ts adminCookieName)와 같은 규칙이다
+export function adminCookieName(base) {
+  return new URL(base).protocol === 'https:' ? '__Host-cruz_admin' : 'cruz_admin';
+}
+
+// 응답 머리의 Set-Cookie에서 이름이 꼭 같은 쿠키 값을 읽는다. 없으면 null
+// - 로그인 응답에는 옛 이름(cruz_admin)을 지우는 Set-Cookie도 함께 온다. 이름 앞부분만 맞춰 읽지 않는다
+export function readSetCookie(headers, name) {
+  const lines = typeof headers.getSetCookie === 'function' ? headers.getSetCookie() : [headers.get('set-cookie') ?? ''];
+  for (const line of lines) {
+    const eq = line.indexOf('=');
+    if (eq > 0 && line.slice(0, eq).trim() === name) return line.slice(eq + 1).split(';')[0] || null;
+  }
+  return null;
+}
+
+// 로그인 응답의 세션 쿠키: [쿠키 한 줄, 값] 또는 null (옛 스크립트의 match 꼴과 같다)
+export function sessionCookieMatch(headers, base) {
+  const name = adminCookieName(base);
+  const value = readSetCookie(headers, name);
+  return value ? [`${name}=${value}`, value] : null;
+}

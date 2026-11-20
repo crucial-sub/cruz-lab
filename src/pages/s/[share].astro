@@ -1,0 +1,32 @@
+---
+// 공유 주소 /s/{공유 id} (서가 2단계 T8, Plan J46)
+// - 로그인 없이 연다. 미들웨어는 서가가 꺼져 있으면 404, 켜져 있으면 관리자 검사 없이 넘긴다(J50).
+// - 문서 하나 공유: md는 공유 md 화면, html은 공유 입장권으로 문서 출처에 302. 짝이면 글이 기본, ?v=html이면 그림.
+// - 묶음 공유(프로젝트·폴더): 범위 안 문서 목록.
+// - 공유 스위치 꺼짐·없는 공유·끝난 공유·끈 공유는 모두 같은 404 화면이다.
+export const prerender = false;
+
+import { markNotFound } from '@/lib/server/not-found';
+import { rawMisconfiguredResponse } from '@/library/server/raw';
+import { applyShareHeaders, loadSharePage, SHARE_RESPONSE_HEADERS, type SharePageResult } from '@/library/server/share-page';
+import ShareScreen from '@/library/ui/ShareScreen.astro';
+
+let result: SharePageResult;
+try {
+  result = await loadSharePage(Astro.url, Astro.params.share, null);
+} catch (error) {
+  console.error('[library] 공유 주소 열기 실패', error);
+  return rawMisconfiguredResponse();
+}
+if (result.kind === 'redirect') {
+  return new Response(null, { status: 302, headers: { Location: result.location, ...SHARE_RESPONSE_HEADERS } });
+}
+applyShareHeaders(Astro.response.headers);
+if (result.kind === 'not-found') markNotFound(Astro.response);
+if (result.kind === 'md' && !result.view) {
+  Astro.response.status = 500;
+  Astro.response.headers.set('X-Astro-Reroute', 'no');
+}
+---
+
+<ShareScreen result={result} />

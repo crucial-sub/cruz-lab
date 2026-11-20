@@ -1,7 +1,15 @@
 // 서가 목록 묶기 테스트 (서가 1단계 T6, Plan J14)
 import { describe, expect, it } from 'vitest';
 import type { LibraryDocSummary } from '@/library/server/store';
-import { docMetaLine, groupLibraryDocs, isIosWebApp, kstDate, projectChoices } from '@/library/ui/list-view';
+import {
+  docMetaLine,
+  groupLibraryDocs,
+  isIosWebApp,
+  kstDate,
+  projectChoices,
+  projectFolders,
+  sharedDocIds,
+} from '@/library/ui/list-view';
 
 function doc(id: string, project: string, extra: Partial<LibraryDocSummary> = {}): LibraryDocSummary {
   return {
@@ -14,6 +22,7 @@ function doc(id: string, project: string, extra: Partial<LibraryDocSummary> = {}
     readAt: null,
     pinnedAt: null,
     mdPendingRev: null,
+    folder: '',
     uploadedAt: '2026-11-16T16:30:00.000Z',
     updatedAt: '2026-11-16T16:30:00.000Z',
     url: `https://www.cruzlab.dev/admin/library/d/${id}`,
@@ -83,5 +92,31 @@ describe('isIosWebApp', () => {
     // 안드로이드·데스크톱 브라우저에는 이 속성이 없다
     expect(isIosWebApp({})).toBe(false);
     expect(isIosWebApp({ standalone: 'true' })).toBe(false);
+  });
+});
+
+// 서가 2단계 T9 (Plan J51·J52)
+describe('projectFolders: 프로젝트 공유 창이 고르는 폴더', () => {
+  it('그 프로젝트 문서의 폴더와 상위 폴더를 모두, 한국어 순서로. 뿌리(빈 값)는 뺀다', () => {
+    const docs = [
+      doc('a', 'p', { folder: 'bundles/a/b' }),
+      doc('b', 'p', { folder: 'bundles2' }),
+      doc('c', 'p', { folder: '' }),
+      doc('d', 'q', { folder: 'other' }),
+    ];
+    expect(projectFolders(docs, 'p')).toEqual(['bundles', 'bundles/a', 'bundles/a/b', 'bundles2']);
+    expect(projectFolders(docs, 'none')).toEqual([]);
+  });
+});
+
+describe('sharedDocIds: 목록의 "공유 중" 표시', () => {
+  it('살아 있는 공유 중 하나라도 덮는 문서 id', () => {
+    const docs = [doc('aaaaaaaaaaaaaaaaaaaa', 'p', { folder: 'bundles/a' }), doc('bbbbbbbbbbbbbbbbbbbb', 'p', { folder: 'bundles2' }), doc('cccccccccccccccccccc', 'q')];
+    const shares = [
+      { scope: { kind: 'folder' as const, project: 'p', folder: 'bundles' } },
+      { scope: { kind: 'doc' as const, docId: 'cccccccccccccccccccc' } },
+    ];
+    expect([...sharedDocIds(shares, docs)].sort()).toEqual(['aaaaaaaaaaaaaaaaaaaa', 'cccccccccccccccccccc']);
+    expect(sharedDocIds([], docs).size).toBe(0);
   });
 });

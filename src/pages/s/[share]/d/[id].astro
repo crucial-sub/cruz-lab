@@ -1,0 +1,34 @@
+---
+// 공유 묶음 안 문서 /s/{공유 id}/d/{문서 id} (서가 2단계 T8, Plan J46·J48)
+// - 공유 md 화면의 문서 사이 링크와 묶음 목록이 이 주소를 쓴다. 범위 밖 문서는 404다(어떤 문서가 있는지 드러내지 않는다).
+// - md는 공유 md 화면, html만 있으면(또는 ?v=html) 공유 입장권으로 문서 출처에 302.
+export const prerender = false;
+
+import { markNotFound } from '@/lib/server/not-found';
+import { rawMisconfiguredResponse } from '@/library/server/raw';
+import { applyShareHeaders, loadSharePage, SHARE_RESPONSE_HEADERS, type SharePageResult } from '@/library/server/share-page';
+import ShareScreen from '@/library/ui/ShareScreen.astro';
+
+let result: SharePageResult;
+try {
+  result = await loadSharePage(Astro.url, Astro.params.share, Astro.params.id ?? null);
+} catch (error) {
+  console.error('[library] 공유 문서 열기 실패', error);
+  return rawMisconfiguredResponse();
+}
+if (result.kind === 'redirect') {
+  return new Response(null, { status: 302, headers: { Location: result.location, ...SHARE_RESPONSE_HEADERS } });
+}
+applyShareHeaders(Astro.response.headers);
+// 묶음 안 문서 주소에서 목록은 나오지 않는다(문서 id가 있다). 그래도 나오면 404로 둔다
+if (result.kind === 'not-found' || result.kind === 'list') {
+  result = { kind: 'not-found' };
+  markNotFound(Astro.response);
+}
+if (result.kind === 'md' && !result.view) {
+  Astro.response.status = 500;
+  Astro.response.headers.set('X-Astro-Reroute', 'no');
+}
+---
+
+<ShareScreen result={result} />

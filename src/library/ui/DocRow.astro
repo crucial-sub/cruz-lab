@@ -2,16 +2,19 @@
 // 서가 목록의 문서 한 줄 (서가 1단계 T6, Plan J7·J14)
 // - 제목을 누르면 서가 문서 주소(/admin/library/d/{문서 id})로 간다. md가 있으면 md 뷰어(짝이어도 글이 기본,
 //   사용자 결정 2026-11-18 안 A), html만 있으면 문서 출처로 간다(J7).
-// - 단추: QR(서가 문서 주소, J20), 고정·고정 풀기(2단계 J34), 내리기(분석 8.3 제안 17).
-//   동작은 library-page.ts가 data-* 값으로 한다.
+// - 단추: QR(서가 문서 주소, J20), 공유(2단계 J51, 공유 스위치가 켜졌을 때), 고정·고정 풀기(2단계 J34), 내리기(분석 8.3 제안 17).
+//   동작은 library-page.ts(공유는 share-dialog.ts)가 data-* 값으로 한다.
+// - 2단계 J52: 살아 있는 공유가 덮는 문서는 보조 글 앞에 "공유 중"을 보인다.
 import type { LibraryDocSummary } from '../server/store';
 import { docMetaLine } from './list-view';
 
 interface Props {
   doc: LibraryDocSummary;
+  shareEnabled?: boolean;
+  shared?: boolean; // 살아 있는 공유가 이 문서를 덮는다
 }
 
-const { doc } = Astro.props;
+const { doc, shareEnabled = false, shared = false } = Astro.props;
 const pinned = Boolean(doc.pinnedAt);
 ---
 
@@ -27,7 +30,9 @@ const pinned = Boolean(doc.pinnedAt);
       <span class="line-clamp-2 break-words font-medium group-hover:text-brand">{doc.title}</span>
     </span>
     <span class="mt-0.5 block text-xs text-text-secondary">
-      {doc.unread && <span class="sr-only">안 읽음 · </span>}{docMetaLine(doc)}
+      {doc.unread && <span class="sr-only">안 읽음 · </span>}
+      {shared && <span class="mr-1 rounded bg-amber-500/15 px-1 py-0.5 text-amber-600 dark:text-amber-400">공유 중</span>}
+      {docMetaLine(doc)}
     </span>
   </a>
   <div class="flex shrink-0 gap-1">
@@ -39,6 +44,21 @@ const pinned = Boolean(doc.pinnedAt);
     >
       QR
     </button>
+    {
+      shareEnabled && (
+        <button
+          type="button"
+          class="rounded-md px-2 py-1 text-xs text-text-secondary hover:bg-bg-card hover:text-text-primary"
+          data-share-open
+          data-share-kind="doc"
+          data-share-doc={doc.id}
+          data-share-title={doc.title}
+          aria-label={`${doc.title} 공유`}
+        >
+          공유
+        </button>
+      )
+    }
     <button
       type="button"
       class:list={[

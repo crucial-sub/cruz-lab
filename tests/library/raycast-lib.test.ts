@@ -114,7 +114,7 @@ afterEach(() => {
 });
 
 // 서버 계약을 흉내 내는 가짜 fetch. 원본 경로(확장자 뺀 것)가 같으면 같은 문서 id를 준다(J8 짝 묶기)
-function fakeServer(options: { startStatus?: number; phonePending?: boolean } = {}) {
+function fakeServer(options: { startStatus?: number; phonePending?: boolean; sharedBy?: unknown[] } = {}) {
   const ids = new Map<string, string>();
   const titles = new Map<string, string>();
   let rev = 0;
@@ -148,12 +148,29 @@ function fakeServer(options: { startStatus?: number; phonePending?: boolean } = 
     if (url.startsWith('https://storage.example/')) return new Response(null, { status: 200 });
     if (url.endsWith('/api/library/token/uploads/finalize')) {
       const { docId } = JSON.parse(String(init.body)) as { docId: string };
-      return Response.json({ doc: { id: docId, title: titles.get(docId), url: `http://localhost:4341/admin/library/d/${docId}` } });
+      return Response.json({
+        doc: { id: docId, title: titles.get(docId), url: `http://localhost:4341/admin/library/d/${docId}` },
+        ...(options.sharedBy ? { sharedBy: options.sharedBy } : {}),
+      });
     }
     return new Response('없음', { status: 404 });
   };
   return fetchFn as typeof fetch;
 }
+
+// 서가 2단계 J52: 공유 중인 묶음에 들어가면 결과 화면에 경고 줄을 보인다
+describe('uploadPaths: 공유 중 경고', () => {
+  it('마무리 응답의 sharedBy를 "제목 — 경고" 줄로 모은다', async () => {
+    const md = put('projects/blog/shared-note.md', '# 공유');
+    const report = await uploadPaths([md], {
+      home,
+      server: 'http://localhost:4341',
+      token: 't',
+      fetch: fakeServer({ sharedBy: [{ id: 'AbCdEfGhIjKlMnOpQrStUv_-', kind: 'project', label: 'blog' }] }),
+    });
+    expect(report.warnings).toEqual(["shared-note.md — 공유 중인 묶음 'blog'에 들어갔습니다. 주소를 아는 사람이 읽습니다."]);
+  });
+});
 
 describe('uploadPaths', () => {
   it('고른 파일을 올리고, 빠진 자산 알림을 이름과 함께 모은다', async () => {
@@ -171,9 +188,10 @@ describe('uploadPaths', () => {
 
     expect(report.failures).toEqual([]);
     expect(report.docs).toEqual([
-      { id: 'doc00000000000000000', title: 'notes.md', url: 'http://localhost:4341/admin/library/d/doc00000000000000000' },
+      { id: 'doc00000000000000000', title: 'notes.md', url: 'http://localhost:4341/admin/library/d/doc00000000000000000', sharedBy: [] },
     ]);
     expect(report.notes).toEqual(['notes.md — 원본에 없음: img/gone.png']);
+    expect(report.warnings).toEqual([]);
     expect(statuses[0]).toBe('notes.md (1/1)');
   });
 

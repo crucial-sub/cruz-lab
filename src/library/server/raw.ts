@@ -7,21 +7,32 @@
 //   html 판에 없는 파일은 md 판에서 찾는다(md 뷰어의 상대 이미지).
 // - J5: 문서를 열 수 없으면 모든 경로에 같은 404를 준다. 어떤 문서가 있는지 드러내지 않는다.
 // - 저장소 접근은 RawDeps로 받는다. 운영은 createRawDeps(), 단위 테스트는 가짜를 쓴다.
+// - 서가 2단계 J47: 공유 입장권(공유 주소 페이지가 만든다)이면 공유 쿠키(cruz_share)를 준다. 수명은 12시간과 남은 공유 기간 중
+//   짧은 쪽이다. 공유 쿠키로 파일을 열 때마다 공유가 살아 있는지와 문서가 범위 안인지 본다(checkShare, 메모리 60초).
+//   그래서 끈 공유는 1분 안에 막힌다(C11). 공유 스위치(LIBRARY_SHARE_ENABLED)가 꺼지면 공유 입장권·쿠키는 모두 404다(J50).
 
 import { Readable } from 'node:stream';
 import { memoize } from '@/lib/server/memo-cache';
 import { RAW_PATH_PREFIX, blogOriginForDocHost, rawDocPath } from '../host';
 import { normalizeDocPath } from '../rules';
+import { isLibraryShareEnabled } from '../host';
+import { shareCookieTtlSec } from '../share';
 import {
   DOC_COOKIE_NAME,
+  SHARE_COOKIE_NAME,
   assertSecret,
   createDocCookie,
+  createShareCookie,
   docCookieHeader,
   isDocId,
   readCookieValues,
+  shareCookieHeader,
   verifyDocCookie,
+  verifyShareCookie,
+  verifyShareTicket,
   verifyTicket,
 } from '../ticket';
+import { checkShareAccess, type ShareAccess } from './shares';
 import {
   getLibraryBucket,
   getLibraryDoc,
@@ -54,6 +65,10 @@ export interface RawDeps {
   loadDoc(docId: string): Promise<RawDocState | null>;
   openFile(docId: string, rev: number, path: string): Promise<ReadableStream<Uint8Array>>;
   signedReadUrl(docId: string, rev: number, path: string): Promise<string>;
+  // 공유 스위치 (LIBRARY_SHARE_ENABLED, 서가 2단계 J50). 없거나 거짓이면 공유 입장권·공유 쿠키를 받지 않는다
+  shareEnabled?: boolean;
+  // 공유가 살아 있고 문서가 그 범위 안이면 끝나는 시각. 아니면 null (서가 2단계 J47, 운영은 메모리 60초)
+  checkShare?(shareId: string, docId: string): Promise<ShareAccess | null>;
 }
 
 // 영상 서명 주소 수명 10분 (J11)
@@ -118,21 +133,57 @@ function findFile(state: RawDocState, path: string): { rev: number; meta: RawFil
   return null;
 }
 
-// /d/_open: 입장권 → 문서 쿠키
+// 공유를 물어도 되는가: 스위치가 켜져 있고 묻는 함수가 있다
+function shareOn(deps: RawDeps): deps is RawDeps & { checkShare: NonNullable<RawDeps['checkShare']> } {
+  return Boolean(deps.shareEnabled) && typeof deps.checkShare === 'function';
+}
+
+// 입장권 → 쿠키 머리. 관리자 입장권이면 문서 쿠키, 공유 입장권이면 공유 쿠키. 틀리면 null
+async function cookieForTicket(url: URL, deps: RawDeps): Promise<{ docId: string; cookie: string } | null> {
+  const token = url.searchParams.get('t');
+  const secure = Boolean(deps.forceSecure) || url.protocol === 'https:';
+  const adminDocId = verifyTicket(token, deps.now(), deps.secret);
+  if (adminDocId) {
+    return { docId: adminDocId, cookie: docCookieHeader(adminDocId, createDocCookie(adminDocId, deps.now(), deps.secret), { secure }) };
+  }
+  if (!shareOn(deps)) return null;
+  const share = verifyShareTicket(token, deps.now(), deps.secret);
+  if (!share) return null;
+  const access = await deps.checkShare(share.shareId, share.docId);
+  if (!access) return null;
+  const ttl = shareCookieTtlSec(access.expiresAtMs, deps.now());
+  if (ttl <= 0) return null;
+  const value = createShareCookie(share.docId, share.shareId, deps.now(), deps.secret, ttl);
+  return { docId: share.docId, cookie: shareCookieHeader(share.docId, value, { secure, maxAgeSec: ttl }) };
+}
+
+// /d/_open: 입장권 → 문서 쿠키(관리자) 또는 공유 쿠키(공유 주소)
 async function openWithTicket(url: URL, deps: RawDeps): Promise<Response> {
-  const docId = verifyTicket(url.searchParams.get('t'), deps.now(), deps.secret);
-  if (!docId) return rawNotFoundResponse(deps.siteOrigin);
+  const issued = await cookieForTicket(url, deps);
+  if (!issued) return rawNotFoundResponse(deps.siteOrigin);
+  const { docId, cookie } = issued;
   const state = await deps.loadDoc(docId);
   if (!state || (!state.html && !state.md)) return rawNotFoundResponse(deps.siteOrigin);
 
-  const cookie = docCookieHeader(docId, createDocCookie(docId, deps.now(), deps.secret), {
-    secure: Boolean(deps.forceSecure) || url.protocol === 'https:',
-  });
   const common = { 'Set-Cookie': cookie, 'Cache-Control': 'private, no-store', ...SECURITY_HEADERS };
   if (url.searchParams.get('pixel') === '1') {
     return new Response(PIXEL_GIF, { status: 200, headers: { ...common, 'Content-Type': 'image/gif' } });
   }
   return new Response(null, { status: 302, headers: { ...common, Location: rawDocPath(docId) } });
+}
+
+// 요청 쿠키가 이 문서를 열게 하는가
+// - 관리자 문서 쿠키가 맞으면 바로 연다(공유를 묻지 않는다)
+// - 공유 쿠키가 맞으면 공유가 살아 있고 문서가 범위 안인지 묻는다(J47). 쿠키가 여럿이면 하나라도 통하면 연다
+async function cookieAllows(request: Request, docId: string, deps: RawDeps): Promise<boolean> {
+  const header = request.headers.get('cookie');
+  if (readCookieValues(header, DOC_COOKIE_NAME).some((value) => verifyDocCookie(value, docId, deps.now(), deps.secret))) return true;
+  if (!shareOn(deps)) return false;
+  for (const value of readCookieValues(header, SHARE_COOKIE_NAME)) {
+    const shareId = verifyShareCookie(value, docId, deps.now(), deps.secret);
+    if (shareId && (await deps.checkShare(shareId, docId))) return true;
+  }
+  return false;
 }
 
 // 문서 출처 요청 하나를 처리한다
@@ -147,10 +198,7 @@ export async function handleRawRequest(request: Request, deps: RawDeps): Promise
   if (!match || !isDocId(match[1])) return rawNotFoundResponse(deps.siteOrigin);
   const docId = match[1];
 
-  const cookies = readCookieValues(request.headers.get('cookie'), DOC_COOKIE_NAME);
-  if (!cookies.some((value) => verifyDocCookie(value, docId, deps.now(), deps.secret))) {
-    return rawNotFoundResponse(deps.siteOrigin);
-  }
+  if (!(await cookieAllows(request, docId, deps))) return rawNotFoundResponse(deps.siteOrigin);
 
   let rawPath: string;
   try {
@@ -292,6 +340,8 @@ export function createRawDeps(requestUrl: URL): RawDeps {
     secret: assertSecret(import.meta.env.LIBRARY_TICKET_SECRET),
     siteOrigin: siteOriginForRaw(requestUrl),
     forceSecure: !import.meta.env.DEV,
+    shareEnabled: isLibraryShareEnabled(import.meta.env.LIBRARY_SHARE_ENABLED),
+    checkShare: checkShareAccess,
     loadDoc: (docId) =>
       memoize(rawStateKey(docId), () => loadRawDocStateWith({ getDoc: getLibraryDoc, getRevision }, docId), RAW_STATE_TTL_MS),
     openFile: async (docId, rev, path) => {

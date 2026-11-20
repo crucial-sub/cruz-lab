@@ -34,6 +34,9 @@ function readBody(request: IncomingMessage): Promise<string> {
   });
 }
 
+// 마지막 올리기 시작의 원본 경로 (마무리 응답이 sharedBy를 고른다)
+let lastSourcePath = '';
+
 beforeAll(async () => {
   server = createServer(async (request, response) => {
     const body = await readBody(request);
@@ -55,6 +58,7 @@ beforeAll(async () => {
     if (request.method === 'POST' && url === '/api/library/token/uploads') {
       const sent = JSON.parse(body) as { files: { path: string }[]; sourcePath: string; force?: boolean };
       // 서가 2단계 J42: 원본 경로에 phone-pending이 들면 폰 판이 있는 문서처럼 409 (force면 통과)
+      lastSourcePath = sent.sourcePath;
       if (sent.sourcePath.includes('phone-pending') && !sent.force) {
         return json(409, { error: { code: 'PHONE_EDIT_PENDING', message: '폰에서 고친 판이 있습니다.' } });
       }
@@ -75,7 +79,11 @@ beforeAll(async () => {
       return response.end();
     }
     if (request.method === 'POST' && url === '/api/library/token/uploads/finalize') {
-      return json(200, { doc: { id: DOC_ID, title: '노트', url: `${origin}/admin/library/d/${DOC_ID}` } });
+      // 서가 2단계 J52: 원본 경로에 shared-folder가 들면 공유 중인 묶음 안 문서처럼 sharedBy를 준다
+      const sharedBy = lastSourcePath.includes('shared-folder')
+        ? [{ id: 'AbCdEfGhIjKlMnOpQrStUv_-', kind: 'folder', label: 'shared-folder · docs' }]
+        : undefined;
+      return json(200, { doc: { id: DOC_ID, title: '노트', url: `${origin}/admin/library/d/${DOC_ID}` }, sharedBy });
     }
     // 서가 2단계 T7: 되돌리기 토큰 API (J41)
     if (request.method === 'GET' && url === '/api/library/token/docs?pending=md') {
@@ -201,6 +209,24 @@ describe('lab push', () => {
 
     expect(result.code).toBe(2);
     expect(result.stderr).toContain('lab push');
+  });
+});
+
+// 서가 2단계 T9 (Plan J52)
+describe('lab push: 공유 중인 묶음', () => {
+  it('공유 중인 묶음에 들어가면 경고 줄을 보인다', async () => {
+    const dir = join(home, 'projects/shared-folder/docs');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'notes.md'), '# 노트');
+    const result = await lab(['push', '--no-qr', '--server', origin, join(dir, 'notes.md')]);
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("  주의: 공유 중인 묶음 'shared-folder · docs'에 들어갔습니다. 주소를 아는 사람이 읽습니다.");
+  });
+
+  it('공유가 없으면 경고 줄이 없다', async () => {
+    const result = await lab(['push', '--no-qr', '--server', origin, putDoc()]);
+    expect(result.stdout).not.toContain('공유 중');
   });
 });
 

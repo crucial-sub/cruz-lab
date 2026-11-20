@@ -2,12 +2,14 @@
 // md 뷰어 (서가 1단계 T7, Plan J12·J14, 사용자 결정 2026-11-18 안 A)
 // 위에서 아래 순서:
 // 1. 머리줄: "← 서가", md·html 짝이면 "글 | 그림" 전환(그림 = ?v=html, 문서 출처의 원본 html로 간다),
-//    고치기(2단계 J36: 글자 칸 화면 /edit), 고정·고정 풀기(2단계 J34), "가" 글자 크기(2단계 J35: 5단계, 기기마다 localStorage)
+//    고치기(2단계 J36: 글자 칸 화면 /edit), 공유(2단계 J51, 공유 스위치가 켜졌을 때), 고정·고정 풀기(2단계 J34), "가" 글자 크기(2단계 J35: 5단계, 기기마다 localStorage)
 // 2. 입장권 그림(1px, 보이지 않음): 문서 쿠키를 먼저 받는다. 본문의 문서 그림은 그 뒤에 불린다(md-view.ts)
 // 3. 프로젝트 · 날짜, 제목(본문 첫 # 제목. 없으면 서가 제목)
 // 4. 목차(1280px 미만은 본문 위 <details>, 이상은 오른쪽 sticky) + 본문(.prose)
 // - 글자 모양은 블로그 글 상세와 같다(prose.css, shiki.css, 본문 폭 --measure). 목차 부품도 같은 것을 쓴다.
 // - 본문이 # 제목으로 시작하면 그 h1을 떼어 제목 자리에 둔다(render-md.ts). 목차가 제목 아래에 온다.
+// - 서가 2단계 J48 공유 md 화면(share가 있을 때): 관리자 머리줄(← 서가, 고치기, 고정, 공유)을 뺀다. 묶음 공유면 "← 목록",
+//   "글 | 그림"은 공유 주소로 간다. 글자 크기는 그대로 둔다. 입장권 그림은 공유 입장권 그림이다(공유 쿠키를 받는다).
 //   제목은 블로그 글 제목 크기다(prose.css는 본문 h1을 h2 크기로 줄인다. 블로그 글은 제목이 따로 있기 때문이다).
 import '@/styles/prose.css';
 import '@/styles/shiki.css';
@@ -23,12 +25,18 @@ interface Props {
   view: LibraryMarkdownView;
   hasHtml: boolean;
   ticketPixelUrl: string;
+  // 공유 md 화면 (서가 2단계 J48). base는 공유 주소(/s/{공유 id}), bundle이면 묶음 공유 안의 문서다
+  share?: { base: string; bundle: boolean };
+  // 관리자 화면의 "공유" 단추 (서가 2단계 J51). 공유 스위치가 켜졌을 때만 참이다
+  shareEnabled?: boolean;
 }
 
-const { docId, doc, view, hasHtml, ticketPixelUrl } = Astro.props;
+const { docId, doc, view, hasHtml, ticketPixelUrl, share, shareEnabled = false } = Astro.props;
 const { html, toc, hasMath, titleHtml } = view;
 const meta = [doc.project, doc.docDate].filter(Boolean).join(' · ');
-const pictureUrl = `/admin/library/d/${docId}?v=html`;
+// 이 문서의 글 주소: 관리자 화면은 서가 문서 주소, 공유 화면은 공유 주소(문서 하나) 또는 묶음 안 문서 주소
+const textUrl = share ? (share.bundle ? `${share.base}/d/${docId}` : share.base) : `/admin/library/d/${docId}`;
+const pictureUrl = `${textUrl}?v=html`;
 const pinned = Boolean(doc.pinnedAt);
 const headerButton =
   'rounded-md px-2 py-1 text-sm text-text-secondary hover:bg-bg-card hover:text-text-primary aria-pressed:text-brand';
@@ -47,17 +55,22 @@ const headerButton =
 <header
   class="sticky top-0 z-20 flex h-12 items-center gap-3 border-b border-border bg-bg-surface px-3 pt-[env(safe-area-inset-top)]"
 >
-  <a
-    href="/admin/library"
-    class="rounded-md px-2 py-1 text-sm text-text-secondary hover:bg-bg-card hover:text-text-primary"
-  >
-    ← 서가
-  </a>
+  {
+    !share ? (
+      <a href="/admin/library" class="rounded-md px-2 py-1 text-sm text-text-secondary hover:bg-bg-card hover:text-text-primary">
+        ← 서가
+      </a>
+    ) : share.bundle ? (
+      <a href={share.base} class="rounded-md px-2 py-1 text-sm text-text-secondary hover:bg-bg-card hover:text-text-primary">
+        ← 목록
+      </a>
+    ) : null
+  }
   <div class="ml-auto flex items-center gap-1">
     {
       hasHtml && (
         <nav aria-label="보기" class="mr-1 flex overflow-hidden rounded-md border border-border text-sm">
-          <a href={`/admin/library/d/${docId}`} aria-current="page" class="bg-brand px-3 py-1 font-medium text-white">
+          <a href={textUrl} aria-current="page" class="bg-brand px-3 py-1 font-medium text-white">
             글
           </a>
           <a href={pictureUrl} class="px-3 py-1 text-text-secondary hover:bg-bg-card hover:text-text-primary">
@@ -66,10 +79,30 @@ const headerButton =
         </nav>
       )
     }
-    <a href={`/admin/library/d/${docId}/edit`} class={headerButton}>고치기</a>
-    <button type="button" class={headerButton} data-md-pin={docId} aria-pressed={pinned ? 'true' : 'false'}>
-      {pinned ? '고정 풀기' : '고정'}
-    </button>
+    {
+      !share && (
+        <>
+          <a href={`/admin/library/d/${docId}/edit`} class={headerButton}>
+            고치기
+          </a>
+          {shareEnabled && (
+            <button
+              type="button"
+              class={headerButton}
+              data-share-open
+              data-share-kind="doc"
+              data-share-doc={docId}
+              data-share-title={doc.title}
+            >
+              공유
+            </button>
+          )}
+          <button type="button" class={headerButton} data-md-pin={docId} aria-pressed={pinned ? 'true' : 'false'}>
+            {pinned ? '고정 풀기' : '고정'}
+          </button>
+        </>
+      )
+    }
     <details class="library-font relative" data-font-menu>
       <summary class={`${headerButton} cursor-pointer font-semibold`} aria-label="글자 크기">가</summary>
       <div
@@ -137,8 +170,11 @@ const headerButton =
 <script>
   import { setupPostPage } from '@/components/post/post-scripts';
   import { setupMdView } from './md-view';
+  import { setupShareDialog } from './share-dialog';
   setupMdView();
   setupPostPage();
+  // 공유 창이 있을 때만 연결된다(관리자 화면, 공유 스위치 켜짐)
+  setupShareDialog();
 </script>
 
 <style>

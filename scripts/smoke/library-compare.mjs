@@ -26,7 +26,7 @@ import process from 'node:process';
 import { planPush } from '../../src/library/client/push.ts';
 import { parseArgs } from '../migrate/lib/admin.mjs';
 import {
-  ADMIN_COOKIE,
+  adminCookieFor,
   assertReachable,
   createAdminSession,
   docRemnants,
@@ -441,7 +441,7 @@ async function main() {
       await page.navigate(`${targets.base}/robots.txt`);
       await page.navigate(`${targets.raw}/d/_open`);
     }
-    await page.setCookie({ name: ADMIN_COOKIE, value: session, url: `${targets.base}/`, httpOnly: true, secure: !targets.local, sameSite: 'Lax' });
+    await page.setCookie({ name: adminCookieFor(targets), value: session, url: `${targets.base}/`, path: '/', httpOnly: true, secure: !targets.local, sameSite: 'Lax' });
 
     for (const doc of manifest.docs) {
       for (const width of WIDTHS) {

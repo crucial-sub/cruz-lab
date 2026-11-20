@@ -135,8 +135,21 @@
       expect: '보이지 않는다(HttpOnly, 호스트 전용)',
       run: async () => {
         const cookies = document.cookie;
-        const leaked = /(^|;\s*)(cruz_admin|cruz_doc)=/.test(cookies);
+        const leaked = /(^|;\s*)(cruz_admin|__Host-cruz_admin|cruz_doc|cruz_share)=/.test(cookies);
         return { pass: !leaked, detail: leaked ? `보임: ${cookies.slice(0, 80)}` : '보이지 않음' };
+      },
+    },
+    {
+      // 서가 2단계 J54·C14: 관리자 쿠키 이름이 __Host-면 브라우저가 Domain을 단 같은 이름 쿠키를 받지 않는다.
+      // 문서 출처의 스크립트가 블로그 출처로 가짜 관리자 쿠키를 보내지(심지) 못한다
+      id: 'host-cookie-plant',
+      what: '문서 출처에서 __Host-cruz_admin을 Domain=상위 도메인으로 심기',
+      expect: '심어지지 않는다(__Host- 규칙)',
+      run: async () => {
+        const domain = location.hostname.split('.').slice(-2).join('.');
+        document.cookie = `__Host-cruz_admin=planted; Domain=${domain}; Path=/; Secure; SameSite=Lax`;
+        const planted = /(^|;\s*)__Host-cruz_admin=planted/.test(document.cookie);
+        return { pass: !planted, detail: planted ? `심어짐 (Domain=${domain})` : `심어지지 않음 (Domain=${domain})` };
       },
     },
     {

@@ -15,7 +15,7 @@ import { defineMiddleware } from 'astro:middleware';
 import { buildLoginRedirect, isSameOrigin, isWriteMethod, resolveAdminRequestKind } from '@/lib/admin-guard';
 import { findPublicRedirect } from '@/lib/redirects';
 import { errorResponse } from '@/lib/server/api-response';
-import { ADMIN_SESSION_COOKIE, verifyAdminSessionCookie, type AdminSession } from '@/lib/server/admin-session';
+import { adminCookieName, verifyAdminSessionCookie, type AdminSession } from '@/lib/server/admin-session';
 import { isLibraryEnabled, resolveLibraryRoute } from '@/library/host';
 import { createRawDeps, handleRawRequest, libraryOffResponse, rawMisconfiguredResponse, type RawDeps } from '@/library/server/raw';
 import { verifyBearerToken } from '@/library/ticket';
@@ -105,7 +105,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   let session: AdminSession | null;
   try {
-    session = await verifyAdminSessionCookie(context.cookies.get(ADMIN_SESSION_COOKIE)?.value);
+    // 서가 2단계 J54: https는 __Host-cruz_admin, http(로컬 개발)는 cruz_admin. 옛 이름은 읽지 않는다(한 번 로그아웃)
+    session = await verifyAdminSessionCookie(context.cookies.get(adminCookieName(context.url))?.value);
   } catch (error) {
     console.error('[middleware] 관리자 인증 설정 오류', error);
     // 500은 Astro가 오류 페이지로 바꿔 본문이 사라진다. 설정 문제는 503으로 알린다

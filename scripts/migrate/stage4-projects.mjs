@@ -56,6 +56,8 @@ import {
   parseArgs,
   serializeValue,
   writeDump,
+  adminCookieName,
+  sessionCookieMatch,
 } from './lib/admin.mjs';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -231,7 +233,7 @@ async function readSources() {
 let sessionCookie = '';
 
 async function api(method, apiPath, body) {
-  const headers = { Origin: new URL(BASE).origin, Cookie: `cruz_admin=${sessionCookie}` };
+  const headers = { Origin: new URL(BASE).origin, Cookie: `${adminCookieName(BASE)}=${sessionCookie}` };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   const response = await fetch(`${BASE}${apiPath}`, {
     method,
@@ -271,7 +273,7 @@ async function signIn() {
     headers: { Origin: new URL(BASE).origin, 'Content-Type': 'application/json' },
     body: JSON.stringify({ idToken: signInJson.idToken }),
   });
-  const match = (response.headers.get('set-cookie') ?? '').match(/cruz_admin=([^;]+)/);
+  const match = sessionCookieMatch(response.headers, BASE);
   if (response.status !== 204 || !match) throw new Error(`세션 발급 실패: ${response.status}`);
   sessionCookie = match[1];
 }

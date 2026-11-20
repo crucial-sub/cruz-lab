@@ -15,6 +15,12 @@ import {
   readCookieValues,
   verifyDocCookie,
   verifyTicket,
+  SHARE_COOKIE_NAME,
+  createShareCookie,
+  createShareTicket,
+  shareCookieHeader,
+  verifyShareCookie,
+  verifyShareTicket,
 } from '@/library/ticket';
 
 const SECRET = 's'.repeat(48);
@@ -136,5 +142,60 @@ describe('docIdForKey: 같은 문서 키 → 문서 id', () => {
     expect(a).toMatch(/^[0-9a-f]{20}$/);
     expect(isDocId(a)).toBe(true);
     expect(docIdForKey('mac:~/Desktop/docs/y')).not.toBe(a);
+  });
+});
+
+// ---------- 공유 입장권·공유 쿠키 (서가 2단계 T8, Plan J47) ----------
+
+describe('공유 입장권·공유 쿠키: 공유 id를 함께 서명한다 (J47)', () => {
+  const SHARE = 'AbCdEfGhIjKlMnOpQrStUv_-';
+  const SHARE2 = 'ZZZZZZZZZZZZZZZZZZZZZZZZ';
+
+  it('공유 입장권은 1분 안에 문서 id와 공유 id를 돌려준다', () => {
+    const t = createShareTicket(DOC, SHARE, NOW, SECRET);
+    expect(verifyShareTicket(t, NOW + 59_000, SECRET)).toEqual({ docId: DOC, shareId: SHARE });
+    expect(verifyShareTicket(t, NOW + (TICKET_TTL_SEC + 1) * 1000, SECRET)).toBeNull();
+    expect(verifyShareTicket(t, NOW, OTHER)).toBeNull();
+  });
+
+  it('공유 id를 바꾸면 서명이 맞지 않는다', () => {
+    const t = createShareTicket(DOC, SHARE, NOW, SECRET);
+    const forged = t.replace(SHARE, SHARE2);
+    expect(verifyShareTicket(forged, NOW, SECRET)).toBeNull();
+  });
+
+  it('공유 쿠키는 그 문서에서 공유 id를 돌려준다. 다른 문서·만료·위조는 null', () => {
+    const c = createShareCookie(DOC, SHARE, NOW, SECRET, 600);
+    expect(verifyShareCookie(c, DOC, NOW + 599_000, SECRET)).toBe(SHARE);
+    expect(verifyShareCookie(c, 'zzzzzzzzzzzzzzzzzzzz', NOW, SECRET)).toBeNull();
+    expect(verifyShareCookie(c, DOC, NOW + 601_000, SECRET)).toBeNull();
+    expect(verifyShareCookie(c.replace(SHARE, SHARE2), DOC, NOW, SECRET)).toBeNull();
+    expect(verifyShareCookie(c, DOC, NOW, OTHER)).toBeNull();
+  });
+
+  it('관리자 문서 쿠키·입장권과 섞이지 않는다 (용도가 서명에 들어 있다)', () => {
+    const shareCookie = createShareCookie(DOC, SHARE, NOW, SECRET, 600);
+    const shareTicket = createShareTicket(DOC, SHARE, NOW, SECRET);
+    // 공유 값은 관리자 값으로 통하지 않는다
+    expect(verifyDocCookie(shareCookie, DOC, NOW, SECRET)).toBe(false);
+    expect(verifyTicket(shareTicket, NOW, SECRET)).toBeNull();
+    // 관리자 값은 공유 값으로 통하지 않는다
+    expect(verifyShareCookie(createDocCookie(DOC, NOW, SECRET), DOC, NOW, SECRET)).toBeNull();
+    expect(verifyShareTicket(createTicket(DOC, NOW, SECRET), NOW, SECRET)).toBeNull();
+    // 공유 입장권 ↔ 공유 쿠키도 서로 쓰지 못한다
+    expect(verifyShareCookie(shareTicket, DOC, NOW, SECRET)).toBeNull();
+    expect(verifyShareTicket(shareCookie, NOW, SECRET)).toBeNull();
+  });
+
+  it('나쁜 문서 id·공유 id로는 만들지 않는다', () => {
+    expect(() => createShareTicket('../x', SHARE, NOW, SECRET)).toThrow();
+    expect(() => createShareTicket(DOC, 'short', NOW, SECRET)).toThrow();
+    expect(() => createShareCookie(DOC, 'a.b', NOW, SECRET, 60)).toThrow();
+  });
+
+  it('shareCookieHeader: 공유 쿠키 이름, 문서 경로, HttpOnly·SameSite=Lax, 수명', () => {
+    const header = shareCookieHeader(DOC, 'v', { secure: true, maxAgeSec: 90 });
+    expect(header).toBe(`${SHARE_COOKIE_NAME}=v; Path=/d/${DOC}/; Max-Age=90; HttpOnly; Secure; SameSite=Lax`);
+    expect(SHARE_COOKIE_NAME).not.toBe(DOC_COOKIE_NAME);
   });
 });

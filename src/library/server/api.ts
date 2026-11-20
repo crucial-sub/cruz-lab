@@ -7,7 +7,8 @@
 import type { APIContext } from 'astro';
 import { z } from 'zod';
 import { ApiError, withAdminApi, withApiErrors } from '@/lib/server/api-response';
-import { isLibraryEnabled } from '../host';
+import { isLibraryEnabled, isLibraryShareEnabled } from '../host';
+import { DEFAULT_SHARE_DURATION, SHARE_DURATIONS, type ShareDuration } from '../share';
 import { MAX_FILE_COUNT } from '../rules';
 import { MAX_PHONE_TEXT_BYTES } from './edit';
 import { isDocId, verifyBearerToken } from '../ticket';
@@ -15,6 +16,19 @@ import { isDocId, verifyBearerToken } from '../ticket';
 // 서가가 켜져 있는가 (LIBRARY_ENABLED)
 export function libraryEnabled(): boolean {
   return isLibraryEnabled(import.meta.env.LIBRARY_ENABLED);
+}
+
+// 공유가 켜져 있는가 (서가 2단계 J50): 서가와 공유 스위치(LIBRARY_SHARE_ENABLED)가 모두 켜져 있다
+export function libraryShareEnabled(): boolean {
+  return libraryEnabled() && isLibraryShareEnabled(import.meta.env.LIBRARY_SHARE_ENABLED);
+}
+
+// 공유 API 처리기를 감싼다 (J50: 공유가 꺼져 있으면 404, J53: 관리자 쿠키·같은 출처 쓰기)
+export function withLibraryShareAdminApi(handler: (context: APIContext) => Promise<Response>) {
+  return withLibraryAdminApi(async (context) => {
+    if (!libraryShareEnabled()) throw new ApiError(404, 'NOT_FOUND', '없는 주소입니다.');
+    return handler(context);
+  });
 }
 
 function assertEnabled(): void {
@@ -100,4 +114,11 @@ export const phoneSaveSchema = z.object({
 export const pulledSchema = z.object({
   rev: z.number().int().positive(),
   sha256: z.string().regex(/^[0-9a-f]{64}$/),
+});
+
+// 공유 만들기 (서가 2단계 J53): 범위는 share.ts parseShareScope가 읽는다. 기간이 없으면 7일
+const durationKeys = Object.keys(SHARE_DURATIONS) as [ShareDuration, ...ShareDuration[]];
+export const shareCreateSchema = z.object({
+  scope: z.unknown(),
+  duration: z.enum(durationKeys).default(DEFAULT_SHARE_DURATION),
 });
