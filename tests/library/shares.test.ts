@@ -62,7 +62,12 @@ function store(shares: Record<string, StoredShare>): ShareStoreDeps & { shares: 
       reads.push(`doc:${id}`);
       return DOCS[id] ?? null;
     },
-    listDocs: async () => Object.entries(DOCS).map(([id, value]) => ({ id, doc: value })),
+    listDocs: async (project: string) => {
+      reads.push(`docs:${project}`);
+      return Object.entries(DOCS)
+        .filter(([, value]) => value.project === project)
+        .map(([id, value]) => ({ id, doc: value }));
+    },
     listShares: async () => Object.entries(shares).map(([id, value]) => ({ id, share: value })),
     createShare: async (id, share) => {
       if (shares[id]) throw new Error('있음');
@@ -158,6 +163,12 @@ describe('공유 주소 열기 판정 resolveShareOpenWith (J46)', () => {
     expect(result.label).toBe('interview-lab · bundles');
     expect(result.docs.map((item) => item.id)).toEqual(['aaaaaaaaaaaaaaaaaaaa']);
     expect(result.docs[0]).toMatchObject({ title: '질문 1', folder: 'bundles/a', formats: ['md'] });
+  });
+
+  it('묶음 목록은 그 프로젝트 문서만 묻는다 (PR-C 검토 중요 2)', async () => {
+    const deps = store({ [SHARE]: live({ kind: 'folder', project: 'interview-lab', folder: 'bundles' }) });
+    await resolveShareOpenWith({ ...deps, ...OPEN }, SHARE, null, null);
+    expect(deps.reads.filter((line) => line.startsWith('docs:'))).toEqual(['docs:interview-lab']);
   });
 
   it('묶음(프로젝트): 뿌리 문서가 앞(폴더 순)', async () => {

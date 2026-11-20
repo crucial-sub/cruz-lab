@@ -4,7 +4,10 @@
 // - 공유 주소(/s/{공유 id}) 열기 판정, 문서 출처의 공유 확인(J47), 공유 만들기·목록·끄기(J53), 올리기 결과의 sharedBy(J52).
 // - 범위 판정은 모두 share.ts의 shareCoversDoc 하나를 거친다.
 // - 공유 기록과 공유 확인 결과는 서버 메모리에 60초 둔다. 그래서 끈 공유는 1분 안에 모든 서버에서 막힌다(C11).
-//   끈 서버는 바로 비운다.
+//   끈 서버는 바로 비운다. 공유 확인(checkShareAccess)은 공유 기록을 저장소에서 새로 읽는다. 메모리의 공유 기록을
+//   다시 쓰면 두 캐시가 겹쳐 최대 약 2분이 된다(PR-C 검토 중요 1).
+// - 묶음 목록은 그 프로젝트 문서만 읽고(where project ==), 프로젝트마다 메모리에 60초 둔다(PR-C 검토 중요 2:
+//   로그아웃 요청마다 서가 문서 전체를 읽지 않는다).
 // - 저장소 접근은 ShareStoreDeps로 받는다. 운영은 firestoreShareDeps, 단위 테스트는 메모리 가짜를 쓴다.
 
 import type { DocumentData } from 'firebase-admin/firestore';
@@ -85,7 +88,7 @@ export interface ShareStoreDeps {
   newId(): string;
   getShare(id: string): Promise<StoredShare | null>;
   getDoc(docId: string): Promise<LibraryDoc | null>;
-  listDocs(): Promise<{ id: string; doc: LibraryDoc }[]>;
+  listDocs(project: string): Promise<{ id: string; doc: LibraryDoc }[]>; // 그 프로젝트의 서가 문서
   listShares(): Promise<{ id: string; share: StoredShare }[]>; // 끄지 않은 공유 (끝난 것은 섞여 있다)
   createShare(id: string, share: StoredShare): Promise<void>; // 같은 id가 있으면 던진다
   revokeShare(id: string, atMs: number): Promise<boolean>; // 없으면 거짓. 이미 껐으면 그대로 참
@@ -163,7 +166,7 @@ export async function resolveShareOpenWith(
 
   // 묶음 공유의 첫 화면: 범위 안 문서 목록 (폴더·제목 순)
   if (!docId && scope.kind !== 'doc') {
-    const docs = (await deps.listDocs())
+    const docs = (await deps.listDocs(scope.project))
       .filter(({ id, doc }) => hasReadyFormat(doc) && shareCoversDoc(scope, docInfo(id, doc)))
       .map(({ id, doc }) => ({
         id,
@@ -239,7 +242,7 @@ export async function createShareWith(
     if (!doc || !hasReadyFormat(doc)) throw new ApiError(404, 'NOT_FOUND', '서가 문서가 없습니다.');
     docTitle = doc.title;
   } else {
-    const docs = await deps.listDocs();
+    const docs = await deps.listDocs(scope.project);
     if (!docs.some(({ id, doc }) => hasReadyFormat(doc) && shareCoversDoc(scope, docInfo(id, doc)))) {
       throw new ApiError(404, 'NOT_FOUND', '공유할 범위 안에 문서가 없습니다.');
     }
@@ -297,23 +300,26 @@ function fromRecord(data: DocumentData | undefined): StoredShare {
 // 메모리 캐시 키: 공유 하나에 딸린 키는 모두 같은 접두사다(끄면 함께 비운다)
 const sharePrefix = (shareId: string) => `library:share:${shareId}:`;
 
+// 공유 기록 하나를 저장소에서 읽는다 (메모리 없이)
+async function readShareRecord(id: string): Promise<StoredShare | null> {
+  const snapshot = await sharesRef().doc(id).get();
+  return snapshot.exists ? fromRecord(snapshot.data()) : null;
+}
+
 export const firestoreShareDeps: ShareStoreDeps = {
   now: () => Date.now(),
   newId: () => newShareId(),
-  getShare: (id) =>
+  getShare: (id) => memoize(`${sharePrefix(id)}record`, () => readShareRecord(id), SHARE_CHECK_TTL_MS),
+  getDoc: getLibraryDoc,
+  listDocs: (project) =>
     memoize(
-      `${sharePrefix(id)}record`,
+      `library:share-docs:${project}`,
       async () => {
-        const snapshot = await sharesRef().doc(id).get();
-        return snapshot.exists ? fromRecord(snapshot.data()) : null;
+        const snapshot = await libraryDocsRef().where('project', '==', project).get();
+        return snapshot.docs.map((docSnap) => ({ id: docSnap.id, doc: parseStored(libraryDocSchema, '서가 문서', docSnap.data()) }));
       },
       SHARE_CHECK_TTL_MS,
     ),
-  getDoc: getLibraryDoc,
-  listDocs: async () => {
-    const snapshot = await libraryDocsRef().orderBy('updatedAt', 'desc').limit(1000).get();
-    return snapshot.docs.map((docSnap) => ({ id: docSnap.id, doc: parseStored(libraryDocSchema, '서가 문서', docSnap.data()) }));
-  },
   listShares: async () => {
     const snapshot = await sharesRef().where('revokedAt', '==', null).get();
     return snapshot.docs.map((docSnap) => ({ id: docSnap.id, share: fromRecord(docSnap.data()) }));
@@ -343,10 +349,13 @@ export const firestoreShareDeps: ShareStoreDeps = {
 };
 
 // 문서 출처가 부른다(raw.ts). 결과를 메모리에 60초 둔다
+// - 공유 기록은 새로 읽는다(메모리의 공유 기록과 겹치지 않게). 그래서 끈 뒤 막히기까지 최대 60초다
+const freshShareDeps: ShareStoreDeps = { ...firestoreShareDeps, getShare: readShareRecord };
+
 export function checkShareAccess(shareId: string, docId: string): Promise<ShareAccess | null> {
   return memoize(
     `${sharePrefix(shareId)}doc:${docId}`,
-    () => checkShareAccessWith(firestoreShareDeps, shareId, docId),
+    () => checkShareAccessWith(freshShareDeps, shareId, docId),
     SHARE_CHECK_TTL_MS,
   );
 }
