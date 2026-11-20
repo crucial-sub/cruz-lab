@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   FONT_SCALES,
+  mdMetaLine,
   parseFontScale,
   releaseDeferredMedia,
   reloadMediaOf,
@@ -122,5 +123,25 @@ describe('parseFontScale', () => {
     expect(FONT_SCALES).toEqual([90, 100, 112, 125, 140]);
     for (const scale of FONT_SCALES) expect(parseFontScale(String(scale))).toBe(scale);
     for (const value of [null, '', 'abc', '113', '1e2', ' 112']) expect(parseFontScale(value)).toBe(100);
+  });
+});
+
+// T12 의견 4 (사용자 결정 2026-11-20): 문서 하나 공유의 md 화면에는 프로젝트 이름(맥 폴더 이름, desktop, other)을 보이지 않는다.
+// 묶음 공유는 프로젝트가 공유 범위 이름이므로 그대로 둔다.
+describe('mdMetaLine: 제목 위의 "프로젝트 · 날짜" 줄', () => {
+  const doc = { project: 'cruz-lab-docs', docDate: '2026-11-19' };
+
+  it('관리자 화면과 묶음 공유는 프로젝트 · 날짜', () => {
+    expect(mdMetaLine(doc)).toBe('cruz-lab-docs · 2026-11-19');
+    expect(mdMetaLine(doc, { bundle: true })).toBe('cruz-lab-docs · 2026-11-19');
+  });
+
+  it('문서 하나 공유는 날짜만', () => {
+    expect(mdMetaLine(doc, { bundle: false })).toBe('2026-11-19');
+  });
+
+  it('값이 없으면 뺀다', () => {
+    expect(mdMetaLine({ project: '', docDate: null })).toBe('');
+    expect(mdMetaLine({ project: 'other', docDate: null }, { bundle: false })).toBe('');
   });
 });

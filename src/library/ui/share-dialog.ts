@@ -44,6 +44,28 @@ export function shareRequestBody(
   return { scope, duration: chosen };
 }
 
+// 만들기 요청 하나를 차례와 함께 돌린다 (CodeRabbit Major 2, T12 사용자 결정 2026-11-20)
+// - 창을 열거나 닫을 때마다 차례가 바뀐다. 결과가 왔을 때 시작한 차례가 지금 차례가 아니면 그리지 않는다.
+//   그렇지 않으면 늦게 온 앞 문서의 공유 주소가 다른 문서의 창에 그려진다.
+// - 차례가 바뀐 뒤 성공하면 stale을 부른다. 공유는 이미 만들어졌으므로 목록("공유 중" 칸)만 다시 받는다.
+// - 차례가 바뀐 뒤 실패하면 아무것도 부르지 않는다. 새 창에 앞 문서의 오류를 쓰지 않는다.
+export async function runShareCreate<T>(
+  turn: number,
+  currentTurn: () => number,
+  request: () => Promise<T>,
+  handlers: { done(result: T): void; failed(error: unknown): void; stale(): void },
+): Promise<void> {
+  let result: T;
+  try {
+    result = await request();
+  } catch (error) {
+    if (currentTurn() === turn) handlers.failed(error);
+    return;
+  }
+  if (currentTurn() === turn) handlers.done(result);
+  else handlers.stale();
+}
+
 // ---------- 화면 연결 ----------
 
 interface CreatedShare {
@@ -101,8 +123,11 @@ export function setupShareDialog(options: { onChanged?: () => void | Promise<voi
   const qr = q<HTMLImageElement>('[data-share-qr]');
   let target: ShareTarget | null = null;
   let created = false;
+  // 창의 차례. 열거나 닫을 때마다 늘린다(runShareCreate가 늦은 결과를 가른다)
+  let turn = 0;
 
   const open = (next: ShareTarget) => {
+    turn += 1;
     target = next;
     created = false;
     if (targetLine) targetLine.textContent = next.kind === 'doc' ? `문서: ${next.title}` : `프로젝트: ${next.project}`;
@@ -127,26 +152,31 @@ export function setupShareDialog(options: { onChanged?: () => void | Promise<voi
     const duration = dialog.querySelector<HTMLInputElement>('input[name="share-duration"]:checked')?.value ?? DEFAULT_SHARE_DURATION;
     submit.disabled = true;
     if (errorLine) errorLine.hidden = true;
-    try {
-      const body = shareRequestBody(target, scopeSelect?.value ?? '', duration);
-      const { share, qrSvg } = await shareApi<CreatedShare>('POST', '/api/admin/library/shares', body);
-      created = true;
-      if (urlInput) urlInput.value = share.url;
-      if (qr) qr.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(qrSvg)}`;
-      const summary = q<HTMLElement>('[data-share-summary]');
-      if (summary) summary.textContent = `${share.label} · ${share.remaining}`;
-      if (form) form.hidden = true;
-      if (result) result.hidden = false;
-    } catch (error) {
-      submit.disabled = false;
-      if (errorLine) {
-        errorLine.textContent = `공유하지 못했습니다: ${error instanceof Error ? error.message : String(error)}`;
-        errorLine.hidden = false;
-      }
-    }
+    const body = shareRequestBody(target, scopeSelect?.value ?? '', duration);
+    await runShareCreate(turn, () => turn, () => shareApi<CreatedShare>('POST', '/api/admin/library/shares', body), {
+      done: ({ share, qrSvg }) => {
+        created = true;
+        if (urlInput) urlInput.value = share.url;
+        if (qr) qr.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(qrSvg)}`;
+        const summary = q<HTMLElement>('[data-share-summary]');
+        if (summary) summary.textContent = `${share.label} · ${share.remaining}`;
+        if (form) form.hidden = true;
+        if (result) result.hidden = false;
+      },
+      failed: (error) => {
+        submit.disabled = false;
+        if (errorLine) {
+          errorLine.textContent = `공유하지 못했습니다: ${error instanceof Error ? error.message : String(error)}`;
+          errorLine.hidden = false;
+        }
+      },
+      // 창을 닫은 뒤 만들어진 공유: 목록의 "공유 중" 칸만 다시 받는다
+      stale: () => void options.onChanged?.(),
+    });
   };
 
   dialog.addEventListener('close', () => {
+    turn += 1;
     if (created) void options.onChanged?.();
     created = false;
   });

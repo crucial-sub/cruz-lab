@@ -96,6 +96,24 @@ async function expectRawNotFound(name, url, init = {}) {
   checks.check('문서 출처 404 (J5)', name, problems.length === 0, problems.join(', ') || `404, 본문 ${digest(body)}`);
 }
 
+// 공유 쿠키가 실린 요청의 문서 출처 404 (서가 2단계 T12 의견 1, C12)
+// - "서가에서 다시 열기"(관리자 로그인 화면으로 가는 단추)가 없고 "공유한 사람에게 새 주소를 받습니다"가 있다
+// - 본문 지문을 따로 모아 "공유 쿠키 404끼리 같다"를 마지막에 본다(관리자 404와는 본문이 다르다)
+const shareRawNotFoundDigests = [];
+async function expectRawShareNotFound(group, name, url, init = {}) {
+  const response = await get(url, init);
+  const body = stripVercelInjection(await bodyOf(response));
+  const problems = [];
+  if (response.status !== 404) problems.push(`상태 ${response.status}`);
+  if (response.headers.get('x-robots-tag') !== 'noindex') problems.push('X-Robots-Tag 없음');
+  if (response.headers.get('cache-control') !== 'private, no-store') problems.push(`Cache-Control ${response.headers.get('cache-control')}`);
+  if (response.headers.get('set-cookie')) problems.push('Set-Cookie 있음');
+  if (body.includes('/admin')) problems.push('본문에 /admin 주소');
+  if (!body.includes('공유한 사람에게 새 주소를 받습니다')) problems.push('공유 안내 글 없음');
+  shareRawNotFoundDigests.push({ name, digest: digest(body) });
+  checks.check(group, `${name} → 404 (관리자 단추 없음)`, problems.length === 0, problems.join(', ') || `404, 본문 ${digest(body)}`);
+}
+
 // Astro 출처 검사(배포 빌드의 node_modules/astro/dist/core/app/middlewares.js)가 준 403인가
 // - GET·HEAD·OPTIONS가 아닌 요청에서 Origin이 다르고, 형식이 양식형(text/plain 등)이거나 없으면 우리 미들웨어보다 먼저 막는다.
 // - 개발 서버에는 이 층이 없다(로컬에서는 미들웨어의 ORIGIN_MISMATCH나 J5가 바로 보인다)
@@ -749,8 +767,13 @@ async function checkSharesWithDocs(session, isolation, other, shareDocs, workDir
   const shareCookieHeader = { headers: { Cookie: `${SHARE_COOKIE_NAME}=${shareCookie}` } };
   const file = await get(`${targets.raw}/d/${isolation.id}/index.html`, shareCookieHeader);
   await file.arrayBuffer();
-  checks.check(group, '공유 쿠키로 그 문서 → 200', file.status === 200, `${file.status}`);
-  await expectRawNotFound('공유 쿠키로 다른 문서', `${targets.raw}/d/${other.id}/index.html`, shareCookieHeader);
+  // T12 의견 3: 공유 쿠키로 준 파일은 친구 기기 캐시에 남기지 않는다(no-store, ETag 없음)
+  const fileProblems = [];
+  if (file.status !== 200) fileProblems.push(`상태 ${file.status}`);
+  if (file.headers.get('cache-control') !== 'private, no-store') fileProblems.push(`Cache-Control ${file.headers.get('cache-control')}`);
+  if (file.headers.get('etag')) fileProblems.push(`ETag ${file.headers.get('etag')}`);
+  checks.check(group, '공유 쿠키로 그 문서 → 200, private, no-store, ETag 없음', fileProblems.length === 0, fileProblems.join(', ') || '200');
+  await expectRawShareNotFound(group, '공유 쿠키로 다른 문서', `${targets.raw}/d/${other.id}/index.html`, shareCookieHeader);
   await expectRawNotFound('공유 쿠키를 관리자 문서 쿠키 이름으로', `${targets.raw}/d/${isolation.id}/index.html`, {
     headers: { Cookie: `${DOC_COOKIE_NAME}=${shareCookie}` },
   });
@@ -850,6 +873,7 @@ async function checkSharesWithDocs(session, isolation, other, shareDocs, workDir
   checks.check(group, '끈 뒤 1분 안에 /s/{문서 공유} → 404', pageGone.ok, `${pageGone.ok ? '' : `${pageGone.status}, `}${Math.round(pageGone.ms / 1000)}초`);
   const cookieGone = await waitUntilStatus(`${targets.raw}/d/${isolation.id}/index.html`, shareCookieHeader, 404);
   checks.check(group, '끈 뒤 1분 안에 같은 공유 쿠키로 문서 출처 → 404', cookieGone.ok, `${cookieGone.ok ? '' : `${cookieGone.status}, `}${Math.round(cookieGone.ms / 1000)}초`);
+  if (cookieGone.ok) await expectRawShareNotFound(group, '끈 공유의 쿠키로 문서 출처', `${targets.raw}/d/${isolation.id}/index.html`, shareCookieHeader);
   await expectShareNotFound(group, '끈 공유', `${targets.base}/s/${docId}`);
   const again = await adminApi(targets, tfetch, session, 'DELETE', `/api/admin/library/shares/${docId}`);
   checks.check(group, '이미 끈 공유를 다시 끄기 → 204', again.status === 204, `${again.status}`);
@@ -991,6 +1015,16 @@ async function main() {
       shareDistinct.size === 1,
       shareDistinct.size === 1 ? [...shareDistinct][0] : shareNotFoundDigests.map((item) => `${item.name}=${item.digest}`).join('; '),
     );
+    // 공유 쿠키가 실린 문서 출처 404(T12 의견 1)끼리도 같다
+    if (shareRawNotFoundDigests.length > 0) {
+      const shareRawDistinct = new Set(shareRawNotFoundDigests.map((item) => item.digest));
+      checks.check(
+        '문서 출처 404 (J5)',
+        `공유 쿠키 404 본문이 모든 경우에 같다 (${shareRawNotFoundDigests.length}경우)`,
+        shareRawDistinct.size === 1,
+        shareRawDistinct.size === 1 ? [...shareRawDistinct][0] : shareRawNotFoundDigests.map((item) => `${item.name}=${item.digest}`).join('; '),
+      );
+    }
     const distinct = new Set(notFoundDigests.map((item) => item.digest));
     checks.check(
       '문서 출처 404 (J5)',

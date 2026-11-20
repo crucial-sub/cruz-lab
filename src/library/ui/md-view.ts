@@ -13,6 +13,15 @@ export const TICKET_WAIT_MS = 3000;
 export const FONT_SCALES = [90, 100, 112, 125, 140] as const;
 export const FONT_SCALE_KEY = 'cruz-library:font-scale';
 
+// 제목 위의 "프로젝트 · 날짜" 줄 (MdView.astro)
+// - 문서 하나 공유(share.bundle이 거짓)는 날짜만 둔다. 프로젝트 이름은 맥 폴더 이름(desktop, other 포함)이라
+//   공유로 읽는 사람에게 보일 까닭이 없다(T12 의견 4, 사용자 결정 2026-11-20).
+// - 관리자 화면과 묶음 공유는 프로젝트 · 날짜. 묶음 공유에서는 프로젝트가 공유 범위 이름이다.
+export function mdMetaLine(doc: { project: string; docDate: string | null }, share?: { bundle: boolean }): string {
+  const project = share && !share.bundle ? '' : doc.project;
+  return [project, doc.docDate].filter(Boolean).join(' · ');
+}
+
 // 저장된 값 → 글자 크기(%). 5단계 값이 아니면 100
 export function parseFontScale(value: string | null): number {
   const scale = FONT_SCALES.find((step) => String(step) === value);

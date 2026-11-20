@@ -320,3 +320,89 @@ describe('공유 입장권·공유 쿠키 (J47)', () => {
     expect(d.asked).toEqual([]);
   });
 });
+
+// ---------- 공유를 켜기 전 수정 (서가 2단계 T12, 사용자 결정 2026-11-20) ----------
+// - 의견 3: 공유 쿠키로 준 파일은 친구 기기 캐시에 남기지 않는다(no-store, ETag 없음). 관리자 쿠키는 그대로(no-cache + ETag)
+// - 의견 1: 공유 쿠키가 실린 요청의 404에는 "서가에서 다시 열기"(관리자 로그인 화면으로 가는 단추)가 없다
+
+describe('공유 쿠키 응답의 캐시 머리 (T12 의견 3)', () => {
+  const SHARE = 'AbCdEfGhIjKlMnOpQrStUv_-';
+  const shareCookie = (id = DOC) => `${SHARE_COOKIE_NAME}=${createShareCookie(id, SHARE, NOW, SECRET, 600)}`;
+  const live = () => deps({ shareEnabled: true, checkShare: async () => ({ expiresAtMs: null }) });
+  const etag = `"r7-${'a'.repeat(16)}"`;
+
+  it('공유 쿠키로 준 파일은 private, no-store이고 ETag가 없다', async () => {
+    const res = await handleRawRequest(req(`/d/${DOC}/index.html`, { cookie: shareCookie() }), live());
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('private, no-store');
+    expect(res.headers.get('etag')).toBeNull();
+    expect(res.headers.get('referrer-policy')).toBe('no-referrer');
+    expect(res.headers.get('x-robots-tag')).toBe('noindex');
+  });
+
+  it('공유 쿠키면 If-None-Match가 같아도 304가 아니라 파일 전체를 준다', async () => {
+    const res = await handleRawRequest(
+      req(`/d/${DOC}/index.html`, { cookie: shareCookie(), headers: { 'if-none-match': etag } }),
+      live(),
+    );
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe('body:index.html');
+  });
+
+  it('공유 쿠키의 HEAD도 no-store', async () => {
+    const res = await handleRawRequest(req(`/d/${DOC}/index.html`, { method: 'HEAD', cookie: shareCookie() }), live());
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('private, no-store');
+  });
+
+  it('관리자 문서 쿠키와 공유 쿠키가 함께 오면 관리자 쪽(no-cache + ETag)이다', async () => {
+    const res = await handleRawRequest(req(`/d/${DOC}/index.html`, { cookie: `${shareCookie()}; ${cookieFor()}` }), live());
+    expect(res.headers.get('cache-control')).toBe('private, no-cache');
+    expect(res.headers.get('etag')).toBe(etag);
+  });
+});
+
+describe('공유 쿠키가 실린 요청의 404 (T12 의견 1)', () => {
+  const SHARE = 'AbCdEfGhIjKlMnOpQrStUv_-';
+  const shareCookie = (id = DOC) => `${SHARE_COOKIE_NAME}=${createShareCookie(id, SHARE, NOW, SECRET, 600)}`;
+  const revoked = () => deps({ shareEnabled: true, checkShare: async () => null });
+
+  it('끈 공유의 쿠키로 다시 열면 404에 관리자 주소가 없고 "공유한 사람에게 새 주소를 받습니다"가 있다', async () => {
+    const res = await handleRawRequest(req(`/d/${DOC}/index.html`, { cookie: shareCookie() }), revoked());
+    expect(res.status).toBe(404);
+    expect(res.headers.get('X-Astro-Reroute')).toBe('no');
+    expect(res.headers.get('cache-control')).toBe('private, no-store');
+    const body = await res.text();
+    expect(body).not.toContain('/admin');
+    expect(body).not.toContain('서가에서 다시 열기');
+    expect(body).toContain('공유한 사람에게 새 주소를 받습니다');
+  });
+
+  it('공유 쿠키가 실리면 어떤 경로·이유의 404든 본문이 같다 (J5)', async () => {
+    const bodies = new Set<string>();
+    const cases: [string, RawDeps][] = [
+      [`/d/${DOC}/index.html`, revoked()],
+      [`/d/${DOC}/nope.png`, deps({ shareEnabled: true, checkShare: async () => ({ expiresAtMs: null }) })],
+      [`/d/${DOC}/index.html`, deps({ shareEnabled: false })],
+      [`/d/${DOC}/..%2Fx`, revoked()],
+    ];
+    for (const [path, d] of cases) {
+      const res = await handleRawRequest(req(path, { cookie: shareCookie() }), d);
+      expect(res.status, path).toBe(404);
+      bodies.add(await res.text());
+    }
+    expect(bodies.size).toBe(1);
+  });
+
+  it('서명이 틀린 공유 쿠키도 같은 공유 404다 (쿠키 이름으로 가른다)', async () => {
+    const res = await handleRawRequest(req(`/d/${DOC}/index.html`, { cookie: `${SHARE_COOKIE_NAME}=x.y.z` }), revoked());
+    expect(await res.text()).toContain('공유한 사람에게 새 주소를 받습니다');
+  });
+
+  it('공유 쿠키가 없으면 지금처럼 "서가에서 다시 열기"가 있다', async () => {
+    for (const cookie of [undefined, cookieFor(DOC, NOW - 13 * 3600 * 1000)]) {
+      const res = await handleRawRequest(req(`/d/${DOC}/index.html`, { cookie }), revoked());
+      expect(await res.text()).toContain('href="https://www.cruzlab.dev/admin/library"');
+    }
+  });
+});
