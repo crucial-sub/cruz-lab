@@ -17,9 +17,13 @@ import process from 'node:process';
 import { getAuth } from 'firebase-admin/auth';
 import { getStorage } from 'firebase-admin/storage';
 import { contentTypeForPath } from '../../src/library/rules.ts';
-import { initAdmin } from '../migrate/lib/admin.mjs';
+import { adminCookieName, initAdmin, sessionCookieMatch } from '../migrate/lib/admin.mjs';
 
-export const ADMIN_COOKIE = 'cruz_admin';
+// 관리자 세션 쿠키 이름 (서가 2단계 J54): https는 __Host-cruz_admin, http(로컬 개발)는 cruz_admin.
+// 서버(admin-session.ts adminCookieName)와 같은 규칙이다. 대상 블로그 출처로 고른다
+export function adminCookieFor(targets) {
+  return adminCookieName(targets.base);
+}
 export const BYPASS_HEADER = 'x-vercel-protection-bypass';
 const BYPASS_COOKIE_HEADER = 'x-vercel-set-bypass-cookie';
 export const LIBRARY_COLLECTION = 'library_docs';
@@ -158,7 +162,8 @@ export function digest(text) {
 // 관리자 세션 쿠키를 만든다
 // - Admin SDK createCustomToken(ADMIN_UID) → Identity Toolkit signInWithCustomToken → POST /api/admin/session
 //   (stage5-admin.mjs와 같은 길). 로그아웃(DELETE /api/admin/session)은 부르지 않는다.
-export async function createAdminSession(targets, targetFetch) {
+// - 서가 2단계 J54: 응답의 Set-Cookie 줄도 돌려준다(쿠키 이름·속성 점검이 읽는다)
+export async function createAdminSessionDetailed(targets, targetFetch) {
   initAdmin();
   const uid = process.env.ADMIN_UID;
   const apiKey = process.env.PUBLIC_FIREBASE_API_KEY;
@@ -177,14 +182,19 @@ export async function createAdminSession(targets, targetFetch) {
     body: JSON.stringify({ idToken }),
   });
   await response.arrayBuffer();
-  const match = (response.headers.get('set-cookie') ?? '').match(new RegExp(`${ADMIN_COOKIE}=([^;]+)`));
+  // 로그인 응답에는 옛 이름을 지우는 줄도 온다. 이름이 꼭 같은 쿠키만 읽는다(J54)
+  const match = sessionCookieMatch(response.headers, targets.base);
   if (response.status !== 204 || !match) throw new Error(`관리자 세션 발급 실패: ${response.status}`);
-  return match[1];
+  return { session: match[1], setCookies: response.headers.getSetCookie() };
+}
+
+export async function createAdminSession(targets, targetFetch) {
+  return (await createAdminSessionDetailed(targets, targetFetch)).session;
 }
 
 // 쿠키 API 호출 (관리자 세션 + 같은 Origin)
 export async function adminApi(targets, targetFetch, session, method, apiPath, body) {
-  const headers = { Origin: targets.base, Cookie: `${ADMIN_COOKIE}=${session}` };
+  const headers = { Origin: targets.base, Cookie: `${adminCookieFor(targets)}=${session}` };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   const response = await targetFetch(`${targets.base}${apiPath}`, {
     method,
@@ -237,7 +247,15 @@ export async function uploadSmokeDoc(targets, targetFetch, session, job, relativ
   });
   if (finalize.status !== 200 || !finalize.json?.doc) throw new Error(`마무리 실패 (${finalize.status}): ${finalize.text.slice(0, 200)}`);
   const { doc } = finalize.json;
-  return { id: doc.id, title: doc.title, url: doc.url, rev: start.json.rev, format: job.format, files: manifest.map((entry) => entry.path) };
+  return {
+    id: doc.id,
+    title: doc.title,
+    url: doc.url,
+    rev: start.json.rev,
+    format: job.format,
+    files: manifest.map((entry) => entry.path),
+    sharedBy: finalize.json.sharedBy ?? [], // 서가 2단계 J52
+  };
 }
 
 // 시험 문서를 내린다 (204, 이미 없으면 404)
