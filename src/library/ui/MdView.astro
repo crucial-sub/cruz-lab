@@ -237,6 +237,19 @@ const headerButton =
   .library-md-body {
     min-width: 0;
   }
+  /* 주소를 받기 전의 그림: src 없는 img는 브라우저가 깨진 그림으로 그린다. 입장권을 기다리는 동안 숨긴다(md-view.ts)
+     스크립트가 없는 브라우저는 숨기지 않는다. 스크립트가 실패해도 대기 시간(3초) 뒤 대체 글이 보인다 */
+  @media (scripting: enabled) {
+    .library-md-body :global(img[data-src]) {
+      visibility: hidden;
+      animation: library-deferred-reveal 0s linear 5000ms forwards;
+    }
+  }
+  @keyframes library-deferred-reveal {
+    to {
+      visibility: visible;
+    }
+  }
   .library-md-body > :global(:first-child) {
     margin-top: 0;
   }
