@@ -341,6 +341,24 @@ describe('resolveFolderChoice: 문서 모음', () => {
     expect(pathsOf(result.jobs[0])).toEqual(pathsOf(file.jobs[0]));
   });
 
+  it('폴더 밖을 가리키는 심볼릭 링크는 올리지 않는다. 파일로 올릴 때도 같다 (PR #45 리뷰)', async () => {
+    const secret = put('private/secret.png', 'secret');
+    const md = put('projects/blog/set/a.md', '![s](leak.png) ![i](inside.png)');
+    put('projects/blog/set/b.md', '# b');
+    const real = put('projects/blog/set/img/real.png', 'p');
+    symlinkSync(secret, join(home, 'projects/blog/set/leak.png'));
+    symlinkSync(real, join(home, 'projects/blog/set/inside.png'));
+
+    const result = await resolved(await needsChoice(join(home, 'projects/blog/set')), { mode: 'each' });
+    const [file] = await planPush([md], { home });
+    if (!file.ok) throw new Error('파일 계획 실패');
+
+    expect(pathsOf(result.jobs[0])).toEqual(['index.md', 'inside.png']);
+    expect(pathsOf(file.jobs[0])).toEqual(['index.md', 'inside.png']);
+    expect(result.notes).toContainEqual({ kind: 'missing', ref: 'a: leak.png' });
+    expect(file.notes).toContainEqual({ kind: 'missing', ref: 'leak.png' });
+  });
+
   it('한도를 넘으면 올리지 않고 COLLECTION_LIMIT을 돌려준다', async () => {
     for (let i = 0; i < 101; i += 1) put(`projects/blog/many/d${i}.md`, '# d');
     const plan = await needsChoice(join(home, 'projects/blog/many'));
