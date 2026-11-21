@@ -1,6 +1,8 @@
 // md 뷰어 보조 스크립트 테스트 (서가 1단계 T7, Plan J12)
 // - 본문의 문서 그림·영상은 data-src에 주소가 있다. 입장권 그림이 끝난 뒤(성공·실패·시간 초과) src로 옮긴다.
 // - DOM 없이 시험한다. 요소와 타이머는 가짜다.
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   FONT_SCALES,
@@ -8,6 +10,7 @@ import {
   parseFontScale,
   releaseDeferredMedia,
   reloadMediaOf,
+  TICKET_WAIT_MS,
   whenTicketReady,
   type TicketPixel,
 } from '@/library/ui/md-view';
@@ -143,5 +146,21 @@ describe('mdMetaLine: 제목 위의 "프로젝트 · 날짜" 줄', () => {
   it('값이 없으면 뺀다', () => {
     expect(mdMetaLine({ project: '', docDate: null })).toBe('');
     expect(mdMetaLine({ project: 'other', docDate: null }, { bundle: false })).toBe('');
+  });
+});
+
+// src 없는 <img alt>를 Chrome이 깨진 그림으로 그린다. 입장권을 기다리는 동안 숨긴다
+// - 스크립트가 없는 브라우저는 숨기지 않는다. 스크립트가 실패해도 잠시 뒤 대체 글이 보인다
+describe('MdView: 주소를 받기 전의 그림', () => {
+  const source = readFileSync(fileURLToPath(new URL('../../src/library/ui/MdView.astro', import.meta.url)), 'utf8');
+
+  it('스크립트가 켜진 브라우저에서 data-src 그림을 숨긴다', () => {
+    expect(source).toMatch(/@media \(scripting: enabled\)\s*\{\s*\.library-md-body :global\(img\[data-src\]\)\s*\{\s*visibility: hidden;/);
+  });
+
+  it('입장권 대기 시간이 지나면 스크립트가 실패해도 다시 보인다', () => {
+    const delay = source.match(/animation: library-deferred-reveal 0s linear (\d+)ms forwards/);
+    expect(Number(delay?.[1])).toBeGreaterThan(TICKET_WAIT_MS);
+    expect(source).toMatch(/@keyframes library-deferred-reveal\s*\{\s*to\s*\{\s*visibility: visible;/);
   });
 });
