@@ -87,7 +87,8 @@ describe('removeDoc', () => {
       {
         method: 'DELETE',
         url: `http://localhost:4341/api/library/token/docs/${DOC.id}`,
-        headers: { authorization: 'Bearer secret-token' },
+        // Content-Type이 없으면 운영의 Astro 출처 검사(checkOrigin)가 앱에 닿기 전에 403을 준다
+        headers: { authorization: 'Bearer secret-token', 'content-type': 'application/json' },
       },
     ]);
   });

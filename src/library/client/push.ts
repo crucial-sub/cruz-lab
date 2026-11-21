@@ -421,7 +421,9 @@ export async function callTokenApi<T>(
   const fetchFn = options.fetch ?? fetch;
   const url = `${options.server.replace(/\/+$/, '')}${path}`;
   const headers: Record<string, string> = { Authorization: `Bearer ${options.token}` };
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  // 본문 없는 DELETE에도 붙인다. Content-Type과 Origin이 모두 없는 쓰기 요청은
+  // 운영의 Astro 출처 검사(checkOrigin)가 교차 사이트 폼으로 보고 앱에 닿기 전에 403을 준다
+  if (method !== 'GET') headers['Content-Type'] = 'application/json';
   let response: Response;
   try {
     response = await fetchFn(url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
