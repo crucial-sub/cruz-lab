@@ -292,6 +292,13 @@ describe('lab push: 모호한 폴더', () => {
     expect(stdout).toContain(`lab push --server '${origin}' --entry <진입 파일> '${dir}'`);
   });
 
+  it('LAB_SERVER로 정한 서버도 다시 실행할 명령에 잇는다 (PR #45 리뷰)', async () => {
+    const dir = putTree('projects/blog/set', SET);
+    const { code, stdout } = await lab(['push', dir], { LAB_SERVER: origin });
+    expect(code).toBe(3);
+    expect(stdout).toContain(`lab push --server '${origin}' --each '${dir}'`);
+  });
+
   it('다른 실패가 함께 있으면 1로 끝난다', async () => {
     const dir = putTree('projects/blog/set', SET);
     const { code } = await lab(['push', '--server', origin, dir, join(home, 'none.md')]);

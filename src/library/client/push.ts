@@ -9,7 +9,7 @@
 //   입구가 사용자에게 물은 뒤 resolveFolderChoice로 작업을 만든다. 고르기를 모르는 입구는 실패로 다룬다.
 
 import { createHash } from 'node:crypto';
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { readdir, readFile, realpath, stat } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import {
   ENTRY_PATHS,
@@ -139,6 +139,16 @@ async function kindOf(path: string): Promise<{ kind: 'file' | 'dir'; bytes: numb
   }
 }
 
+// 문서 뿌리 안의 자산 파일. 없으면 null
+// - 심볼릭 링크의 실제 위치가 뿌리 밖이면 없는 파일로 다룬다. 폴더 밖 파일이 문서에 실려 올라가지 않게 한다
+async function assetFile(root: string, path: string): Promise<{ absPath: string; bytes: number } | null> {
+  const absPath = join(root, path);
+  const info = await kindOf(absPath);
+  if (info?.kind !== 'file') return null;
+  const [realRoot, realAsset] = await Promise.all([realpath(root), realpath(absPath)]);
+  return realAsset.startsWith(`${realRoot}/`) ? { absPath, bytes: info.bytes } : null;
+}
+
 // 알림 모음 (같은 알림은 한 번만)
 class Notes {
   private readonly seen = new Set<string>();
@@ -186,9 +196,8 @@ async function planFile(absPath: string, format: DocFormat, bytes: number, home:
     format,
     await readFile(absPath, 'utf8'),
     async (path) => {
-      const assetAbs = join(root, path);
-      const asset = await kindOf(assetAbs);
-      return asset?.kind === 'file' ? { path, absPath: assetAbs, bytes: asset.bytes } : null;
+      const asset = await assetFile(root, path);
+      return asset ? { path, ...asset } : null;
     },
     (_path, file) => readFile(file.absPath, 'utf8'),
   );
@@ -285,8 +294,8 @@ export function previewCollection(plan: NeedsChoicePlan): Promise<CollectionPlan
   // 자산은 파일로 올릴 때(planFile)와 같이 디스크에서 찾는다. 그래야 어느 길로 올려도 같은 문서다(J63)
   const name = basename(plan.target);
   const find = async (path: string) => {
-    const asset = await kindOf(join(plan.target, path));
-    return asset?.kind === 'file' ? { source: join(name, path), path, bytes: asset.bytes } : null;
+    const asset = await assetFile(plan.target, path);
+    return asset ? { source: join(name, path), path, bytes: asset.bytes } : null;
   };
   return planCollection(plan.choice, readText, { find });
 }

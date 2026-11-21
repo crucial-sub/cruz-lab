@@ -158,7 +158,7 @@ function parsePushArgs(args) {
     force: false,
     each: false,
     entry: null,
-    serverGiven: false, // 사용자가 --server로 지정했다 (다시 실행할 명령에 잇는다)
+    serverGiven: false, // 사용자가 --server로 지정했다
     paths: [],
   };
   for (let i = 0; i < args.length; i += 1) {
@@ -332,7 +332,8 @@ async function chooseByTerminal(plan, collection, home) {
 function printPendingChoice(plan, collection, options) {
   for (const line of describeFolderChoice(plan.choice, collection)) console.log(line);
   const commands = folderRerunCommands(plan.target, {
-    server: options.serverGiven ? options.server : undefined,
+    // --server와 LAB_SERVER 모두 잇는다. 빠뜨리면 다른 셸의 다시 실행이 운영 서가로 간다
+    server: options.serverGiven || process.env.LAB_SERVER?.trim() ? options.server : undefined,
     force: options.force,
   });
   console.log('이 폴더는 올리지 않았습니다. 고른 뒤 다시 실행합니다:');
