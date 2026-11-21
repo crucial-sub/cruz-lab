@@ -21,9 +21,11 @@ const heading = 'mb-1 flex items-baseline gap-2 text-sm font-semibold text-text-
 const shared = shareEnabled ? sharedDocIds(shares, docs) : new Set<string>();
 const kindLabel = { doc: '문서', project: '프로젝트', folder: '폴더' } as const;
 const smallButton = 'rounded-md px-2 py-1 text-xs text-text-secondary hover:bg-bg-card hover:text-text-primary';
+// 올리기 전 공유 경고에 쓴다 (폴더 2차 Plan J71). 계획 카드가 이 값으로 shareCoversDoc을 돌린다
+const shareScopes = JSON.stringify(shareEnabled ? shares.map(({ scope, label }) => ({ scope, label })) : []);
 ---
 
-<div id="library-list" class="flex flex-col gap-6">
+<div id="library-list" class="flex flex-col gap-6" data-library-shares={shareScopes}>
   {
     docs.length === 0 ? (
       <p class="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-text-secondary">

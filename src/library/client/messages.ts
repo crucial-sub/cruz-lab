@@ -6,14 +6,27 @@
 import { toHomePath } from '../rules.ts';
 import type { PullOutcome } from './pull.ts';
 import { PushError, type PlanErrorCode, type PushNote } from './push.ts';
-import { describeFolderEntryError, type RootDocCount } from '../ui/upload-plan.ts';
+import {
+  collectionWarnings,
+  describeCollectionLimit,
+  describeFolderEntryError,
+  MAX_FOLDER_FILES,
+  type CollectionLimit,
+  type CollectionPlan,
+  type DropChoice,
+  type RootDocCount,
+} from '../ui/upload-plan.ts';
 
 const PLAN_ERROR_MESSAGES: Record<PlanErrorCode, string> = {
   NOT_FOUND: '경로가 없습니다',
   OUTSIDE_HOME: '홈 폴더 밖 파일은 올릴 수 없습니다',
   NOT_DOC: 'md·html 파일이나 폴더가 아닙니다',
-  NO_ENTRY_IN_FOLDER: '폴더 뿌리에서 진입 파일(index.html, 하나뿐인 html·md)을 정할 수 없습니다',
+  NO_ENTRY_IN_FOLDER: '폴더 뿌리에 md·html 문서가 없습니다',
   EMPTY: '폴더에 올릴 파일이 없습니다',
+  NEEDS_CHOICE: '문서가 여러 편이라 올리는 방식을 골라야 합니다',
+  FOLDER_TOO_LARGE: `폴더 안 파일이 ${MAX_FOLDER_FILES}개를 넘습니다. 문서 폴더만 고릅니다`,
+  COLLECTION_LIMIT: '문서 모음이 한도를 넘습니다',
+  BAD_ENTRY: '진입 파일은 폴더 뿌리의 문서만 고릅니다',
 };
 
 const NOTE_LABELS: Record<PushNote['kind'], string> = {
@@ -32,9 +45,74 @@ export const PHONE_EDIT_PENDING_MESSAGE =
 
 // 계획 오류 코드 → 글
 // - rootDocs(폴더 뿌리의 html·md 개수)가 있으면 진입 파일 오류에 막힌 이유와 할 일을 쓴다. 서가 화면과 같은 글이다
-export function describePlanError(error: PlanErrorCode, rootDocs?: RootDocCount): string {
+// - detail.limit: 문서 모음이 넘은 한도. detail.entryOptions: 고를 수 있는 진입 파일
+export function describePlanError(
+  error: PlanErrorCode,
+  rootDocs?: RootDocCount,
+  detail?: { limit?: CollectionLimit; entryOptions?: readonly string[] },
+): string {
   if (error === 'NO_ENTRY_IN_FOLDER' && rootDocs) return describeFolderEntryError(rootDocs);
+  if (error === 'COLLECTION_LIMIT' && detail?.limit) return describeCollectionLimit(detail.limit);
+  if (error === 'BAD_ENTRY' && detail?.entryOptions) {
+    return `${PLAN_ERROR_MESSAGES.BAD_ENTRY}. 후보: ${detail.entryOptions.join(', ')}`;
+  }
   return PLAN_ERROR_MESSAGES[error] ?? error;
+}
+
+// ---------- 모호한 폴더 고르기 (폴더 2차 Plan J75·J76) ----------
+
+// 계획 글에 보이는 문서 수
+const CHOICE_DOC_LINES = 20;
+
+// 고르기 전에 보이는 계획 (lab push 터미널·비터미널 출력, Claude 스킬이 사용자에게 보이는 글)
+export function describeFolderChoice(choice: DropChoice, collection: CollectionPlan): string[] {
+  const shared = collection.sharedAssets.length > 0 ? ` (함께 쓰는 자산 ${collection.sharedAssets.length}개)` : '';
+  const lines = [
+    `${choice.folder ?? '고른'} 폴더는 문서가 여러 편입니다. 올리는 방식을 고릅니다.`,
+    `문서 모음: 문서 ${collection.docs.length}편, 자산 ${collection.assets.length}개${shared}`,
+  ];
+  for (const doc of collection.docs.slice(0, CHOICE_DOC_LINES)) {
+    lines.push(`  - ${doc.name} (${doc.formats.join('·')}, 파일 ${doc.fileCount}개)`);
+  }
+  if (collection.docs.length > CHOICE_DOC_LINES) lines.push(`  그 밖 ${collection.docs.length - CHOICE_DOC_LINES}편`);
+  // 이 경고는 문서 모음일 때만 맞다. 문서 하나는 폴더 안 파일을 모두 올린다
+  lines.push(...collectionWarnings(choice, collection).map((line) => `  [문서 모음] ${line}`));
+  lines.push(`문서 하나: 폴더 안 파일 ${choice.pool.length}개를 모두 올립니다. 진입 파일 후보: ${choice.entryOptions.join(', ')}`);
+  // 맥 입구는 올리기 전에 공유 상태를 모른다(J71). 올린 뒤에 경고 줄이 나온다
+  lines.push('공유 범위에 들면 올리는 즉시 보입니다.');
+  return lines;
+}
+
+// 맥 확인 창의 글 (Finder 빠른 동작). 창이 작아서 짧게 쓴다
+export function folderDialogText(choice: DropChoice, collection: CollectionPlan): string {
+  const warnings = collectionWarnings(choice, collection).slice(0, 4);
+  return [
+    `${choice.folder ?? '고른'} 폴더는 문서가 여러 편입니다.`,
+    `문서 모음: 문서 ${collection.docs.length}편, 자산 ${collection.assets.length}개`,
+    ...warnings.map((line) => `[문서 모음] ${line}`),
+    `문서 하나: 폴더 안 파일 ${choice.pool.length}개를 모두 올립니다.`,
+    '공유 범위에 들면 올리는 즉시 보입니다.',
+  ].join('\n');
+}
+
+// 셸 인자 하나를 작은따옴표로 감싼다
+const shellQuote = (value: string) => `'${value.replace(/'/g, `'\\''`)}'`;
+
+// 고른 뒤 다시 실행할 명령 (비터미널 출력, J75)
+// - server: 사용자가 지정한 서버. 빠뜨리면 다시 실행이 운영 서가로 간다
+export function folderRerunCommands(target: string, options: { server?: string; force?: boolean }): { each: string; entry: string } {
+  const prefix = ['lab push', ...(options.server ? [`--server ${shellQuote(options.server)}`] : []), ...(options.force ? ['--force'] : [])].join(' ');
+  return {
+    each: `${prefix} --each ${shellQuote(target)}`,
+    entry: `${prefix} --entry <진입 파일> ${shellQuote(target)}`,
+  };
+}
+
+// "2" → 두 번째 항목. 범위 밖이거나 숫자가 아니면 null
+export function pickNumbered<T>(answer: string, items: readonly T[]): T | null {
+  const text = answer.trim();
+  if (!/^[1-9]\d*$/.test(text)) return null;
+  return items[Number(text) - 1] ?? null;
 }
 
 // 알림 하나 → "종류: 주소"

@@ -4,11 +4,21 @@
 // - 파일 체계는 실제 임시 폴더를 쓴다. 네트워크는 가짜 fetch로 서버 계약을 흉내 낸다.
 
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { planPush, PushError, pushJob, type PushJob } from '@/library/client/push';
+import {
+  planPush,
+  PushError,
+  pushJob,
+  resolveFolderChoice,
+  type FolderSelection,
+  type NeedsChoicePlan,
+  type PushJob,
+} from '@/library/client/push';
+import { docKeyFromSourcePath } from '@/library/rules';
+import { docIdForKey } from '@/library/ticket';
 
 let home: string;
 
@@ -212,9 +222,9 @@ describe('planPush: 폴더째 문서 (꼴 b)', () => {
     expect(plan.notes).toEqual([]);
   });
 
-  it('진입 파일을 정할 수 없는 폴더는 거부한다', async () => {
-    put('projects/blog/mixed/a.html', 'a');
-    put('projects/blog/mixed/b.html', 'b');
+  it('폴더 뿌리에 문서가 없으면 거부한다', async () => {
+    put('projects/blog/mixed/sub/a.html', 'a');
+    put('projects/blog/mixed/p.png', 'p');
 
     const [plan] = await planPush([join(home, 'projects/blog/mixed')], { home });
 
@@ -223,8 +233,186 @@ describe('planPush: 폴더째 문서 (꼴 b)', () => {
       ok: false,
       target: join(home, 'projects/blog/mixed'),
       error: 'NO_ENTRY_IN_FOLDER',
-      rootDocs: { html: 2, md: 0 },
+      rootDocs: { html: 0, md: 0 },
     });
+  });
+});
+
+// ---------- 문서 모음·진입 파일 고르기 (폴더 2차 Plan J61·J65·J66·J74) ----------
+
+// 모호한 폴더의 계획 (아니면 테스트를 깨뜨린다)
+async function needsChoice(folder: string): Promise<NeedsChoicePlan> {
+  const [plan] = await planPush([folder], { home });
+  if (plan.ok || plan.error !== 'NEEDS_CHOICE') throw new Error(`NEEDS_CHOICE가 아닙니다: ${JSON.stringify(plan)}`);
+  return plan;
+}
+
+// 고른 뒤의 작업 (실패면 테스트를 깨뜨린다)
+async function resolved(plan: NeedsChoicePlan, selection: FolderSelection) {
+  const result = await resolveFolderChoice(plan, selection, { home });
+  if (!result.ok) throw new Error(`고르기 실패: ${result.error}`);
+  return result;
+}
+
+const idOf = (job: PushJob) => docIdForKey(docKeyFromSourcePath(job.sourcePath, home));
+
+describe('planPush: 모호한 폴더 (J74)', () => {
+  it('작업 없이 NEEDS_CHOICE와 고를 내용을 돌려준다', async () => {
+    put('projects/blog/bundles/a.html', '<p>a</p>');
+    put('projects/blog/bundles/b.md', '# b');
+    const plan = await needsChoice(join(home, 'projects/blog/bundles'));
+    expect(plan.target).toBe(join(home, 'projects/blog/bundles'));
+    expect(plan.choice.folder).toBe('bundles');
+    expect(plan.choice.docs.map((doc) => doc.name)).toEqual(['a', 'b']);
+    expect('jobs' in plan).toBe(false);
+  });
+
+  it('문서 1편이 분명한 폴더는 지금처럼 바로 계획한다', async () => {
+    put('projects/blog/one/scene.html', '<img src="a.png">');
+    put('projects/blog/one/README.md', '# 설명');
+    put('projects/blog/one/a.png', 'p');
+    const [plan] = await planPush([join(home, 'projects/blog/one')], { home });
+    expect(plan.ok).toBe(true);
+    if (plan.ok) expect(plan.jobs.map((job) => job.sourcePath)).toEqual(['~/projects/blog/one.html']);
+  });
+});
+
+describe('resolveFolderChoice: 문서 모음', () => {
+  it('파일로 올린 문서와 문서 id·파일 목록이 같다 (C17)', async () => {
+    const htmlPath = put('projects/blog/set/a.html', '<link rel="stylesheet" href="css/a.css"><img src="img/s.png">');
+    put('projects/blog/set/css/a.css', 'body{background:url(../img/bg.png)}');
+    put('projects/blog/set/img/bg.png', 'b');
+    put('projects/blog/set/img/s.png', 's');
+    const mdPath = put('projects/blog/set/b.md', '# b\n\n![s](img/s.png)\n[a](a.html)');
+    put('projects/blog/set/unused.png', 'u');
+
+    const result = await resolved(await needsChoice(join(home, 'projects/blog/set')), { mode: 'each' });
+    const [fileA] = await planPush([htmlPath], { home });
+    const [fileB] = await planPush([mdPath], { home });
+    if (!fileA.ok || !fileB.ok) throw new Error('파일 계획 실패');
+
+    expect(result.collection).toBe(true);
+    expect(result.jobs.map(idOf)).toEqual([idOf(fileA.jobs[0]), idOf(fileB.jobs[0])]);
+    expect(result.jobs[0].sourcePath).toBe(fileA.jobs[0].sourcePath);
+    expect(result.jobs[1].fileName).toBe(fileB.jobs[0].fileName);
+    expect(pathsOf(result.jobs[0])).toEqual(pathsOf(fileA.jobs[0]));
+    expect(pathsOf(result.jobs[1])).toEqual(pathsOf(fileB.jobs[0]));
+    expect(result.jobs[0].files.map((file) => file.absPath).sort()).toEqual(fileA.jobs[0].files.map((file) => file.absPath).sort());
+  });
+
+  it('짝 문서: html 작업이 먼저다. 마지막 원본 경로가 .md로 남는다 (J64)', async () => {
+    put('projects/blog/set/a.html', '<p>a</p>');
+    put('projects/blog/set/a.md', '# a');
+    put('projects/blog/set/b.md', '# b');
+    const result = await resolved(await needsChoice(join(home, 'projects/blog/set')), { mode: 'each' });
+    expect(result.jobs.map((job) => job.sourcePath)).toEqual([
+      '~/projects/blog/set/a.html',
+      '~/projects/blog/set/a.md',
+      '~/projects/blog/set/b.md',
+    ]);
+    expect(idOf(result.jobs[0])).toBe(idOf(result.jobs[1]));
+  });
+
+  it('빠진 자산 알림에 문서 이름을 붙인다', async () => {
+    put('projects/blog/set/a.html', '<img src="none.png">');
+    put('projects/blog/set/b.md', '# b');
+    const result = await resolved(await needsChoice(join(home, 'projects/blog/set')), { mode: 'each' });
+    expect(result.notes).toContainEqual({ kind: 'missing', ref: 'a: none.png' });
+  });
+
+  it('NFD 파일 이름도 파일로 올린 문서와 같은 id다', async () => {
+    const nfd = '한글문서.md'.normalize('NFD');
+    const path = put(`projects/blog/set/${nfd}`, '# 한글');
+    put('projects/blog/set/b.md', '# b');
+    const result = await resolved(await needsChoice(join(home, 'projects/blog/set')), { mode: 'each' });
+    const [file] = await planPush([path], { home });
+    if (!file.ok) throw new Error('파일 계획 실패');
+    expect(result.jobs.map(idOf)).toContain(idOf(file.jobs[0]));
+  });
+
+  it('대소문자가 다른 참조와 심볼릭 링크도 파일로 올릴 때와 자산이 같다 (리뷰 I9)', async () => {
+    const md = put('projects/blog/set/a.md', '![l](img/Logo.png) ![s](lnk.png)');
+    put('projects/blog/set/b.md', '# b');
+    const logo = put('projects/blog/set/img/logo.png', 'p');
+    symlinkSync(logo, join(home, 'projects/blog/set/lnk.png'));
+    const result = await resolved(await needsChoice(join(home, 'projects/blog/set')), { mode: 'each' });
+    const [file] = await planPush([md], { home });
+    if (!file.ok) throw new Error('파일 계획 실패');
+    expect(pathsOf(result.jobs[0])).toEqual(pathsOf(file.jobs[0]));
+  });
+
+  it('한도를 넘으면 올리지 않고 COLLECTION_LIMIT을 돌려준다', async () => {
+    for (let i = 0; i < 101; i += 1) put(`projects/blog/many/d${i}.md`, '# d');
+    const plan = await needsChoice(join(home, 'projects/blog/many'));
+    expect(await resolveFolderChoice(plan, { mode: 'each' }, { home })).toMatchObject({
+      ok: false,
+      error: 'COLLECTION_LIMIT',
+      limit: 'TOO_MANY_DOCS',
+    });
+  });
+});
+
+describe('resolveFolderChoice: 문서 하나 + 진입 파일', () => {
+  it('키는 폴더 키이고, 진입 파일은 index.html과 원래 이름으로 들어간다', async () => {
+    const overview = put('projects/blog/site/overview.html', '<img src="a.png"><a href="b.html">b</a>');
+    put('projects/blog/site/b.html', '<a href="overview.html">back</a>');
+    put('projects/blog/site/a.png', 'p');
+    const plan = await needsChoice(join(home, 'projects/blog/site'));
+    const result = await resolved(plan, { mode: 'entry', entry: 'overview.html' });
+    expect(result.collection).toBeUndefined();
+    expect(result.jobs).toHaveLength(1);
+    expect(result.jobs[0]).toMatchObject({ format: 'html', sourcePath: '~/projects/blog/site.html', fileName: 'site.html' });
+    expect(pathsOf(result.jobs[0])).toEqual(['a.png', 'b.html', 'index.html', 'overview.html']);
+    expect(result.jobs[0].files.find((file) => file.path === 'index.html')?.absPath).toBe(overview);
+  });
+
+  it('짝 md 작업에는 md가 쓰는 그림만 든다', async () => {
+    put('projects/blog/site/a.html', '<p>a</p>');
+    put('projects/blog/site/a.md', '![p](p.png)');
+    put('projects/blog/site/b.md', '# b');
+    put('projects/blog/site/p.png', 'p');
+    put('projects/blog/site/q.png', 'q');
+    const result = await resolved(await needsChoice(join(home, 'projects/blog/site')), { mode: 'entry', entry: 'a.html' });
+    expect(result.jobs.map((job) => job.format)).toEqual(['html', 'md']);
+    expect(pathsOf(result.jobs[1])).toEqual(['a.md', 'index.md', 'p.png']);
+  });
+
+  it('진입 경로와 겹쳐 뺀 파일을 알린다', async () => {
+    put('projects/blog/site/index.md', '# index');
+    put('projects/blog/site/a.md', '# a');
+    const result = await resolved(await needsChoice(join(home, 'projects/blog/site')), { mode: 'entry', entry: 'a.md' });
+    expect(result.notes).toContainEqual({ kind: 'skipped', ref: 'index.md' });
+  });
+
+  it('뿌리 문서가 아닌 이름은 BAD_ENTRY와 후보 목록을 돌려준다', async () => {
+    put('projects/blog/site/a.md', '# a');
+    put('projects/blog/site/b.md', '# b');
+    put('projects/blog/site/sub/c.md', '# c');
+    const plan = await needsChoice(join(home, 'projects/blog/site'));
+    expect(await resolveFolderChoice(plan, { mode: 'entry', entry: 'sub/c.md' }, { home })).toMatchObject({
+      ok: false,
+      error: 'BAD_ENTRY',
+      entryOptions: ['a.md', 'b.md'],
+    });
+  });
+});
+
+describe('planPush: 폴더 읽기 한도 (J66)', () => {
+  it('501개가 넘는 폴더도 잘라 판정하지 않는다', async () => {
+    put('projects/blog/big/a.md', '# a');
+    put('projects/blog/big/b.md', '# b');
+    for (let i = 0; i < 520; i += 1) put(`projects/blog/big/img/p${i}.png`, 'p');
+    const plan = await needsChoice(join(home, 'projects/blog/big'));
+    expect(plan.choice.pool).toHaveLength(522);
+  });
+
+  it('2000개가 넘으면 잘라 판정하지 않고 멈춘다', async () => {
+    put('projects/blog/huge/a.md', '# a');
+    const dir = join(home, 'projects/blog/huge/img');
+    mkdirSync(dir, { recursive: true });
+    for (let i = 0; i < 2000; i += 1) writeFileSync(join(dir, `p${i}.png`), 'p');
+    const [plan] = await planPush([join(home, 'projects/blog/huge')], { home });
+    expect(plan).toEqual({ ok: false, target: join(home, 'projects/blog/huge'), error: 'FOLDER_TOO_LARGE' });
   });
 });
 

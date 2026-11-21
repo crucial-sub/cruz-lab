@@ -198,6 +198,37 @@ describe('pullTargets ④ 건너뛰기', () => {
     expect(outcomes).toEqual([expect.objectContaining({ kind: 'skipped', reason: 'folder' })]);
   });
 
+  // 폴더 2차 Plan J65: 짝 문서의 원본 경로가 .html로 남아도 같은 이름의 .md가 원본이다
+  it('원본 경로가 .html이면 같은 이름의 .md를 원본으로 되돌린다', async () => {
+    const md = put('projects/p/set/a.md', BASE);
+    put('projects/p/set/a.html', '<p>그림</p>');
+    const { outcomes } = await run([phoneDoc({ sourcePath: '~/projects/p/set/a.html' })]);
+    expect(outcomes[0]).toMatchObject({ kind: 'replaced', path: md });
+    expect(readFileSync(md, 'utf8')).toBe(PHONE);
+    expect(readFileSync(join(home, 'projects/p/set/a.html'), 'utf8')).toBe('<p>그림</p>');
+    expect(existsSync(join(home, 'projects/p/set/a.html.phone.md'))).toBe(false);
+  });
+
+  it('원본 경로가 .HTML(대문자)이어도 .md를 원본으로 쓴다', async () => {
+    const md = put('projects/p/set/b.md', BASE);
+    const { outcomes } = await run([phoneDoc({ sourcePath: '~/projects/p/set/b.HTML' })]);
+    expect(outcomes[0]).toMatchObject({ kind: 'replaced', path: md });
+  });
+
+  it('원본 경로가 .html이고 .md 파일이 없으면 건너뛴다. html을 바꾸지 않는다', async () => {
+    const html = put('projects/p/set/c.html', '<p>그림</p>');
+    const { outcomes } = await run([phoneDoc({ sourcePath: '~/projects/p/set/c.html' })]);
+    expect(outcomes[0]).toMatchObject({ kind: 'skipped', reason: 'missing' });
+    expect(readFileSync(html, 'utf8')).toBe('<p>그림</p>');
+  });
+
+  it('폴더째 문서의 원본 경로가 .html이어도 지금처럼 건너뛴다', async () => {
+    put('projects/p/site/index.html', '<p>사이트</p>');
+    put('projects/p/site/index.md', BASE);
+    const { outcomes } = await run([phoneDoc({ sourcePath: '~/projects/p/site.html' })]);
+    expect(outcomes[0]).toMatchObject({ kind: 'skipped', reason: 'folder' });
+  });
+
   it('인자로 고른 문서가 서가 화면 문서(원본 경로 없음)면 건너뛴다', async () => {
     put('projects/p/a.md', BASE);
     const id = docIdForKey(docKeyFromSourcePath(join(home, 'projects/p/a.md'), home));

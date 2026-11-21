@@ -5,15 +5,14 @@
 // - lab.mjs가 빌드 없이 Node(타입 지우기)로 가져온다. 그래서 상대 가져오기에 .ts를 붙이고, 지울 수 있는 TS 문법만 쓴다
 //   (tests/library/node-load.test.ts). '@/…' 별칭도 쓰지 않는다.
 // - 사용자 결정(2026-11-18): 고른 파일만 올린다. 같은 이름의 md·html이 옆에 있어도 고르지 않은 쪽은 올리지 않는다.
+// - 폴더 2차 Plan J74: 문서가 여러 편이거나 모호한 폴더는 planPush가 NEEDS_CHOICE로 돌려준다.
+//   입구가 사용자에게 물은 뒤 resolveFolderChoice로 작업을 만든다. 고르기를 모르는 입구는 실패로 다룬다.
 
 import { createHash } from 'node:crypto';
 import { readdir, readFile, stat } from 'node:fs/promises';
-import { basename, dirname, join, posix, resolve } from 'node:path';
-import { findCssRefs, findHtmlRefs, findMarkdownRefs, type RefScan } from '../refs.ts';
+import { basename, dirname, join, resolve } from 'node:path';
 import {
-  contentTypeForPath,
   ENTRY_PATHS,
-  MAX_FILE_COUNT,
   toHomePath,
   validateManifest,
   type DocFormat,
@@ -23,8 +22,16 @@ import {
 import type { SharedByEntry } from '../share.ts';
 import {
   analyzeJob,
+  entryDroppedFiles,
+  MAX_FOLDER_FILES,
+  planCollection,
   planDrop,
+  planEntry,
   textSourcesFor,
+  traceAssets,
+  type CollectionLimit,
+  type CollectionPlan,
+  type DropChoice,
   type PickedFile,
   type RootDocCount,
   type UploadJob,
@@ -62,14 +69,51 @@ export type PushNote = { kind: 'missing' | 'outside' | 'type' | 'skipped'; ref: 
 // - NOT_FOUND: 경로가 없다
 // - OUTSIDE_HOME: 홈 폴더 밖이다(서버는 ~/… 원본 경로만 받는다)
 // - NOT_DOC: md·html 파일이 아니다
-// - NO_ENTRY_IN_FOLDER: 폴더 뿌리에서 진입 파일을 정할 수 없다
+// - NO_ENTRY_IN_FOLDER: 폴더 뿌리에 문서가 없다
 // - EMPTY: 폴더에 받을 파일이 없다
-export type PlanErrorCode = 'NOT_FOUND' | 'OUTSIDE_HOME' | 'NOT_DOC' | 'NO_ENTRY_IN_FOLDER' | 'EMPTY';
+// - NEEDS_CHOICE: 문서가 여러 편이거나 모호하다. 입구가 사용자에게 묻는다 (J74)
+// - FOLDER_TOO_LARGE: 폴더 안 파일이 읽기 한도를 넘는다 (J66)
+// - COLLECTION_LIMIT: 문서 모음이 한도를 넘는다 (J66)
+// - BAD_ENTRY: 고른 진입 파일이 폴더 뿌리의 문서가 아니다 (J67)
+export type PlanErrorCode =
+  | 'NOT_FOUND'
+  | 'OUTSIDE_HOME'
+  | 'NOT_DOC'
+  | 'NO_ENTRY_IN_FOLDER'
+  | 'EMPTY'
+  | 'NEEDS_CHOICE'
+  | 'FOLDER_TOO_LARGE'
+  | 'COLLECTION_LIMIT'
+  | 'BAD_ENTRY';
 
+// 사용자가 골라야 하는 폴더
+// - skippedFiles: 받을 수 없는 이름·형식이라 빠진 파일
+export interface NeedsChoicePlan {
+  ok: false;
+  target: string;
+  error: 'NEEDS_CHOICE';
+  choice: DropChoice;
+  skippedFiles: string[];
+}
+
+// 모호한 폴더에서 고른 것: 문서 모음, 또는 문서 하나 + 진입 파일(뿌리의 파일 이름)
+export type FolderSelection = { mode: 'each' } | { mode: 'entry'; entry: string };
+
+// - collection: 문서 모음으로 고른 결과다. 입구가 QR 대신 목록을 보인다 (J79)
 // - rootDocs: NO_ENTRY_IN_FOLDER일 때 폴더 뿌리의 html·md 개수. 오류 글이 막힌 이유를 알리는 데 쓴다
+// - limit: COLLECTION_LIMIT일 때 넘은 한도
+// - entryOptions: BAD_ENTRY일 때 고를 수 있는 진입 파일
 export type TargetPlan =
-  | { ok: true; target: string; jobs: PushJob[]; notes: PushNote[] }
-  | { ok: false; target: string; error: PlanErrorCode; rootDocs?: RootDocCount };
+  | { ok: true; target: string; jobs: PushJob[]; notes: PushNote[]; collection?: boolean }
+  | NeedsChoicePlan
+  | {
+      ok: false;
+      target: string;
+      error: Exclude<PlanErrorCode, 'NEEDS_CHOICE'>;
+      rootDocs?: RootDocCount;
+      limit?: CollectionLimit;
+      entryOptions?: string[];
+    };
 
 export interface PlanOptions {
   home: string; // 홈 폴더 절대 경로
@@ -120,7 +164,7 @@ export async function planPush(targets: readonly string[], options: PlanOptions)
 
 async function planTarget(target: string, home: string, cwd: string): Promise<TargetPlan> {
   const absolute = target === '~' || target.startsWith('~/') ? join(home, target.slice(1)) : resolve(cwd, target);
-  const fail = (error: PlanErrorCode): TargetPlan => ({ ok: false, target: absolute, error });
+  const fail = (error: Exclude<PlanErrorCode, 'NEEDS_CHOICE'>): TargetPlan => ({ ok: false, target: absolute, error });
 
   const info = await kindOf(absolute);
   if (!info) return fail('NOT_FOUND');
@@ -135,84 +179,72 @@ async function planTarget(target: string, home: string, cwd: string): Promise<Ta
 // ---------- 파일 하나 (꼴 a) ----------
 
 // 진입 파일 하나 + 그것이 가리키는 자산을 원본 폴더에서 찾는다
-// - md: md가 쓰는 그림만(링크는 넣지 않는다)
-// - html: html·css가 가리키는 자산을 따라간다(css의 @import·url(), iframe html의 자산까지)
+// - 따라가는 규칙은 traceAssets 하나다. 문서 모음도 같은 함수를 쓴다(J63). 그래서 어느 길로 올려도 자산이 같다
 async function planFile(absPath: string, format: DocFormat, bytes: number, home: string): Promise<TargetPlan> {
   const root = dirname(absPath);
-  const entryPath = ENTRY_PATHS[format];
-  const notes = new Notes();
-  const files: PushFile[] = [{ path: entryPath, absPath, bytes }];
-  const included = new Set<string>([entryPath]);
-
-  // 따라갈 글 파일: 문서 안 경로와 그 파일의 글
-  const queue: { path: string | null; text: string }[] = [{ path: null, text: await readFile(absPath, 'utf8') }];
-  while (queue.length > 0) {
-    const item = queue.shift() as { path: string | null; text: string };
-    const baseDir = item.path ? posix.dirname(item.path).replace(/^\.$/, '') : '';
-    let scan: RefScan;
-    if (item.path === null) scan = format === 'md' ? findMarkdownRefs(item.text) : findHtmlRefs(item.text);
-    else scan = /\.css$/i.test(item.path) ? findCssRefs(item.text, baseDir) : findHtmlRefs(item.text, baseDir);
-
-    for (const ref of scan.outside) notes.add('outside', ref);
-    for (const path of scan.assets) {
-      if (included.has(path)) {
-        if (path === entryPath) notes.add('skipped', path);
-        continue;
-      }
-      if (!contentTypeForPath(path)) {
-        notes.add('type', path);
-        continue;
-      }
+  const trace = await traceAssets<PushFile>(
+    format,
+    await readFile(absPath, 'utf8'),
+    async (path) => {
       const assetAbs = join(root, path);
       const asset = await kindOf(assetAbs);
-      if (!asset || asset.kind !== 'file') {
-        notes.add('missing', path);
-        continue;
-      }
-      if (files.length > MAX_FILE_COUNT) break;
-      included.add(path);
-      files.push({ path, absPath: assetAbs, bytes: asset.bytes });
-      // html 문서의 css·html 자산은 그 안의 주소도 따라간다
-      if (format === 'html' && /\.(css|html)$/i.test(path)) queue.push({ path, text: await readFile(assetAbs, 'utf8') });
-    }
-  }
-
+      return asset?.kind === 'file' ? { path, absPath: assetAbs, bytes: asset.bytes } : null;
+    },
+    (_path, file) => readFile(file.absPath, 'utf8'),
+  );
+  const files: PushFile[] = [{ path: ENTRY_PATHS[format], absPath, bytes }, ...trace.assets.map((asset) => asset.file)];
   return {
     ok: true,
     target: absPath,
     jobs: [{ format, sourcePath: toHomePath(absPath, home), fileName: basename(absPath).normalize('NFC'), files }],
-    notes: notes.list,
+    notes: trace.notes,
   };
 }
 
 // ---------- 폴더째 문서 (꼴 b) ----------
 
 // 폴더 안 파일을 모은다. 숨은 파일·폴더(.DS_Store, .git/…)는 들어가지 않는다
-// - 파일이 받을 수 있는 수보다 많아지면 멈춘다. 넘친 목록은 올리기 전 검사(TOO_MANY_FILES)가 막는다
-async function walkFolder(folder: string, prefix: string): Promise<PickedFile[]> {
+// - 한도를 넘으면 null이다. 잘린 목록으로 판정하면 틀린 계획이 나온다(J66)
+async function walkFolder(folder: string, prefix: string): Promise<PickedFile[] | null> {
   const picked: PickedFile[] = [];
+  let overflow = false;
   const visit = async (dir: string, rel: string): Promise<void> => {
     const entries = await readdir(dir, { withFileTypes: true });
     entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
     for (const entry of entries) {
-      if (picked.length > MAX_FILE_COUNT) return;
+      if (overflow) return;
       if (entry.name.startsWith('.')) continue;
       const abs = join(dir, entry.name);
       const childRel = `${rel}/${entry.name}`;
       if (entry.isDirectory()) await visit(abs, childRel);
-      else if (entry.isFile()) picked.push({ path: childRel, bytes: (await stat(abs)).size });
+      else if (entry.isFile()) {
+        if (picked.length >= MAX_FOLDER_FILES) {
+          overflow = true;
+          return;
+        }
+        picked.push({ path: childRel, bytes: (await stat(abs)).size });
+      }
     }
   };
   await visit(folder, prefix);
-  return picked;
+  return overflow ? null : picked;
 }
 
-async function planFolder(folder: string, home: string, fail: (error: PlanErrorCode) => TargetPlan): Promise<TargetPlan> {
+async function planFolder(
+  folder: string,
+  home: string,
+  fail: (error: Exclude<PlanErrorCode, 'NEEDS_CHOICE'>) => TargetPlan,
+): Promise<TargetPlan> {
   const parent = dirname(folder);
   const name = basename(folder);
+  const walked = await walkFolder(folder, name);
+  if (!walked) return fail('FOLDER_TOO_LARGE');
   // 서가 화면 올리기 계획(planDrop)과 같은 규칙으로 나눈다. 놓은 자리 = 폴더의 부모
-  const plan = planDrop(await walkFolder(folder, name));
+  const plan = planDrop(walked);
   if (!plan.ok) {
+    if (plan.error === 'NEEDS_CHOICE') {
+      return { ok: false, target: folder, error: 'NEEDS_CHOICE', choice: plan.choice, skippedFiles: plan.skipped.map((file) => file.path) };
+    }
     if (plan.error === 'EMPTY') return fail('EMPTY');
     // 막힌 이유를 알리도록 폴더 뿌리의 html·md 개수를 함께 준다
     return plan.rootDocs
@@ -222,9 +254,14 @@ async function planFolder(folder: string, home: string, fail: (error: PlanErrorC
 
   const notes = new Notes();
   for (const skipped of plan.skipped) notes.add('skipped', skipped.path);
+  const jobs = await analyzeJobs(plan.jobs, parent, home, notes);
+  return { ok: true, target: folder, jobs, notes: notes.list };
+}
 
+// 작업마다 글자를 읽어 빠진 자산을 찾고(md 짝은 그림을 고르고) 맥 작업으로 바꾼다
+async function analyzeJobs(uploadJobs: UploadJob[], parent: string, home: string, notes: Notes): Promise<PushJob[]> {
   const jobs: PushJob[] = [];
-  for (const job of plan.jobs) {
+  for (const job of uploadJobs) {
     const texts = new Map<string, string>();
     for (const source of textSourcesFor(job)) texts.set(source, await readFile(join(parent, source), 'utf8'));
     const analysis = analyzeJob(job, (source) => texts.get(source));
@@ -232,7 +269,65 @@ async function planFolder(folder: string, home: string, fail: (error: PlanErrorC
     for (const ref of analysis.outside) notes.add('outside', ref);
     jobs.push(toPushJob(analysis.job, parent, home));
   }
-  return { ok: true, target: folder, jobs, notes: notes.list };
+  return jobs;
+}
+
+// ---------- 모호한 폴더 고르기 (J61·J67·J74) ----------
+
+// 문서 모음으로 올릴 때의 계획. 입구가 고르기 전에 보여 준다. 올리지 않는다
+export function previewCollection(plan: NeedsChoicePlan): Promise<CollectionPlan> {
+  const parent = dirname(plan.target);
+  const cache = new Map<string, Promise<string>>();
+  const readText = (source: string) => {
+    if (!cache.has(source)) cache.set(source, readFile(join(parent, source), 'utf8'));
+    return cache.get(source) as Promise<string>;
+  };
+  // 자산은 파일로 올릴 때(planFile)와 같이 디스크에서 찾는다. 그래야 어느 길로 올려도 같은 문서다(J63)
+  const name = basename(plan.target);
+  const find = async (path: string) => {
+    const asset = await kindOf(join(plan.target, path));
+    return asset?.kind === 'file' ? { source: join(name, path), path, bytes: asset.bytes } : null;
+  };
+  return planCollection(plan.choice, readText, { find });
+}
+
+// 고른 대로 작업을 만든다
+// - 문서 모음(each): 문서마다 자기 파일의 원본 경로를 쓴다. 같은 파일을 파일로 올린 문서와 같은 문서다(J61)
+// - 문서 하나(entry): 폴더 키를 쓴다. 고른 파일이 진입 파일이다(J67)
+export async function resolveFolderChoice(
+  plan: NeedsChoicePlan,
+  selection: FolderSelection,
+  options: PlanOptions,
+): Promise<TargetPlan> {
+  const parent = dirname(plan.target);
+  const notes = new Notes();
+  for (const path of plan.skippedFiles) notes.add('skipped', path);
+
+  if (selection.mode === 'each') {
+    const collection = await previewCollection(plan);
+    if (collection.limitError) {
+      return { ok: false, target: plan.target, error: 'COLLECTION_LIMIT', limit: collection.limitError };
+    }
+    for (const doc of collection.docs) {
+      for (const note of doc.notes) notes.add(note.kind, `${doc.name}: ${note.ref}`);
+    }
+    return {
+      ok: true,
+      target: plan.target,
+      jobs: collection.jobs.map((job) => toPushJob(job, parent, options.home)),
+      notes: notes.list,
+      collection: true,
+    };
+  }
+
+  let jobs: UploadJob[];
+  try {
+    jobs = planEntry(plan.choice, selection.entry);
+  } catch {
+    return { ok: false, target: plan.target, error: 'BAD_ENTRY', entryOptions: plan.choice.entryOptions };
+  }
+  for (const path of entryDroppedFiles(plan.choice, selection.entry)) notes.add('skipped', path);
+  return { ok: true, target: plan.target, jobs: await analyzeJobs(jobs, parent, options.home, notes), notes: notes.list };
 }
 
 // 서가 화면 작업 → 맥 입구 작업

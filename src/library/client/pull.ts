@@ -99,9 +99,11 @@ export async function reportPulled(options: TokenApiOptions, docId: string, rev:
 
 // ---------- 맥 원본 ----------
 
-// 원본 경로(~/…) → 절대 경로
+// 원본 경로(~/…) → 맥 원본 md의 절대 경로
+// - 문서 기록의 원본 경로는 마지막에 시작한 작업의 경로다. 짝 문서면 .html로 남을 수 있다.
+//   키가 확장자를 뺀 값이라 같은 이름의 .md가 그 문서의 md 원본이다(폴더 2차 Plan J65). html 파일은 건드리지 않는다
 function absoluteSource(sourcePath: string, home: string): string {
-  return join(home, sourcePath.slice(2));
+  return join(home, sourcePath.slice(2)).replace(/\.html$/i, '.md');
 }
 
 // 원본의 지금 상태. 파일이면 내용도 돌려준다

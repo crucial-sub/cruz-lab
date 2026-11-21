@@ -274,3 +274,81 @@ describe('uploadPaths: 폰 판이 있을 때', () => {
     expect(report.failures[0]).toContain('폰에서 고친 판');
   });
 });
+
+// ---------- 모호한 폴더 (폴더 2차 Plan J77) ----------
+
+describe('uploadPaths: 모호한 폴더', () => {
+  const baseOptions = () => ({ home, server: 'http://localhost:4341', token: 't', fetch: fakeServer() });
+
+  function putSet() {
+    put('projects/blog/set/a.html', '<img src="p.png">');
+    put('projects/blog/set/a.md', '# a');
+    put('projects/blog/set/b.md', '# b');
+    put('projects/blog/set/p.png', 'p');
+    return join(home, 'projects/blog/set');
+  }
+
+  it('고르기 콜백이 없으면 올리지 않고 실패로 남긴다', async () => {
+    const report = await uploadPaths([putSet()], baseOptions());
+    expect(report.docs).toEqual([]);
+    expect(report.failures).toEqual(['set: 문서가 여러 편이라 올리는 방식을 골라야 합니다']);
+  });
+
+  it('콜백에 고를 내용과 문서 모음 계획을 준다', async () => {
+    const seen: { folder: string | null; docs: number; lines: string[] }[] = [];
+    await uploadPaths([putSet()], {
+      ...baseOptions(),
+      chooseFolder: async (plan, collection, lines) => {
+        seen.push({ folder: plan.choice.folder, docs: collection.docs.length, lines });
+        return null;
+      },
+    });
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({ folder: 'set', docs: 2 });
+    expect(seen[0].lines.join('\n')).toContain('문서 모음: 문서 2편');
+  });
+
+  it('문서 모음을 고르면 문서마다 올리고 목록으로 보이게 한다 (QR 없음)', async () => {
+    const report = await uploadPaths([putSet()], { ...baseOptions(), chooseFolder: async () => ({ mode: 'each' }) });
+    expect(report.failures).toEqual([]);
+    expect(report.docs).toHaveLength(2);
+    expect(report.listOnly).toBe(true);
+  });
+
+  it('문서 하나를 고르면 폴더 키로 올린다. QR을 그릴 수 있다', async () => {
+    const report = await uploadPaths([putSet()], {
+      ...baseOptions(),
+      chooseFolder: async () => ({ mode: 'entry', entry: 'a.html' }),
+    });
+    expect(report.failures).toEqual([]);
+    expect(report.docs).toHaveLength(1);
+    expect(report.listOnly).toBe(false);
+  });
+
+  it('취소하면 올리지 않고 알림으로 남긴다. 실패가 아니다', async () => {
+    const report = await uploadPaths([putSet()], { ...baseOptions(), chooseFolder: async () => null });
+    expect(report.docs).toEqual([]);
+    expect(report.failures).toEqual([]);
+    expect(report.notes).toEqual(['set — 올리지 않았습니다']);
+  });
+
+  it('잘못 고른 진입 파일은 실패로 남긴다', async () => {
+    const report = await uploadPaths([putSet()], {
+      ...baseOptions(),
+      chooseFolder: async () => ({ mode: 'entry', entry: 'none.md' }),
+    });
+    expect(report.failures[0]).toContain('진입 파일은 폴더 뿌리의 문서만 고릅니다');
+  });
+
+  it('다른 경로는 묻기가 끝난 뒤 함께 센다', async () => {
+    const md = put('projects/blog/notes.md', '# 노트');
+    const statuses: string[] = [];
+    const report = await uploadPaths([putSet(), md], {
+      ...baseOptions(),
+      onStatus: (text) => statuses.push(text),
+      chooseFolder: async () => ({ mode: 'each' }),
+    });
+    expect(report.docs).toHaveLength(3);
+    expect(statuses).toContain('notes.md (4/4)');
+  });
+});

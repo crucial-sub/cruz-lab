@@ -4,6 +4,7 @@
 // 3. 끝나면 올린 문서마다 QR·주소를 보인다. 알림(빠진 자산 등)과 실패도 함께 보인다.
 // - 올리기 규칙은 lab push와 같다(공용 모듈 src/library/client/push.ts, lib/upload.ts).
 // - 서가 2단계 J42: 폰에서 고친 판(아직 맥에 없음)이 있으면 확인 창으로 묻는다. "덮어쓰기"면 맥 원본으로 올린다.
+// - 폴더 2차 Plan J77: 문서가 여러 편이거나 모호한 폴더는 고르기 Form으로 묻는다. 문서 모음의 결과는 QR 없이 목록으로 보인다.
 
 import {
   Action,
@@ -23,11 +24,13 @@ import { useEffect, useRef, useState } from 'react';
 import { finderSelectionIfFrontmost } from './lib/finder';
 import { uploadPaths, type UploadReport } from './lib/upload';
 import { escapeMarkdown, qrDataUrl, SettingsProblem, useSettings } from './shared';
+import type { FolderSelection, NeedsChoicePlan } from '../../../src/library/client/push.ts';
 
 type Stage =
   | { kind: 'finding' } // Finder에서 고른 것을 찾는 중
   | { kind: 'pick' } // 파일 고르기 칸
   | { kind: 'uploading'; status: string }
+  | { kind: 'choose'; plan: NeedsChoicePlan; lines: string[]; answer: (selection: FolderSelection | null) => void } // 모호한 폴더 고르기
   | { kind: 'done'; report: UploadReport; qrs: string[] }
   | { kind: 'error'; message: string };
 
@@ -45,16 +48,53 @@ function reportMarkdown(report: UploadReport, qrs: string[]): string {
   if (report.docs.length > 0) {
     parts.push(report.docs.length === 1 ? '# 서가에 올렸습니다' : `# 서가에 올렸습니다 (${report.docs.length}개)`);
     report.docs.forEach((doc, index) => {
-      parts.push(`## ${escapeMarkdown(doc.title)}`, `![QR](${qrs[index]})`, `\`${doc.url}\``);
+      // 문서 모음은 QR을 그리지 않는다 (J73)
+      if (report.listOnly) parts.push(`**${escapeMarkdown(doc.title)}**`, `\`${doc.url}\``);
+      else parts.push(`## ${escapeMarkdown(doc.title)}`, `![QR](${qrs[index]})`, `\`${doc.url}\``);
     });
   } else {
-    parts.push('# 서가에 올리지 못했습니다');
+    parts.push(report.failures.length > 0 ? '# 서가에 올리지 못했습니다' : '# 올리지 않았습니다');
   }
   // 공유 중인 묶음·문서에 들어갔다 (서가 2단계 J52)
   if (report.warnings.length > 0) parts.push('### 공유 중', ...report.warnings.map((line) => `- ${escapeMarkdown(line)}`));
   if (report.failures.length > 0) parts.push('### 실패', ...report.failures.map((line) => `- ${escapeMarkdown(line)}`));
   if (report.notes.length > 0) parts.push('### 알림', ...report.notes.map((line) => `- ${escapeMarkdown(line)}`));
   return parts.join('\n\n');
+}
+
+// 모호한 폴더를 어떻게 올릴지 고르는 Form (J77)
+function ChooseFolderForm({ stage }: { stage: Extract<Stage, { kind: 'choose' }> }) {
+  const { plan, lines, answer } = stage;
+  const [mode, setMode] = useState<'each' | 'entry'>('each');
+  const [entry, setEntry] = useState(plan.choice.entryOptions[0] ?? '');
+  return (
+    <Form
+      navigationTitle="서가에 올리기"
+      actions={
+        <ActionPanel>
+          <Action
+            title={mode === 'each' ? `문서 ${plan.choice.docs.length}편 올리기` : '문서 하나로 올리기'}
+            icon={Icon.Upload}
+            onAction={() => answer(mode === 'each' ? { mode: 'each' } : { mode: 'entry', entry })}
+          />
+          <Action title="취소" icon={Icon.XMarkCircle} onAction={() => answer(null)} />
+        </ActionPanel>
+      }
+    >
+      <Form.Description title={plan.choice.folder ?? '폴더'} text={lines.join('\n')} />
+      <Form.Dropdown id="mode" title="올리는 방식" value={mode} onChange={(value) => setMode(value as 'each' | 'entry')}>
+        <Form.Dropdown.Item value="each" title={`문서 모음 ${plan.choice.docs.length}편`} />
+        <Form.Dropdown.Item value="entry" title="문서 하나 (진입 파일 고르기)" />
+      </Form.Dropdown>
+      {mode === 'entry' ? (
+        <Form.Dropdown id="entry" title="진입 파일" value={entry} onChange={setEntry}>
+          {plan.choice.entryOptions.map((name) => (
+            <Form.Dropdown.Item key={name} value={name} title={name} />
+          ))}
+        </Form.Dropdown>
+      ) : null}
+    </Form>
+  );
 }
 
 export default function Command() {
@@ -83,9 +123,29 @@ export default function Command() {
             primaryAction: { title: '덮어쓰기', style: Alert.ActionStyle.Destructive },
             dismissAction: { title: '그만두기' },
           }),
+        // Form이 답할 때까지 기다린다. 답한 뒤 진행 화면으로 돌아간다
+        chooseFolder: (plan, _collection, lines) =>
+          new Promise((resolve) => {
+            toast.title = '올리는 방식을 고릅니다';
+            setStage({
+              kind: 'choose',
+              plan,
+              lines,
+              answer: (selection) => {
+                toast.title = '서가에 올리는 중';
+                setStage({ kind: 'uploading', status: '' });
+                resolve(selection);
+              },
+            });
+          }),
       });
-      const qrs = await Promise.all(report.docs.map((doc) => qrDataUrl(doc.url)));
-      if (report.failures.length === 0) {
+      const qrs = report.listOnly ? [] : await Promise.all(report.docs.map((doc) => qrDataUrl(doc.url)));
+      if (report.docs.length === 0 && report.failures.length === 0) {
+        // 모두 취소했다
+        toast.style = Toast.Style.Success;
+        toast.title = '올리지 않았습니다';
+        toast.message = '';
+      } else if (report.failures.length === 0) {
         toast.style = Toast.Style.Success;
         toast.title = '서가에 올렸습니다';
         toast.message = report.docs.length === 1 ? report.docs[0].title : `문서 ${report.docs.length}개`;
@@ -136,11 +196,13 @@ export default function Command() {
           </ActionPanel>
         }
       >
-        <Form.Description text="md·html 파일이나 폴더째 문서를 고릅니다. Finder에서 먼저 고르고 이 명령을 열면 바로 올라갑니다." />
+        <Form.Description text="md·html 파일이나 폴더를 고릅니다. Finder에서 먼저 고르고 이 명령을 열면 바로 올라갑니다. 문서가 여러 편인 폴더는 올리기 전에 묻습니다." />
         <Form.FilePicker id="paths" title="문서" allowMultipleSelection canChooseDirectories canChooseFiles />
       </Form>
     );
   }
+
+  if (stage.kind === 'choose') return <ChooseFolderForm stage={stage} />;
 
   if (stage.kind === 'done') {
     const { report, qrs } = stage;
