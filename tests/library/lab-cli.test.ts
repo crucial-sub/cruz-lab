@@ -4,7 +4,7 @@
 
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -255,6 +255,216 @@ describe('lab push: 폰 판이 있을 때', () => {
     expect(result.stdout).toContain('올림: 노트');
     const start = seen.find((request) => request.url === '/api/library/token/uploads');
     expect(JSON.parse(start?.body ?? '{}')).toMatchObject({ force: true });
+  });
+});
+
+// ---------- 모호한 폴더 (폴더 2차 Plan J75·J76·J79) ----------
+
+// home 아래에 파일들을 만든다
+function putTree(root: string, contents: Record<string, string>): string {
+  const dir = join(home, root);
+  for (const [path, text] of Object.entries(contents)) {
+    mkdirSync(join(dir, path, '..'), { recursive: true });
+    writeFileSync(join(dir, path), text);
+  }
+  return dir;
+}
+
+const SET = { 'a.html': '<a href="b.md">b</a><img src="p.png">', 'a.md': '# a', 'b.md': '# b', 'p.png': 'p', 'unused.txt': 'u' };
+
+// 올리기 시작 요청의 원본 경로들
+const startedPaths = () =>
+  seen
+    .filter((call) => call.method === 'POST' && call.url === '/api/library/token/uploads')
+    .map((call) => (JSON.parse(call.body as string) as { sourcePath: string }).sourcePath);
+
+describe('lab push: 모호한 폴더', () => {
+  it('터미널이 아니면 올리지 않고 계획과 다시 실행할 명령을 보이고 3으로 끝난다', async () => {
+    const dir = putTree('projects/blog/set', SET);
+    const { code, stdout } = await lab(['push', '--server', origin, dir]);
+    expect(code).toBe(3);
+    expect(startedPaths()).toEqual([]);
+    expect(stdout).toContain('문서 모음: 문서 2편');
+    expect(stdout).toContain('HTML에서 다른 문서로 가는 링크 1개');
+    expect(stdout).toContain('안 올리는 파일 1개: unused.txt');
+    expect(stdout).toContain('진입 파일 후보: a.html, b.md');
+    expect(stdout).toContain(`lab push --server '${origin}' --each '${dir}'`);
+    expect(stdout).toContain(`lab push --server '${origin}' --entry <진입 파일> '${dir}'`);
+  });
+
+  it('다른 실패가 함께 있으면 1로 끝난다', async () => {
+    const dir = putTree('projects/blog/set', SET);
+    const { code } = await lab(['push', '--server', origin, dir, join(home, 'none.md')]);
+    expect(code).toBe(1);
+  });
+
+  it('고를 필요가 없는 경로는 올리고 모호한 폴더만 남긴다', async () => {
+    const dir = putTree('projects/blog/set', SET);
+    const one = putDoc();
+    const { code } = await lab(['push', '--server', origin, '--no-qr', dir, one]);
+    expect(code).toBe(3);
+    expect(startedPaths()).toEqual(['~/projects/blog/notes.md']);
+  });
+
+  it('--each: 문서마다 자기 원본 경로로 올린다. 짝은 html이 먼저다', async () => {
+    const dir = putTree('projects/blog/set', SET);
+    const { code } = await lab(['push', '--server', origin, '--each', dir]);
+    expect(code).toBe(0);
+    expect(startedPaths()).toEqual(['~/projects/blog/set/a.html', '~/projects/blog/set/a.md', '~/projects/blog/set/b.md']);
+  });
+
+  it('--each: QR을 그리지 않고 제목과 주소 목록을 보인다. --qr-png도 만들지 않는다 (J79)', async () => {
+    const dir = putTree('projects/blog/set', SET);
+    const qrDir = join(home, 'qr');
+    mkdirSync(qrDir);
+    const { stdout } = await lab(['push', '--server', origin, '--each', '--qr-png', qrDir, dir]);
+    expect(stdout).not.toContain('QR:');
+    expect(stdout).toContain('문서 모음 set: 올림');
+    expect(stdout).toContain(`${origin}/admin/library/d/${DOC_ID}`);
+    expect(readdirSync(qrDir)).toEqual([]);
+  });
+
+  it('--each를 문서 1편이 분명한 폴더에 쓰면 올리지 않고 2로 끝난다 (리뷰 I2)', async () => {
+    const dir = putTree('projects/blog/site', { 'index.html': '<p>s</p>', 'a.html': '<p>a</p>', 'private.txt': 'p' });
+    const { code, stderr } = await lab(['push', '--server', origin, '--each', dir]);
+    expect(code).toBe(2);
+    expect(stderr).toContain('--each');
+    expect(startedPaths()).toEqual([]);
+  });
+
+  it('--each는 파일 경로에는 그대로 쓸 수 있다', async () => {
+    const { code } = await lab(['push', '--server', origin, '--no-qr', '--each', putDoc()]);
+    expect(code).toBe(0);
+    expect(startedPaths()).toEqual(['~/projects/blog/notes.md']);
+  });
+
+  it('--entry: 폴더 키로 문서 하나를 올린다', async () => {
+    const dir = putTree('projects/blog/set', SET);
+    const { code } = await lab(['push', '--server', origin, '--no-qr', '--entry', 'a.html', dir]);
+    expect(code).toBe(0);
+    expect(startedPaths()).toEqual(['~/projects/blog/set.html', '~/projects/blog/set.md']);
+  });
+
+  it('--entry: 뿌리 문서가 아니면 후보를 보이고 1로 끝난다', async () => {
+    const dir = putTree('projects/blog/set', SET);
+    const { code, stderr } = await lab(['push', '--server', origin, '--entry', 'none.html', dir]);
+    expect(code).toBe(1);
+    expect(stderr).toContain('a.html, b.md');
+    expect(startedPaths()).toEqual([]);
+  });
+
+  it('--each와 --entry는 함께 쓰지 못한다', async () => {
+    const dir = putTree('projects/blog/set', SET);
+    const { code, stderr } = await lab(['push', '--each', '--entry', 'a.html', dir]);
+    expect(code).toBe(2);
+    expect(stderr).toContain('함께');
+  });
+
+  it('--entry는 경로 하나에만 쓴다', async () => {
+    const dir = putTree('projects/blog/set', SET);
+    const { code } = await lab(['push', '--entry', 'a.html', dir, dir]);
+    expect(code).toBe(2);
+  });
+
+  it('--entry 값이 없으면 2로 끝난다', async () => {
+    const { code } = await lab(['push', '--entry']);
+    expect(code).toBe(2);
+  });
+
+  it('--entry를 파일이나 문서 1편이 분명한 폴더에 쓰면 올리지 않고 2로 끝난다', async () => {
+    const one = putDoc();
+    expect((await lab(['push', '--server', origin, '--entry', 'notes.md', one])).code).toBe(2);
+    const dir = putTree('projects/blog/one', { 'scene.html': '<p>s</p>', 'README.md': '# r' });
+    expect((await lab(['push', '--server', origin, '--entry', 'scene.html', dir])).code).toBe(2);
+    expect(startedPaths()).toEqual([]);
+  });
+});
+
+describe('lab push --notify: 맥 확인 창 (L14, J76)', () => {
+  // osascript·pbcopy를 갈아 끼운다. 받은 인자를 기록하고 정해 둔 답을 낸다
+  function fakeBin(answers: { dialog?: string; dialogStatus?: number; list?: string; listStatus?: number }) {
+    const bin = join(home, 'fake-bin');
+    const log = join(home, 'osascript.log');
+    mkdirSync(bin);
+    writeFileSync(
+      join(bin, 'osascript'),
+      [
+        '#!/bin/sh',
+        `echo "$*" >> '${log}'`,
+        'case "$*" in',
+        '  *"display notification"*) exit 0 ;;',
+        `  *"choose from list"*) printf '%s\\n' '${answers.list ?? ''}'; exit ${answers.listStatus ?? 0} ;;`,
+        `  *"display dialog"*) printf '%s\\n' '${answers.dialog ?? ''}'; exit ${answers.dialogStatus ?? 0} ;;`,
+        'esac',
+      ].join('\n'),
+      { mode: 0o755 },
+    );
+    writeFileSync(join(bin, 'pbcopy'), '#!/bin/sh\ncat > /dev/null\n', { mode: 0o755 });
+    return { env: { LAB_MAC_BIN: bin }, log: () => readFileSync(log, 'utf8') };
+  }
+
+  it('세 단추 창을 띄운다. 문서 모음을 고르면 문서마다 올린다', async () => {
+    const dir = putTree('projects/blog/set', SET);
+    const fake = fakeBin({ dialog: '문서 모음 2편' });
+    const { code } = await lab(['push', '--notify', '--server', origin, dir], fake.env);
+    expect(code).toBe(0);
+    expect(fake.log()).toContain('display dialog');
+    expect(fake.log()).toContain('문서 하나…');
+    expect(fake.log()).toContain('문서 모음 2편');
+    expect(startedPaths()).toEqual(['~/projects/blog/set/a.html', '~/projects/blog/set/a.md', '~/projects/blog/set/b.md']);
+  });
+
+  it('문서 하나를 고르면 진입 파일 목록 창을 띄우고 그 파일로 올린다', async () => {
+    const dir = putTree('projects/blog/set', SET);
+    const fake = fakeBin({ dialog: '문서 하나…', list: 'b.md' });
+    const { code } = await lab(['push', '--notify', '--server', origin, dir], fake.env);
+    expect(code).toBe(0);
+    expect(fake.log()).toContain('choose from list');
+    expect(fake.log()).toContain('a.html b.md');
+    expect(startedPaths()).toEqual(['~/projects/blog/set.md']);
+  });
+
+  it('취소하면 올리지 않고 알림을 띄운다. 0으로 끝난다', async () => {
+    const dir = putTree('projects/blog/set', SET);
+    const fake = fakeBin({ dialog: 'CANCEL' });
+    const { code } = await lab(['push', '--notify', '--server', origin, dir], fake.env);
+    expect(code).toBe(0);
+    expect(startedPaths()).toEqual([]);
+    expect(fake.log()).toContain('올리지 않았습니다');
+    expect(fake.log()).not.toContain('문서 0개');
+  });
+
+  it('진입 파일 목록에서 취소하면 올리지 않는다', async () => {
+    const dir = putTree('projects/blog/set', SET);
+    const fake = fakeBin({ dialog: '문서 하나…', list: 'CANCEL' });
+    const { code } = await lab(['push', '--notify', '--server', origin, dir], fake.env);
+    expect(code).toBe(0);
+    expect(startedPaths()).toEqual([]);
+  });
+
+  it('창을 띄우지 못하면 올리지 않고 알림을 띄운다. 3으로 끝난다', async () => {
+    const dir = putTree('projects/blog/set', SET);
+    const fake = fakeBin({ dialogStatus: 1 });
+    const { code } = await lab(['push', '--notify', '--server', origin, dir], fake.env);
+    expect(code).toBe(3);
+    expect(startedPaths()).toEqual([]);
+    expect(fake.log()).toContain('창을 띄우지 못해');
+  });
+
+  it('일부가 실패해도 알림에 공유 경고를 싣는다 (리뷰 I6)', async () => {
+    const dir = putTree('projects/shared-folder/set', { 'a.md': '# a', 'phone-pending.md': '# b' });
+    const fake = fakeBin({});
+    const { code } = await lab(['push', '--notify', '--each', '--server', origin, dir], fake.env);
+    expect(code).toBe(1);
+    expect(fake.log()).toContain('공유 중인 묶음');
+  });
+
+  it('창이 모르는 답을 주면 올리지 않는다', async () => {
+    const dir = putTree('projects/blog/set', SET);
+    const fake = fakeBin({ dialog: '이상한 답' });
+    const { code } = await lab(['push', '--notify', '--server', origin, dir], fake.env);
+    expect(code).toBe(3);
+    expect(startedPaths()).toEqual([]);
   });
 });
 

@@ -2,9 +2,18 @@
 // - lab push(scripts/lab.mjs)와 Raycast 확장이 같은 글로 계획 오류, 알림, API 오류를 알린다.
 
 import { describe, expect, it } from 'vitest';
-import { describeApiError, describeNote, describePlanError, describePullOutcome } from '@/library/client/messages';
+import {
+  describeApiError,
+  describeFolderChoice,
+  describeNote,
+  describePlanError,
+  describePullOutcome,
+  folderDialogText,
+  folderRerunCommands,
+  pickNumbered,
+} from '@/library/client/messages';
 import { PushError } from '@/library/client/push';
-import { describeFolderEntryError } from '@/library/ui/upload-plan';
+import { describeFolderEntryError, planCollection, planDrop } from '@/library/ui/upload-plan';
 
 describe('describePlanError', () => {
   it('계획 오류 코드를 사용자 글로 바꾼다', () => {
@@ -13,17 +22,101 @@ describe('describePlanError', () => {
     expect(describePlanError('NOT_DOC')).toBe('md·html 파일이나 폴더가 아닙니다');
   });
 
-  it('진입 파일 오류는 폴더 뿌리의 문서 개수가 있으면 막힌 이유와 할 일을 알린다 (서가 화면과 같은 글)', () => {
-    expect(describePlanError('NO_ENTRY_IN_FOLDER', { html: 9, md: 9 })).toBe(
-      describeFolderEntryError({ html: 9, md: 9 }),
-    );
-    expect(describePlanError('NO_ENTRY_IN_FOLDER', { html: 9, md: 9 })).toContain('index.html이 없습니다');
+  it('진입 파일 오류는 폴더 뿌리의 문서 개수가 있으면 서가 화면과 같은 글을 쓴다', () => {
+    expect(describePlanError('NO_ENTRY_IN_FOLDER', { html: 0, md: 0 })).toBe(describeFolderEntryError({ html: 0, md: 0 }));
+    expect(describePlanError('NO_ENTRY_IN_FOLDER', { html: 0, md: 0 })).toContain('폴더 뿌리에 md·html 문서가 없습니다');
   });
 
   it('진입 파일 오류에 개수가 없으면 규칙만 알린다', () => {
-    expect(describePlanError('NO_ENTRY_IN_FOLDER')).toBe(
-      '폴더 뿌리에서 진입 파일(index.html, 하나뿐인 html·md)을 정할 수 없습니다',
-    );
+    expect(describePlanError('NO_ENTRY_IN_FOLDER')).toBe('폴더 뿌리에 md·html 문서가 없습니다');
+  });
+
+  it('고르기·한도 오류를 글로 바꾼다', () => {
+    expect(describePlanError('NEEDS_CHOICE')).toContain('골라야');
+    expect(describePlanError('FOLDER_TOO_LARGE')).toContain('2000개');
+    expect(describePlanError('BAD_ENTRY')).toContain('폴더 뿌리의 문서');
+  });
+});
+
+describe('describePlanError: 고르기 오류의 자세한 글', () => {
+  it('한도 오류는 넘은 한도를 알린다', () => {
+    expect(describePlanError('COLLECTION_LIMIT', undefined, { limit: 'TOO_MANY_DOCS' })).toContain('100편');
+  });
+
+  it('진입 파일 오류는 후보를 알린다', () => {
+    expect(describePlanError('BAD_ENTRY', undefined, { entryOptions: ['a.html', 'b.md'] })).toContain('a.html, b.md');
+  });
+});
+
+describe('describeFolderChoice: 맥 입구의 계획 글 (J75)', () => {
+  async function lines(contents: Record<string, string>) {
+    const plan = planDrop(Object.entries(contents).map(([path, text]) => ({ path, bytes: text.length })));
+    if (plan.ok || plan.error !== 'NEEDS_CHOICE') throw new Error('NEEDS_CHOICE가 아닙니다');
+    const collection = await planCollection(plan.choice, async (source) => contents[source]);
+    return describeFolderChoice(plan.choice, collection);
+  }
+
+  it('문서 목록, 자산, 경고, 진입 파일 후보를 보인다', async () => {
+    const text = (
+      await lines({
+        'x/a.html': '<a href="b.md">b</a><img src="s.png">',
+        'x/b.md': '![s](s.png)',
+        'x/s.png': 'p',
+        'x/u.txt': 'u',
+        'x/sub/c.md': '# c',
+      })
+    ).join('\n');
+    expect(text).toContain('x 폴더는 문서가 여러 편입니다');
+    expect(text).toContain('문서 모음: 문서 2편, 자산 1개 (함께 쓰는 자산 1개)');
+    expect(text).toContain('  - a (html, 파일 2개)');
+    expect(text).toContain('HTML에서 다른 문서로 가는 링크 1개는 서가에서 열리지 않습니다.');
+    expect(text).toContain('안 올리는 파일 1개: u.txt');
+    expect(text).toContain('하위 폴더 문서 1개는 올리지 않습니다.');
+    expect(text).toContain('공유 범위에 들면 올리는 즉시 보입니다');
+    expect(text).toContain('  [문서 모음] 안 올리는 파일 1개: u.txt');
+    expect(text).toContain('문서 하나: 폴더 안 파일 5개를 모두 올립니다. 진입 파일 후보: a.html, b.md');
+  });
+
+  it('맥 확인 창도 문서 하나가 폴더 전체를 올린다고 알린다 (리뷰 I1)', async () => {
+    const contents: Record<string, string> = { 'x/a.md': '# a', 'x/b.md': '# b', 'x/private.txt': 'p' };
+    const plan = planDrop(Object.entries(contents).map(([path, text]) => ({ path, bytes: text.length })));
+    if (plan.ok || plan.error !== 'NEEDS_CHOICE') throw new Error('NEEDS_CHOICE가 아닙니다');
+    const collection = await planCollection(plan.choice, async (source) => contents[source]);
+    const text = folderDialogText(plan.choice, collection);
+    expect(text).toContain('[문서 모음] 안 올리는 파일 1개: private.txt');
+    expect(text).toContain('문서 하나: 폴더 안 파일 3개를 모두 올립니다.');
+  });
+
+  it('문서가 많으면 목록을 줄인다', async () => {
+    const contents: Record<string, string> = {};
+    for (let i = 0; i < 25; i += 1) contents[`x/d${String(i).padStart(2, '0')}.md`] = '# d';
+    const text = (await lines(contents)).join('\n');
+    expect(text).toContain('  - d19 (md, 파일 1개)');
+    expect(text).not.toContain('  - d20 (md');
+    expect(text).toContain('그 밖 5편');
+  });
+});
+
+describe('folderRerunCommands: 다시 실행할 명령', () => {
+  it('경로를 작은따옴표로 감싼다. 따옴표가 든 이름도 안전하다', () => {
+    const commands = folderRerunCommands("/Users/me/it's here", {});
+    expect(commands.each).toBe("lab push --each '/Users/me/it'\\''s here'");
+    expect(commands.entry).toBe("lab push --entry <진입 파일> '/Users/me/it'\\''s here'");
+  });
+
+  it('지정한 서버와 --force를 잇는다', () => {
+    const commands = folderRerunCommands('/a', { server: 'http://localhost:4321', force: true });
+    expect(commands.each).toBe("lab push --server 'http://localhost:4321' --force --each '/a'");
+  });
+});
+
+describe('pickNumbered: 번호로 고르기', () => {
+  it('번호에 맞는 항목을 돌려준다', () => {
+    expect(pickNumbered(' 2 ', ['a', 'b'])).toBe('b');
+  });
+
+  it('범위 밖, 숫자 아님, 빈 답은 null이다', () => {
+    for (const answer of ['0', '3', 'x', '', '1.5', '1x']) expect(pickNumbered(answer, ['a', 'b'])).toBeNull();
   });
 });
 

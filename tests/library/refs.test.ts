@@ -1,6 +1,6 @@
 // 문서 안 상대 주소 찾기 테스트 (서가 1단계 T3, Plan J15)
 import { describe, expect, it } from 'vitest';
-import { findCssRefs, findHtmlRefs, findMarkdownRefs, missingRefs, resolveRef } from '@/library/refs';
+import { countHtmlDocLinks, findCssRefs, findHtmlRefs, findMarkdownRefs, missingRefs, resolveRef } from '@/library/refs';
 
 describe('resolveRef: 상대 주소 하나를 문서 안 경로로', () => {
   it('바깥 주소는 external', () => {
@@ -162,5 +162,39 @@ describe('missingRefs', () => {
   it('올리는 목록에 없는 자산만 돌려준다 (NFC로 비교)', () => {
     const present = ['index.html', '그림.png'.normalize('NFC'), 'a.css'];
     expect(missingRefs(['a.css', '그림.png'.normalize('NFD'), 'b.png'], present)).toEqual(['b.png']);
+  });
+});
+
+// ---------- 문서 사이 HTML 링크 수 (폴더 2차 Plan J70) ----------
+
+describe('countHtmlDocLinks', () => {
+  const isDoc = (path: string) => ['b.html', 'c.md', 'sub/d.html'].includes(path);
+
+  it('같은 대상도 링크마다 센다 (findHtmlRefs().links는 한 번만 센다)', () => {
+    const html = '<a href="b.html">1</a><p><a href="b.html">2</a></p><a href="c.md">3</a>';
+    expect(countHtmlDocLinks(html, isDoc)).toBe(3);
+    expect(findHtmlRefs(html).links).toHaveLength(2);
+  });
+
+  it('#조각·?쿼리가 붙은 주소도 그 문서로 센다', () => {
+    expect(countHtmlDocLinks('<a href="b.html#x">1</a><a href="b.html?v=1">2</a>', isDoc)).toBe(2);
+  });
+
+  it('문서가 아닌 대상, 다른 서버, 자기 조각은 세지 않는다', () => {
+    const html = '<a href="x.png">1</a><a href="https://e.com/b.html">2</a><a href="#top">3</a>';
+    expect(countHtmlDocLinks(html, isDoc)).toBe(0);
+  });
+
+  it('주석과 script 안의 링크 모양은 세지 않는다', () => {
+    const html = '<!-- <a href="b.html">1</a> --><script>const s = \'<a href="b.html">2</a>\';</script>';
+    expect(countHtmlDocLinks(html, isDoc)).toBe(0);
+  });
+
+  it('a가 아닌 태그의 href는 세지 않는다', () => {
+    expect(countHtmlDocLinks('<link rel="next" href="b.html">', isDoc)).toBe(0);
+  });
+
+  it('하위 폴더 대상과 작은따옴표 주소도 센다', () => {
+    expect(countHtmlDocLinks("<a href='sub/d.html'>1</a>", isDoc)).toBe(1);
   });
 });

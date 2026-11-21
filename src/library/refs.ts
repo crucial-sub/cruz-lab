@@ -192,6 +192,26 @@ export function findHtmlRefs(html: string, baseDir = ''): RefScan {
   return collector.result();
 }
 
+// HTML의 <a href> 중 문서를 가리키는 링크 수 (폴더 2차 Plan J70)
+// - findHtmlRefs().links는 같은 대상을 한 번만 센다. 경고 수는 링크마다 세야 맞다
+// - isDoc(path): 문서 뿌리 기준 경로가 다른 문서인가
+export function countHtmlDocLinks(html: string, isDoc: (path: string) => boolean, baseDir = ''): number {
+  let count = 0;
+  for (const match of html.matchAll(HTML_TOKEN)) {
+    if (match[4]?.toLowerCase() !== 'a') continue;
+    for (const attr of (match[5] ?? '').matchAll(HTML_ATTR)) {
+      if (attr[1].toLowerCase() !== 'href') continue;
+      const value = attr[2] ?? attr[3] ?? attr[4];
+      if (value !== undefined) {
+        const resolved = resolveRef(baseDir, decodeHtmlEntities(value));
+        if (resolved.kind === 'local' && isDoc(resolved.path)) count += 1;
+      }
+      break;
+    }
+  }
+  return count;
+}
+
 // ---------- md ----------
 
 // 코드 블록(``` · ~~~)과 줄 안 코드를 지운다. 그 안의 주소 모양은 주소가 아니다 (펜스 판정은 rules.ts fencedLines)

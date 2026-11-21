@@ -4,12 +4,26 @@
 // - 사용자 결정(2026-11-18): 고른 파일만 올린다. md·html 짝을 둘 다 고르면 서버가 한 문서로 묶는다(같은 문서 id).
 // - 서가 2단계 J42: 폰에서 고친 판이 있어 막히면(409 PHONE_EDIT_PENDING) confirmOverwrite로 묻고, 예면 force로 다시 올린다.
 // - 서가 2단계 J52: 공유 중인 묶음·문서에 들어가면 경고 줄(warnings)을 모은다. 결과 화면이 "공유 중" 칸에 보인다.
+// - 폴더 2차 Plan J77: 문서가 여러 편이거나 모호한 폴더는 chooseFolder로 묻는다. 콜백이 없으면 올리지 않고 실패로 남긴다.
 // - @raycast/api를 가져오지 않는다(루트 vitest가 시험한다. tests/library/raycast-lib.test.ts).
 
 import { basename } from 'node:path';
-import { describeApiError, describeNote, describePlanError } from '../../../../src/library/client/messages.ts';
-import { planPush, PushError, pushJob, type PushedDoc, type PushJob, type PushOptions } from '../../../../src/library/client/push.ts';
+import { describeApiError, describeFolderChoice, describeNote, describePlanError } from '../../../../src/library/client/messages.ts';
+import {
+  planPush,
+  previewCollection,
+  PushError,
+  pushJob,
+  resolveFolderChoice,
+  type FolderSelection,
+  type NeedsChoicePlan,
+  type PushedDoc,
+  type PushJob,
+  type PushOptions,
+  type TargetPlan,
+} from '../../../../src/library/client/push.ts';
 import { sharedByLines } from '../../../../src/library/share.ts';
+import type { CollectionPlan } from '../../../../src/library/ui/upload-plan.ts';
 import { RAYCAST_UNAUTHORIZED_HINT } from './settings';
 
 export interface UploadReport {
@@ -17,6 +31,7 @@ export interface UploadReport {
   notes: string[]; // "이름 — 원본에 없음: img/a.png"
   failures: string[]; // "이름: 이유"
   warnings: string[]; // "제목 — 공유 중인 묶음 '…'에 들어갔습니다…" (서가 2단계 J52)
+  listOnly: boolean; // 문서 모음을 올렸다. 결과 화면이 QR 대신 제목과 주소 목록을 보인다 (J73)
 }
 
 export interface UploadOptions {
@@ -27,6 +42,8 @@ export interface UploadOptions {
   onStatus?: (text: string) => void; // 진행 글 ("notes.md (1/2)", "notes.md (1/2) · 파일 3/5")
   // 폰에서 고친 판이 있을 때 덮어쓸지 묻는다(확인 창). 없으면 묻지 않고 실패로 남긴다
   confirmOverwrite?: (fileName: string) => Promise<boolean>;
+  // 모호한 폴더를 어떻게 올릴지 묻는다(고르기 Form). 취소면 null. lines: 계획 글
+  chooseFolder?: (plan: NeedsChoicePlan, collection: CollectionPlan, lines: string[]) => Promise<FolderSelection | null>;
 }
 
 // 작업 하나를 올린다. 폰 판 때문에 막히면 묻고, 예면 force로 다시 올린다
@@ -45,14 +62,26 @@ export async function uploadPaths(paths: readonly string[], options: UploadOptio
   const notes: string[] = [];
   const failures: string[] = [];
   const warnings: string[] = [];
-  const plans = await planPush(paths, { home: options.home });
+  // 묻기를 먼저 끝낸다. 그래야 진행 글의 전체 작업 수가 맞다
+  const plans: TargetPlan[] = [];
+  for (const plan of await planPush(paths, { home: options.home })) {
+    if (plan.ok || plan.error !== 'NEEDS_CHOICE' || !options.chooseFolder) {
+      plans.push(plan);
+      continue;
+    }
+    const collection = await previewCollection(plan);
+    const selection = await options.chooseFolder(plan, collection, describeFolderChoice(plan.choice, collection));
+    if (selection) plans.push(await resolveFolderChoice(plan, selection, { home: options.home }));
+    else notes.push(`${basename(plan.target).normalize('NFC')} — 올리지 않았습니다`);
+  }
 
   const jobCount = plans.reduce((sum, plan) => sum + (plan.ok ? plan.jobs.length : 0), 0);
   let jobIndex = 0;
   for (const plan of plans) {
     const name = basename(plan.target).normalize('NFC');
     if (!plan.ok) {
-      failures.push(`${name}: ${describePlanError(plan.error, plan.rootDocs)}`);
+      const detail = plan.error === 'NEEDS_CHOICE' ? undefined : plan;
+      failures.push(`${name}: ${describePlanError(plan.error, detail?.rootDocs, detail)}`);
       continue;
     }
     for (const note of plan.notes) notes.push(`${name} — ${describeNote(note)}`);
@@ -78,5 +107,6 @@ export async function uploadPaths(paths: readonly string[], options: UploadOptio
       }
     }
   }
-  return { docs: [...docs.values()], notes, failures, warnings: [...new Set(warnings)] };
+  const listOnly = plans.some((plan) => plan.ok && plan.collection === true);
+  return { docs: [...docs.values()], notes, failures, warnings: [...new Set(warnings)], listOnly };
 }

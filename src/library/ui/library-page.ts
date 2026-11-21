@@ -6,26 +6,42 @@
 // - 서가 2단계 J51·J52: 공유 창(share-dialog.ts)을 연결한다. 공유를 만들거나 끄면 목록을 다시 받는다.
 //   올린 문서가 공유 중인 묶음·문서에 들면 결과에 경고 줄을 보인다(마무리 응답의 sharedBy).
 // - 서가 2단계 J42: 폰에서 고친 판이 있어 올리기 시작이 409(PHONE_EDIT_PENDING)면 확인 창으로 묻고, 덮어쓰기면 force로 다시 시작한다.
+// - 폴더 2차 Plan L12: 문서가 2편 이상이거나 모호하면 계획 카드(plan-card.ts)로 묻는다. 문서 모음의 결과는 요약 한 칸이다(J73).
 
 import { isProjectName, validateManifest, type ManifestError } from '../rules';
 import {
   analyzeJob,
   describeFolderEntryError,
+  exceedsFolderLimit,
+  MAX_FOLDER_FILES,
   planDrop,
   textSourcesFor,
+  type CollectionPlan,
+  type DropChoice,
   type DropErrorCode,
   type JobAnalysis,
   type SkippedFile,
   type UploadJob,
 } from './upload-plan';
-import { sharedByLines } from '../share';
+import {
+  BUTTON,
+  el,
+  findLegacyDocs,
+  findReplacedDocs,
+  formatBytes,
+  openPlanCard,
+  PRIMARY,
+  runChoiceFlow,
+  summarizeUploads,
+  type ShareInfo,
+  type UploadOutcome,
+} from './plan-card';
+import { parseShareScope, sharedByLines } from '../share';
 import { isIosWebApp } from './list-view';
 import { setupShareDialog } from './share-dialog';
 
 // 마지막에 고른 프로젝트 (L2: 마지막 값이 기본)
 const LAST_PROJECT_KEY = 'cruz-library:last-project';
-// 폴더를 끌어다 놓을 때 읽는 파일 수 한도. 실수로 큰 폴더(node_modules 등)를 놓았을 때 멈춘다
-const MAX_WALK_FILES = 2000;
 // 빠진 자산을 찾으려고 글자로 읽는 파일 크기 한도 5 MB
 const MAX_TEXT_BYTES = 5 * 1024 * 1024;
 // 버킷에 동시에 보내는 파일 수
@@ -101,28 +117,6 @@ const writeLocal = (key: string, value: string) => {
   }
 };
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-// 글자와 자식으로 요소를 만든다 (사용자 값은 textContent로만 넣는다)
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  props: { class?: string; text?: string } = {},
-  ...children: (Node | null)[]
-): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  if (props.class) node.className = props.class;
-  if (props.text !== undefined) node.textContent = props.text;
-  for (const child of children) if (child) node.append(child);
-  return node;
-}
-
-const BUTTON = 'rounded-md border border-border px-3 py-1.5 text-sm hover:bg-bg-card';
-const PRIMARY = 'rounded-md bg-brand px-3 py-1.5 text-sm text-white hover:bg-brand-hover';
-
 // ---------- 파일 모으기 ----------
 
 // 끌어다 놓은 항목에서 파일을 모은다. 폴더는 안까지 읽는다(숨은 폴더는 건너뛴다)
@@ -137,10 +131,13 @@ function entriesOf(transfer: DataTransfer): FileSystemEntry[] {
   return entries;
 }
 
+// 폴더를 읽는 파일 수 한도를 넘었을 때의 글. 실수로 큰 폴더(node_modules 등)를 놓았을 때 멈춘다(J66)
+const TOO_MANY_PICKED = `파일이 ${MAX_FOLDER_FILES}개를 넘습니다. 문서 폴더만 놓습니다.`;
+
 async function walkEntries(entries: FileSystemEntry[]): Promise<PickedEntry[]> {
   const out: PickedEntry[] = [];
   const visit = async (entry: FileSystemEntry): Promise<void> => {
-    if (out.length > MAX_WALK_FILES) throw new Error(`파일이 ${MAX_WALK_FILES}개를 넘습니다. 문서 폴더만 놓습니다.`);
+    if (out.length > MAX_FOLDER_FILES) throw new Error(TOO_MANY_PICKED);
     if (entry.name.startsWith('.')) return;
     if (entry.isFile) {
       const file = await new Promise<File>((resolve, reject) => (entry as FileSystemFileEntry).file(resolve, reject));
@@ -166,12 +163,12 @@ function entriesFromInput(input: HTMLInputElement): PickedEntry[] {
 
 // ---------- 알림 글 ----------
 
-const DROP_ERRORS: Record<DropErrorCode, string> = {
+const DROP_ERRORS: Record<Exclude<DropErrorCode, 'NEEDS_CHOICE'>, string> = {
   EMPTY: '올릴 수 있는 파일이 없습니다.',
   NO_DOC: 'md 또는 html 문서가 없습니다.',
   // 계획에 폴더 뿌리의 문서 개수(rootDocs)가 있으면 describeFolderEntryError의 글을 쓴다. 이 글은 개수가 없을 때만 쓴다
-  NO_ENTRY_IN_FOLDER: '폴더 뿌리에서 진입 파일(index.html, 하나뿐인 html·md)을 정할 수 없습니다.',
-  MIXED: '여러 문서와 자산이 섞여 있습니다. 문서마다 따로 놓습니다.',
+  NO_ENTRY_IN_FOLDER: '폴더 뿌리에 md·html 문서가 없습니다.',
+  MIXED: '폴더는 하나씩 놓습니다.',
 };
 
 const SKIP_REASONS: Record<SkippedFile['reason'], string> = {
@@ -355,56 +352,68 @@ async function runPool<T>(items: T[], limit: number, work: (item: T) => Promise<
   await Promise.all(workers);
 }
 
+// 작업 하나를 보낸다: 해시 → 올리기 시작 → PUT → 마무리
+// - setState: 진행 글과 진행률을 받는다
+async function sendJob(
+  job: UploadJob,
+  project: string,
+  files: Map<string, File>,
+  setState: (text: string, ratio?: number) => void,
+): Promise<{ doc: DocSummary; sharedBy: unknown }> {
+  setState('해시 계산 중');
+  const manifest = [];
+  for (const file of job.files) {
+    const blob = files.get(file.source);
+    if (!blob) throw new Error(`파일을 다시 읽지 못했습니다: ${file.path}`);
+    manifest.push({ path: file.path, bytes: blob.size, sha256: await sha256Hex(blob) });
+  }
+  const check = validateManifest(job.format, manifest);
+  if (!check.ok) throw new Error(describeManifestErrors(check.errors));
+
+  setState('올리기 시작');
+  const startBody = { format: job.format, project, relativePath: job.relativePath, fileName: job.fileName, files: manifest };
+  let start: StartResponse;
+  try {
+    start = await api<StartResponse>('POST', '/api/admin/library/uploads', startBody);
+  } catch (error) {
+    // 폰에서 고친 판이 있으면 묻는다 (서가 2단계 J42). 덮어쓰기를 고르면 force로 다시 시작한다
+    if (!(error instanceof ApiFailure) || error.code !== 'PHONE_EDIT_PENDING') throw error;
+    const overwrite = window.confirm(
+      `"${job.fileName}"에는 폰에서 고친 판이 있습니다. 지금 올리는 파일로 덮어쓰면 폰에서 고친 글이 서가에서 사라집니다. 덮어쓸까요?`,
+    );
+    if (!overwrite) throw new Error('올리지 않았습니다(폰에서 고친 판이 있습니다).');
+    start = await api<StartResponse>('POST', '/api/admin/library/uploads', { ...startBody, force: true });
+  }
+
+  const sourceOf = new Map(job.files.map((file) => [file.path, file.source]));
+  const total = manifest.reduce((sum, file) => sum + file.bytes, 0) || 1;
+  const loaded = new Map<string, number>();
+  const report = () => {
+    const sum = [...loaded.values()].reduce((a, b) => a + b, 0);
+    setState(`보내는 중 ${Math.round((sum / total) * 100)}%`, sum / total);
+  };
+  await runPool(start.uploads, PUT_CONCURRENCY, async (upload) => {
+    const source = sourceOf.get(upload.path);
+    const blob = source ? files.get(source) : undefined;
+    if (!blob) throw new Error(`파일을 다시 읽지 못했습니다: ${upload.path}`);
+    await putFile(upload.url, blob, upload.headers, (bytes) => {
+      loaded.set(upload.path, bytes);
+      report();
+    });
+  });
+
+  setState('마무리 중', 1);
+  const { doc, sharedBy } = await api<{ doc: DocSummary; sharedBy?: unknown }>('POST', '/api/admin/library/uploads/finalize', {
+    docId: start.docId,
+    rev: start.rev,
+  });
+  return { doc, sharedBy };
+}
+
 async function uploadJob(job: UploadJob, project: string, files: Map<string, File>): Promise<DocSummary> {
   const line = jobLine(job);
   try {
-    line.set('해시 계산 중');
-    const manifest = [];
-    for (const file of job.files) {
-      const blob = files.get(file.source);
-      if (!blob) throw new Error(`파일을 다시 읽지 못했습니다: ${file.path}`);
-      manifest.push({ path: file.path, bytes: blob.size, sha256: await sha256Hex(blob) });
-    }
-    const check = validateManifest(job.format, manifest);
-    if (!check.ok) throw new Error(describeManifestErrors(check.errors));
-
-    line.set('올리기 시작');
-    const startBody = { format: job.format, project, relativePath: job.relativePath, fileName: job.fileName, files: manifest };
-    let start: StartResponse;
-    try {
-      start = await api<StartResponse>('POST', '/api/admin/library/uploads', startBody);
-    } catch (error) {
-      // 폰에서 고친 판이 있으면 묻는다 (서가 2단계 J42). 덮어쓰기를 고르면 force로 다시 시작한다
-      if (!(error instanceof ApiFailure) || error.code !== 'PHONE_EDIT_PENDING') throw error;
-      const overwrite = window.confirm(
-        `"${job.fileName}"에는 폰에서 고친 판이 있습니다. 지금 올리는 파일로 덮어쓰면 폰에서 고친 글이 서가에서 사라집니다. 덮어쓸까요?`,
-      );
-      if (!overwrite) throw new Error('올리지 않았습니다(폰에서 고친 판이 있습니다).');
-      start = await api<StartResponse>('POST', '/api/admin/library/uploads', { ...startBody, force: true });
-    }
-
-    const sourceOf = new Map(job.files.map((file) => [file.path, file.source]));
-    const total = manifest.reduce((sum, file) => sum + file.bytes, 0) || 1;
-    const loaded = new Map<string, number>();
-    const report = () => {
-      const sum = [...loaded.values()].reduce((a, b) => a + b, 0);
-      line.set(`보내는 중 ${Math.round((sum / total) * 100)}%`, sum / total);
-    };
-    await runPool(start.uploads, PUT_CONCURRENCY, async (upload) => {
-      const source = sourceOf.get(upload.path);
-      const blob = source ? files.get(source) : undefined;
-      if (!blob) throw new Error(`파일을 다시 읽지 못했습니다: ${upload.path}`);
-      await putFile(upload.url, blob, upload.headers, (bytes) => {
-        loaded.set(upload.path, bytes);
-        report();
-      });
-    });
-
-    line.set('마무리 중', 1);
-    const { doc, sharedBy } = await api<{ doc: DocSummary; sharedBy?: unknown }>('POST', '/api/admin/library/uploads/finalize', {
-      docId: start.docId,
-      rev: start.rev,
-    });
+    const { doc, sharedBy } = await sendJob(job, project, files, line.set);
     showResult(line, doc, sharedBy);
     return doc;
   } catch (error) {
@@ -412,6 +421,53 @@ async function uploadJob(job: UploadJob, project: string, files: Map<string, Fil
     line.box.classList.add('border-red-500/50');
     throw error;
   }
+}
+
+// 문서 모음을 올린다. 문서마다 독립이고, 결과는 요약 한 칸이다 (J73: QR을 그리지 않는다)
+async function uploadCollection(plan: CollectionPlan, project: string, files: Map<string, File>) {
+  writeLocal(LAST_PROJECT_KEY, project);
+  const heading = el('p', { class: 'break-words text-sm font-medium' });
+  const state = el('p', { class: 'text-xs text-text-secondary' });
+  const bar = el('progress', { class: 'mt-1 h-1.5 w-full' });
+  bar.max = plan.jobs.length;
+  bar.value = 0;
+  const box = el('div', { class: 'min-w-0 rounded-lg border border-border px-4 py-3' }, heading, bar, state);
+  statusBox()?.append(box);
+
+  const outcomes: UploadOutcome[] = [];
+  for (const [index, job] of plan.jobs.entries()) {
+    heading.textContent = `올리는 중 ${index + 1}/${plan.jobs.length}: ${job.fileName}`;
+    bar.value = index;
+    const name = job.fileName.replace(/\.(md|html)$/i, '');
+    try {
+      const { doc, sharedBy } = await sendJob(job, project, files, (text) => {
+        state.textContent = text;
+      });
+      outcomes.push({ name, doc, sharedBy });
+    } catch (error) {
+      console.error('[library] 올리기 실패', error);
+      outcomes.push({ name, error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
+  const summary = summarizeUploads(outcomes);
+  const rows = el('ul', { class: 'mt-2 flex flex-col divide-y divide-border' });
+  for (const row of summary.rows) {
+    const item = el('li', { class: 'min-w-0 py-2' }, el('p', { class: 'break-words font-medium', text: row.title }));
+    if (row.docId) {
+      const open = el('a', { class: 'text-xs text-brand underline', text: '열기' });
+      open.href = `/admin/library/d/${encodeURIComponent(row.docId)}`;
+      item.append(el('p', {}, open));
+    }
+    if (row.error) item.append(el('p', { class: 'break-words text-xs text-red-500', text: `실패: ${row.error}` }));
+    for (const text of row.warnings) {
+      item.append(el('p', { class: 'mt-1 rounded bg-amber-500/10 px-2 py-1 text-xs text-amber-700 dark:text-amber-300', text }));
+    }
+    rows.append(item);
+  }
+  const headline = summary.failed > 0 ? `문서 ${summary.uploaded}편을 올렸습니다. ${summary.failed}편은 실패했습니다.` : `문서 ${summary.uploaded}편을 올렸습니다.`;
+  box.replaceChildren(el('p', { class: summary.failed > 0 ? 'text-sm font-medium text-red-500' : 'text-sm font-medium text-brand', text: headline }), rows);
+  if (outcomes.some((outcome) => outcome.doc)) await refreshList();
 }
 
 // 고른 프로젝트. 틀리면 null(입력 칸에 알린다)
@@ -428,7 +484,89 @@ function chosenProject(): string | null {
 
 let busy = false;
 
-// 모은 파일을 올린다: 계획 → 빠진 자산 확인 → 작업마다 올리기 → 목록 새로 그리기
+// 글자로 읽는 함수. 5 MB가 넘는 파일은 읽지 않는다. 같은 파일은 한 번만 읽는다
+function textReader(files: Map<string, File>): (source: string) => Promise<string | undefined> {
+  const cache = new Map<string, Promise<string | undefined>>();
+  return (source) => {
+    if (!cache.has(source)) {
+      const file = files.get(source);
+      cache.set(source, file && file.size <= MAX_TEXT_BYTES ? file.text() : Promise.resolve(undefined));
+    }
+    return cache.get(source) as Promise<string | undefined>;
+  };
+}
+
+// 작업들을 올린다: 빠진 자산 확인 → 작업마다 올리기 → 목록 새로 그리기
+async function uploadJobs(jobs: UploadJob[], project: string, files: Map<string, File>) {
+  // 빠진 자산을 찾으려고 진입 파일·css·html을 글자로 읽는다
+  const readText = textReader(files);
+  const texts = new Map<string, string>();
+  for (const job of jobs) {
+    for (const source of textSourcesFor(job)) {
+      const text = await readText(source);
+      if (text !== undefined) texts.set(source, text);
+    }
+  }
+  const analyses = jobs.map((job) => analyzeJob(job, (source) => texts.get(source)));
+  if (analyses.some((analysis) => analysis.missing.length > 0 || analysis.outside.length > 0)) {
+    if (!(await confirmMissing(analyses))) {
+      showMessage('올리지 않았습니다.');
+      return;
+    }
+  }
+
+  writeLocal(LAST_PROJECT_KEY, project);
+  let failed = 0;
+  for (const analysis of analyses) {
+    try {
+      await uploadJob(analysis.job, project, files);
+    } catch (error) {
+      failed += 1;
+      console.error('[library] 올리기 실패', error);
+    }
+  }
+  if (failed < analyses.length) await refreshList();
+}
+
+// 화면 목록의 살아 있는 공유 (J71). LibraryList.astro가 data-library-shares로 싣는다
+function pageShares(): ShareInfo[] {
+  const raw = document.getElementById('library-list')?.dataset.libraryShares;
+  if (!raw) return [];
+  try {
+    const list = JSON.parse(raw) as { scope?: unknown; label?: unknown }[];
+    return list.flatMap((item) => {
+      const scope = parseShareScope(item.scope);
+      return scope && typeof item.label === 'string' ? [{ scope, label: item.label }] : [];
+    });
+  } catch {
+    return [];
+  }
+}
+
+// 문서가 2편 이상이거나 모호한 폴더: 계획 카드로 묻고 고른 대로 올린다 (L12)
+async function handleChoice(choice: DropChoice, project: string, files: Map<string, File>) {
+  const status = statusBox();
+  if (!status) return;
+  const waiting = el('p', { class: 'text-sm text-text-secondary', text: '올릴 계획을 세우는 중입니다.' });
+  status.append(waiting);
+  const existingIds = new Set(
+    Array.from(document.querySelectorAll<HTMLElement>('#library-list [data-doc-id]'), (row) => row.dataset.docId ?? ''),
+  );
+  const legacy = await findLegacyDocs(choice, project, existingIds);
+  const replaced = await findReplacedDocs(choice, project, existingIds);
+  const shares = pageShares();
+  const result = await runChoiceFlow(choice, textReader(files), {
+    ask: (collection, recompute) => {
+      waiting.remove();
+      return openPlanCard(status, { choice, collection, project, legacy, replaced, shares, recompute });
+    },
+    uploadEach: (plan) => uploadCollection(plan, project, files),
+    uploadEntry: (jobs) => uploadJobs(jobs, project, files),
+  });
+  if (result === 'cancelled') showMessage('올리지 않았습니다.');
+}
+
+// 모은 파일을 올린다: 계획 → (문서가 여럿이면 계획 카드) → 빠진 자산 확인 → 작업마다 올리기 → 목록 새로 그리기
 async function handlePicked(picked: PickedEntry[]) {
   if (busy) return;
   clearStatus();
@@ -438,10 +576,16 @@ async function handlePicked(picked: PickedEntry[]) {
     showMessage('이 주소에서는 파일 해시를 만들 수 없습니다(https가 필요합니다).', 'error');
     return;
   }
+  // 폴더 고르기 입력은 걷기 한도를 거치지 않는다. 잘린 목록으로 판정하지 않도록 여기서 막는다(J66)
+  if (exceedsFolderLimit(picked.map((item) => item.path))) {
+    showMessage(TOO_MANY_PICKED, 'error');
+    return;
+  }
 
   const plan = planDrop(picked.map(({ path, file }) => ({ path, bytes: file.size })));
   showSkipped(plan.skipped);
-  if (!plan.ok) {
+  const files = new Map(picked.map(({ path, file }) => [path, file]));
+  if (!plan.ok && plan.error !== 'NEEDS_CHOICE') {
     // 진입 파일 오류는 폴더 뿌리의 문서 개수로 막힌 이유와 할 일을 알린다
     showMessage(plan.rootDocs ? describeFolderEntryError(plan.rootDocs) : DROP_ERRORS[plan.error], 'error');
     return;
@@ -449,34 +593,11 @@ async function handlePicked(picked: PickedEntry[]) {
 
   busy = true;
   try {
-    const files = new Map(picked.map(({ path, file }) => [path, file]));
-    // 빠진 자산을 찾으려고 진입 파일·css·html을 글자로 읽는다
-    const texts = new Map<string, string>();
-    for (const job of plan.jobs) {
-      for (const source of textSourcesFor(job)) {
-        const file = files.get(source);
-        if (file && file.size <= MAX_TEXT_BYTES && !texts.has(source)) texts.set(source, await file.text());
-      }
-    }
-    const analyses = plan.jobs.map((job) => analyzeJob(job, (source) => texts.get(source)));
-    if (analyses.some((analysis) => analysis.missing.length > 0 || analysis.outside.length > 0)) {
-      if (!(await confirmMissing(analyses))) {
-        showMessage('올리지 않았습니다.');
-        return;
-      }
-    }
-
-    writeLocal(LAST_PROJECT_KEY, project);
-    let failed = 0;
-    for (const analysis of analyses) {
-      try {
-        await uploadJob(analysis.job, project, files);
-      } catch (error) {
-        failed += 1;
-        console.error('[library] 올리기 실패', error);
-      }
-    }
-    if (failed < analyses.length) await refreshList();
+    if (plan.ok) await uploadJobs(plan.jobs, project, files);
+    else await handleChoice(plan.choice, project, files);
+  } catch (error) {
+    console.error('[library] 올리기 준비 실패', error);
+    showMessage(error instanceof Error ? error.message : String(error), 'error');
   } finally {
     busy = false;
   }
